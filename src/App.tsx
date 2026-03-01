@@ -16,7 +16,7 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// YEREL TARİH BULUCU (Türkiye saati / UTC kaymasını engeller)
+// YEREL TARİH BULUCU
 const getLocalDateString = () => {
   const d = new Date();
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
@@ -825,9 +825,12 @@ export default function App() {
 
   const renderGider = () => (
     <div className="tab-fade-in main-content-area">
-      <div style={{ display: "flex", gap: "10px", alignItems: "stretch", marginBottom: "10px" }}>
-        <button onClick={() => { setGiderForm({ tarih: bugun, tur: "Genel Gider", aciklama: "", tutar: "" }); setEditingGiderId(null); setIsGiderModalOpen(true); }} className="btn-anim m-btn" style={{background: "#dc2626", margin: 0, flex: 1}}>➕ YENİ GİDER</button>
-        <div className="c-kutu" style={{ borderLeftColor: "#dc2626", flex: 1, margin: 0 }}><span>TOPLAM GİDER</span><b style={{ color: "#dc2626" }}>{fSayi(tGiderNormal)} ₺</b></div>
+      <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "10px" }}>
+        <button onClick={() => { setGiderForm({ tarih: bugun, tur: "Genel Gider", aciklama: "", tutar: "" }); setEditingGiderId(null); setIsGiderModalOpen(true); }} className="btn-anim m-btn" style={{background: "#dc2626", margin: 0, flex: 1, padding: "8px", fontSize: "13px", height: "36px"}}>➕ YENİ GİDER</button>
+        <div className="c-kutu" style={{ borderLeftColor: "#dc2626", flex: 1.2, margin: 0, padding: "4px 8px", height: "36px", display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+          <span style={{fontSize: "10px", margin: 0, color: "#64748b"}}>TOPLAM GİDER:</span>
+          <b style={{ color: "#dc2626", fontSize: "14px" }}>{fSayi(tGiderNormal)} ₺</b>
+        </div>
       </div>
       <div className="table-wrapper"><table className="tbl" style={{borderTop: "3px solid #fca5a5"}}>
         <thead><tr>
@@ -861,7 +864,6 @@ export default function App() {
           <Th label="GİREN (Özet)" sortKey="toplam_kg" currentSort={uretimSort} setSort={setUretimSort} />
           <Th label="3KG ÇIKTI" sortKey="cikti_3kg" currentSort={uretimSort} setSort={setUretimSort} align="center" />
           <Th label="5KG ÇIKTI" sortKey="cikti_5kg" currentSort={uretimSort} setSort={setUretimSort} align="center" />
-          <Th label="TOP. KG" sortKey="toplam_kg" currentSort={uretimSort} setSort={setUretimSort} align="right" />
           <Th label="MALİYET" sortKey="toplam_maliyet" currentSort={uretimSort} setSort={setUretimSort} align="right" />
           <Th label="KAR" sortKey="kar" currentSort={uretimSort} setSort={setUretimSort} align="right" />
           <Th label="AÇIKLAMA" sortKey="aciklama" currentSort={uretimSort} setSort={setUretimSort} />
@@ -870,10 +872,12 @@ export default function App() {
         <tbody>{sortData(uretimList, uretimSort).map(u => (
           <tr key={u.id}>
             <td>{u.tarih.split("-").reverse().slice(0, 2).join(".")}</td>
-            <td style={{fontSize: "9px", color: "#64748b", maxWidth: "80px", whiteSpace: "normal", lineHeight: "1.1"}}>Süt:{u.cig_sut} Toz:{u.sut_tozu} Yağ:{u.tereyag} Katkı:{u.katki_kg} Su:{u.su}</td>
+            <td style={{fontSize: "9px", color: "#64748b", maxWidth: "120px", whiteSpace: "normal", lineHeight: "1.2"}}>
+              <b style={{color: "#1e293b"}}>{fSayi(u.toplam_kg)} KG</b> <br/>
+              (Süt:{u.cig_sut} Toz:{u.sut_tozu} Yağ:{u.tereyag} Katkı:{u.katki_kg} Su:{u.su})
+            </td>
             <td style={{ textAlign: "center", fontWeight: "bold" }}>{u.cikti_3kg} Ad</td>
             <td style={{ textAlign: "center", fontWeight: "bold" }}>{u.cikti_5kg} Ad</td>
-            <td style={{ textAlign: "right" }}>{fSayi(u.toplam_kg)}</td>
             <td style={{ textAlign: "right", color: "#dc2626" }}>{fSayi(u.toplam_maliyet)} ₺</td>
             <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold" }}>{fSayi(u.kar)} ₺</td>
             <td className="truncate-text-td">{u.aciklama}</td>
@@ -1232,6 +1236,36 @@ export default function App() {
           </div>
         )}
 
+        {/* SÜT GİRİŞİ MODALI */}
+        {isSutModalOpen && (
+          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1200, padding: "10px" }}>
+            <div style={{ backgroundColor: "#fff", width: "95vw", maxWidth: "350px", borderRadius: "12px", display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease-out", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }}>
+              <div style={{ padding: "12px 15px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: editingSutId ? "#fef3c7" : "#f8fafc", borderRadius: "12px 12px 0 0" }}>
+                <h3 style={{ margin: "0", color: editingSutId ? "#b45309" : temaRengi, fontSize: "15px" }}>{editingSutId ? "✏️ Süt Kaydını Düzenle" : "🥛 Yeni Süt Girişi"}</h3>
+                <button onClick={() => setIsSutModalOpen(false)} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#94a3b8", padding: 0 }}>✕</button>
+              </div>
+              <div style={{ padding: "15px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                <div style={{ display: "flex", gap: "8px" }}>
+                   <input type="date" value={sutForm.tarih} onChange={e => setSutForm({ ...sutForm, tarih: e.target.value })} className="m-inp" style={{ flex: 1 }} />
+                   <select value={sutForm.ciftlik} onChange={e => setSutForm({ ...sutForm, ciftlik: e.target.value })} className="m-inp" style={{ flex: 2, fontWeight: "bold" }}>
+                     <option value="">Çiftlik Seç...</option>
+                     {tedarikciler.map(t => <option key={t.id} value={t.isim}>{t.isim}</option>)}
+                   </select>
+                </div>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <div style={{flex: 1}}><label style={{fontSize: "11px", color: "#64748b"}}>Miktar (KG)</label><input type="number" value={sutForm.kg} onChange={e => setSutForm({ ...sutForm, kg: e.target.value })} className="m-inp" style={{width: "100%", textAlign: "right"}} /></div>
+                  <div style={{flex: 1}}><label style={{fontSize: "11px", color: "#64748b"}}>Birim Fiyat</label><input type="number" step="0.01" value={sutForm.fiyat} onChange={e => setSutForm({ ...sutForm, fiyat: e.target.value })} className="m-inp" style={{width: "100%", textAlign: "right"}} /></div>
+                </div>
+                <div><label style={{fontSize: "11px", color: "#64748b"}}>Açıklama / Not</label><input placeholder="Opsiyonel..." value={sutForm.aciklama} onChange={e => setSutForm({ ...sutForm, aciklama: e.target.value })} className="m-inp" style={{width: "100%"}} /></div>
+              </div>
+              <div style={{ padding: "12px 15px", borderTop: "1px solid #e2e8f0", background: "#f8fafc", borderRadius: "0 0 12px 12px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}><span style={{color: "#64748b", fontSize: "13px"}}>Toplam Tutar:</span><b style={{color: temaRengi, fontSize: "18px"}}>{fSayi((Number(sutForm.kg) || 0) * (Number(sutForm.fiyat) || 0))} ₺</b></div>
+                <button onClick={handleSutKaydet} className="p-btn btn-anim" style={{ background: editingSutId ? "#f59e0b" : temaRengi, width: "100%", height: "45px", fontSize: "15px" }}>{editingSutId ? "GÜNCELLE" : "KAYDET"}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ÜRETİM MODALI */}
         {isUretimModalOpen && (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1200, padding: "10px" }}>
@@ -1248,35 +1282,35 @@ export default function App() {
                   
                   <div style={{ display: "flex", gap: "4px", marginBottom: "4px", alignItems: "center" }}>
                     <span style={{flex: 1, fontSize: "11px", fontWeight: "bold"}}>Süt</span>
-                    <input placeholder="KG" type="number" step="0.01" value={uretimForm.cig_sut} onChange={e => setUretimForm({ ...uretimForm, cig_sut: e.target.value })} className="m-inp small-inp" style={{flex: 1, textAlign: "center"}} />
+                    <input placeholder="KG" type="number" step="0.01" value={uretimForm.cig_sut} onChange={e => setUretimForm({ ...uretimForm, cig_sut: e.target.value })} className="m-inp small-inp micro-inp" style={{flex: 1}} />
                     <span style={{fontSize: "9px", color: "#94a3b8"}}>{"x"}</span>
-                    <input placeholder="Fiyat" type="number" step="0.01" value={uretimForm.sut_fiyat} onChange={e => setUretimForm({ ...uretimForm, sut_fiyat: e.target.value })} className="m-inp small-inp" style={{flex: 1, textAlign: "right"}} />
+                    <input placeholder="Fiyat" type="number" step="0.01" value={uretimForm.sut_fiyat} onChange={e => setUretimForm({ ...uretimForm, sut_fiyat: e.target.value })} className="m-inp small-inp micro-inp-right" style={{flex: 1}} />
                   </div>
                   
                   <div style={{ display: "flex", gap: "4px", marginBottom: "4px", alignItems: "center" }}>
                     <span style={{flex: 1, fontSize: "11px", fontWeight: "bold"}}>Süt Tozu</span>
-                    <input placeholder="KG" type="number" step="0.01" value={uretimForm.sut_tozu} onChange={e => setUretimForm({ ...uretimForm, sut_tozu: e.target.value })} className="m-inp small-inp" style={{flex: 1, textAlign: "center"}} />
+                    <input placeholder="KG" type="number" step="0.01" value={uretimForm.sut_tozu} onChange={e => setUretimForm({ ...uretimForm, sut_tozu: e.target.value })} className="m-inp small-inp micro-inp" style={{flex: 1}} />
                     <span style={{fontSize: "9px", color: "#94a3b8"}}>{"x"}</span>
-                    <input placeholder="Fiyat" type="number" step="0.01" value={uretimForm.sut_tozu_fiyat} onChange={e => setUretimForm({ ...uretimForm, sut_tozu_fiyat: e.target.value })} className="m-inp small-inp" style={{flex: 1, textAlign: "right"}} />
+                    <input placeholder="Fiyat" type="number" step="0.01" value={uretimForm.sut_tozu_fiyat} onChange={e => setUretimForm({ ...uretimForm, sut_tozu_fiyat: e.target.value })} className="m-inp small-inp micro-inp-right" style={{flex: 1}} />
                   </div>
 
                   <div style={{ display: "flex", gap: "4px", marginBottom: "4px", alignItems: "center" }}>
                     <span style={{flex: 1, fontSize: "11px", fontWeight: "bold"}}>Teremyağ</span>
-                    <input placeholder="KG" type="number" step="0.01" value={uretimForm.tereyag} onChange={e => setUretimForm({ ...uretimForm, tereyag: e.target.value })} className="m-inp small-inp" style={{flex: 1, textAlign: "center"}} />
+                    <input placeholder="KG" type="number" step="0.01" value={uretimForm.tereyag} onChange={e => setUretimForm({ ...uretimForm, tereyag: e.target.value })} className="m-inp small-inp micro-inp" style={{flex: 1}} />
                     <span style={{fontSize: "9px", color: "#94a3b8"}}>{"x"}</span>
-                    <input placeholder="Fiyat" type="number" step="0.01" value={uretimForm.tereyag_fiyat} onChange={e => setUretimForm({ ...uretimForm, tereyag_fiyat: e.target.value })} className="m-inp small-inp" style={{flex: 1, textAlign: "right"}} />
+                    <input placeholder="Fiyat" type="number" step="0.01" value={uretimForm.tereyag_fiyat} onChange={e => setUretimForm({ ...uretimForm, tereyag_fiyat: e.target.value })} className="m-inp small-inp micro-inp-right" style={{flex: 1}} />
                   </div>
 
                   <div style={{ display: "flex", gap: "4px", marginBottom: "4px", alignItems: "center" }}>
                     <span style={{flex: 1, fontSize: "11px", fontWeight: "bold"}}>Katkı</span>
-                    <input placeholder="KG" type="number" step="0.01" value={uretimForm.katki_kg} onChange={e => setUretimForm({ ...uretimForm, katki_kg: e.target.value })} className="m-inp small-inp" style={{flex: 1, textAlign: "center"}} />
+                    <input placeholder="KG" type="number" step="0.01" value={uretimForm.katki_kg} onChange={e => setUretimForm({ ...uretimForm, katki_kg: e.target.value })} className="m-inp small-inp micro-inp" style={{flex: 1}} />
                     <span style={{fontSize: "9px", color: "#94a3b8"}}>{"x"}</span>
-                    <input placeholder="Fiyat" type="number" step="0.01" value={uretimForm.katki_fiyat} onChange={e => setUretimForm({ ...uretimForm, katki_fiyat: e.target.value })} className="m-inp small-inp" style={{flex: 1, textAlign: "right"}} />
+                    <input placeholder="Fiyat" type="number" step="0.01" value={uretimForm.katki_fiyat} onChange={e => setUretimForm({ ...uretimForm, katki_fiyat: e.target.value })} className="m-inp small-inp micro-inp-right" style={{flex: 1}} />
                   </div>
 
                   <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
                     <span style={{flex: 1, fontSize: "11px", fontWeight: "bold"}}>Su (Sadece KG)</span>
-                    <input placeholder="KG" type="number" step="0.01" value={uretimForm.su} onChange={e => setUretimForm({ ...uretimForm, su: e.target.value })} className="m-inp small-inp" style={{flex: 2.1, textAlign: "center"}} />
+                    <input placeholder="KG" type="number" step="0.01" value={uretimForm.su} onChange={e => setUretimForm({ ...uretimForm, su: e.target.value })} className="m-inp small-inp micro-inp" style={{flex: 2.1}} />
                   </div>
                 </div>
 
@@ -1284,15 +1318,15 @@ export default function App() {
                   <h4 style={{margin: "0 0 8px", fontSize: "11px", color: "#64748b"}}>🪣 BOŞ KOVA (Maliyet)</h4>
                   <div style={{ display: "flex", gap: "4px", marginBottom: "4px", alignItems: "center" }}>
                     <span style={{flex: 1, fontSize: "11px", fontWeight: "bold"}}>3'lük Kova</span>
-                    <input placeholder="Adet" type="number" value={uretimForm.kova_3_adet} onChange={e => setUretimForm({ ...uretimForm, kova_3_adet: e.target.value })} className="m-inp small-inp" style={{flex: 1, textAlign: "center"}} />
+                    <input placeholder="Adet" type="number" value={uretimForm.kova_3_adet} onChange={e => setUretimForm({ ...uretimForm, kova_3_adet: e.target.value })} className="m-inp small-inp micro-inp" style={{flex: 1}} />
                     <span style={{fontSize: "9px", color: "#94a3b8"}}>{"x"}</span>
-                    <input placeholder="Fiyat" type="number" step="0.01" value={uretimForm.kova_3_fiyat} onChange={e => setUretimForm({ ...uretimForm, kova_3_fiyat: e.target.value })} className="m-inp small-inp" style={{flex: 1, textAlign: "right"}} />
+                    <input placeholder="Fiyat" type="number" step="0.01" value={uretimForm.kova_3_fiyat} onChange={e => setUretimForm({ ...uretimForm, kova_3_fiyat: e.target.value })} className="m-inp small-inp micro-inp-right" style={{flex: 1}} />
                   </div>
                   <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
                     <span style={{flex: 1, fontSize: "11px", fontWeight: "bold"}}>5'lik Kova</span>
-                    <input placeholder="Adet" type="number" value={uretimForm.kova_5_adet} onChange={e => setUretimForm({ ...uretimForm, kova_5_adet: e.target.value })} className="m-inp small-inp" style={{flex: 1, textAlign: "center"}} />
+                    <input placeholder="Adet" type="number" value={uretimForm.kova_5_adet} onChange={e => setUretimForm({ ...uretimForm, kova_5_adet: e.target.value })} className="m-inp small-inp micro-inp" style={{flex: 1}} />
                     <span style={{fontSize: "9px", color: "#94a3b8"}}>{"x"}</span>
-                    <input placeholder="Fiyat" type="number" step="0.01" value={uretimForm.kova_5_fiyat} onChange={e => setUretimForm({ ...uretimForm, kova_5_fiyat: e.target.value })} className="m-inp small-inp" style={{flex: 1, textAlign: "right"}} />
+                    <input placeholder="Fiyat" type="number" step="0.01" value={uretimForm.kova_5_fiyat} onChange={e => setUretimForm({ ...uretimForm, kova_5_fiyat: e.target.value })} className="m-inp small-inp micro-inp-right" style={{flex: 1}} />
                   </div>
                 </div>
 
@@ -1301,16 +1335,16 @@ export default function App() {
                   
                   <div style={{ display: "flex", gap: "4px", marginBottom: "4px", alignItems: "center" }}>
                     <span style={{flex: 1, fontSize: "11px", fontWeight: "bold", color:"#7c3aed"}}>3 KG Yoğurt</span>
-                    <input placeholder="Adet Çıktı" type="number" value={uretimForm.cikti_3kg} onChange={e => setUretimForm({ ...uretimForm, cikti_3kg: e.target.value })} className="m-inp small-inp" style={{flex: 1, textAlign: "center", borderColor: "#ddd6fe"}} />
+                    <input placeholder="Adet Çıktı" type="number" value={uretimForm.cikti_3kg} onChange={e => setUretimForm({ ...uretimForm, cikti_3kg: e.target.value })} className="m-inp small-inp micro-inp" style={{flex: 1, borderColor: "#ddd6fe"}} />
                     <span style={{fontSize: "9px", color: "#94a3b8"}}>{"=>"}</span>
-                    <input placeholder="Satış Fiyatı" type="number" step="0.01" value={uretimForm.satis_3_fiyat} onChange={e => setUretimForm({ ...uretimForm, satis_3_fiyat: e.target.value })} className="m-inp small-inp" style={{flex: 1, textAlign: "right", borderColor: "#ddd6fe"}} />
+                    <input placeholder="Satış Fiyatı" type="number" step="0.01" value={uretimForm.satis_3_fiyat} onChange={e => setUretimForm({ ...uretimForm, satis_3_fiyat: e.target.value })} className="m-inp small-inp micro-inp-right" style={{flex: 1, borderColor: "#ddd6fe"}} />
                   </div>
 
                   <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
                     <span style={{flex: 1, fontSize: "11px", fontWeight: "bold", color:"#7c3aed"}}>5 KG Yoğurt</span>
-                    <input placeholder="Adet Çıktı" type="number" value={uretimForm.cikti_5kg} onChange={e => setUretimForm({ ...uretimForm, cikti_5kg: e.target.value })} className="m-inp small-inp" style={{flex: 1, textAlign: "center", borderColor: "#ddd6fe"}} />
+                    <input placeholder="Adet Çıktı" type="number" value={uretimForm.cikti_5kg} onChange={e => setUretimForm({ ...uretimForm, cikti_5kg: e.target.value })} className="m-inp small-inp micro-inp" style={{flex: 1, borderColor: "#ddd6fe"}} />
                     <span style={{fontSize: "9px", color: "#94a3b8"}}>{"=>"}</span>
-                    <input placeholder="Satış Fiyatı" type="number" step="0.01" value={uretimForm.satis_5_fiyat} onChange={e => setUretimForm({ ...uretimForm, satis_5_fiyat: e.target.value })} className="m-inp small-inp" style={{flex: 1, textAlign: "right", borderColor: "#ddd6fe"}} />
+                    <input placeholder="Satış Fiyatı" type="number" step="0.01" value={uretimForm.satis_5_fiyat} onChange={e => setUretimForm({ ...uretimForm, satis_5_fiyat: e.target.value })} className="m-inp small-inp micro-inp-right" style={{flex: 1, borderColor: "#ddd6fe"}} />
                   </div>
                 </div>
                 
@@ -1390,7 +1424,12 @@ export default function App() {
         .responsive-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
         .m-inp { flex: 1 1 120px; padding: 8px; font-size: 13px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; background: #fff; color: #1e293b !important; }
         .num-inp { flex: 0 0 65px !important; min-width: 65px; padding: 6px 4px !important; text-align: center; }
-        .small-inp { padding: 4px 6px; font-size: 11px; height: 26px; }
+        
+        /* ÖZEL İNCELTİLMİŞ INPUTLAR */
+        .small-inp { padding: 2px 4px !important; font-size: 11px !important; height: 24px !important; }
+        .micro-inp { text-align: center; }
+        .micro-inp-right { text-align: right; }
+
         .grow-inp { flex: 1 1 120px !important; }
         .p-btn { flex: 0 0 auto !important; padding: 0 20px; height: 36px; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; }
         
