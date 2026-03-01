@@ -28,7 +28,6 @@ export default function App() {
   const [satisFisList, setSatisFisList] = useState<SatisFis[]>([]); 
   const [satisList, setSatisList] = useState<SatisGiris[]>([]); 
 
-  // AYARLAR
   const temaRengi = "#2563eb"; 
   const [fontSize, setFontSize] = useState<number>(13); 
   const [detayNot, setDetayNot] = useState<any>(null);
@@ -66,7 +65,6 @@ export default function App() {
   const [analizFiltre, setAnalizFiltre] = useState<{bayiler: string[], urunler: string[], baslangic: string, bitis: string}>({ bayiler: [], urunler: [], baslangic: "", bitis: "" });
   const [analizSort, setAnalizSort] = useState<any>({ key: 'tarih', direction: 'desc' });
 
-  // --- EXCEL TİPİ FİLTRE MODALI ---
   const [activeFilterModal, setActiveFilterModal] = useState<'sut_ciftlik' | 'fis_bayi' | 'analiz_bayi' | 'analiz_urun' | 'sut_tarih' | 'fis_tarih' | 'analiz_tarih' | null>(null);
 
   useEffect(() => {
@@ -314,7 +312,8 @@ export default function App() {
       urunler: eklenecekUrunler.map(u => ({ isim: u.isim, adet: Number(fisDetay[u.id].adet), fiyat: Number(fisDetay[u.id].fiyat), tutar: Number(fisDetay[u.id].adet) * Number(fisDetay[u.id].fiyat) })),
       brutToplam: fisCanliToplam + (kovaAdet * kovaFiyat), kovaAdet: kovaAdet, kovaIndirim: (kovaAdet * kovaFiyat), 
       genelToplam: fisCanliToplam, tahsilat: tahsilat, kalanBakiye: (fisCanliToplam - tahsilat), odeme: fisUst.odeme_turu,
-      eskiBorc: eskiBorc, genelBorc: toplamGenelBorc
+      eskiBorc: eskiBorc, genelBorc: toplamGenelBorc,
+      gosterBakiye: false // Varsayılan olarak fişte toplam borç GÖSTERİLMEZ
     };
     
     resetFisForm(); setIsFisModalOpen(false); verileriGetir("satis"); setSonFisData(fisGosterimData);
@@ -322,7 +321,7 @@ export default function App() {
 
   const resetFisForm = () => {
     setEditingFisId(null); setEditingFisNo(null);
-    setFisUst({ tarih: bugun, bayi: "", aciklama: "", odeme_turu: "PEŞİN", tahsilat: "", bos_kova: "" });
+    setFisUst({ tarih: bugun, bayi: "", aciklama: "", odeme_turu: "PEŞİN", tahsilat: "" });
     const temizDetay: any = {};
     urunler.forEach(u => temizDetay[u.id] = { adet: "", fiyat: u.fiyat || "" });
     temizDetay["iade_kova"] = { adet: "", fiyat: "" };
@@ -376,7 +375,8 @@ export default function App() {
       urunler: ilgiliUrunler.map(u => ({ isim: u.urun, adet: Number(u.adet), fiyat: Number(u.fiyat), tutar: Number(u.tutar) })), 
       brutToplam: brutHesap, kovaAdet: kovaAdet, kovaIndirim: kovaIndirim,
       genelToplam: fis.toplam_tutar, tahsilat: fis.tahsilat, kalanBakiye: fis.kalan_bakiye, odeme: fis.odeme_turu || "Bilinmiyor",
-      eskiBorc: oGunkuEskiBorc, genelBorc: oGunkuEskiBorc + fis.kalan_bakiye
+      eskiBorc: oGunkuEskiBorc, genelBorc: oGunkuEskiBorc + fis.kalan_bakiye,
+      gosterBakiye: false // Varsayılan olarak fişte toplam borç GÖSTERİLMEZ
     });
   };
 
@@ -413,7 +413,12 @@ export default function App() {
     }
     text += `*NET TOPLAM: ${fSayi(sonFisData.genelToplam)} ₺*\nTahsil Edilen: ${fSayi(sonFisData.tahsilat)} ₺\n`;
     text += `Bu Fiş Kalan: ${fSayi(sonFisData.kalanBakiye)} ₺\n`;
-    if (sonFisData.genelBorc !== 0) { text += `\n*GENEL TOPLAM BORCUNUZ: ${fSayi(sonFisData.genelBorc)} ₺*\n`; }
+    
+    // EĞER TİK İŞARETLİ İSE WHATSAPP MESAJINA TOPLAM BORCU EKLE
+    if (sonFisData.gosterBakiye && sonFisData.genelBorc !== 0) { 
+      text += `\n*GENEL TOPLAM BORCUNUZ: ${fSayi(sonFisData.genelBorc)} ₺*\n`; 
+    }
+    
     text += `\nÖdeme: ${sonFisData.odeme}\n\nBizi tercih ettiğiniz için teşekkür ederiz.`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
@@ -538,11 +543,16 @@ export default function App() {
         <tbody>{fAnalizList.map(s => (
           <tr key={s.id}>
             <td>{s.tarih.split("-").reverse().slice(0, 2).join(".")}</td>
-            <td style={{ fontWeight: "bold" }} className="truncate-text-td">{s.bayi}</td>
-            <td className="truncate-text-td">{s.urun}</td>
+            {/* ANALİZDE YAZI KESME (TRUNCATE) İPTAL EDİLDİ - TAM İSİM GÖRÜNECEK */}
+            <td style={{ fontWeight: "bold" }}>{s.bayi}</td>
+            <td>{s.urun}</td>
             <td style={{ textAlign: "right" }}>{fSayi(s.adet)}</td>
-            <td style={{ textAlign: "right", color: s.fiyat < 0 ? "#dc2626" : "inherit" }}>{fSayi(s.fiyat)}</td>
-            <td style={{ textAlign: "right", color: s.fiyat < 0 ? "#dc2626" : "#8b5cf6", fontWeight: "bold" }}>{fSayi(s.tutar)}</td>
+            {/* İADE KOVA İÇİN EKSİ İŞARETİ KALDIRILDI (MUTLAK DEĞER) */}
+            <td style={{ textAlign: "right" }}>{fSayi(Math.abs(Number(s.fiyat)))}</td>
+            {/* EKSİ İŞARETİ SADECE TUTAR KISMINDA ÇIKACAK */}
+            <td style={{ textAlign: "right", color: Number(s.fiyat) < 0 ? "#dc2626" : "#8b5cf6", fontWeight: "bold" }}>
+              {Number(s.fiyat) < 0 ? "-" : ""}{fSayi(Math.abs(Number(s.tutar)))}
+            </td>
           </tr>))}
         </tbody>
       </table></div>
@@ -582,7 +592,7 @@ export default function App() {
 
   if (!session) {
     return (
-      <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fafc", padding: "20px", boxSizing: "border-box" }}>
+      <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fafc", padding: "20px", boxSizing: "border-box" }}>
         <form onSubmit={async (e) => { e.preventDefault(); const target = e.currentTarget as any; if (target.elements.remember.checked) localStorage.setItem('user', username); else localStorage.removeItem('user'); await supabase.auth.signInWithPassword({ email: username.includes("@") ? username : `${username}@sistem.local`, password }); }} style={{ background: "#fff", padding: "30px", borderRadius: "12px", width: "100%", maxWidth: "360px", boxShadow: "0 4px 6px rgba(0,0,0,0.1)", border: "1px solid #e2e8f0" }}>
           <h2 style={{ margin: "0 0 8px", color: "#0f172a", textAlign: "center" }}>Sultanköy v2</h2><p style={{ margin: "0 0 24px", color: "#64748b", textAlign: "center", fontSize:"14px" }}>Yönetim Paneline Giriş Yapın</p>
           <input value={username} onChange={e => setUsername(e.target.value)} placeholder="Kullanıcı Adı" style={{ width: "100%", marginBottom: "16px", padding: "10px", border: "1px solid #cbd5e1", borderRadius: "6px", boxSizing: "border-box" }} />
@@ -631,7 +641,7 @@ export default function App() {
           </div>
         )}
 
-        {/* YENİ SATIŞ FİŞİ EKRANI (İADE KOVA LİSTENİN ALTINDA BİR ÜRÜN GİBİ) */}
+        {/* YENİ SATIŞ FİŞİ EKRANI */}
         {isFisModalOpen && (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1200, padding: "8px" }}>
             <div style={{ backgroundColor: "#fff", width: "95vw", maxWidth: "400px", maxHeight: "95vh", borderRadius: "8px", display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease-out", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }}>
@@ -687,7 +697,7 @@ export default function App() {
           </div>
         )}
 
-        {/* MÜŞTERİ ÇIKTI EKRANI */}
+        {/* MÜŞTERİ ÇIKTI EKRANI (TİK KUTUSU EKLENDİ) */}
         {sonFisData && (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1300, padding: "10px" }}>
             <div style={{ backgroundColor: "#f8fafc", borderRadius: "10px", width: "95vw", maxWidth: "320px", overflow: "hidden" }}>
@@ -706,7 +716,9 @@ export default function App() {
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", paddingTop: "6px", color: "#000", borderTop: "1px dashed #ccc", marginTop: "4px" }}><span>Genel Toplam:</span><b>{fSayi(sonFisData.genelToplam)}</b></div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", paddingTop: "4px", color: "#000" }}><span>Tahsil Edilen:</span><b>{fSayi(sonFisData.tahsilat)}</b></div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", paddingTop: "4px", color: "#000" }}><span>Bu Fiş Kalan:</span><b>{fSayi(sonFisData.kalanBakiye)}</b></div>
-                {(sonFisData.eskiBorc !== 0 || sonFisData.genelBorc !== 0) && (
+                
+                {/* TİK İŞARETLİ İSE ÇIKTIDA TOPLAM BORCU GÖSTER */}
+                {sonFisData.gosterBakiye && (sonFisData.eskiBorc !== 0 || sonFisData.genelBorc !== 0) && (
                   <div style={{ marginTop: "6px", borderTop: "1px solid #000", paddingTop: "6px" }}>
                     {sonFisData.eskiBorc !== 0 && <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "#000", marginBottom: "2px" }}><span>Önceki Bakiye:</span><b>{fSayi(sonFisData.eskiBorc)}</b></div>}
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", color: "#000", fontWeight: "bold" }}><span>TOPLAM BORÇ:</span><b>{fSayi(sonFisData.genelBorc)} ₺</b></div>
@@ -715,6 +727,13 @@ export default function App() {
                 <div style={{ textAlign: "right", fontSize: "10px", color: "#000", marginTop: "10px", borderTop: "1px dashed #ccc", paddingTop: "4px" }}>Ödeme: {sonFisData.odeme}</div><div style={{ textAlign: "center", fontSize: "9px", color: "#000", marginTop: "12px" }}>Bizi tercih ettiğiniz için teşekkür ederiz.</div>
               </div>
               <div className="no-print" style={{ padding: "10px", display: "flex", flexDirection: "column", gap: "6px" }}>
+                
+                {/* YENİ: BORÇ GÖSTERME ONAY KUTUSU (TİK) */}
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', background: '#e2e8f0', padding: '8px', borderRadius: '6px', cursor: 'pointer', color: '#1e293b', fontWeight: 'bold' }}>
+                  <input type="checkbox" checked={sonFisData.gosterBakiye} onChange={e => setSonFisData({...sonFisData, gosterBakiye: e.target.checked})} style={{ width: '16px', height: '16px' }} />
+                  Önceki Bakiye ve Toplam Borcu Fişte Göster
+                </label>
+
                 <div style={{ display: "flex", gap: "6px" }}><button onClick={() => window.print()} className="btn-anim" style={{ flex: 1, padding: "10px", background: "#475569", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", fontSize: "12px" }}>🖨️ YAZDIR</button><button onClick={handleResimPaylas} className="btn-anim" style={{ flex: 1, padding: "10px", background: "#3b82f6", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", fontSize: "12px" }}>🖼️ PAYLAŞ</button></div>
                 <button onClick={handleWhatsappGonder} className="btn-anim" style={{ width: "100%", padding: "12px", background: "#25D366", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", fontSize: "13px" }}>WHATSAPP İLE GÖNDER</button>
                 <button onClick={() => setSonFisData(null)} className="btn-anim" style={{ width: "100%", padding: "8px", background: "transparent", color: "#64748b", border: "1px solid #cbd5e1", borderRadius: "8px", fontWeight: "bold", fontSize: "11px", marginTop: "2px" }}>KAPAT</button>
@@ -776,8 +795,8 @@ export default function App() {
         * { box-sizing: border-box; }
         :root { color-scheme: light !important; }
         
-        /* EKRAN KİLİTLEME VE TAŞMA ENGELLEME */
-        html, body { width: 100vw !important; max-width: 100vw !important; overflow-x: hidden !important; margin: 0 !important; padding: 0 !important; background: #f8fafc !important; font-family: -apple-system, system-ui, sans-serif; color: #1e293b !important; }
+        /* 100vw HATASI ÇÖZÜLDÜ - EKRAN SAĞA KAYMAYACAK */
+        html, body { width: 100%; max-width: 100%; overflow-x: hidden !important; margin: 0 !important; padding: 0 !important; background: #f8fafc !important; font-family: -apple-system, system-ui, sans-serif; color: #1e293b !important; }
         #root { display: block !important; padding: 0 !important; margin: 0 auto !important; width: 100% !important; text-align: left !important; }
         input::placeholder { color: #94a3b8 !important; opacity: 1; }
         
@@ -806,21 +825,21 @@ export default function App() {
         .c-kutu span { font-size: 9px; color: #64748b; font-weight: bold; margin-bottom: 2px; }
         .c-kutu b { font-size: 13px; white-space: nowrap; }
         
-        /* TABLO AYARLARI */
+        /* TABLO AYARLARI (SATIR ARALIĞI 4PX YAPILDI) */
         .table-wrapper { width: 100%; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; overflow-x: auto; box-sizing: border-box; }
         .tbl { width: 100%; border-collapse: collapse; table-layout: auto; min-width: 100%; }
-        .tbl th { background: #f1f5f9; border-bottom: 1px solid #e2e8f0; color: #475569; font-weight: bold; font-size: 10px; padding: 6px 4px !important; white-space: nowrap; }
+        .tbl th { background: #f1f5f9; border-bottom: 1px solid #e2e8f0; color: #475569; font-weight: bold; font-size: 10px; padding: 4px !important; white-space: nowrap; }
         .tbl-satis th { background: #5b9bd5 !important; color: white !important; }
         .tbl-analiz th { background: #8b5cf6 !important; color: white !important; }
-        .tbl td { font-size: 11px; border-bottom: 1px solid #f1f5f9; padding: 6px 4px !important; white-space: nowrap; vertical-align: middle; }
+        .tbl td { font-size: 11px; border-bottom: 1px solid #f1f5f9; padding: 4px !important; white-space: nowrap; vertical-align: middle; }
         
         .actions-cell { white-space: nowrap !important; width: 1% !important; text-align: right; }
         .action-buttons { display: flex; gap: 2px; justify-content: flex-end; align-items: center; }
         
-        /* TAŞMAYI ÖNLEYEN KESME (TRUNCATE) AYARLARI */
+        /* TAŞMAYI ÖNLEYEN KESME (TRUNCATE) SADECE GEREKLİ YERLERDE */
         .truncate-text-td { max-width: 75px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: bottom; }
 
-        .fixed-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100vw; max-width: 1000px; height: 70px; background: #fff; border-top: 1px solid #e2e8f0; display: flex; z-index: 100; }
+        .fixed-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 1000px; height: 70px; background: #fff; border-top: 1px solid #e2e8f0; display: flex; z-index: 100; }
         .n-item { flex: 1; border: none; background: none; color: #94a3b8; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; border-top: 3px solid transparent; }
         .n-item.active { background: #f8fafc; }
         .btn-anim { transition: transform 0.1s; } .btn-anim:active { transform: scale(0.95); }
@@ -830,24 +849,24 @@ export default function App() {
 
         /* MOBİL İÇİN KESİN YASLANMA KURALLARI */
         @media (max-width: 600px) {
-          .main-content { padding: 0 !important; padding-bottom: 80px !important; width: 100vw !important; overflow-x: hidden !important; }
+          .main-content { padding: 0 !important; padding-bottom: 80px !important; width: 100% !important; overflow-x: hidden !important; }
           
-          /* Tablo ekrana tam yapışır */
-          .table-wrapper { width: 100vw !important; border-radius: 0 !important; border-left: none !important; border-right: none !important; margin: 0 !important; }
-          .tbl th, .tbl td { padding: 6px 2px !important; font-size: 11px !important; }
+          /* Tablo ekrana tam yapışır, satır aralıkları çok sıkı (4px) */
+          .table-wrapper { width: 100% !important; border-radius: 0 !important; border-left: none !important; border-right: none !important; margin: 0 !important; }
+          .tbl th, .tbl td { padding: 4px 2px !important; font-size: 11px !important; }
           .tbl th:first-child, .tbl td:first-child { padding-left: 4px !important; }
           .tbl th:last-child, .tbl td:last-child { padding-right: 4px !important; }
           
           /* Kartlar ve Üst Kutuların Ekranı İtmemesi İçin */
-          .card, .m-btn { width: calc(100vw - 8px) !important; margin-left: 4px !important; margin-right: 4px !important; box-sizing: border-box !important; }
-          .cards-grid { width: calc(100vw - 8px) !important; margin-left: 4px !important; margin-right: 4px !important; }
-          .compact-totals { width: calc(100vw - 4px) !important; margin-left: 2px !important; margin-right: 2px !important; gap: 4px !important; }
+          .card, .m-btn { width: calc(100% - 8px) !important; margin-left: 4px !important; margin-right: 4px !important; box-sizing: border-box !important; }
+          .cards-grid { width: calc(100% - 8px) !important; margin-left: 4px !important; margin-right: 4px !important; }
+          .compact-totals { width: calc(100% - 4px) !important; margin-left: 2px !important; margin-right: 2px !important; gap: 4px !important; }
           
           .card { border-radius: 8px !important; padding: 12px !important; margin-bottom: 8px !important; }
           .summary-c { margin-left: 0 !important; margin-right: 0 !important; border-radius: 6px !important; width: 100% !important; }
           .c-kutu { border-radius: 4px !important; padding: 6px 2px !important; }
           
-          /* Tablo içi yazıları daralt */
+          /* Sadece Süt ve Satışta daralt (Analizde tam isim kalacak) */
           .truncate-text-td { max-width: 65px !important; }
         }
 
