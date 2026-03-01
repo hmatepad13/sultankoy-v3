@@ -20,7 +20,6 @@ export default function App() {
   const [password, setPassword] = useState<string>("");
   const [activeTab, setActiveTab] = useState<string>("satis");
 
-  // VERİ LİSTELERİ
   const [tedarikciler, setTedarikciler] = useState<Ciftlik[]>([]);
   const [bayiler, setBayiler] = useState<Bayi[]>([]);
   const [urunler, setUrunler] = useState<Urun[]>([]);
@@ -28,7 +27,6 @@ export default function App() {
   const [satisFisList, setSatisFisList] = useState<SatisFis[]>([]); 
   const [satisList, setSatisList] = useState<SatisGiris[]>([]); 
 
-  // AYARLAR
   const temaRengi = "#2563eb"; 
   const [fontSize, setFontSize] = useState<number>(13); 
   const [detayNot, setDetayNot] = useState<any>(null);
@@ -44,14 +42,12 @@ export default function App() {
 
   const bugun = new Date().toISOString().split("T")[0];
 
-  // --- SÜT STATE'LERİ ---
   const [isSutModalOpen, setIsSutModalOpen] = useState<boolean>(false);
   const [editingSutId, setEditingSutId] = useState<any>(null);
   const [sutForm, setSutForm] = useState<SutGiris>({ tarih: bugun, ciftlik: "", kg: "", fiyat: "", aciklama: "" });
   const [sutFiltre, setSutFiltre] = useState<{ ciftlikler: string[], baslangic: string, bitis: string }>({ ciftlikler: [], baslangic: "", bitis: "" });
   const [sutSort, setSutSort] = useState<any>({ key: 'tarih', direction: 'desc' });
 
-  // --- SATIŞ STATE'LERİ ---
   const [isFisModalOpen, setIsFisModalOpen] = useState<boolean>(false);
   const [editingFisId, setEditingFisId] = useState<string | null>(null);
   const [editingFisNo, setEditingFisNo] = useState<string | null>(null);
@@ -62,11 +58,9 @@ export default function App() {
   const [fisFiltre, setFisFiltre] = useState<{ bayiler: string[], baslangic: string, bitis: string }>({ bayiler: [], baslangic: "", bitis: "" });
   const [fisSort, setFisSort] = useState<any>({ key: 'tarih', direction: 'desc' });
 
-  // --- ANALİZ STATE'LERİ ---
   const [analizFiltre, setAnalizFiltre] = useState<{bayiler: string[], urunler: string[], baslangic: string, bitis: string}>({ bayiler: [], urunler: [], baslangic: "", bitis: "" });
   const [analizSort, setAnalizSort] = useState<any>({ key: 'tarih', direction: 'desc' });
 
-  // --- EXCEL TİPİ FİLTRE MODALI ---
   const [activeFilterModal, setActiveFilterModal] = useState<'sut_ciftlik' | 'fis_bayi' | 'analiz_bayi' | 'analiz_urun' | 'sut_tarih' | 'fis_tarih' | 'analiz_tarih' | null>(null);
 
   useEffect(() => {
@@ -213,7 +207,6 @@ export default function App() {
     if (!secilenBayi) return;
     const yeniDetay = { ...fisDetay };
     
-    // Ürün fiyatlarını hafızadan çek
     urunler.forEach(u => {
       const bayiSatislari = satisList.filter(s => s.bayi === secilenBayi && s.urun === u.isim);
       let hafizaFiyat = u.fiyat || "";
@@ -224,12 +217,11 @@ export default function App() {
       if (!editingFisId) yeniDetay[u.id] = { adet: fisDetay[u.id]?.adet || "", fiyat: String(hafizaFiyat) };
     });
 
-    // İade kova fiyatını hafızadan çek
     const bayiIadeler = satisList.filter(s => s.bayi === secilenBayi && s.urun === "İade Kova");
-    let hafizaIadeFiyat = "15"; // Varsayılan 15 TL
+    let hafizaIadeFiyat = "15";
     if (bayiIadeler.length > 0) {
         const sonIade = bayiIadeler.sort((a,b) => new Date(b.tarih).getTime() - new Date(a.tarih).getTime())[0];
-        hafizaIadeFiyat = String(Math.abs(Number(sonIade.fiyat))); // Eksi kaydedildiği için pozitife çevirip gösteriyoruz
+        hafizaIadeFiyat = String(Math.abs(Number(sonIade.fiyat)));
     }
     if (!editingFisId) yeniDetay["iade_kova"] = { adet: fisDetay["iade_kova"]?.adet || "", fiyat: hafizaIadeFiyat };
 
@@ -311,7 +303,6 @@ export default function App() {
       await supabase.from("satis_giris").insert(insertArray);
     }
     
-    // FİŞ ÇIKTISI VERİLERİ
     const fisGosterimData = {
       fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi,
       urunler: eklenecekUrunler.map(u => ({ isim: u.isim, adet: Number(fisDetay[u.id].adet), fiyat: Number(fisDetay[u.id].fiyat), tutar: Number(fisDetay[u.id].adet) * Number(fisDetay[u.id].fiyat) })),
@@ -446,15 +437,15 @@ export default function App() {
 
   const renderOzet = () => (
     <div className="tab-fade-in main-content-area">
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "15px" }}>
+      <div className="cards-grid">
         <div className="card summary-c" style={{ borderLeft: `5px solid ${temaRengi}` }}><small>Süt Alımı</small><h2 style={{ margin: "5px 0", color: temaRengi }}>{fSayi(sutList.reduce((a, b) => a + Number(b.kg), 0))} KG</h2></div>
         <div className="card summary-c" style={{ borderLeft: "5px solid #059669" }}><small>Toplam Satış</small><h2 style={{ margin: "5px 0", color: "#059669" }}>{fSayi(satisFisList.reduce((a, b) => a + Number(b.toplam_tutar), 0))}</h2></div>
       </div>
-      <div className="card">
+      <div className="card" style={{marginTop: "5px"}}>
         <h4 style={{ margin: "0 0 10px", borderBottom: "1px solid #e2e8f0", paddingBottom: "5px" }}>Son Kesilen Fişler</h4>
         {satisFisList.slice().reverse().slice(0, 5).map(f => (
           <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
-            <span style={{fontSize: "12px"}}>{f.tarih.split("-").reverse().join(".")} <b style={{maxWidth:"100px", display:"inline-block", overflow:"hidden", textOverflow:"ellipsis", verticalAlign:"bottom", whiteSpace:"nowrap"}}>{f.bayi}</b></span>
+            <span style={{fontSize: "12px"}}>{f.tarih.split("-").reverse().join(".")} <b className="truncate-text" style={{display:"inline-block", verticalAlign:"bottom"}}>{f.bayi}</b></span>
             <b style={{color: '#059669'}}>{fSayi(f.toplam_tutar)}</b>
           </div>
         ))}
@@ -481,7 +472,7 @@ export default function App() {
         <tbody>{fSutList.map(s => (
           <tr key={s.id}>
             <td>{s.tarih.split("-").reverse().slice(0, 2).join(".")}</td>
-            <td style={{ fontWeight: "bold" }} className="truncate-text">{s.ciftlik}</td>
+            <td style={{ fontWeight: "bold" }} className="truncate-text-td">{s.ciftlik}</td>
             <td style={{ textAlign: "right" }}>{fSayi(s.kg)}</td>
             <td style={{ textAlign: "right" }}>{fSayi(s.fiyat)}</td>
             <td style={{ textAlign: "right", color: temaRengi, fontWeight: "bold" }}>{fSayi(s.toplam_tl)}</td>
@@ -512,7 +503,7 @@ export default function App() {
         <tbody>{fFisList.map(f => (
           <tr key={f.id}>
             <td>{f.tarih.split("-").reverse().slice(0, 2).join(".")}</td>
-            <td style={{ fontWeight: "bold" }} className="truncate-text">{f.bayi}</td>
+            <td style={{ fontWeight: "bold" }} className="truncate-text-td">{f.bayi}</td>
             <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold" }}>{fSayi(f.toplam_tutar)}</td>
             <td style={{ textAlign: "right", color: "#2563eb", fontWeight: "bold" }}>{fSayi(f.tahsilat)}</td>
             <td style={{ textAlign: "right", color: f.kalan_bakiye > 0 ? "#dc2626" : "#64748b", fontWeight: "bold" }}>{fSayi(f.kalan_bakiye)}</td>
@@ -541,8 +532,8 @@ export default function App() {
         <tbody>{fAnalizList.map(s => (
           <tr key={s.id}>
             <td>{s.tarih.split("-").reverse().slice(0, 2).join(".")}</td>
-            <td style={{ fontWeight: "bold" }} className="truncate-text">{s.bayi}</td>
-            <td className="truncate-text">{s.urun}</td>
+            <td style={{ fontWeight: "bold" }} className="truncate-text-td">{s.bayi}</td>
+            <td className="truncate-text-td">{s.urun}</td>
             <td style={{ textAlign: "right" }}>{fSayi(s.adet)}</td>
             <td style={{ textAlign: "right", color: s.fiyat < 0 ? "#dc2626" : "inherit" }}>{fSayi(s.fiyat)}</td>
             <td style={{ textAlign: "right", color: s.fiyat < 0 ? "#dc2626" : "#8b5cf6", fontWeight: "bold" }}>{fSayi(s.tutar)}</td>
@@ -660,7 +651,7 @@ export default function App() {
                     );
                   })}
                   
-                  {/* İADE KOVA BÖLÜMÜ (ÜRÜN GİBİ LİSTENİN ALTINDA) */}
+                  {/* İADE KOVA BÖLÜMÜ */}
                   <div style={{ display: 'flex', gap: '4px', alignItems: 'center', padding: '4px 6px', background: Number(fisDetay["iade_kova"]?.adet) > 0 ? '#fef2f2' : '#f8fafc', borderRadius: '4px', border: Number(fisDetay["iade_kova"]?.adet) > 0 ? '1px solid #fecaca' : '1px dashed #cbd5e1', marginTop: "4px" }}>
                     <div style={{ flex: 1, minWidth: "90px", fontWeight: 'bold', fontSize: "12px", color: Number(fisDetay["iade_kova"]?.adet) > 0 ? "#dc2626" : "#64748b", whiteSpace: "normal", lineHeight: "1.2" }}>🔄 İade Kova (Eksi)</div>
                     <input placeholder="Adet" type="number" value={fisDetay["iade_kova"]?.adet || ""} onChange={e => setFisDetay({...fisDetay, iade_kova: {...fisDetay["iade_kova"], adet: e.target.value}})} className="m-inp" style={{flex: "0 0 55px", width: "55px", padding: "4px 2px", textAlign: "right", background: "#fff", fontSize: "12px", height:"28px", borderColor: Number(fisDetay["iade_kova"]?.adet) > 0 ? "#fca5a5" : ""}} />
@@ -738,15 +729,18 @@ export default function App() {
       <style>{`
         * { box-sizing: border-box; }
         :root { color-scheme: light !important; }
-        html, body { max-width: 100vw; overflow-x: hidden; margin: 0 !important; padding: 0 !important; background: #f8fafc !important; font-family: -apple-system, system-ui, sans-serif; color: #1e293b !important; }
-        #root { display: block !important; padding: 0 !important; margin: 0 auto !important; max-width: none !important; text-align: left !important; }
+        
+        /* EKRAN KİLİTLEME VE TAŞMA ENGELLEME */
+        html, body { width: 100vw !important; max-width: 100vw !important; overflow-x: hidden !important; margin: 0 !important; padding: 0 !important; background: #f8fafc !important; font-family: -apple-system, system-ui, sans-serif; color: #1e293b !important; }
+        #root { display: block !important; padding: 0 !important; margin: 0 auto !important; width: 100% !important; text-align: left !important; }
         input::placeholder { color: #94a3b8 !important; opacity: 1; }
-        .app-container { max-width: 1000px; margin: 0 auto; width: 100vw; min-height: 100vh; background: #f8fafc; position: relative; overflow-x: hidden; }
+        
+        .app-container { max-width: 800px; margin: 0 auto; width: 100%; min-height: 100vh; background: #f8fafc; position: relative; overflow-x: hidden; }
         
         .header-style { display: flex; justify-content: space-between; padding: 12px 0; background: #fff; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; z-index: 50; width: 100%; align-items: center; }
         
-        .main-content { padding: 10px; padding-bottom: 80px; width: 100%; }
-        .tab-fade-in { animation: fadeIn 0.3s ease-in-out; }
+        .main-content { padding: 10px; padding-bottom: 80px; width: 100%; box-sizing: border-box; }
+        .tab-fade-in { animation: fadeIn 0.3s ease-in-out; width: 100%; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         
         .responsive-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
@@ -755,26 +749,32 @@ export default function App() {
         .grow-inp { flex: 1 1 120px !important; }
         .p-btn { flex: 0 0 auto !important; padding: 0 20px; height: 40px; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; }
         
-        .card { background: #fff; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 15px; }
+        .card { background: #fff; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 15px; width: 100%; box-sizing: border-box; }
+        .cards-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
+        
         .m-btn { width: 100%; padding: 12px; color: #fff; border: none; border-radius: 10px; font-weight: bold; font-size: 15px; cursor: pointer; margin-bottom: 10px; }
         .green-btn { background: #059669; } .blue-btn { background: #2563eb; }
         
-        .compact-totals { display: flex; gap: 8px; margin-bottom: 12px; }
-        .c-kutu { flex: 1; background: #fff; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; border-left-width: 4px; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
-        .c-kutu span { font-size: 10px; color: #64748b; font-weight: bold; margin-bottom: 2px; }
-        .c-kutu b { font-size: 14px; }
+        .compact-totals { display: flex; gap: 6px; margin-bottom: 12px; width: 100%; justify-content: space-between; }
+        .c-kutu { flex: 1; background: #fff; padding: 10px 4px; border-radius: 8px; border: 1px solid #e2e8f0; border-left-width: 4px; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02); text-align: center; }
+        .c-kutu span { font-size: 9px; color: #64748b; font-weight: bold; margin-bottom: 2px; }
+        .c-kutu b { font-size: 13px; white-space: nowrap; }
         
-        .table-wrapper { width: 100%; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; overflow-x: auto; }
-        .tbl { width: 100%; border-collapse: collapse; table-layout: auto; }
-        .tbl th { background: #f1f5f9; border-bottom: 1px solid #e2e8f0; color: #475569; font-weight: bold; font-size: 11px; padding: 6px !important; white-space: nowrap !important; }
+        /* TABLO AYARLARI */
+        .table-wrapper { width: 100%; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; overflow-x: auto; box-sizing: border-box; }
+        .tbl { width: 100%; border-collapse: collapse; table-layout: auto; min-width: 100%; }
+        .tbl th { background: #f1f5f9; border-bottom: 1px solid #e2e8f0; color: #475569; font-weight: bold; font-size: 10px; padding: 6px 4px !important; white-space: nowrap; }
         .tbl-satis th { background: #5b9bd5 !important; color: white !important; }
         .tbl-analiz th { background: #8b5cf6 !important; color: white !important; }
-        .tbl td { font-size: 11.5px; border-bottom: 1px solid #f1f5f9; padding: 6px !important; white-space: nowrap; }
+        .tbl td { font-size: 11px; border-bottom: 1px solid #f1f5f9; padding: 6px 4px !important; white-space: nowrap; vertical-align: middle; }
+        
         .actions-cell { white-space: nowrap !important; width: 1% !important; text-align: right; }
-        .action-buttons { display: flex; gap: 4px; justify-content: flex-end; align-items: center; }
-        .truncate-text { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .action-buttons { display: flex; gap: 2px; justify-content: flex-end; align-items: center; }
+        
+        /* TAŞMAYI ÖNLEYEN KESME (TRUNCATE) AYARLARI */
+        .truncate-text-td { max-width: 75px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: bottom; }
 
-        .fixed-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 1000px; height: 70px; background: #fff; border-top: 1px solid #e2e8f0; display: flex; z-index: 100; }
+        .fixed-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100vw; max-width: 1000px; height: 70px; background: #fff; border-top: 1px solid #e2e8f0; display: flex; z-index: 100; }
         .n-item { flex: 1; border: none; background: none; color: #94a3b8; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; border-top: 3px solid transparent; }
         .n-item.active { background: #f8fafc; }
         .btn-anim { transition: transform 0.1s; } .btn-anim:active { transform: scale(0.95); }
@@ -782,23 +782,37 @@ export default function App() {
         .ed-btn { background: none; border: none; color: #f59e0b; font-size: 15px; cursor: pointer; padding: 0 2px; }
         .dl-btn { background: none; border: none; color: #dc2626; font-size: 15px; font-weight: bold; cursor: pointer; padding: 0 2px; }
 
-        /* MOBILDE UCTAN UCA YASLANMA (Sıfır Padding/Margin) */
+        /* MOBİL İÇİN KESİN YASLANMA KURALLARI */
         @media (max-width: 600px) {
-          .main-content { padding: 0 !important; padding-bottom: 80px !important; }
+          .main-content { padding: 0 !important; padding-bottom: 80px !important; width: 100vw !important; overflow-x: hidden !important; }
           
-          /* Tablolar ekranın tam sağına soluna yapışır */
+          /* Tablo ekrana tam yapışır */
           .table-wrapper { width: 100vw !important; border-radius: 0 !important; border-left: none !important; border-right: none !important; margin: 0 !important; }
-          .tbl th, .tbl td { padding: 6px 3px !important; font-size: 11px !important; }
-          .tbl th:first-child, .tbl td:first-child { padding-left: 6px !important; }
-          .tbl th:last-child, .tbl td:last-child { padding-right: 6px !important; }
+          .tbl th, .tbl td { padding: 6px 2px !important; font-size: 11px !important; }
+          .tbl th:first-child, .tbl td:first-child { padding-left: 4px !important; }
+          .tbl th:last-child, .tbl td:last-child { padding-right: 4px !important; }
           
-          /* Kartlar ve özet kutularına ince bir nefes payı (4px) */
-          .card, .m-btn, .compact-totals { margin-left: 4px !important; margin-right: 4px !important; }
-          .compact-totals { margin-top: 6px !important; margin-bottom: 6px !important; width: calc(100vw - 8px) !important; }
+          /* Kartlar ve Üst Kutuların Ekranı İtmemesi İçin */
+          .card, .m-btn { width: calc(100vw - 8px) !important; margin-left: 4px !important; margin-right: 4px !important; box-sizing: border-box !important; }
+          .cards-grid { width: calc(100vw - 8px) !important; margin-left: 4px !important; margin-right: 4px !important; }
+          .compact-totals { width: calc(100vw - 4px) !important; margin-left: 2px !important; margin-right: 2px !important; gap: 4px !important; }
+          
           .card { border-radius: 8px !important; padding: 12px !important; margin-bottom: 8px !important; }
-          .summary-c { margin-left: 0 !important; margin-right: 0 !important; border-radius: 6px !important; }
-          .c-kutu { border-radius: 4px !important; padding: 6px 4px !important; }
-          .truncate-text { max-width: 80px; }
+          .summary-c { margin-left: 0 !important; margin-right: 0 !important; border-radius: 6px !important; width: 100% !important; }
+          .c-kutu { border-radius: 4px !important; padding: 6px 2px !important; }
+          
+          /* Tablo içi yazıları daralt */
+          .truncate-text-td { max-width: 65px !important; }
+        }
+
+        @media print {
+          @page { margin: 0; size: 58mm auto; }
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: #fff !important; overflow: visible !important; width: auto !important; max-width: none !important; }
+          .main-content-area, header, footer { display: none !important; }
+          .print-modal-wrapper { position: static !important; display: block !important; background: transparent !important; padding: 0 !important; }
+          .print-modal-content { max-width: 100% !important; border-radius: 0 !important; box-shadow: none !important; }
+          #print-receipt { border: none !important; padding: 0 !important; width: 55mm; margin: 0 auto; display: block !important; }
+          .no-print { display: none !important; }
         }
       `}</style>
     </div>
