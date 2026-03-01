@@ -49,22 +49,26 @@ export default function App() {
   const [editingSutId, setEditingSutId] = useState<any>(null);
   const [sutForm, setSutForm] = useState<SutGiris>({ tarih: bugun, ciftlik: "", kg: "", fiyat: "", aciklama: "" });
   const [sutFiltre, setSutFiltre] = useState<{ ciftlikler: string[], baslangic: string, bitis: string }>({ ciftlikler: [], baslangic: "", bitis: "" });
-  const [sutSort, setSutSort] = useState<any>({ key: 'tarih', direction: 'desc' });
+  const [sutSort, setSutSort] = useState<any>({ key: 'tarih', direction: 'asc' });
 
   // --- SATIŞ STATE'LERİ ---
   const [isFisModalOpen, setIsFisModalOpen] = useState<boolean>(false);
+  const [isTahsilatModalOpen, setIsTahsilatModalOpen] = useState<boolean>(false);
+  const [tahsilatForm, setTahsilatForm] = useState({ tarih: bugun, bayi: "", miktar: "", odeme_turu: "PEŞİN", aciklama: "" });
+  
   const [editingFisId, setEditingFisId] = useState<string | null>(null);
   const [editingFisNo, setEditingFisNo] = useState<string | null>(null);
-  const [fisUst, setFisUst] = useState({ tarih: bugun, bayi: "", aciklama: "", odeme_turu: "PEŞİN", tahsilat: "", bos_kova: "" });
+  const [fisUst, setFisUst] = useState({ tarih: bugun, bayi: "", aciklama: "", odeme_turu: "PEŞİN", tahsilat: "", bos_kova: "", teslim_alan: "" });
   const [fisDetay, setFisDetay] = useState<Record<string, { adet: string, kg: string, fiyat: string }>>({});
+  const [gosterilenEkler, setGosterilenEkler] = useState({ tereyagi: false, yogurt_kaymagi: false, iade: false, bos_kova: false });
   const [sonFisData, setSonFisData] = useState<any>(null);
 
   const [fisFiltre, setFisFiltre] = useState<{ bayiler: string[], baslangic: string, bitis: string }>({ bayiler: [], baslangic: "", bitis: "" });
-  const [fisSort, setFisSort] = useState<any>({ key: 'tarih', direction: 'desc' });
+  const [fisSort, setFisSort] = useState<any>({ key: 'tarih', direction: 'asc' });
 
   // --- ANALİZ STATE'LERİ ---
   const [analizFiltre, setAnalizFiltre] = useState<{bayiler: string[], urunler: string[], baslangic: string, bitis: string}>({ bayiler: [], urunler: [], baslangic: "", bitis: "" });
-  const [analizSort, setAnalizSort] = useState<any>({ key: 'tarih', direction: 'desc' });
+  const [analizSort, setAnalizSort] = useState<any>({ key: 'tarih', direction: 'asc' });
 
   const [activeFilterModal, setActiveFilterModal] = useState<'sut_ciftlik' | 'fis_bayi' | 'analiz_bayi' | 'analiz_urun' | 'sut_tarih' | 'fis_tarih' | 'analiz_tarih' | null>(null);
 
@@ -109,7 +113,8 @@ export default function App() {
           setFisDetay(prev => {
             const yeniDetay: any = { ...prev };
             u.forEach(urun => { if (!yeniDetay[urun.id]) yeniDetay[urun.id] = { adet: "", kg: "", fiyat: urun.fiyat || "" }; });
-            if (!yeniDetay["iade_kova"]) yeniDetay["iade_kova"] = { adet: "", kg: "", fiyat: "" };
+            if (!yeniDetay["v_iade"]) yeniDetay["v_iade"] = { adet: "", kg: "", fiyat: "" };
+            if (!yeniDetay["v_bos_kova"]) yeniDetay["v_bos_kova"] = { adet: "", kg: "", fiyat: "" };
             return yeniDetay;
           });
         }
@@ -117,21 +122,22 @@ export default function App() {
 
       if (hedef === "hepsi" || hedef === "satis") {
         const [{ data: f }, { data: st }] = await Promise.all([
-          supabase.from("satis_fisleri").select("*").order("tarih", { ascending: false }).order("id", { ascending: false }),
-          supabase.from("satis_giris").select("*").order("tarih", { ascending: false }).order("id", { ascending: false })
+          supabase.from("satis_fisleri").select("*").order("tarih", { ascending: true }).order("id", { ascending: true }),
+          supabase.from("satis_giris").select("*").order("tarih", { ascending: true }).order("id", { ascending: true })
         ]);
         if (f) setSatisFisList(f);
         if (st) setSatisList(st);
       }
 
       if (hedef === "hepsi" || hedef === "sut") {
-        const { data: s } = await supabase.from("sut_giris").select("*").order("tarih", { ascending: false }).order("id", { ascending: false });
+        const { data: s } = await supabase.from("sut_giris").select("*").order("tarih", { ascending: true }).order("id", { ascending: true });
         if (s) setSutList(s);
       }
     } catch (error) { console.error(error); }
   }
 
   const fSayi = (num: any) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 2 }).format(Number(num) || 0).replace(/,00$/, '');
+  const fSayiNoDec = (num: any) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(Number(num) || 0);
 
   const renderNot = (not: any) => {
     if (!not) return "";
@@ -207,6 +213,33 @@ export default function App() {
     setEditingSutId(null); setIsSutModalOpen(false); verileriGetir("sut"); 
   }
 
+  async function handleTahsilatKaydet() {
+    if (!tahsilatForm.bayi || !tahsilatForm.miktar) return alert("Bayi ve miktar alanları zorunludur!");
+    if (!bayiler.some(b => b.isim === tahsilatForm.bayi)) return alert("Lütfen listeden geçerli bir Bayi/Müşteri seçin! Kendiniz rastgele isim giremezsiniz.");
+
+    const tMiktar = Number(tahsilatForm.miktar);
+    if (tMiktar <= 0) return alert("Geçerli bir tahsilat tutarı girin.");
+
+    const fNo = `T-${Date.now().toString().slice(-6)}`;
+    const fData = {
+        fis_no: fNo,
+        tarih: tahsilatForm.tarih,
+        bayi: tahsilatForm.bayi,
+        toplam_tutar: 0,
+        tahsilat: tMiktar,
+        kalan_bakiye: -tMiktar,
+        odeme_turu: tahsilatForm.odeme_turu,
+        aciklama: tahsilatForm.aciklama ? `[Sadece Tahsilat] - ${tahsilatForm.aciklama}` : `[Sadece Tahsilat]`
+    };
+
+    const { error } = await supabase.from("satis_fisleri").insert(fData);
+    if (error) return alert("Hata: " + error.message);
+
+    setTahsilatForm({ tarih: bugun, bayi: "", miktar: "", odeme_turu: "PEŞİN", aciklama: "" });
+    setIsTahsilatModalOpen(false);
+    verileriGetir("satis");
+  }
+
   const handleBayiSecimi = (secilenBayi: string) => {
     if (!secilenBayi) return;
     const yeniDetay = { ...fisDetay };
@@ -221,13 +254,24 @@ export default function App() {
       if (!editingFisId) yeniDetay[u.id] = { adet: fisDetay[u.id]?.adet || "", kg: fisDetay[u.id]?.kg || "", fiyat: String(hafizaFiyat) };
     });
 
-    const bayiIadeler = satisList.filter(s => s.bayi === secilenBayi && s.urun === "İade Kova");
+    const bayiIadeler = satisList.filter(s => s.bayi === secilenBayi && s.urun === "İade");
     let hafizaIadeFiyat = "15";
     if (bayiIadeler.length > 0) {
         const sonIade = bayiIadeler.sort((a,b) => new Date(b.tarih).getTime() - new Date(a.tarih).getTime())[0];
         hafizaIadeFiyat = String(Math.abs(Number(sonIade.fiyat)));
     }
-    if (!editingFisId) yeniDetay["iade_kova"] = { adet: fisDetay["iade_kova"]?.adet || "", kg: "", fiyat: hafizaIadeFiyat };
+    
+    const bayiKovalar = satisList.filter(s => s.bayi === secilenBayi && s.urun === "Boş Kova");
+    let hafizaKovaFiyat = "15";
+    if (bayiKovalar.length > 0) {
+        const sonKova = bayiKovalar.sort((a,b) => new Date(b.tarih).getTime() - new Date(a.tarih).getTime())[0];
+        hafizaKovaFiyat = String(Math.abs(Number(sonKova.fiyat)));
+    }
+
+    if (!editingFisId) {
+        yeniDetay["v_iade"] = { adet: fisDetay["v_iade"]?.adet || "", kg: "", fiyat: hafizaIadeFiyat };
+        yeniDetay["v_bos_kova"] = { adet: fisDetay["v_bos_kova"]?.adet || "", kg: "", fiyat: hafizaKovaFiyat };
+    }
 
     setFisDetay(yeniDetay);
   };
@@ -244,29 +288,52 @@ export default function App() {
       const adet = Number(fisDetay[u.id]?.adet) || 0;
       const kg = Number(fisDetay[u.id]?.kg) || 0;
       const fiyat = Number(fisDetay[u.id]?.fiyat) || 0;
-      const miktar = kg > 0 ? kg : adet; // KG varsa KG ile, yoksa Adet ile fiyatı çarp
+      const miktar = kg > 0 ? kg : adet; 
       return toplam + (miktar * fiyat);
     }, 0);
     
-    const kAdet = Number(fisDetay["iade_kova"]?.adet) || 0;
-    const kFiyat = Number(fisDetay["iade_kova"]?.fiyat) || 0;
-    return urunToplami - (kAdet * kFiyat);
+    const iAdet = Number(fisDetay["v_iade"]?.adet) || 0;
+    const iKg = Number(fisDetay["v_iade"]?.kg) || 0;
+    const iFiyat = Number(fisDetay["v_iade"]?.fiyat) || 0;
+    const iMiktar = iKg > 0 ? iKg : iAdet;
+
+    const kAdet = Number(fisDetay["v_bos_kova"]?.adet) || 0;
+    const kKg = Number(fisDetay["v_bos_kova"]?.kg) || 0;
+    const kFiyat = Number(fisDetay["v_bos_kova"]?.fiyat) || 0;
+    const kMiktar = kKg > 0 ? kKg : kAdet;
+
+    return urunToplami - (iMiktar * iFiyat) - (kMiktar * kFiyat);
   }, [urunler, fisDetay]);
 
   const toplamGenelBorc = eskiBorc + (fisCanliToplam - Number(fisUst.tahsilat || 0));
 
   async function handleTopluFisKaydet() {
     if (!fisUst.bayi) return alert("Lütfen bir Bayi/Market seçin!");
-    const eklenecekUrunler = urunler.filter(u => Number(fisDetay[u.id]?.adet) > 0 || Number(fisDetay[u.id]?.kg) > 0);
-    const kovaAdet = Number(fisDetay["iade_kova"]?.adet) || 0;
-    const kovaFiyat = Number(fisDetay["iade_kova"]?.fiyat) || 0;
+    if (!bayiler.some(b => b.isim === fisUst.bayi)) return alert("Lütfen listeden geçerli bir Bayi/Market seçin! Kendiniz rastgele isim giremezsiniz.");
 
-    if (eklenecekUrunler.length === 0 && kovaAdet === 0) return alert("Fişte işlem yok! Ürün veya kova girin.");
+    const eklenecekUrunler = urunler.filter(u => Number(fisDetay[u.id]?.adet) > 0 || Number(fisDetay[u.id]?.kg) > 0);
+    
+    const iadeAdet = Number(fisDetay["v_iade"]?.adet) || 0;
+    const iadeKg = Number(fisDetay["v_iade"]?.kg) || 0;
+    const iadeFiyat = Number(fisDetay["v_iade"]?.fiyat) || 0;
+    const iadeMiktar = iadeKg > 0 ? iadeKg : iadeAdet;
+
+    const kovaAdet = Number(fisDetay["v_bos_kova"]?.adet) || 0;
+    const kovaKg = Number(fisDetay["v_bos_kova"]?.kg) || 0;
+    const kovaFiyat = Number(fisDetay["v_bos_kova"]?.fiyat) || 0;
+    const kovaMiktar = kovaKg > 0 ? kovaKg : kovaAdet;
+
+    if (eklenecekUrunler.length === 0 && iadeMiktar === 0 && kovaMiktar === 0) return alert("Fişte işlem yok! Ürün, iade veya kova girin.");
 
     const ortakFisNo = editingFisNo || `F-${Date.now().toString().slice(-6)}`;
     const tahsilat = Number(fisUst.tahsilat) || 0;
     const kalanBakiye = fisCanliToplam - tahsilat;
-    const genelNot = [`[Ödeme: ${fisUst.odeme_turu}]`, fisUst.aciklama].filter(Boolean).join(" - ");
+    
+    const genelNot = [
+        fisUst.teslim_alan ? `[Teslim Alan: ${fisUst.teslim_alan}]` : '',
+        `[Ödeme: ${fisUst.odeme_turu}]`, 
+        fisUst.aciklama
+    ].filter(Boolean).join(" - ");
 
     const fisMaster = { fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, toplam_tutar: fisCanliToplam, tahsilat: tahsilat, kalan_bakiye: kalanBakiye, odeme_turu: fisUst.odeme_turu, aciklama: genelNot };
 
@@ -288,8 +355,12 @@ export default function App() {
         return { fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, urun: u.isim, adet: adet, fiyat: fiyat, birim: kgEslesme ? Number(kgEslesme[1]) : 1, toplam_kg: hesaplananKg, tutar: miktar * fiyat, bos_kova: 0, aciklama: `Bağlı Fiş: ${ortakFisNo}` };
       });
 
-      if (kovaAdet > 0) {
-        insertArray.push({ fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, urun: "İade Kova", adet: kovaAdet, fiyat: -kovaFiyat, birim: 1, toplam_kg: 0, tutar: -(kovaAdet * kovaFiyat), bos_kova: kovaAdet, aciklama: `Bağlı Fiş: ${ortakFisNo}` });
+      if (iadeMiktar > 0) {
+        insertArray.push({ fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, urun: "İade", adet: iadeAdet, fiyat: -iadeFiyat, birim: 1, toplam_kg: iadeKg, tutar: -(iadeMiktar * iadeFiyat), bos_kova: 0, aciklama: `Bağlı Fiş: ${ortakFisNo}` });
+      }
+
+      if (kovaMiktar > 0) {
+        insertArray.push({ fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, urun: "Boş Kova", adet: kovaAdet, fiyat: -kovaFiyat, birim: 1, toplam_kg: kovaKg, tutar: -(kovaMiktar * kovaFiyat), bos_kova: kovaAdet, aciklama: `Bağlı Fiş: ${ortakFisNo}` });
       }
 
       const { error: errDetay } = await supabase.from("satis_giris").insert(insertArray);
@@ -313,23 +384,31 @@ export default function App() {
         return { fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, urun: u.isim, adet: adet, fiyat: fiyat, birim: kgEslesme ? Number(kgEslesme[1]) : 1, toplam_kg: hesaplananKg, tutar: miktar * fiyat, bos_kova: 0, aciklama: `Bağlı Fiş: ${ortakFisNo}` };
       });
 
-      if (kovaAdet > 0) {
-        insertArray.push({ fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, urun: "İade Kova", adet: kovaAdet, fiyat: -kovaFiyat, birim: 1, toplam_kg: 0, tutar: -(kovaAdet * kovaFiyat), bos_kova: kovaAdet, aciklama: `Bağlı Fiş: ${ortakFisNo}` });
+      if (iadeMiktar > 0) {
+        insertArray.push({ fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, urun: "İade", adet: iadeAdet, fiyat: -iadeFiyat, birim: 1, toplam_kg: iadeKg, tutar: -(iadeMiktar * iadeFiyat), bos_kova: 0, aciklama: `Bağlı Fiş: ${ortakFisNo}` });
+      }
+
+      if (kovaMiktar > 0) {
+        insertArray.push({ fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, urun: "Boş Kova", adet: kovaAdet, fiyat: -kovaFiyat, birim: 1, toplam_kg: kovaKg, tutar: -(kovaMiktar * kovaFiyat), bos_kova: kovaAdet, aciklama: `Bağlı Fiş: ${ortakFisNo}` });
       }
 
       await supabase.from("satis_giris").insert(insertArray);
     }
     
+    const ekstraIndirimler = [];
+    if (iadeMiktar > 0) ekstraIndirimler.push({ isim: "İade", miktar: iadeMiktar, birim: iadeKg > 0 ? "KG" : "Ad", tutar: iadeMiktar * iadeFiyat });
+    if (kovaMiktar > 0) ekstraIndirimler.push({ isim: "Boş Kova", miktar: kovaMiktar, birim: kovaKg > 0 ? "KG" : "Ad", tutar: kovaMiktar * kovaFiyat });
+
     const fisGosterimData = {
       id: savedFisId,
-      fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, aciklama: fisUst.aciklama,
+      fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, aciklama: fisUst.aciklama, teslim_alan: fisUst.teslim_alan,
       urunler: eklenecekUrunler.map(u => {
          const adet = Number(fisDetay[u.id].adet);
          const kg = Number(fisDetay[u.id].kg);
          const fiyat = Number(fisDetay[u.id].fiyat);
          return { isim: u.isim, adet: adet, kg: kg, fiyat: fiyat, tutar: (kg > 0 ? kg : adet) * fiyat };
       }),
-      brutToplam: fisCanliToplam + (kovaAdet * kovaFiyat), kovaAdet: kovaAdet, kovaIndirim: (kovaAdet * kovaFiyat), 
+      ekstraIndirimler,
       genelToplam: fisCanliToplam, tahsilat: tahsilat, kalanBakiye: (fisCanliToplam - tahsilat), odeme: fisUst.odeme_turu,
       eskiBorc: eskiBorc, genelBorc: toplamGenelBorc,
       gosterBakiye: false
@@ -340,10 +419,12 @@ export default function App() {
 
   const resetFisForm = () => {
     setEditingFisId(null); setEditingFisNo(null);
-    setFisUst({ tarih: bugun, bayi: "", aciklama: "", odeme_turu: "PEŞİN", tahsilat: "", bos_kova: "" });
+    setFisUst({ tarih: bugun, bayi: "", aciklama: "", odeme_turu: "PEŞİN", tahsilat: "", bos_kova: "", teslim_alan: "" });
+    setGosterilenEkler({ tereyagi: false, yogurt_kaymagi: false, iade: false, bos_kova: false });
     const temizDetay: any = {};
     urunler.forEach(u => temizDetay[u.id] = { adet: "", kg: "", fiyat: u.fiyat || "" });
-    temizDetay["iade_kova"] = { adet: "", kg: "", fiyat: "" };
+    temizDetay["v_iade"] = { adet: "", kg: "", fiyat: "" };
+    temizDetay["v_bos_kova"] = { adet: "", kg: "", fiyat: "" };
     setFisDetay(temizDetay);
   };
 
@@ -352,25 +433,43 @@ export default function App() {
   const handleFisDuzenle = (fis: any) => {
     setEditingFisId(fis.id); setEditingFisNo(fis.fis_no);
     let safAciklama = fis.aciklama || "";
-    let kovaAdetStr = ""; let kovaFiyatStr = "";
+    let tAlan = "";
 
-    const iadeUrun = satisList.find(s => s.fis_no === fis.fis_no && s.urun === "İade Kova");
-    if (iadeUrun) {
-        kovaAdetStr = String(iadeUrun.adet);
-        kovaFiyatStr = String(Math.abs(Number(iadeUrun.fiyat)));
+    const tMatch = safAciklama.match(/\[Teslim Alan: (.*?)\]/);
+    if (tMatch) {
+       tAlan = tMatch[1];
+       safAciklama = safAciklama.replace(/\[Teslim Alan: .*?\]\s*-\s*/, "");
+       safAciklama = safAciklama.replace(/\[Teslim Alan: .*?\]/, "");
     }
 
-    if (safAciklama.includes("] - ")) safAciklama = safAciklama.split("] - ")[1];
-    else if (safAciklama.startsWith("[Ödeme: ")) safAciklama = "";
+    if (safAciklama.includes("[Ödeme: ")) {
+       safAciklama = safAciklama.replace(/\[Ödeme: .*?\]\s*-\s*/, "");
+       safAciklama = safAciklama.replace(/\[Ödeme: .*?\]/, "");
+    }
+    
+    if (safAciklama.includes("[Sadece Tahsilat]")) {
+       safAciklama = safAciklama.replace(/\[Sadece Tahsilat\]\s*-\s*/, "");
+       safAciklama = safAciklama.replace(/\[Sadece Tahsilat\]/, "");
+    }
 
-    setFisUst({ tarih: fis.tarih, bayi: fis.bayi, aciklama: safAciklama, odeme_turu: fis.odeme_turu || "PEŞİN", tahsilat: fis.tahsilat > 0 ? String(fis.tahsilat) : "", bos_kova: kovaAdetStr });
+    const iadeUrun = satisList.find(s => s.fis_no === fis.fis_no && s.urun === "İade");
+    const kovaUrun = satisList.find(s => s.fis_no === fis.fis_no && (s.urun === "İade Kova" || s.urun === "Boş Kova"));
+    
+    let iadeAdetStr = iadeUrun?.adet ? String(iadeUrun.adet) : "";
+    let iadeKgStr = iadeUrun?.toplam_kg && Number(iadeUrun.toplam_kg) > 0 ? String(iadeUrun.toplam_kg) : "";
+    let iadeFiyatStr = iadeUrun ? String(Math.abs(Number(iadeUrun.fiyat))) : "";
+
+    let kovaAdetStr = kovaUrun?.adet ? String(kovaUrun.adet) : "";
+    let kovaKgStr = kovaUrun?.toplam_kg && Number(kovaUrun.toplam_kg) > 0 ? String(kovaUrun.toplam_kg) : "";
+    let kovaFiyatStr = kovaUrun ? String(Math.abs(Number(kovaUrun.fiyat))) : "";
+
+    setFisUst({ tarih: fis.tarih, bayi: fis.bayi, aciklama: safAciklama, odeme_turu: fis.odeme_turu || "PEŞİN", tahsilat: fis.tahsilat > 0 ? String(fis.tahsilat) : "", bos_kova: "", teslim_alan: tAlan });
     
     const ilgiliUrunler = satisList.filter(s => s.fis_no === fis.fis_no);
     const dolanDetay: any = {};
     urunler.forEach(u => {
       const buUrun = ilgiliUrunler.find(s => s.urun === u.isim);
       let calculatedKg = "";
-      // Eğer fiyat * adet tutarı vermiyorsa (yani kg hesabı yapıldıysa) KG kutusunu doldur
       if (buUrun) {
           const adetNum = Number(buUrun.adet);
           const tutarNum = Number(buUrun.tutar);
@@ -381,34 +480,44 @@ export default function App() {
       }
       dolanDetay[u.id] = { adet: buUrun ? String(buUrun.adet) : "", kg: calculatedKg, fiyat: buUrun ? String(buUrun.fiyat) : String(u.fiyat || "") };
     });
-    dolanDetay["iade_kova"] = { adet: kovaAdetStr, kg: "", fiyat: kovaFiyatStr };
+    
+    dolanDetay["v_iade"] = { adet: iadeAdetStr, kg: iadeKgStr, fiyat: iadeFiyatStr };
+    dolanDetay["v_bos_kova"] = { adet: kovaAdetStr, kg: kovaKgStr, fiyat: kovaFiyatStr };
     setFisDetay(dolanDetay); setIsFisModalOpen(true);
   };
 
   const handleFisDetayGoster = (fis: SatisFis) => {
-    const ilgiliUrunler = satisList.filter(s => s.fis_no === fis.fis_no && s.urun !== "İade Kova");
-    const iadeUrun = satisList.find(s => s.fis_no === fis.fis_no && s.urun === "İade Kova");
+    const ilgiliUrunler = satisList.filter(s => s.fis_no === fis.fis_no && s.urun !== "İade Kova" && s.urun !== "Boş Kova" && s.urun !== "İade");
+    const iadeUrun = satisList.find(s => s.fis_no === fis.fis_no && s.urun === "İade");
+    const kovaUrun = satisList.find(s => s.fis_no === fis.fis_no && (s.urun === "İade Kova" || s.urun === "Boş Kova"));
+    
     const bayiFisleri = satisFisList.filter(f => f.bayi === fis.bayi && f.tarih <= fis.tarih && f.id !== fis.id);
     const oGunkuEskiBorc = bayiFisleri.reduce((toplam, f) => toplam + Number(f.kalan_bakiye || 0), 0);
     
-    let kovaAdet = 0; let kovaIndirim = 0;
-    if (iadeUrun) {
-        kovaAdet = Number(iadeUrun.adet);
-        kovaIndirim = Math.abs(Number(iadeUrun.tutar));
-    }
+    let ekstraIndirimler = [];
+    if (iadeUrun) ekstraIndirimler.push({ isim: "İade", miktar: iadeUrun.toplam_kg && Number(iadeUrun.toplam_kg) > 0 ? iadeUrun.toplam_kg : iadeUrun.adet, birim: iadeUrun.toplam_kg && Number(iadeUrun.toplam_kg) > 0 ? "KG" : "Ad", tutar: Math.abs(Number(iadeUrun.tutar)) });
+    if (kovaUrun) ekstraIndirimler.push({ isim: kovaUrun.urun === "İade Kova" ? "İade Kova" : "Boş Kova", miktar: kovaUrun.toplam_kg && Number(kovaUrun.toplam_kg) > 0 ? kovaUrun.toplam_kg : kovaUrun.adet, birim: kovaUrun.toplam_kg && Number(kovaUrun.toplam_kg) > 0 ? "KG" : "Ad", tutar: Math.abs(Number(kovaUrun.tutar)) });
 
-    const brutHesap = ilgiliUrunler.reduce((top, u) => top + Number(u.tutar), 0);
+    let safAciklama = fis.aciklama || "";
+    let tAlan = "";
+    const tMatch = safAciklama.match(/\[Teslim Alan: (.*?)\]/);
+    if (tMatch) {
+       tAlan = tMatch[1];
+       safAciklama = safAciklama.replace(/\[Teslim Alan: .*?\]\s*-\s*/, "").replace(/\[Teslim Alan: .*?\]/, "");
+    }
+    if (safAciklama.includes("[Ödeme: ")) safAciklama = safAciklama.replace(/\[Ödeme: .*?\]\s*-\s*/, "").replace(/\[Ödeme: .*?\]/, "");
+    if (safAciklama.includes("[Sadece Tahsilat]")) safAciklama = safAciklama.replace(/\[Sadece Tahsilat\]\s*-\s*/, "").replace(/\[Sadece Tahsilat\]/, "");
 
     setSonFisData({ 
       id: fis.id,
-      fis_no: fis.fis_no, tarih: fis.tarih, bayi: fis.bayi, aciklama: fis.aciklama,
+      fis_no: fis.fis_no, tarih: fis.tarih, bayi: fis.bayi, aciklama: safAciklama, teslim_alan: tAlan,
       urunler: ilgiliUrunler.map(u => {
           let calculatedKg = 0;
           const a = Number(u.adet), t = Number(u.tutar), f = Number(u.fiyat);
           if (f !== 0 && Math.abs(t - (a * f)) > 0.01) calculatedKg = t / f;
           return { isim: u.urun, adet: a, kg: calculatedKg, fiyat: f, tutar: t };
       }), 
-      brutToplam: brutHesap, kovaAdet: kovaAdet, kovaIndirim: kovaIndirim,
+      ekstraIndirimler,
       genelToplam: fis.toplam_tutar, tahsilat: fis.tahsilat, kalanBakiye: fis.kalan_bakiye, odeme: fis.odeme_turu || "Bilinmiyor",
       eskiBorc: oGunkuEskiBorc, genelBorc: oGunkuEskiBorc + fis.kalan_bakiye,
       gosterBakiye: false 
@@ -422,42 +531,22 @@ export default function App() {
     verileriGetir("satis"); 
   }
 
-  const handleResimPaylas = () => {
+  const handleWhatsappResimGonder = () => {
     const fisElement = document.getElementById("print-receipt");
     if (!fisElement) return;
     if (typeof (window as any).html2canvas !== "undefined") {
       (window as any).html2canvas(fisElement, { scale: 3, backgroundColor: "#ffffff" }).then((canvas: any) => {
         canvas.toBlob((blob: Blob | null) => {
           if (!blob) return;
-          const file = new File([blob], `Sultankoy_Fis_${Date.now()}.jpg`, { type: "image/jpeg" });
-          if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) navigator.share({ title: 'Sultanköy Fiş Özeti', files: [file] }).catch(() => {});
-          else { const link = document.createElement("a"); link.download = file.name; link.href = canvas.toDataURL("image/jpeg", 0.9); link.click(); }
+          const file = new File([blob], `Sultankoy_Fis_${sonFisData?.fis_no || Date.now()}.jpg`, { type: "image/jpeg" });
+          if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+              navigator.share({ title: 'Sultanköy Fiş Özeti', files: [file] }).catch(() => {});
+          } else { 
+              const link = document.createElement("a"); link.download = file.name; link.href = canvas.toDataURL("image/jpeg", 0.9); link.click(); 
+          }
         }, "image/jpeg", 0.9);
       });
     } else alert("Resim oluşturucu yükleniyor, 1 saniye sonra tekrar deneyin.");
-  };
-
-  const handleWhatsappGonder = () => {
-    if(!sonFisData) return;
-    let text = `*SULTANKÖY SÜT ÜRÜNLERİ*\nFiş No: ${sonFisData.fis_no}\n`;
-    text += `Tarih: ${sonFisData.tarih.split("-").reverse().join(".")}\nSayın: *${sonFisData.bayi}*\n--------------------------\n`;
-    sonFisData.urunler.forEach((u: any) => { 
-        let miktarText = u.kg > 0 ? `${u.kg} KG` : `${u.adet} Ad`;
-        text += `${u.isim}: ${miktarText} x ${fSayi(u.fiyat)} = *${fSayi(u.tutar)}*\n`; 
-    });
-    text += `--------------------------\n`;
-    if(sonFisData.kovaAdet > 0) {
-        text += `Brüt Tutar: ${fSayi(sonFisData.brutToplam)}\nİade Kova (${sonFisData.kovaAdet} Adet): -${fSayi(sonFisData.kovaIndirim)}\n`;
-    }
-    text += `*NET TOPLAM: ${fSayi(sonFisData.genelToplam)} ₺*\nTahsil Edilen: ${fSayi(sonFisData.tahsilat)}\n`;
-    text += `Bu Fiş Kalan: ${fSayi(sonFisData.kalanBakiye)}\n`;
-    
-    if (sonFisData.gosterBakiye && sonFisData.genelBorc !== 0) { 
-      text += `\n*GENEL TOPLAM BORCUNUZ: ${fSayi(sonFisData.genelBorc)} ₺*\n`; 
-    }
-    
-    text += `\nÖdeme: ${sonFisData.odeme}\n\nBizi tercih ettiğiniz için teşekkür ederiz.`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   let fFisList = sortData(satisFisList.filter((f: any) => 
@@ -486,15 +575,15 @@ export default function App() {
   const renderOzet = () => (
     <div className="tab-fade-in main-content-area">
       <div className="cards-grid">
-        <div className="card summary-c" style={{ borderLeft: `5px solid ${temaRengi}` }}><small>Süt Alımı</small><h2 style={{ margin: "5px 0", color: temaRengi }}>{fSayi(sutList.reduce((a, b) => a + Number(b.kg), 0))} KG</h2></div>
-        <div className="card summary-c" style={{ borderLeft: "5px solid #059669" }}><small>Toplam Satış</small><h2 style={{ margin: "5px 0", color: "#059669" }}>{fSayi(satisFisList.reduce((a, b) => a + Number(b.toplam_tutar), 0))}</h2></div>
+        <div className="card summary-c" style={{ borderLeft: `5px solid ${temaRengi}` }}><small>Süt Alımı</small><h2 style={{ margin: "5px 0", color: temaRengi }}>{fSayiNoDec(sutList.reduce((a, b) => a + Number(b.kg), 0))} KG</h2></div>
+        <div className="card summary-c" style={{ borderLeft: "5px solid #059669" }}><small>Toplam Satış</small><h2 style={{ margin: "5px 0", color: "#059669" }}>{fSayiNoDec(satisFisList.reduce((a, b) => a + Number(b.toplam_tutar), 0))} ₺</h2></div>
       </div>
       <div className="card" style={{marginTop: "5px"}}>
         <h4 style={{ margin: "0 0 10px", borderBottom: "1px solid #e2e8f0", paddingBottom: "5px" }}>Son Kesilen Fişler</h4>
         {satisFisList.slice().reverse().slice(0, 5).map(f => (
           <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
             <span style={{fontSize: "12px"}}>{f.tarih.split("-").reverse().join(".")} <b className="truncate-text" style={{display:"inline-block", verticalAlign:"bottom"}}>{f.bayi}</b></span>
-            <b style={{color: '#059669'}}>{fSayi(f.toplam_tutar)}</b>
+            <b style={{color: '#059669'}}>{fSayi(f.toplam_tutar)} ₺</b>
           </div>
         ))}
       </div>
@@ -505,8 +594,8 @@ export default function App() {
     <div className="tab-fade-in main-content-area">
       <button onClick={() => { setSutForm({ tarih: bugun, ciftlik: "", kg: "", fiyat: "", aciklama: "" }); setEditingSutId(null); setIsSutModalOpen(true); }} className="btn-anim m-btn blue-btn">➕ YENİ SÜT GİRİŞİ</button>
       <div className="compact-totals">
-        <div className="c-kutu" style={{ borderLeftColor: temaRengi }}><span>SÜT (KG)</span><b style={{ color: temaRengi }}>{fSayi(tSutKg)}</b></div>
-        <div className="c-kutu" style={{ borderLeftColor: temaRengi }}><span>T. TUTAR</span><b style={{ color: temaRengi }}>{fSayi(tSutTl)}</b></div>
+        <div className="c-kutu" style={{ borderLeftColor: temaRengi }}><span>SÜT</span><b style={{ color: temaRengi }}>{fSayi(tSutKg)} KG</b></div>
+        <div className="c-kutu" style={{ borderLeftColor: temaRengi }}><span>T. TUTAR</span><b style={{ color: temaRengi }}>{fSayiNoDec(tSutTl)} ₺</b></div>
       </div>
       <div className="table-wrapper"><table className="tbl">
         <thead><tr>
@@ -523,7 +612,7 @@ export default function App() {
             <td style={{ fontWeight: "bold" }} className="truncate-text-td">{s.ciftlik}</td>
             <td style={{ textAlign: "right" }}>{fSayi(s.kg)}</td>
             <td style={{ textAlign: "right" }}>{fSayi(s.fiyat)}</td>
-            <td style={{ textAlign: "right", color: temaRengi, fontWeight: "bold" }}>{fSayi(s.toplam_tl)}</td>
+            <td style={{ textAlign: "right", color: temaRengi, fontWeight: "bold" }}>{fSayiNoDec(s.toplam_tl)}</td>
             <td className="actions-cell"><div className="action-buttons">{renderNot(s.aciklama)}<button onClick={() => { setEditingSutId(s.id); setSutForm(s as any); setIsSutModalOpen(true); }} className="ed-btn">✏️</button><button onClick={async () => { if(confirm("Sil?")){ await supabase.from("sut_giris").delete().eq("id", s.id); verileriGetir("sut"); } }} className="dl-btn">✕</button></div></td>
           </tr>))}
         </tbody>
@@ -533,11 +622,14 @@ export default function App() {
 
   const renderSatis = () => (
     <div className="tab-fade-in main-content-area">
-      <button onClick={handleYeniFisAc} className="btn-anim m-btn green-btn">➕ YENİ SATIŞ FİŞİ KES</button>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+         <button onClick={handleYeniFisAc} className="btn-anim m-btn green-btn" style={{ margin: 0, flex: 2, fontSize: '13px' }}>➕ YENİ SATIŞ FİŞİ</button>
+         <button onClick={() => { setTahsilatForm({ tarih: bugun, bayi: "", miktar: "", odeme_turu: "PEŞİN", aciklama: "" }); setIsTahsilatModalOpen(true); }} className="btn-anim m-btn blue-btn" style={{ margin: 0, flex: 1.2, fontSize: '13px', background: '#3b82f6' }}>💸 TAHSİLAT</button>
+      </div>
       <div className="compact-totals">
-        <div className="c-kutu" style={{ borderLeftColor: "#059669" }}><span>TOPLAM</span><b style={{ color: "#059669" }}>{fSayi(tFisToplam)}</b></div>
-        <div className="c-kutu" style={{ borderLeftColor: "#2563eb" }}><span>TAHSİLAT</span><b style={{ color: "#2563eb" }}>{fSayi(tFisTahsilat)}</b></div>
-        <div className="c-kutu" style={{ borderLeftColor: "#dc2626" }}><span>AÇIK HESAP</span><b style={{ color: "#dc2626" }}>{fSayi(tFisKalan)}</b></div>
+        <div className="c-kutu" style={{ borderLeftColor: "#059669" }}><span>TOPLAM</span><b style={{ color: "#059669" }}>{fSayi(tFisToplam)} ₺</b></div>
+        <div className="c-kutu" style={{ borderLeftColor: "#2563eb" }}><span>TAHSİLAT</span><b style={{ color: "#2563eb" }}>{fSayi(tFisTahsilat)} ₺</b></div>
+        <div className="c-kutu" style={{ borderLeftColor: "#dc2626" }}><span>AÇIK HESAP</span><b style={{ color: "#dc2626" }}>{fSayi(tFisKalan)} ₺</b></div>
       </div>
       <div className="table-wrapper"><table className="tbl tbl-satis">
         <thead><tr>
@@ -551,10 +643,10 @@ export default function App() {
         <tbody>{fFisList.map(f => (
           <tr key={f.id}>
             <td>{f.tarih.split("-").reverse().slice(0, 2).join(".")}</td>
-            <td style={{ fontWeight: "bold" }} className="truncate-text-td">{f.bayi}</td>
-            <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold" }}>{fSayi(f.toplam_tutar)}</td>
+            <td style={{ fontWeight: "bold", color: f.toplam_tutar === 0 ? "#8b5cf6" : "inherit" }} className="truncate-text-td">{f.bayi}</td>
+            <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold" }}>{f.toplam_tutar === 0 ? "-" : fSayi(f.toplam_tutar)}</td>
             <td style={{ textAlign: "right", color: "#2563eb", fontWeight: "bold" }}>{fSayi(f.tahsilat)}</td>
-            <td style={{ textAlign: "right", color: f.kalan_bakiye > 0 ? "#dc2626" : "#64748b", fontWeight: "bold" }}>{fSayi(f.kalan_bakiye)}</td>
+            <td style={{ textAlign: "right", color: f.kalan_bakiye > 0 ? "#dc2626" : (f.kalan_bakiye < 0 ? "#059669" : "#64748b"), fontWeight: "bold" }}>{fSayi(f.kalan_bakiye)}</td>
             <td className="actions-cell"><div className="action-buttons"><button onClick={() => handleFisDetayGoster(f)} className="btn-anim" style={{background: "none", border: "none", padding: "0 2px", cursor: "pointer", fontSize: "16px"}}>🔍</button><button onClick={() => handleFisDuzenle(f)} className="ed-btn">✏️</button><button onClick={() => handleFisSil(f)} className="dl-btn">✕</button></div></td>
           </tr>))}
         </tbody>
@@ -566,7 +658,7 @@ export default function App() {
     <div className="tab-fade-in main-content-area">
       <div className="compact-totals" style={{marginTop: "5px"}}>
         <div className="c-kutu" style={{ borderLeftColor: "#8b5cf6" }}><span>TOPLAM ADET/KG</span><b style={{ color: "#8b5cf6" }}>{fSayi(tAnalizKg)}</b></div>
-        <div className="c-kutu" style={{ borderLeftColor: "#8b5cf6" }}><span>TOPLAM TUTAR</span><b style={{ color: "#8b5cf6" }}>{fSayi(tAnalizTutar)}</b></div>
+        <div className="c-kutu" style={{ borderLeftColor: "#8b5cf6" }}><span>TOPLAM TUTAR</span><b style={{ color: "#8b5cf6" }}>{fSayi(tAnalizTutar)} ₺</b></div>
       </div>
       <div className="table-wrapper"><table className="tbl tbl-analiz">
         <thead><tr>
@@ -631,8 +723,8 @@ export default function App() {
       <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fafc", padding: "20px", boxSizing: "border-box" }}>
         <form onSubmit={async (e) => { e.preventDefault(); const target = e.currentTarget as any; if (target.elements.remember.checked) localStorage.setItem('user', username); else localStorage.removeItem('user'); await supabase.auth.signInWithPassword({ email: username.includes("@") ? username : `${username}@sistem.local`, password }); }} style={{ background: "#fff", padding: "30px", borderRadius: "12px", width: "100%", maxWidth: "360px", boxShadow: "0 4px 6px rgba(0,0,0,0.1)", border: "1px solid #e2e8f0" }}>
           <h2 style={{ margin: "0 0 8px", color: "#0f172a", textAlign: "center" }}>Sultanköy v2</h2><p style={{ margin: "0 0 24px", color: "#64748b", textAlign: "center", fontSize:"14px" }}>Yönetim Paneline Giriş Yapın</p>
-          <input value={username} onChange={e => setUsername(e.target.value)} placeholder="Kullanıcı Adı" style={{ width: "100%", marginBottom: "16px", padding: "10px", border: "1px solid #cbd5e1", borderRadius: "6px", boxSizing: "border-box" }} />
-          <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Şifre" style={{ width: "100%", marginBottom: "16px", padding: "10px", border: "1px solid #cbd5e1", borderRadius: "6px", boxSizing: "border-box" }} />
+          <input value={username} onChange={e => setUsername(e.target.value)} placeholder="Kullanıcı Adı" style={{ width: "100%", marginBottom: "16px", padding: "8px", border: "1px solid #cbd5e1", borderRadius: "6px", boxSizing: "border-box" }} />
+          <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Şifre" style={{ width: "100%", marginBottom: "16px", padding: "8px", border: "1px solid #cbd5e1", borderRadius: "6px", boxSizing: "border-box" }} />
           <label style={{ display: "flex", gap: "8px", fontSize: "13px", color: "#64748b", cursor: "pointer", marginBottom: "20px" }}><input type="checkbox" id="remember" defaultChecked={!!localStorage.getItem('user')} /> Beni Hatırla</label>
           <button type="submit" style={{ width: "100%", padding: "12px", background: temaRengi, color: "#fff", border: "none", borderRadius: "6px", fontWeight: "bold", cursor: "pointer" }}>Giriş Yap</button>
         </form>
@@ -689,7 +781,7 @@ export default function App() {
                 <div style={{display: "flex", gap: "6px", marginBottom: "12px"}}>
                   <input type="date" value={fisUst.tarih} onChange={e => setFisUst({ ...fisUst, tarih: e.target.value })} className="m-inp" style={{flex: "0 0 100px", padding: "6px 8px", fontSize: "13px"}} />
                   
-                  {/* BAYİ ARAMA KISMI (DATALIST) */}
+                  {/* BAYİ ARAMA KISMI */}
                   <input
                     list="bayiler-list"
                     placeholder="Bayi Seç / Ara..."
@@ -708,44 +800,90 @@ export default function App() {
                   </datalist>
 
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px' }}>
                   {urunler.map(u => {
+                    const isimLower = u.isim.toLowerCase();
+                    const isFixed = (isimLower.includes("3 kg") || isimLower.includes("5 kg") || (isimLower.includes("kayma") && !isimLower.includes("yoğurt")));
+                    const isTereyagi = isimLower.includes("tereya");
+                    const isYogurtKaymagi = isimLower.includes("yoğurt kayma");
                     const isFilled = (Number(fisDetay[u.id]?.adet) > 0 || Number(fisDetay[u.id]?.kg) > 0);
+
+                    if (!isFixed && !isFilled && !(gosterilenEkler.tereyagi && isTereyagi) && !(gosterilenEkler.yogurt_kaymagi && isYogurtKaymagi)) return null;
+
+                    const handleAdetChange = (e: any) => {
+                        const val = e.target.value;
+                        let newKg = fisDetay[u.id]?.kg || "";
+                        const match = u.isim.match(/(\d+)\s*kg/i);
+                        if (match && match[1]) {
+                            const multiplier = Number(match[1]);
+                            if (val !== "") {
+                                newKg = String(Number(val) * multiplier);
+                            } else {
+                                newKg = "";
+                            }
+                        }
+                        setFisDetay({...fisDetay, [u.id]: {...fisDetay[u.id], adet: val, kg: newKg}});
+                    };
+
                     return (
                       <div key={u.id} style={{ display: 'flex', gap: '4px', alignItems: 'center', padding: '4px 6px', background: isFilled ? (editingFisId ? '#fef3c7' : '#ecfdf5') : '#f8fafc', borderRadius: '4px', border: isFilled ? (editingFisId ? '1px solid #fde68a' : '1px solid #a7f3d0') : '1px solid #e2e8f0' }}>
                         <div style={{ flex: 1, minWidth: "85px", fontWeight: 'bold', fontSize: "12px", color: isFilled ? (editingFisId ? "#b45309" : "#065f46") : "#475569", whiteSpace: "normal", lineHeight: "1.2" }}>{u.isim}</div>
-                        <input placeholder="Adet" type="number" value={fisDetay[u.id]?.adet || ""} onChange={e => setFisDetay({...fisDetay, [u.id]: {...fisDetay[u.id], adet: e.target.value}})} className="m-inp" style={{flex: "0 0 45px", width: "45px", padding: "4px 2px", textAlign: "center", background: isFilled ? "#fff" : "", fontSize: "12px", height:"28px"}} />
-                        <input placeholder="KG" type="number" step="0.01" value={fisDetay[u.id]?.kg || ""} onChange={e => setFisDetay({...fisDetay, [u.id]: {...fisDetay[u.id], kg: e.target.value}})} className="m-inp" style={{flex: "0 0 50px", width: "50px", padding: "4px 2px", textAlign: "center", background: isFilled ? "#fff" : "", fontSize: "12px", height:"28px"}} />
+                        <input placeholder="Adet" type="number" value={fisDetay[u.id]?.adet || ""} onChange={handleAdetChange} className="m-inp" style={{flex: "0 0 45px", width: "45px", padding: "4px 2px", textAlign: "center", background: isFilled ? "#fff" : "", fontSize: "12px", height:"24px"}} />
+                        <input placeholder="KG" type="number" step="0.01" value={fisDetay[u.id]?.kg || ""} onChange={e => setFisDetay({...fisDetay, [u.id]: {...fisDetay[u.id], kg: e.target.value}})} className="m-inp" style={{flex: "0 0 50px", width: "50px", padding: "4px 2px", textAlign: "center", background: isFilled ? "#fff" : "", fontSize: "12px", height:"24px"}} />
                         <div style={{fontSize:"12px", color:"#94a3b8", width:"8px", textAlign:"center"}}>x</div>
-                        <input placeholder="Fiyat" type="number" step="0.01" value={fisDetay[u.id]?.fiyat || ""} onChange={e => setFisDetay({...fisDetay, [u.id]: {...fisDetay[u.id], fiyat: e.target.value}})} className="m-inp" style={{flex: "0 0 60px", width: "60px", padding: "4px 2px", textAlign: "right", background: isFilled ? "#fff" : "", fontSize: "12px", height:"28px"}} />
+                        <input placeholder="Fiyat" type="number" step="0.01" value={fisDetay[u.id]?.fiyat || ""} onChange={e => setFisDetay({...fisDetay, [u.id]: {...fisDetay[u.id], fiyat: e.target.value}})} className="m-inp" style={{flex: "0 0 60px", width: "60px", padding: "4px 2px", textAlign: "right", background: isFilled ? "#fff" : "", fontSize: "12px", height:"24px"}} />
                       </div>
                     );
                   })}
                   
-                  {/* İADE KOVA BÖLÜMÜ */}
-                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center', padding: '4px 6px', background: Number(fisDetay["iade_kova"]?.adet) > 0 ? '#fef2f2' : '#f8fafc', borderRadius: '4px', border: Number(fisDetay["iade_kova"]?.adet) > 0 ? '1px solid #fecaca' : '1px dashed #cbd5e1', marginTop: "4px" }}>
-                    <div style={{ flex: 1, minWidth: "85px", fontWeight: 'bold', fontSize: "12px", color: Number(fisDetay["iade_kova"]?.adet) > 0 ? "#dc2626" : "#64748b", whiteSpace: "normal", lineHeight: "1.2" }}>🔄 İade Kova (Eksi)</div>
-                    <input placeholder="Adet" type="number" value={fisDetay["iade_kova"]?.adet || ""} onChange={e => setFisDetay({...fisDetay, iade_kova: {...fisDetay["iade_kova"], adet: e.target.value}})} className="m-inp" style={{flex: "0 0 45px", width: "45px", padding: "4px 2px", textAlign: "center", background: "#fff", fontSize: "12px", height:"28px", borderColor: Number(fisDetay["iade_kova"]?.adet) > 0 ? "#fca5a5" : ""}} />
-                    <div style={{flex: "0 0 50px"}}></div>
-                    <div style={{fontSize:"12px", color:"#94a3b8", width:"8px", textAlign:"center"}}>x</div>
-                    <input placeholder="Fiyat" type="number" step="0.01" value={fisDetay["iade_kova"]?.fiyat || ""} onChange={e => setFisDetay({...fisDetay, iade_kova: {...fisDetay["iade_kova"], fiyat: e.target.value}})} className="m-inp" style={{flex: "0 0 60px", width: "60px", padding: "4px 2px", textAlign: "right", background: "#fff", fontSize: "12px", height:"28px", borderColor: Number(fisDetay["iade_kova"]?.adet) > 0 ? "#fca5a5" : ""}} />
+                  {/* DİNAMİK BUTONLAR */}
+                  <div style={{ display: "flex", gap: "6px", marginBottom: "4px", marginTop: "4px", flexWrap: "wrap" }}>
+                      <button onClick={() => setGosterilenEkler(p => ({...p, tereyagi: true}))} className="btn-anim" style={{ background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: "4px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", color: "#475569" }}>+ Tereyağı</button>
+                      <button onClick={() => setGosterilenEkler(p => ({...p, yogurt_kaymagi: true}))} className="btn-anim" style={{ background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: "4px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", color: "#475569" }}>+ Y. Kaymağı</button>
+                      <button onClick={() => setGosterilenEkler(p => ({...p, iade: true}))} className="btn-anim" style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "4px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", color: "#dc2626" }}>+ İade</button>
+                      <button onClick={() => setGosterilenEkler(p => ({...p, bos_kova: true}))} className="btn-anim" style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "4px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", color: "#dc2626" }}>+ Boş Kova</button>
                   </div>
+
+                  {/* İADE SATIRI */}
+                  {(gosterilenEkler.iade || Number(fisDetay["v_iade"]?.adet) > 0 || Number(fisDetay["v_iade"]?.kg) > 0) && (
+                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center', padding: '4px 6px', background: '#fef2f2', borderRadius: '4px', border: '1px solid #fecaca', marginTop: "4px" }}>
+                      <div style={{ flex: 1, minWidth: "85px", fontWeight: 'bold', fontSize: "12px", color: "#dc2626", whiteSpace: "normal", lineHeight: "1.2" }}>İade</div>
+                      <input placeholder="Adet" type="number" value={fisDetay["v_iade"]?.adet || ""} onChange={e => setFisDetay({...fisDetay, v_iade: {...fisDetay["v_iade"], adet: e.target.value}})} className="m-inp" style={{flex: "0 0 45px", width: "45px", padding: "4px 2px", textAlign: "center", background: "#fff", fontSize: "12px", height:"24px", borderColor: "#fca5a5"}} />
+                      <input placeholder="KG" type="number" step="0.01" value={fisDetay["v_iade"]?.kg || ""} onChange={e => setFisDetay({...fisDetay, v_iade: {...fisDetay["v_iade"], kg: e.target.value}})} className="m-inp" style={{flex: "0 0 50px", width: "50px", padding: "4px 2px", textAlign: "center", background: "#fff", fontSize: "12px", height:"24px", borderColor: "#fca5a5"}} />
+                      <div style={{fontSize:"12px", color:"#94a3b8", width:"8px", textAlign:"center"}}>x</div>
+                      <input placeholder="Fiyat" type="number" step="0.01" value={fisDetay["v_iade"]?.fiyat || ""} onChange={e => setFisDetay({...fisDetay, v_iade: {...fisDetay["v_iade"], fiyat: e.target.value}})} className="m-inp" style={{flex: "0 0 60px", width: "60px", padding: "4px 2px", textAlign: "right", background: "#fff", fontSize: "12px", height:"24px", borderColor: "#fca5a5"}} />
+                    </div>
+                  )}
+
+                  {/* BOŞ KOVA SATIRI */}
+                  {(gosterilenEkler.bos_kova || Number(fisDetay["v_bos_kova"]?.adet) > 0 || Number(fisDetay["v_bos_kova"]?.kg) > 0) && (
+                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center', padding: '4px 6px', background: '#fef2f2', borderRadius: '4px', border: '1px solid #fecaca', marginTop: "4px" }}>
+                      <div style={{ flex: 1, minWidth: "85px", fontWeight: 'bold', fontSize: "12px", color: "#dc2626", whiteSpace: "normal", lineHeight: "1.2" }}>Boş Kova</div>
+                      <input placeholder="Adet" type="number" value={fisDetay["v_bos_kova"]?.adet || ""} onChange={e => setFisDetay({...fisDetay, v_bos_kova: {...fisDetay["v_bos_kova"], adet: e.target.value}})} className="m-inp" style={{flex: "0 0 45px", width: "45px", padding: "4px 2px", textAlign: "center", background: "#fff", fontSize: "12px", height:"24px", borderColor: "#fca5a5"}} />
+                      <input placeholder="KG" type="number" step="0.01" value={fisDetay["v_bos_kova"]?.kg || ""} onChange={e => setFisDetay({...fisDetay, v_bos_kova: {...fisDetay["v_bos_kova"], kg: e.target.value}})} className="m-inp" style={{flex: "0 0 50px", width: "50px", padding: "4px 2px", textAlign: "center", background: "#fff", fontSize: "12px", height:"24px", borderColor: "#fca5a5"}} />
+                      <div style={{fontSize:"12px", color:"#94a3b8", width:"8px", textAlign:"center"}}>x</div>
+                      <input placeholder="Fiyat" type="number" step="0.01" value={fisDetay["v_bos_kova"]?.fiyat || ""} onChange={e => setFisDetay({...fisDetay, v_bos_kova: {...fisDetay["v_bos_kova"], fiyat: e.target.value}})} className="m-inp" style={{flex: "0 0 60px", width: "60px", padding: "4px 2px", textAlign: "right", background: "#fff", fontSize: "12px", height:"24px", borderColor: "#fca5a5"}} />
+                    </div>
+                  )}
 
                 </div>
                 <div style={{display: "flex", gap: "6px"}}>
                   <select value={fisUst.odeme_turu} onChange={e => setFisUst({ ...fisUst, odeme_turu: e.target.value })} className="m-inp" style={{flex: "0 0 95px", padding: "6px 4px", fontSize: "12px", height: "30px"}}><option value="PEŞİN">💵 PEŞİN</option><option value="VADE">⏳ VADE</option><option value="KREDİ KARTI">💳 K.KARTI</option><option value="HAVALE/EFT">🏦 HAVALE</option></select>
                   <input placeholder="Açıklama/Not..." value={fisUst.aciklama} onChange={e => setFisUst({ ...fisUst, aciklama: e.target.value })} className="m-inp grow-inp" style={{padding: "6px 8px", fontSize: "12px", height: "30px"}} />
                 </div>
+                <div style={{display: "flex", gap: "6px", marginTop: "6px"}}>
+                  <input placeholder="Teslim Alan (İsim Soyisim)" value={fisUst.teslim_alan || ""} onChange={e => setFisUst({ ...fisUst, teslim_alan: e.target.value })} className="m-inp grow-inp" style={{padding: "6px 8px", fontSize: "12px", height: "30px"}} />
+                </div>
               </div>
               <div style={{ padding: "10px 12px", borderTop: "1px solid #e2e8f0", background: "#f8fafc", borderRadius: "0 0 8px 8px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}><span style={{color: "#0f172a", fontWeight: "bold", fontSize: "14px"}}>Genel Toplam:</span><b style={{color: "#0f172a", fontSize: "16px"}}>{fSayi(fisCanliToplam)}</b></div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}><span style={{color: "#0f172a", fontWeight: "bold", fontSize: "14px"}}>Genel Toplam:</span><b style={{color: "#0f172a", fontSize: "16px"}}>{fSayi(fisCanliToplam)} ₺</b></div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}><span style={{color: "#2563eb", fontWeight: "bold", fontSize: "13px"}}>Tahsil Edilen:</span><input type="number" placeholder="Alınan..." value={fisUst.tahsilat} onChange={e => setFisUst({ ...fisUst, tahsilat: e.target.value })} className="m-inp" style={{ flex: "0 0 90px", padding: "4px 6px", textAlign: "right", borderColor: "#bfdbfe", fontSize: "13px", height: "28px" }} /></div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px", borderTop: "1px dashed #cbd5e1", paddingTop: "6px" }}><span style={{color: (fisCanliToplam - Number(fisUst.tahsilat || 0)) > 0 ? "#dc2626" : "#059669", fontWeight: "bold", fontSize: "13px"}}>BU FİŞTEN KALAN:</span><b style={{color: (fisCanliToplam - Number(fisUst.tahsilat || 0)) > 0 ? "#dc2626" : "#059669", fontSize: "14px"}}>{fSayi(fisCanliToplam - Number(fisUst.tahsilat || 0))}</b></div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px", borderTop: "1px dashed #cbd5e1", paddingTop: "6px" }}><span style={{color: (fisCanliToplam - Number(fisUst.tahsilat || 0)) > 0 ? "#dc2626" : "#059669", fontWeight: "bold", fontSize: "13px"}}>BU FİŞTEN KALAN:</span><b style={{color: (fisCanliToplam - Number(fisUst.tahsilat || 0)) > 0 ? "#dc2626" : "#059669", fontSize: "14px"}}>{fSayi(fisCanliToplam - Number(fisUst.tahsilat || 0))} ₺</b></div>
                 
                 {aktifBayi && (
                   <>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}><span style={{color: "#64748b", fontSize: "11px"}}>Önceki Bakiye:</span><b style={{color: "#64748b", fontSize: "12px"}}>{fSayi(eskiBorc)}</b></div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", background: "#fef2f2", padding: "6px", borderRadius: "6px", border: "1px solid #fecaca" }}><span style={{color: "#dc2626", fontWeight: "bold", fontSize: "12px"}}>GENEL TOPLAM BORÇ:</span><b style={{color: "#dc2626", fontSize: "16px"}}>{fSayi(toplamGenelBorc)}</b></div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}><span style={{color: "#64748b", fontSize: "11px"}}>Önceki Bakiye:</span><b style={{color: "#64748b", fontSize: "12px"}}>{fSayi(eskiBorc)} ₺</b></div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", background: "#fef2f2", padding: "6px", borderRadius: "6px", border: "1px solid #fecaca" }}><span style={{color: "#dc2626", fontWeight: "bold", fontSize: "12px"}}>GENEL TOPLAM BORÇ:</span><b style={{color: "#dc2626", fontSize: "16px"}}>{fSayi(toplamGenelBorc)} ₺</b></div>
                   </>
                 )}
                 <button onClick={handleTopluFisKaydet} className="p-btn btn-anim" style={{ background: editingFisId ? "#f59e0b" : "#059669", width: "100%", height: "40px", fontSize: "14px" }}>{editingFisId ? "DEĞİŞİKLİKLERİ KAYDET" : "FİŞİ KAYDET"}</button>
@@ -765,40 +903,57 @@ export default function App() {
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#000", marginBottom: "2px" }}><span>Tarih:</span><b>{sonFisData.tarih.split("-").reverse().join(".")}</b></div>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#000", marginBottom: "2px" }}><span>Sayın:</span><b style={{textAlign: "right"}}>{sonFisData.bayi}</b></div>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "9px", color: "#000", marginBottom: "12px" }}><span>Fiş No:</span><b>{sonFisData.fis_no}</b></div>
-                  <table style={{ width: '100%', fontSize: '11px', textAlign: 'left', borderCollapse: 'collapse', marginBottom: '12px', color: '#000' }}>
-                    <thead><tr style={{ borderBottom: '1px solid #000' }}><th style={{ paddingBottom: '4px' }}>Ürün</th><th style={{ paddingBottom: '4px', textAlign: 'center' }}>Adet</th><th style={{ paddingBottom: '4px', textAlign: 'center' }}>KG</th><th style={{ paddingBottom: '4px', textAlign: 'right' }}>B.Fiyat</th><th style={{ paddingBottom: '4px', textAlign: 'right' }}>Tutar</th></tr></thead>
-                    <tbody>{sonFisData.urunler.map((u:any, i:number) => (<tr key={i}><td style={{ padding: '4px 0', borderBottom: '1px dashed #ccc' }}>{u.isim}</td><td style={{ padding: '4px 0', textAlign: 'center', borderBottom: '1px dashed #ccc' }}>{u.adet || '-'}</td><td style={{ padding: '4px 0', textAlign: 'center', borderBottom: '1px dashed #ccc' }}>{u.kg > 0 ? u.kg : '-'}</td><td style={{ padding: '4px 0', textAlign: 'right', borderBottom: '1px dashed #ccc' }}>{fSayi(u.fiyat)}</td><td style={{ padding: '4px 0', textAlign: 'right', borderBottom: '1px dashed #ccc' }}>{fSayi(u.tutar)}</td></tr>))}</tbody>
-                  </table>
-                  {sonFisData.kovaAdet > 0 && (
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "#000", paddingTop: "2px", fontWeight: "bold" }}><span>İade Kova ({sonFisData.kovaAdet} Ad):</span><b>-{fSayi(sonFisData.kovaIndirim)}</b></div>
+                  
+                  {sonFisData.urunler.length > 0 && (
+                    <table style={{ width: '100%', fontSize: '11px', textAlign: 'left', borderCollapse: 'collapse', marginBottom: '12px', color: '#000' }}>
+                      <thead><tr style={{ borderBottom: '1px solid #000' }}><th style={{ paddingBottom: '4px' }}>Ürün</th><th style={{ paddingBottom: '4px', textAlign: 'center' }}>Adet</th><th style={{ paddingBottom: '4px', textAlign: 'center' }}>KG</th><th style={{ paddingBottom: '4px', textAlign: 'right' }}>B.Fiyat</th><th style={{ paddingBottom: '4px', textAlign: 'right' }}>Tutar</th></tr></thead>
+                      <tbody>{sonFisData.urunler.map((u:any, i:number) => (<tr key={i}><td style={{ padding: '4px 0', borderBottom: '1px dashed #ccc' }}>{u.isim}</td><td style={{ padding: '4px 0', textAlign: 'center', borderBottom: '1px dashed #ccc' }}>{u.adet || '-'}</td><td style={{ padding: '4px 0', textAlign: 'center', borderBottom: '1px dashed #ccc' }}>{u.kg > 0 ? u.kg : '-'}</td><td style={{ padding: '4px 0', textAlign: 'right', borderBottom: '1px dashed #ccc' }}>{fSayi(u.fiyat)}</td><td style={{ padding: '4px 0', textAlign: 'right', borderBottom: '1px dashed #ccc' }}>{fSayi(u.tutar)}</td></tr>))}</tbody>
+                    </table>
                   )}
+                  
+                  {sonFisData.ekstraIndirimler && sonFisData.ekstraIndirimler.map((ek: any, i: number) => (
+                    <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "#000", paddingTop: "2px", fontWeight: "bold" }}>
+                      <span>{ek.isim} ({ek.miktar} {ek.birim}):</span>
+                      <b>-{fSayi(ek.tutar)}</b>
+                    </div>
+                  ))}
+
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", paddingTop: "6px", color: "#000", borderTop: "1px dashed #ccc", marginTop: "4px" }}><span>Genel Toplam:</span><b>{fSayi(sonFisData.genelToplam)} ₺</b></div>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", paddingTop: "4px", color: "#000" }}><span>Tahsil Edilen:</span><b>{fSayi(sonFisData.tahsilat)}</b></div>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", paddingTop: "4px", color: "#000" }}><span>Bu Fiş Kalan:</span><b>{fSayi(sonFisData.kalanBakiye)}</b></div>
                   
                   {sonFisData.gosterBakiye && (sonFisData.eskiBorc !== 0 || sonFisData.genelBorc !== 0) && (
                     <div style={{ marginTop: "6px", borderTop: "1px solid #000", paddingTop: "6px" }}>
-                      {sonFisData.eskiBorc !== 0 && <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "#000", marginBottom: "2px" }}><span>Önceki Bakiye:</span><b>{fSayi(sonFisData.eskiBorc)}</b></div>}
+                      {sonFisData.eskiBorc !== 0 && <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "#000", marginBottom: "2px" }}><span>Önceki Bakiye:</span><b>{fSayi(sonFisData.eskiBorc)} ₺</b></div>}
                       <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", color: "#000", fontWeight: "bold" }}><span>TOPLAM BORÇ:</span><b>{fSayi(sonFisData.genelBorc)} ₺</b></div>
                     </div>
                   )}
-                  <div style={{ textAlign: "right", fontSize: "10px", color: "#000", marginTop: "10px", borderTop: "1px dashed #ccc", paddingTop: "4px" }}>Ödeme: {sonFisData.odeme}</div><div style={{ textAlign: "center", fontSize: "9px", color: "#000", marginTop: "12px" }}>Bizi tercih ettiğiniz için teşekkür ederiz.</div>
+                  {sonFisData.teslim_alan && (
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#000", marginTop: "10px" }}>
+                      <span>Teslim Alan:</span><b style={{textAlign: "right"}}>{sonFisData.teslim_alan}</b>
+                    </div>
+                  )}
+                  <div style={{ textAlign: "right", fontSize: "10px", color: "#000", marginTop: "10px", borderTop: "1px dashed #ccc", paddingTop: "4px" }}>Ödeme: {sonFisData.odeme}</div>
+                  <div style={{ textAlign: "center", fontSize: "9px", color: "#000", marginTop: "12px" }}>Bizi tercih ettiğiniz için teşekkür ederiz.</div>
                 </div>
               </div>
 
               <div className="no-print" style={{ padding: "10px", display: "flex", flexDirection: "column", gap: "6px", background: "#f8fafc", borderTop: "1px solid #cbd5e1" }}>
                 
-                {/* YAZDIRMA EKRANINDA MÜŞTERİYE BORÇ GÖSTERME ONAY KUTUSU */}
                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', background: '#e2e8f0', padding: '8px', borderRadius: '6px', cursor: 'pointer', color: '#1e293b', fontWeight: 'bold' }}>
                   <input type="checkbox" checked={sonFisData.gosterBakiye} onChange={e => setSonFisData({...sonFisData, gosterBakiye: e.target.checked})} style={{ width: '16px', height: '16px' }} />
                   Fiş Çıktısında Müşteriye Toplam Borcu Göster
                 </label>
 
                 <div style={{ display: "flex", gap: "6px" }}>
-                  <button onClick={() => window.print()} className="btn-anim" style={{ flex: 1, padding: "10px", background: "#475569", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", fontSize: "12px" }}>🖨️ YAZDIR</button>
-                  <button onClick={handleResimPaylas} className="btn-anim" style={{ flex: 1, padding: "10px", background: "#3b82f6", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", fontSize: "12px" }}>🖼️ PAYLAŞ</button>
+                  <button onClick={() => window.print()} className="btn-anim" style={{ flex: 1, padding: "10px", background: "#475569", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", fontSize: "12px", display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                    <span style={{fontSize:'16px'}}>🖨️</span> YAZDIR
+                  </button>
+                  <button onClick={handleWhatsappResimGonder} className="btn-anim" style={{ flex: 1, padding: "10px", background: "#25D366", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", fontSize: "13px", display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                    <svg width="18" height="18" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg>
+                    WHATSAPP
+                  </button>
                 </div>
-                <button onClick={handleWhatsappGonder} className="btn-anim" style={{ width: "100%", padding: "12px", background: "#25D366", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", fontSize: "13px" }}>WHATSAPP İLE GÖNDER</button>
                 
                 <div style={{ display: "flex", gap: "6px", marginTop: "4px" }}>
                   <button onClick={() => {
@@ -817,6 +972,38 @@ export default function App() {
 
                 <button onClick={() => setSonFisData(null)} className="btn-anim" style={{ width: "100%", padding: "8px", background: "transparent", color: "#64748b", border: "1px solid #cbd5e1", borderRadius: "8px", fontWeight: "bold", fontSize: "11px", marginTop: "2px" }}>KAPAT</button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAHSİLAT MODALI */}
+        {isTahsilatModalOpen && (
+          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1200, padding: "10px" }}>
+            <div style={{ backgroundColor: "#fff", width: "95vw", maxWidth: "350px", borderRadius: "12px", display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease-out", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }}>
+               <div style={{ padding: "12px 15px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f8fafc", borderRadius: "12px 12px 0 0" }}>
+                 <h3 style={{ margin: "0", color: "#2563eb", fontSize: "15px" }}>💸 Yeni Tahsilat Ekle</h3>
+                 <button onClick={() => setIsTahsilatModalOpen(false)} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#94a3b8", padding: 0 }}>✕</button>
+               </div>
+               <div style={{ padding: "15px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                 <div style={{ display: "flex", gap: "8px" }}>
+                    <input type="date" value={tahsilatForm.tarih} onChange={e => setTahsilatForm({ ...tahsilatForm, tarih: e.target.value })} className="m-inp" style={{ flex: 1 }} />
+                    <input list="bayiler-tahsilat" placeholder="Müşteri/Bayi Seç..." value={tahsilatForm.bayi} onChange={e => setTahsilatForm({ ...tahsilatForm, bayi: e.target.value })} className="m-inp" style={{ flex: 2, fontWeight: "bold" }} />
+                    <datalist id="bayiler-tahsilat">
+                      {bayiler.map(b => <option key={b.id} value={b.isim}>{b.isim}</option>)}
+                    </datalist>
+                 </div>
+                 <div style={{ display: "flex", gap: "8px" }}>
+                    <div style={{flex: 1}}><label style={{fontSize: "11px", color: "#64748b"}}>Tahsilat Tutarı (₺)</label><input type="number" step="0.01" value={tahsilatForm.miktar} onChange={e => setTahsilatForm({ ...tahsilatForm, miktar: e.target.value })} className="m-inp" style={{width: "100%", textAlign: "right", color: "#059669", fontWeight: "bold"}} /></div>
+                    <div style={{flex: 1}}>
+                      <label style={{fontSize: "11px", color: "#64748b"}}>Ödeme Türü</label>
+                      <select value={tahsilatForm.odeme_turu} onChange={e => setTahsilatForm({ ...tahsilatForm, odeme_turu: e.target.value })} className="m-inp" style={{width: "100%"}}><option value="PEŞİN">💵 PEŞİN</option><option value="KREDİ KARTI">💳 K.KARTI</option><option value="HAVALE/EFT">🏦 HAVALE</option></select>
+                    </div>
+                 </div>
+                 <div><label style={{fontSize: "11px", color: "#64748b"}}>Açıklama / Not</label><input placeholder="Opsiyonel..." value={tahsilatForm.aciklama} onChange={e => setTahsilatForm({ ...tahsilatForm, aciklama: e.target.value })} className="m-inp" style={{width: "100%"}} /></div>
+               </div>
+               <div style={{ padding: "12px 15px", borderTop: "1px solid #e2e8f0", background: "#f8fafc", borderRadius: "0 0 12px 12px" }}>
+                 <button onClick={handleTahsilatKaydet} className="p-btn btn-anim" style={{ background: "#2563eb", width: "100%", height: "45px", fontSize: "15px" }}>KAYDET</button>
+               </div>
             </div>
           </div>
         )}
@@ -844,7 +1031,7 @@ export default function App() {
                 <div><label style={{fontSize: "11px", color: "#64748b"}}>Açıklama / Not</label><input placeholder="Opsiyonel..." value={sutForm.aciklama} onChange={e => setSutForm({ ...sutForm, aciklama: e.target.value })} className="m-inp" style={{width: "100%", padding: "8px"}} /></div>
               </div>
               <div style={{ padding: "12px 15px", borderTop: "1px solid #e2e8f0", background: "#f8fafc", borderRadius: "0 0 12px 12px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}><span style={{color: "#64748b", fontSize: "13px"}}>Toplam Tutar:</span><b style={{color: temaRengi, fontSize: "18px"}}>{fSayi((Number(sutForm.kg) || 0) * (Number(sutForm.fiyat) || 0))}</b></div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}><span style={{color: "#64748b", fontSize: "13px"}}>Toplam Tutar:</span><b style={{color: temaRengi, fontSize: "18px"}}>{fSayi((Number(sutForm.kg) || 0) * (Number(sutForm.fiyat) || 0))} ₺</b></div>
                 <button onClick={handleSutKaydet} className="p-btn btn-anim" style={{ background: editingSutId ? "#f59e0b" : temaRengi, width: "100%", height: "45px", fontSize: "15px" }}>{editingSutId ? "GÜNCELLE" : "KAYDET"}</button>
               </div>
             </div>
@@ -864,7 +1051,7 @@ export default function App() {
 
       <footer className="fixed-nav main-content-area">
         {[{ id: "ozet", i: "📊" }, { id: "sut", i: "🥛" }, { id: "satis", i: "💰" }, { id: "analiz", i: "📈" }, { id: "ayarlar", i: "⚙️" }].map(item => (
-          <button key={item.id} onClick={() => { setActiveTab(item.id); setEditingSutId(null); setIsSutModalOpen(false); setIsFisModalOpen(false); }} className={`n-item btn-anim ${activeTab === item.id ? 'active' : ''}`} style={activeTab === item.id ? { color: item.id === 'analiz' ? '#8b5cf6' : temaRengi, borderTopColor: item.id === 'analiz' ? '#8b5cf6' : temaRengi } : {}}>
+          <button key={item.id} onClick={() => { setActiveTab(item.id); setEditingSutId(null); setIsSutModalOpen(false); setIsFisModalOpen(false); setIsTahsilatModalOpen(false); }} className={`n-item btn-anim ${activeTab === item.id ? 'active' : ''}`} style={activeTab === item.id ? { color: item.id === 'analiz' ? '#8b5cf6' : temaRengi, borderTopColor: item.id === 'analiz' ? '#8b5cf6' : temaRengi } : {}}>
             <span style={{ fontSize: "20px" }}>{item.i}</span><span style={{ fontSize: "10px", fontWeight: "bold" }}>{item.id.toUpperCase()}</span>
           </button>
         ))}
@@ -887,10 +1074,10 @@ export default function App() {
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         
         .responsive-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
-        .m-inp { flex: 1 1 120px; padding: 10px; font-size: 13px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; background: #fff; color: #1e293b !important; }
-        .num-inp { flex: 0 0 65px !important; min-width: 65px; padding: 8px 4px !important; text-align: center; }
+        .m-inp { flex: 1 1 120px; padding: 8px; font-size: 13px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; background: #fff; color: #1e293b !important; }
+        .num-inp { flex: 0 0 65px !important; min-width: 65px; padding: 6px 4px !important; text-align: center; }
         .grow-inp { flex: 1 1 120px !important; }
-        .p-btn { flex: 0 0 auto !important; padding: 0 20px; height: 40px; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; }
+        .p-btn { flex: 0 0 auto !important; padding: 0 20px; height: 36px; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; }
         
         .card { background: #fff; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 15px; width: 100%; box-sizing: border-box; }
         .cards-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
@@ -905,10 +1092,10 @@ export default function App() {
         
         .table-wrapper { width: 100%; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; overflow-x: auto; box-sizing: border-box; }
         .tbl { width: 100%; border-collapse: collapse; table-layout: auto; min-width: 100%; }
-        .tbl th { background: #f1f5f9; border-bottom: 1px solid #e2e8f0; color: #475569; font-weight: bold; font-size: 10px; padding: 4px !important; white-space: nowrap; }
+        .tbl th { background: #f1f5f9; border-bottom: 1px solid #e2e8f0; color: #475569; font-weight: bold; font-size: 10px; padding: 3px 4px !important; white-space: nowrap; }
         .tbl-satis th { background: #5b9bd5 !important; color: white !important; }
         .tbl-analiz th { background: #8b5cf6 !important; color: white !important; }
-        .tbl td { font-size: 11px; border-bottom: 1px solid #f1f5f9; padding: 4px !important; white-space: nowrap; vertical-align: middle; }
+        .tbl td { font-size: 11px; border-bottom: 1px solid #f1f5f9; padding: 3px 4px !important; white-space: nowrap; vertical-align: middle; }
         
         .actions-cell { white-space: nowrap !important; width: 1% !important; text-align: right; }
         .action-buttons { display: flex; gap: 2px; justify-content: flex-end; align-items: center; }
@@ -926,7 +1113,7 @@ export default function App() {
         @media (max-width: 600px) {
           .main-content { padding: 0 !important; padding-bottom: 80px !important; width: 100% !important; overflow-x: hidden !important; }
           .table-wrapper { width: 100% !important; border-radius: 0 !important; border-left: none !important; border-right: none !important; margin: 0 !important; }
-          .tbl th, .tbl td { padding: 4px 2px !important; font-size: 11px !important; }
+          .tbl th, .tbl td { padding: 3px 2px !important; font-size: 11px !important; }
           .tbl th:first-child, .tbl td:first-child { padding-left: 4px !important; }
           .tbl th:last-child, .tbl td:last-child { padding-right: 4px !important; }
           .card, .m-btn { width: calc(100% - 8px) !important; margin-left: 4px !important; margin-right: 4px !important; box-sizing: border-box !important; }
