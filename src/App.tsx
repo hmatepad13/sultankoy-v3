@@ -29,7 +29,7 @@ export default function App() {
   const [satisFisList, setSatisFisList] = useState<SatisFis[]>([]); 
   const [satisList, setSatisList] = useState<SatisGiris[]>([]); 
 
-  // AYARLAR
+  // AYARLAR VE GENEL STATE'LER
   const temaRengi = "#2563eb"; 
   const [fontSize, setFontSize] = useState<number>(13); 
   const [detayNot, setDetayNot] = useState<any>(null);
@@ -63,7 +63,7 @@ export default function App() {
   const [fisFiltre, setFisFiltre] = useState<{ bayiler: string[], baslangic: string, bitis: string }>({ bayiler: [], baslangic: "", bitis: "" });
   const [fisSort, setFisSort] = useState<any>({ key: 'tarih', direction: 'desc' });
 
-  // --- ANALİZ STATE'LERİ ---
+  // --- ANALİZ STATE'LERİ (Çoklu Seçim İçin Array Yapıldı) ---
   const [analizFiltre, setAnalizFiltre] = useState<{bayiler: string[], urunler: string[], baslangic: string, bitis: string}>({ bayiler: [], urunler: [], baslangic: "", bitis: "" });
   const [analizSort, setAnalizSort] = useState<any>({ key: 'tarih', direction: 'desc' });
 
@@ -132,6 +132,7 @@ export default function App() {
     } catch (error) { console.error(error); }
   }
 
+  // TAMSAYI GÖSTERİMİ (Küsuratlar Yok)
   const fSayi = (num: any) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(Math.round(Number(num) || 0));
 
   const renderNot = (not: any) => {
@@ -171,6 +172,7 @@ export default function App() {
     });
   };
 
+  // ÇOKLU SEÇİM YARDIMCISI
   const handleCheckboxToggle = (listName: 'ciftlikler' | 'bayiler' | 'urunler', stateObj: any, setStateFn: any, val: string) => {
     setStateFn((prev: any) => {
       const arr = prev[listName];
@@ -179,6 +181,7 @@ export default function App() {
     });
   };
 
+  // AKILLI TABLO BAŞLIĞI (Yazı Solda, Ok En Sağda, İçerik Tam Altta)
   const Th = ({ label, sortKey, currentSort, setSort, align="left", filterType = null, children = null, isAnaliz = false }: any) => (
     <th style={{ textAlign: align }}>
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', alignItems: align === 'right' ? 'flex-end' : 'flex-start' }}>
@@ -225,13 +228,11 @@ export default function App() {
     setFisDetay(yeniDetay);
   };
 
-  // GENEL BORÇ HESAPLAMA MANTIĞI
-  const aktifBayi = fisUst.bayi;
   const eskiBorc = useMemo(() => {
-      if (!aktifBayi) return 0;
-      const bayiFisleri = satisFisList.filter(f => f.bayi === aktifBayi && f.id !== editingFisId);
+      if (!fisUst.bayi) return 0;
+      const bayiFisleri = satisFisList.filter(f => f.bayi === fisUst.bayi && f.id !== editingFisId);
       return bayiFisleri.reduce((toplam, f) => toplam + Number(f.kalan_bakiye || 0), 0);
-  }, [aktifBayi, satisFisList, editingFisId]);
+  }, [fisUst.bayi, satisFisList, editingFisId]);
 
   const fisCanliToplam = useMemo(() => {
     return urunler.reduce((toplam, u) => {
@@ -288,13 +289,11 @@ export default function App() {
       await supabase.from("satis_giris").insert(insertArray);
     }
     
-    // FİŞ ÇIKTISINA GENEL BORÇ BİLGİSİNİ EKLEME
     const fisGosterimData = {
       fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi,
       urunler: eklenecekUrunler.map(u => ({ isim: u.isim, adet: Number(fisDetay[u.id].adet), fiyat: Number(fisDetay[u.id].fiyat), tutar: Number(fisDetay[u.id].adet) * Number(fisDetay[u.id].fiyat) })),
       genelToplam: fisCanliToplam, tahsilat: tahsilat, kalanBakiye: kalanBakiye, odeme: fisUst.odeme_turu,
-      eskiBorc: eskiBorc,
-      genelBorc: toplamGenelBorc
+      eskiBorc: eskiBorc, genelBorc: toplamGenelBorc
     };
     
     resetFisForm(); setIsFisModalOpen(false); verileriGetir("satis"); setSonFisData(fisGosterimData);
@@ -328,7 +327,6 @@ export default function App() {
 
   const handleFisDetayGoster = (fis: SatisFis) => {
     const ilgiliUrunler = satisList.filter(s => s.fis_no === fis.fis_no);
-    // Geçmiş fişi açtığında da o anki bayi borç durumunu göster
     const bayiFisleri = satisFisList.filter(f => f.bayi === fis.bayi && f.tarih <= fis.tarih && f.id !== fis.id);
     const oGunkuEskiBorc = bayiFisleri.reduce((toplam, f) => toplam + Number(f.kalan_bakiye || 0), 0);
 
@@ -369,9 +367,7 @@ export default function App() {
     sonFisData.urunler.forEach((u: any) => { text += `${u.isim}: ${u.adet} x ${fSayi(u.fiyat)} = *${fSayi(u.tutar)}*\n`; });
     text += `--------------------------\n*GENEL TOPLAM: ${fSayi(sonFisData.genelToplam)} ₺*\nTahsil Edilen: ${fSayi(sonFisData.tahsilat)} ₺\n`;
     text += `Bu Fiş Kalan: ${fSayi(sonFisData.kalanBakiye)} ₺\n`;
-    if (sonFisData.genelBorc !== 0) {
-      text += `\n*GENEL TOPLAM BORCUNUZ: ${fSayi(sonFisData.genelBorc)} ₺*\n`;
-    }
+    if (sonFisData.genelBorc !== 0) { text += `\n*GENEL TOPLAM BORCUNUZ: ${fSayi(sonFisData.genelBorc)} ₺*\n`; }
     text += `\nÖdeme: ${sonFisData.odeme}\n\nBizi tercih ettiğiniz için teşekkür ederiz.`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
@@ -427,7 +423,7 @@ export default function App() {
 
   const renderSut = () => (
     <div className="tab-fade-in main-content-area">
-      <button onClick={() => { setSutForm({ tarih: bugun, ciftlik: "", kg: "", fiyat: "", aciklama: "" }); setEditingSutId(null); setIsSutModalOpen(true); }} className="btn-anim" style={{ width: "100%", padding: "12px", background: temaRengi, color: "#fff", border: "none", borderRadius: "10px", fontWeight: "bold", fontSize: "15px", cursor: "pointer", marginBottom: "10px" }}>➕ YENİ SÜT GİRİŞİ</button>
+      <button onClick={() => { setSutForm({ tarih: bugun, ciftlik: "", kg: "", fiyat: "", aciklama: "" }); setEditingSutId(null); setIsSutModalOpen(true); }} className="btn-anim" style={{ width: "100%", padding: "12px", background: temaRengi, color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", fontSize: "15px", cursor: "pointer", marginBottom: "10px" }}>➕ YENİ SÜT GİRİŞİ</button>
       
       <div className="compact-totals">
         <div className="c-kutu" style={{ borderLeftColor: temaRengi }}><span>SÜT (KG)</span><b style={{ color: temaRengi }}>{fSayi(tSutKg)}</b></div>
@@ -464,7 +460,7 @@ export default function App() {
 
   const renderSatis = () => (
     <div className="tab-fade-in main-content-area">
-      <button onClick={handleYeniFisAc} className="btn-anim" style={{ width: "100%", padding: "12px", background: "#059669", color: "#fff", border: "none", borderRadius: "10px", fontWeight: "bold", fontSize: "15px", cursor: "pointer", marginBottom: "10px" }}>➕ YENİ SATIŞ FİŞİ KES</button>
+      <button onClick={handleYeniFisAc} className="btn-anim" style={{ width: "100%", padding: "12px", background: "#059669", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", fontSize: "15px", cursor: "pointer", marginBottom: "10px" }}>➕ YENİ SATIŞ FİŞİ KES</button>
       
       <div className="compact-totals">
         <div className="c-kutu" style={{ borderLeftColor: "#059669" }}><span>FİŞ TOPLAMI</span><b style={{ color: "#059669" }}>{fSayi(tFisToplam)}</b></div>
@@ -603,40 +599,21 @@ export default function App() {
                 {activeFilterModal === 'sut_ciftlik' ? 'Çiftlik Filtrele' : activeFilterModal === 'fis_bayi' || activeFilterModal === 'analiz_bayi' ? 'Bayi Filtrele' : 'Ürün Filtrele'}
               </h4>
               <div style={{ maxHeight: "250px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "10px", padding: "4px 0" }}>
-                
                 {activeFilterModal === 'sut_ciftlik' && tedarikciler.map(t => (
-                   <label key={t.id} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}>
-                     <input type="checkbox" checked={sutFiltre.ciftlikler.includes(t.isim)} onChange={() => handleCheckboxToggle('ciftlikler', sutFiltre, setSutFiltre, t.isim)} style={{width:"18px", height:"18px"}}/> {t.isim}
-                   </label>
+                   <label key={t.id} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}><input type="checkbox" checked={sutFiltre.ciftlikler.includes(t.isim)} onChange={() => handleCheckboxToggle('ciftlikler', sutFiltre, setSutFiltre, t.isim)} style={{width:"18px", height:"18px"}}/> {t.isim}</label>
                 ))}
-
                 {activeFilterModal === 'fis_bayi' && bayiler.map(b => (
-                   <label key={b.id} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}>
-                     <input type="checkbox" checked={fisFiltre.bayiler.includes(b.isim)} onChange={() => handleCheckboxToggle('bayiler', fisFiltre, setFisFiltre, b.isim)} style={{width:"18px", height:"18px"}}/> {b.isim}
-                   </label>
+                   <label key={b.id} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}><input type="checkbox" checked={fisFiltre.bayiler.includes(b.isim)} onChange={() => handleCheckboxToggle('bayiler', fisFiltre, setFisFiltre, b.isim)} style={{width:"18px", height:"18px"}}/> {b.isim}</label>
                 ))}
-
                 {activeFilterModal === 'analiz_bayi' && bayiler.map(b => (
-                   <label key={b.id} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}>
-                     <input type="checkbox" checked={analizFiltre.bayiler.includes(b.isim)} onChange={() => handleCheckboxToggle('bayiler', analizFiltre, setAnalizFiltre, b.isim)} style={{width:"18px", height:"18px"}}/> {b.isim}
-                   </label>
+                   <label key={b.id} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}><input type="checkbox" checked={analizFiltre.bayiler.includes(b.isim)} onChange={() => handleCheckboxToggle('bayiler', analizFiltre, setAnalizFiltre, b.isim)} style={{width:"18px", height:"18px"}}/> {b.isim}</label>
                 ))}
-
                 {activeFilterModal === 'analiz_urun' && urunler.map(u => (
-                   <label key={u.id} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}>
-                     <input type="checkbox" checked={analizFiltre.urunler.includes(u.isim)} onChange={() => handleCheckboxToggle('urunler', analizFiltre, setAnalizFiltre, u.isim)} style={{width:"18px", height:"18px"}}/> {u.isim}
-                   </label>
+                   <label key={u.id} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}><input type="checkbox" checked={analizFiltre.urunler.includes(u.isim)} onChange={() => handleCheckboxToggle('urunler', analizFiltre, setAnalizFiltre, u.isim)} style={{width:"18px", height:"18px"}}/> {u.isim}</label>
                 ))}
-
               </div>
-              
               <div style={{display: "flex", gap: "8px", marginTop: "15px"}}>
-                <button onClick={() => {
-                  if(activeFilterModal === 'sut_ciftlik') setSutFiltre({...sutFiltre, ciftlikler: []});
-                  if(activeFilterModal === 'fis_bayi') setFisFiltre({...fisFiltre, bayiler: []});
-                  if(activeFilterModal === 'analiz_bayi') setAnalizFiltre({...analizFiltre, bayiler: []});
-                  if(activeFilterModal === 'analiz_urun') setAnalizFiltre({...analizFiltre, urunler: []});
-                }} style={{flex: 1, padding: "10px", background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: "6px", fontWeight: "bold", cursor:"pointer"}}>TEMİZLE</button>
+                <button onClick={() => { if(activeFilterModal === 'sut_ciftlik') setSutFiltre({...sutFiltre, ciftlikler: []}); if(activeFilterModal === 'fis_bayi') setFisFiltre({...fisFiltre, bayiler: []}); if(activeFilterModal === 'analiz_bayi') setAnalizFiltre({...analizFiltre, bayiler: []}); if(activeFilterModal === 'analiz_urun') setAnalizFiltre({...analizFiltre, urunler: []}); }} style={{flex: 1, padding: "10px", background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: "6px", fontWeight: "bold", cursor:"pointer"}}>TEMİZLE</button>
                 <button onClick={() => setActiveFilterModal(null)} style={{flex: 1, padding: "10px", background: activeFilterModal.includes('analiz') ? '#8b5cf6' : temaRengi, color: "#fff", border: "none", borderRadius: "6px", fontWeight: "bold", cursor:"pointer"}}>UYGULA</button>
               </div>
             </div>
@@ -653,10 +630,7 @@ export default function App() {
               <div style={{ padding: "15px", display: "flex", flexDirection: "column", gap: "10px" }}>
                 <div style={{ display: "flex", gap: "8px" }}>
                    <input type="date" value={sutForm.tarih} onChange={e => setSutForm({ ...sutForm, tarih: e.target.value })} className="m-inp" style={{ flex: 1, padding: "8px" }} />
-                   <select value={sutForm.ciftlik} onChange={e => setSutForm({ ...sutForm, ciftlik: e.target.value })} className="m-inp" style={{ flex: 2, fontWeight: "bold", padding: "8px" }}>
-                     <option value="">Çiftlik Seç...</option>
-                     {tedarikciler.map(t => <option key={t.id} value={t.isim}>{t.isim}</option>)}
-                   </select>
+                   <select value={sutForm.ciftlik} onChange={e => setSutForm({ ...sutForm, ciftlik: e.target.value })} className="m-inp" style={{ flex: 2, fontWeight: "bold", padding: "8px" }}><option value="">Çiftlik Seç...</option>{tedarikciler.map(t => <option key={t.id} value={t.isim}>{t.isim}</option>)}</select>
                 </div>
                 <div style={{ display: "flex", gap: "8px" }}>
                   <div style={{flex: 1}}><label style={{fontSize: "11px", color: "#64748b"}}>Miktar (KG)</label><input type="number" value={sutForm.kg} onChange={e => setSutForm({ ...sutForm, kg: e.target.value })} className="m-inp" style={{width: "100%", padding: "8px", textAlign: "right"}} /></div>
@@ -672,7 +646,6 @@ export default function App() {
           </div>
         )}
 
-        {/* SATIŞ FİŞİ KESME EKRANI - ÜRÜN İSİMLERİ İÇİN YER AÇILDI */}
         {isFisModalOpen && (
           <div className="main-content-area" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1200, padding: "8px" }}>
             <div style={{ backgroundColor: "#fff", width: "95vw", maxWidth: "400px", maxHeight: "95vh", borderRadius: "8px", display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease-out", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }}>
@@ -690,7 +663,6 @@ export default function App() {
                     const isFilled = (Number(fisDetay[u.id]?.adet) > 0);
                     return (
                       <div key={u.id} style={{ display: 'flex', gap: '4px', alignItems: 'center', padding: '4px 6px', background: isFilled ? (editingFisId ? '#fef3c7' : '#ecfdf5') : '#f8fafc', borderRadius: '4px', border: isFilled ? (editingFisId ? '1px solid #fde68a' : '1px solid #a7f3d0') : '1px solid #e2e8f0' }}>
-                        {/* ÜRÜN ADI GENİŞLETİLDİ (flex: 1) VE KESİLMESİ ENGELLENDİ (whiteSpace: normal) */}
                         <div style={{ flex: 1, minWidth: "90px", fontWeight: 'bold', fontSize: "12px", color: isFilled ? (editingFisId ? "#b45309" : "#065f46") : "#475569", whiteSpace: "normal", lineHeight: "1.2" }}>{u.isim}</div>
                         <input placeholder="Adet" type="number" value={fisDetay[u.id]?.adet || ""} onChange={e => setFisDetay({...fisDetay, [u.id]: {...fisDetay[u.id], adet: e.target.value}})} className="m-inp" style={{flex: "0 0 55px", width: "55px", padding: "4px 2px", textAlign: "right", background: isFilled ? "#fff" : "", fontSize: "12px", height:"28px"}} />
                         <div style={{fontSize:"12px", color:"#94a3b8", width:"8px", textAlign:"center"}}>x</div>
@@ -705,26 +677,21 @@ export default function App() {
                 </div>
               </div>
               <div style={{ padding: "10px 12px", borderTop: "1px solid #e2e8f0", background: "#f8fafc", borderRadius: "0 0 8px 8px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}><span style={{color: "#64748b", fontSize: "13px"}}>Genel Toplam:</span><b style={{color: "#0f172a", fontSize: "15px"}}>{fSayi(fisCanliToplam)} ₺</b></div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}><span style={{color: "#64748b", fontSize: "13px"}}>Genel Toplam:</span><b style={{color: "#0f172a", fontSize: "15px"}}>{fSayi(fisCanliToplam)}</b></div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}><span style={{color: "#2563eb", fontWeight: "bold", fontSize: "13px"}}>Tahsil Edilen:</span><input type="number" placeholder="Alınan..." value={fisUst.tahsilat} onChange={e => setFisUst({ ...fisUst, tahsilat: e.target.value })} className="m-inp" style={{ flex: "0 0 90px", padding: "4px 6px", textAlign: "right", borderColor: "#bfdbfe", fontSize: "13px", height: "28px" }} /></div>
-                
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px", borderTop: "1px dashed #cbd5e1", paddingTop: "6px" }}><span style={{color: (fisCanliToplam - Number(fisUst.tahsilat || 0)) > 0 ? "#dc2626" : "#059669", fontWeight: "bold", fontSize: "13px"}}>BU FİŞTEN KALAN:</span><b style={{color: (fisCanliToplam - Number(fisUst.tahsilat || 0)) > 0 ? "#dc2626" : "#059669", fontSize: "14px"}}>{fSayi(fisCanliToplam - Number(fisUst.tahsilat || 0))} ₺</b></div>
-                
-                {/* YENİ: GEÇMİŞ BORÇ VE GENEL BORÇ BÖLÜMÜ */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px", borderTop: "1px dashed #cbd5e1", paddingTop: "6px" }}><span style={{color: (fisCanliToplam - Number(fisUst.tahsilat || 0)) > 0 ? "#dc2626" : "#059669", fontWeight: "bold", fontSize: "13px"}}>BU FİŞTEN KALAN:</span><b style={{color: (fisCanliToplam - Number(fisUst.tahsilat || 0)) > 0 ? "#dc2626" : "#059669", fontSize: "14px"}}>{fSayi(fisCanliToplam - Number(fisUst.tahsilat || 0))}</b></div>
                 {aktifBayi && (
                   <>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}><span style={{color: "#64748b", fontSize: "11px"}}>Önceki Bakiye:</span><b style={{color: "#64748b", fontSize: "12px"}}>{fSayi(eskiBorc)} ₺</b></div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}><span style={{color: "#64748b", fontSize: "11px"}}>Önceki Bakiye:</span><b style={{color: "#64748b", fontSize: "12px"}}>{fSayi(eskiBorc)}</b></div>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", background: "#fef2f2", padding: "6px", borderRadius: "6px", border: "1px solid #fecaca" }}><span style={{color: "#dc2626", fontWeight: "bold", fontSize: "12px"}}>GENEL TOPLAM BORÇ:</span><b style={{color: "#dc2626", fontSize: "16px"}}>{fSayi(toplamGenelBorc)} ₺</b></div>
                   </>
                 )}
-
                 <button onClick={handleTopluFisKaydet} className="p-btn btn-anim" style={{ background: editingFisId ? "#f59e0b" : "#059669", width: "100%", height: "40px", fontSize: "14px" }}>{editingFisId ? "DEĞİŞİKLİKLERİ KAYDET" : "FİŞİ KAYDET"}</button>
               </div>
             </div>
           </div>
         )}
 
-        {/* MÜŞTERİYE GÖNDERİLECEK DİJİTAL FİŞ / ÇIKTI MODALI */}
         {sonFisData && (
           <div className="print-modal-wrapper" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1300, padding: "10px" }}>
             <div className="print-modal-content" style={{ backgroundColor: "#f8fafc", borderRadius: "10px", width: "95vw", maxWidth: "320px", overflow: "hidden" }}>
@@ -737,19 +704,15 @@ export default function App() {
                   <thead><tr style={{ borderBottom: '1px solid #000' }}><th style={{ paddingBottom: '4px', textAlign:'left' }}>Ürün</th><th style={{ paddingBottom: '4px', textAlign: 'right' }}>Adet</th><th style={{ paddingBottom: '4px', textAlign: 'right' }}>B.Fiyat</th><th style={{ paddingBottom: '4px', textAlign: 'right' }}>Tutar</th></tr></thead>
                   <tbody>{sonFisData.urunler.map((u:any, i:number) => (<tr key={i}><td style={{ padding: '4px 0', borderBottom: '1px dashed #ccc', textAlign:'left' }}>{u.isim}</td><td style={{ padding: '4px 0', textAlign: 'right', borderBottom: '1px dashed #ccc' }}>{fSayi(u.adet)}</td><td style={{ padding: '4px 0', textAlign: 'right', borderBottom: '1px dashed #ccc' }}>{fSayi(u.fiyat)}</td><td style={{ padding: '4px 0', textAlign: 'right', borderBottom: '1px dashed #ccc' }}>{fSayi(u.tutar)}</td></tr>))}</tbody>
                 </table>
-                
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", paddingTop: "4px", color: "#000" }}><span>Genel Toplam:</span><b>{fSayi(sonFisData.genelToplam)}</b></div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", paddingTop: "4px", color: "#000" }}><span>Tahsil Edilen:</span><b>{fSayi(sonFisData.tahsilat)}</b></div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", paddingTop: "4px", color: "#000" }}><span>Bu Fiş Kalan:</span><b>{fSayi(sonFisData.kalanBakiye)}</b></div>
-                
-                {/* YENİ: ÇIKTIDA GENEL BORÇ GÖSTERİMİ */}
                 {(sonFisData.eskiBorc !== 0 || sonFisData.genelBorc !== 0) && (
                   <div style={{ marginTop: "6px", borderTop: "1px solid #000", paddingTop: "6px" }}>
                     {sonFisData.eskiBorc !== 0 && <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "#000", marginBottom: "2px" }}><span>Önceki Bakiye:</span><b>{fSayi(sonFisData.eskiBorc)}</b></div>}
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", color: "#000", fontWeight: "bold" }}><span>TOPLAM BORÇ:</span><b>{fSayi(sonFisData.genelBorc)} ₺</b></div>
                   </div>
                 )}
-
                 <div style={{ textAlign: "right", fontSize: "10px", color: "#000", marginTop: "10px", borderTop: "1px dashed #ccc", paddingTop: "4px" }}>Ödeme: {sonFisData.odeme}</div><div style={{ textAlign: "center", fontSize: "9px", color: "#000", marginTop: "12px" }}>Bizi tercih ettiğiniz için teşekkür ederiz.</div>
               </div>
               <div className="no-print" style={{ padding: "10px", display: "flex", flexDirection: "column", gap: "6px" }}>
@@ -801,7 +764,6 @@ export default function App() {
         
         .card { background: #fff; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 15px; }
         
-        /* ÇOKLU SEÇİM FİLTRE EKRANI TASARIMI */
         .filter-chip { background: #f1f5f9; color: #475569; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; cursor: pointer; white-space: nowrap; border: 1px solid transparent; transition: 0.2s; }
         .filter-chip.active { background: #eff6ff; color: #2563eb; border-color: #bfdbfe; }
         .filter-chip.active-purp { background: #f3e8ff; color: #8b5cf6; border-color: #d8b4fe; }
@@ -811,11 +773,9 @@ export default function App() {
         .c-kutu span { font-size: 10px; color: #64748b; font-weight: bold; margin-bottom: 2px; }
         .c-kutu b { font-size: 14px; }
         
-        /* TABLO GENİŞLİK VE MOBİL YASLANMA AYARLARI */
         .table-wrapper { width: 100%; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; overflow-x: auto; }
         .tbl { width: 100%; border-collapse: collapse; table-layout: auto; }
         
-        /* BİLGİSAYAR İÇİN SIKIŞTIRILMIŞ HÜCRE BOŞLUKLARI */
         .tbl th { background: #f1f5f9; border-bottom: 1px solid #e2e8f0; color: #475569; font-weight: bold; font-size: 11px; padding: 4px 4px !important; white-space: nowrap !important; vertical-align: top; }
         .tbl th:hover { background: #e2e8f0; }
         .tbl-satis th { background: #5b9bd5 !important; color: white !important; }
@@ -836,22 +796,19 @@ export default function App() {
         .ed-btn { background: none; border: none; color: #f59e0b; font-size: 15px; cursor: pointer; padding: 0 2px; }
         .dl-btn { background: none; border: none; color: #dc2626; font-size: 15px; font-weight: bold; cursor: pointer; padding: 0 2px; }
 
-        /* TARİH KUTUCUKLARI (Hücre Altı Yan Yana Kompakt) */
-        .date-inp-small { width: 100%; max-width: 55px; font-size: 9px; padding: 0; border: none; border-bottom: 1px solid rgba(255,255,255,0.3); background: transparent; color: inherit; cursor: pointer; outline: none; }
-        .date-inp-small::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; margin:0; padding:0; }
-
-        /* MOBİLDE UÇTAN UCA YASLANMA (SIFIR KENAR BOŞLUĞU) VE MAKSİMUM SIKIŞTIRMA */
+        /* BEYAZ TAKVİM İKONLARI - BAŞLIĞIN HEMEN YANINDA */
+        .date-icon-only { width: 14px !important; height: 14px !important; padding: 0; border: none; background: transparent; cursor: pointer; color: transparent; position: relative; outline: none; }
+        .date-icon-only::-webkit-datetime-edit { display: none; }
+        .date-icon-only::-webkit-calendar-picker-indicator { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: pointer; opacity: 0.9; padding: 0; margin: 0; filter: invert(0); transition: opacity 0.2s; }
+        .tbl-satis .date-icon-only::-webkit-calendar-picker-indicator, .tbl-analiz .date-icon-only::-webkit-calendar-picker-indicator { filter: invert(1); }
+        
         @media (max-width: 600px) {
           .app-container { max-width: 100vw; overflow-x: hidden; background: #f8fafc; }
           .main-content { padding: 0 !important; padding-bottom: 80px !important; }
-          
           .card { border-radius: 0 !important; border-left: none !important; border-right: none !important; margin-bottom: 6px !important; padding: 8px 6px !important; }
           .compact-totals { margin: 6px 0; padding: 0; }
-          
-          /* Tabloyu ekrana sıfıra sıfır yapıştır ve sütunları birbirine yaklaştır */
           .table-wrapper { border-radius: 0 !important; border-left: none !important; border-right: none !important; width: 100vw; margin: 0 !important; }
           .tbl th, .tbl td { padding: 4px 1px !important; font-size: 11px !important; }
-          
           .c-kutu { padding: 6px 4px; border-radius: 0; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; }
           .c-kutu span { font-size: 9px; }
           .c-kutu b { font-size: 13px; }
