@@ -55,7 +55,7 @@ export default function App() {
   const [isFisModalOpen, setIsFisModalOpen] = useState<boolean>(false);
   const [editingFisId, setEditingFisId] = useState<string | null>(null);
   const [editingFisNo, setEditingFisNo] = useState<string | null>(null);
-  const [fisUst, setFisUst] = useState({ tarih: bugun, bayi: "", aciklama: "", odeme_turu: "PEŞİN", tahsilat: "", bos_kova: "" });
+  const [fisUst, setFisUst] = useState({ tarih: bugun, bayi: "", aciklama: "", odeme_turu: "PEŞİN", tahsilat: "", bos_kova: "", gosterBakiye: false });
   const [fisDetay, setFisDetay] = useState<Record<string, { adet: string, fiyat: string }>>({});
   const [sonFisData, setSonFisData] = useState<any>(null);
 
@@ -314,7 +314,7 @@ export default function App() {
       brutToplam: fisCanliToplam + (kovaAdet * kovaFiyat), kovaAdet: kovaAdet, kovaIndirim: (kovaAdet * kovaFiyat), 
       genelToplam: fisCanliToplam, tahsilat: tahsilat, kalanBakiye: (fisCanliToplam - tahsilat), odeme: fisUst.odeme_turu,
       eskiBorc: eskiBorc, genelBorc: toplamGenelBorc,
-      gosterBakiye: false
+      gosterBakiye: fisUst.gosterBakiye
     };
     
     resetFisForm(); setIsFisModalOpen(false); verileriGetir("satis"); setSonFisData(fisGosterimData);
@@ -322,7 +322,7 @@ export default function App() {
 
   const resetFisForm = () => {
     setEditingFisId(null); setEditingFisNo(null);
-    setFisUst({ tarih: bugun, bayi: "", aciklama: "", odeme_turu: "PEŞİN", tahsilat: "", bos_kova: "" }); // <--- HATA BURADA ÇÖZÜLDÜ
+    setFisUst({ tarih: bugun, bayi: "", aciklama: "", odeme_turu: "PEŞİN", tahsilat: "", bos_kova: "", gosterBakiye: false });
     const temizDetay: any = {};
     urunler.forEach(u => temizDetay[u.id] = { adet: "", fiyat: u.fiyat || "" });
     temizDetay["iade_kova"] = { adet: "", fiyat: "" };
@@ -345,7 +345,7 @@ export default function App() {
     if (safAciklama.includes("] - ")) safAciklama = safAciklama.split("] - ")[1];
     else if (safAciklama.startsWith("[Ödeme: ")) safAciklama = "";
 
-    setFisUst({ tarih: fis.tarih, bayi: fis.bayi, aciklama: safAciklama, odeme_turu: fis.odeme_turu || "PEŞİN", tahsilat: fis.tahsilat > 0 ? String(fis.tahsilat) : "", bos_kova: kovaAdetStr });
+    setFisUst({ tarih: fis.tarih, bayi: fis.bayi, aciklama: safAciklama, odeme_turu: fis.odeme_turu || "PEŞİN", tahsilat: fis.tahsilat > 0 ? String(fis.tahsilat) : "", bos_kova: kovaAdetStr, gosterBakiye: false });
     
     const ilgiliUrunler = satisList.filter(s => s.fis_no === fis.fis_no);
     const dolanDetay: any = {};
@@ -682,10 +682,17 @@ export default function App() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}><span style={{color: "#0f172a", fontWeight: "bold", fontSize: "14px"}}>Genel Toplam:</span><b style={{color: "#0f172a", fontSize: "16px"}}>{fSayi(fisCanliToplam)} ₺</b></div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}><span style={{color: "#2563eb", fontWeight: "bold", fontSize: "13px"}}>Tahsil Edilen:</span><input type="number" placeholder="Alınan..." value={fisUst.tahsilat} onChange={e => setFisUst({ ...fisUst, tahsilat: e.target.value })} className="m-inp" style={{ flex: "0 0 90px", padding: "4px 6px", textAlign: "right", borderColor: "#bfdbfe", fontSize: "13px", height: "28px" }} /></div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px", borderTop: "1px dashed #cbd5e1", paddingTop: "6px" }}><span style={{color: (fisCanliToplam - Number(fisUst.tahsilat || 0)) > 0 ? "#dc2626" : "#059669", fontWeight: "bold", fontSize: "13px"}}>BU FİŞTEN KALAN:</span><b style={{color: (fisCanliToplam - Number(fisUst.tahsilat || 0)) > 0 ? "#dc2626" : "#059669", fontSize: "14px"}}>{fSayi(fisCanliToplam - Number(fisUst.tahsilat || 0))} ₺</b></div>
+                
                 {aktifBayi && (
                   <>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}><span style={{color: "#64748b", fontSize: "11px"}}>Önceki Bakiye:</span><b style={{color: "#64748b", fontSize: "12px"}}>{fSayi(eskiBorc)} ₺</b></div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", background: "#fef2f2", padding: "6px", borderRadius: "6px", border: "1px solid #fecaca" }}><span style={{color: "#dc2626", fontWeight: "bold", fontSize: "12px"}}>GENEL TOPLAM BORÇ:</span><b style={{color: "#dc2626", fontSize: "16px"}}>{fSayi(toplamGenelBorc)} ₺</b></div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", background: "#fef2f2", padding: "6px", borderRadius: "6px", border: "1px solid #fecaca" }}><span style={{color: "#dc2626", fontWeight: "bold", fontSize: "12px"}}>GENEL TOPLAM BORÇ:</span><b style={{color: "#dc2626", fontSize: "16px"}}>{fSayi(toplamGenelBorc)} ₺</b></div>
+                    
+                    {/* YENİ: BORÇ GÖSTERME ONAY KUTUSU (FİŞ GİRİŞ EKRANINDA) */}
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', background: '#f1f5f9', padding: '8px', borderRadius: '6px', cursor: 'pointer', color: '#1e293b', fontWeight: 'bold', marginBottom: '12px' }}>
+                      <input type="checkbox" checked={fisUst.gosterBakiye} onChange={e => setFisUst({...fisUst, gosterBakiye: e.target.checked})} style={{ width: '16px', height: '16px' }} />
+                      Fiş Çıktısında Müşteriye Toplam Borcu Göster
+                    </label>
                   </>
                 )}
                 <button onClick={handleTopluFisKaydet} className="p-btn btn-anim" style={{ background: editingFisId ? "#f59e0b" : "#059669", width: "100%", height: "40px", fontSize: "14px" }}>{editingFisId ? "DEĞİŞİKLİKLERİ KAYDET" : "FİŞİ KAYDET"}</button>
@@ -694,7 +701,7 @@ export default function App() {
           </div>
         )}
 
-        {/* MÜŞTERİ ÇIKTI EKRANI (TİK KUTUSU EKLENDİ) */}
+        {/* MÜŞTERİ ÇIKTI EKRANI */}
         {sonFisData && (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1300, padding: "10px" }}>
             <div style={{ backgroundColor: "#f8fafc", borderRadius: "10px", width: "95vw", maxWidth: "320px", overflow: "hidden" }}>
@@ -724,13 +731,6 @@ export default function App() {
                 <div style={{ textAlign: "right", fontSize: "10px", color: "#000", marginTop: "10px", borderTop: "1px dashed #ccc", paddingTop: "4px" }}>Ödeme: {sonFisData.odeme}</div><div style={{ textAlign: "center", fontSize: "9px", color: "#000", marginTop: "12px" }}>Bizi tercih ettiğiniz için teşekkür ederiz.</div>
               </div>
               <div className="no-print" style={{ padding: "10px", display: "flex", flexDirection: "column", gap: "6px" }}>
-                
-                {/* YENİ: BORÇ GÖSTERME ONAY KUTUSU (TİK) */}
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', background: '#e2e8f0', padding: '8px', borderRadius: '6px', cursor: 'pointer', color: '#1e293b', fontWeight: 'bold' }}>
-                  <input type="checkbox" checked={sonFisData.gosterBakiye} onChange={e => setSonFisData({...sonFisData, gosterBakiye: e.target.checked})} style={{ width: '16px', height: '16px' }} />
-                  Önceki Bakiye ve Toplam Borcu Fişte Göster
-                </label>
-
                 <div style={{ display: "flex", gap: "6px" }}><button onClick={() => window.print()} className="btn-anim" style={{ flex: 1, padding: "10px", background: "#475569", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", fontSize: "12px" }}>🖨️ YAZDIR</button><button onClick={handleResimPaylas} className="btn-anim" style={{ flex: 1, padding: "10px", background: "#3b82f6", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", fontSize: "12px" }}>🖼️ PAYLAŞ</button></div>
                 <button onClick={handleWhatsappGonder} className="btn-anim" style={{ width: "100%", padding: "12px", background: "#25D366", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", fontSize: "13px" }}>WHATSAPP İLE GÖNDER</button>
                 <button onClick={() => setSonFisData(null)} className="btn-anim" style={{ width: "100%", padding: "8px", background: "transparent", color: "#64748b", border: "1px solid #cbd5e1", borderRadius: "8px", fontWeight: "bold", fontSize: "11px", marginTop: "2px" }}>KAPAT</button>
@@ -833,7 +833,7 @@ export default function App() {
         .actions-cell { white-space: nowrap !important; width: 1% !important; text-align: right; }
         .action-buttons { display: flex; gap: 2px; justify-content: flex-end; align-items: center; }
         
-        /* TAŞMAYI ÖNLEYEN KESME (TRUNCATE) SADECE GEREKLİ YERLERDE */
+        /* TAŞMAYI ÖNLEYEN KESME SADECE SATIŞ EKRANINDA */
         .truncate-text-td { max-width: 75px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: bottom; }
 
         .fixed-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 1000px; height: 70px; background: #fff; border-top: 1px solid #e2e8f0; display: flex; z-index: 100; }
@@ -863,7 +863,6 @@ export default function App() {
           .summary-c { margin-left: 0 !important; margin-right: 0 !important; border-radius: 6px !important; width: 100% !important; }
           .c-kutu { border-radius: 4px !important; padding: 6px 2px !important; }
           
-          /* Sadece Süt ve Satışta daralt (Analizde tam isim kalacak) */
           .truncate-text-td { max-width: 65px !important; }
         }
 
