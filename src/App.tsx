@@ -11,8 +11,8 @@ interface SatisFis { id?: string; fis_no: string; tarih: string; bayi: string; t
 
 // --- SUPABASE BAĞLANTISI ---
 const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
+  import.meta.env.VITE_SUPABASE_URL || "",
+  import.meta.env.VITE_SUPABASE_ANON_KEY || ""
 );
 
 export default function App() {
@@ -56,7 +56,7 @@ export default function App() {
   const [isFisModalOpen, setIsFisModalOpen] = useState<boolean>(false);
   const [editingFisId, setEditingFisId] = useState<string | null>(null);
   const [editingFisNo, setEditingFisNo] = useState<string | null>(null);
-  const [fisUst, setFisUst] = useState({ tarih: bugun, bayi: "", aciklama: "", odeme_turu: "PEŞİN", tahsilat: "" });
+  const [fisUst, setFisUst] = useState({ tarih: bugun, bayi: "", aciklama: "", odeme_turu: "PEŞİN", tahsilat: "", bos_kova: "" });
   const [fisDetay, setFisDetay] = useState<Record<string, { adet: string, fiyat: string }>>({});
   const [sonFisData, setSonFisData] = useState<any>(null);
 
@@ -68,7 +68,7 @@ export default function App() {
   const [analizSort, setAnalizSort] = useState<any>({ key: 'tarih', direction: 'desc' });
 
   // --- EXCEL TİPİ FİLTRE MODALI ---
-  const [activeFilterModal, setActiveFilterModal] = useState<'sut_ciftlik' | 'fis_bayi' | 'analiz_bayi' | 'analiz_urun' | null>(null);
+  const [activeFilterModal, setActiveFilterModal] = useState<'sut_ciftlik' | 'fis_bayi' | 'analiz_bayi' | 'analiz_urun' | 'sut_tarih' | 'fis_tarih' | 'analiz_tarih' | null>(null);
 
   useEffect(() => {
     const savedUser = localStorage.getItem("user");
@@ -89,8 +89,8 @@ export default function App() {
       document.head.appendChild(script);
     }
 
-    supabase.auth.getSession().then(({ data: { session: s } }) => setSession(s));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
+    supabase.auth.getSession().then(({ data: { session: s } }: any) => setSession(s));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: any, s: any) => setSession(s));
     return () => subscription.unsubscribe();
   }, []);
 
@@ -172,15 +172,14 @@ export default function App() {
   };
 
   const handleCheckboxToggle = (listName: 'ciftlikler' | 'bayiler' | 'urunler', setStateFn: any, val: string) => {
-  setStateFn((prev: any) => {
-    const arr = prev[listName];
-    if (arr.includes(val)) return { ...prev, [listName]: arr.filter((x: string) => x !== val) };
-    return { ...prev, [listName]: [...arr, val] };
-  });
-};
+    setStateFn((prev: any) => {
+      const arr = prev[listName];
+      if (arr.includes(val)) return { ...prev, [listName]: arr.filter((x: string) => x !== val) };
+      return { ...prev, [listName]: [...arr, val] };
+    });
+  };
 
-// YENİDEN DÜZENLENEN KISIM - isAnaliz VE filterType ÖZELLİKLERİ KORUNDU
-  const Th = ({ label, sortKey, currentSort, setSort, align="left", filterType = null, children = null, isAnaliz = false }: any) => (
+  const Th = ({ label, sortKey, currentSort, setSort, align="left", filterType = null, isAnaliz = false }: any) => (
     <th style={{ textAlign: align }}>
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', alignItems: align === 'right' ? 'flex-end' : 'flex-start' }}>
         <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => setSort({ key: sortKey, direction: currentSort.direction === 'asc' ? 'desc' : 'asc' })}>
@@ -196,7 +195,6 @@ export default function App() {
             {currentSort.key === sortKey ? (currentSort.direction === 'asc' ? '▲' : '▼') : ''}
           </span>
         </div>
-        {children && <div style={{marginTop: '4px', width: '100%', display: 'flex', justifyContent: align === 'right' ? 'flex-end' : 'flex-start'}} onClick={e=>e.stopPropagation()}>{children}</div>}
       </div>
     </th>
   );
@@ -234,6 +232,7 @@ export default function App() {
       return bayiFisleri.reduce((toplam, f) => toplam + Number(f.kalan_bakiye || 0), 0);
   }, [aktifBayi, satisFisList, editingFisId]);
 
+  // BRÜT TOPLAM (Ürünlerin çarpımı)
   const fisCanliToplam = useMemo(() => {
     return urunler.reduce((toplam, u) => {
       const adet = Number(fisDetay[u.id]?.adet) || 0;
@@ -242,7 +241,10 @@ export default function App() {
     }, 0);
   }, [urunler, fisDetay]);
 
-  const guncelKalanRaw = fisCanliToplam - Number(fisUst.tahsilat || 0);
+  // KOVA İNDİRİMİ VE NET TOPLAM
+  const kovaIndirimi = Number(fisUst.bos_kova || 0) * 15;
+  const netToplam = fisCanliToplam - kovaIndirimi;
+  const guncelKalanRaw = netToplam - Number(fisUst.tahsilat || 0);
   const toplamGenelBorc = eskiBorc + guncelKalanRaw;
 
   async function handleTopluFisKaydet() {
@@ -252,11 +254,13 @@ export default function App() {
 
     const ortakFisNo = editingFisNo || `F-${Date.now().toString().slice(-6)}`;
     const tahsilat = Number(fisUst.tahsilat) || 0;
-    const kalanBakiye = fisCanliToplam - tahsilat;
+    const kalanBakiye = netToplam - tahsilat;
     const odemeNotu = `[Ödeme: ${fisUst.odeme_turu}]`;
-    const genelNot = [odemeNotu, fisUst.aciklama].filter(Boolean).join(" - ");
+    const kovaNotu = Number(fisUst.bos_kova) > 0 ? `[${fisUst.bos_kova} Kova İade: -${kovaIndirimi}₺]` : "";
+    const genelNot = [odemeNotu, kovaNotu, fisUst.aciklama].filter(Boolean).join(" - ");
 
-    const fisMaster = { fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, toplam_tutar: fisCanliToplam, tahsilat: tahsilat, kalan_bakiye: kalanBakiye, odeme_turu: fisUst.odeme_turu, aciklama: genelNot };
+    // Veritabanına Net Toplam kaydedilir
+    const fisMaster = { fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, toplam_tutar: netToplam, tahsilat: tahsilat, kalan_bakiye: kalanBakiye, odeme_turu: fisUst.odeme_turu, aciklama: genelNot };
 
     if (editingFisId) {
       const eskiDetaylar = satisList.filter(s => s.fis_no === ortakFisNo);
@@ -289,13 +293,13 @@ export default function App() {
       await supabase.from("satis_giris").insert(insertArray);
     }
     
-    // FİŞ ÇIKTISINA GENEL BORÇ BİLGİSİNİ EKLEME
+    // FİŞ ÇIKTISINA GENEL BORÇ BİLGİSİNİ VE KOVA BİLGİSİNİ EKLEME
     const fisGosterimData = {
       fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi,
       urunler: eklenecekUrunler.map(u => ({ isim: u.isim, adet: Number(fisDetay[u.id].adet), fiyat: Number(fisDetay[u.id].fiyat), tutar: Number(fisDetay[u.id].adet) * Number(fisDetay[u.id].fiyat) })),
-      genelToplam: fisCanliToplam, tahsilat: tahsilat, kalanBakiye: kalanBakiye, odeme: fisUst.odeme_turu,
-      eskiBorc: eskiBorc,
-      genelBorc: toplamGenelBorc
+      brutToplam: fisCanliToplam, kovaAdet: Number(fisUst.bos_kova || 0), kovaIndirim: kovaIndirimi, 
+      genelToplam: netToplam, tahsilat: tahsilat, kalanBakiye: kalanBakiye, odeme: fisUst.odeme_turu,
+      eskiBorc: eskiBorc, genelBorc: toplamGenelBorc
     };
     
     resetFisForm(); setIsFisModalOpen(false); verileriGetir("satis"); setSonFisData(fisGosterimData);
@@ -303,7 +307,7 @@ export default function App() {
 
   const resetFisForm = () => {
     setEditingFisId(null); setEditingFisNo(null);
-    setFisUst({ tarih: bugun, bayi: "", aciklama: "", odeme_turu: "PEŞİN", tahsilat: "" });
+    setFisUst({ tarih: bugun, bayi: "", aciklama: "", odeme_turu: "PEŞİN", tahsilat: "", bos_kova: "" });
     const temizDetay: any = {};
     urunler.forEach(u => temizDetay[u.id] = { adet: "", fiyat: u.fiyat || "" });
     setFisDetay(temizDetay);
@@ -314,10 +318,20 @@ export default function App() {
   const handleFisDuzenle = (fis: SatisFis) => {
     setEditingFisId(fis.id!); setEditingFisNo(fis.fis_no);
     let safAciklama = fis.aciklama || "";
+    let kovaSayisi = "";
+
+    // Eski kova bilgisini açıklamadan çekme
+    if (safAciklama.includes("Kova İade")) {
+        const kovaMatch = safAciklama.match(/\[(\d+)\sKova\sİade/);
+        if (kovaMatch) kovaSayisi = kovaMatch[1];
+        safAciklama = safAciklama.replace(/\[\d+\sKova\sİade[^\]]+\]\s*-\s*/, "");
+        safAciklama = safAciklama.replace(/\[\d+\sKova\sİade[^\]]+\]/, "");
+    }
+
     if (safAciklama.includes("] - ")) safAciklama = safAciklama.split("] - ")[1];
     else if (safAciklama.startsWith("[Ödeme: ")) safAciklama = "";
 
-    setFisUst({ tarih: fis.tarih, bayi: fis.bayi, aciklama: safAciklama, odeme_turu: fis.odeme_turu || "PEŞİN", tahsilat: fis.tahsilat > 0 ? String(fis.tahsilat) : "" });
+    setFisUst({ tarih: fis.tarih, bayi: fis.bayi, aciklama: safAciklama, odeme_turu: fis.odeme_turu || "PEŞİN", tahsilat: fis.tahsilat > 0 ? String(fis.tahsilat) : "", bos_kova: kovaSayisi });
     const ilgiliUrunler = satisList.filter(s => s.fis_no === fis.fis_no);
     const dolanDetay: any = {};
     urunler.forEach(u => {
@@ -329,13 +343,21 @@ export default function App() {
 
   const handleFisDetayGoster = (fis: SatisFis) => {
     const ilgiliUrunler = satisList.filter(s => s.fis_no === fis.fis_no);
-    // Geçmiş fişi açtığında da o anki bayi borç durumunu göster
     const bayiFisleri = satisFisList.filter(f => f.bayi === fis.bayi && f.tarih <= fis.tarih && f.id !== fis.id);
     const oGunkuEskiBorc = bayiFisleri.reduce((toplam, f) => toplam + Number(f.kalan_bakiye || 0), 0);
+    
+    let kovaAdet = 0; let kovaIndirim = 0;
+    if (fis.aciklama && fis.aciklama.includes("Kova İade")) {
+        const kovaMatch = fis.aciklama.match(/\[(\d+)\sKova\sİade/);
+        if (kovaMatch) { kovaAdet = Number(kovaMatch[1]); kovaIndirim = kovaAdet * 15; }
+    }
+
+    const brutHesap = ilgiliUrunler.reduce((top, u) => top + Number(u.tutar), 0);
 
     setSonFisData({ 
       fis_no: fis.fis_no, tarih: fis.tarih, bayi: fis.bayi, 
       urunler: ilgiliUrunler.map(u => ({ isim: u.urun, adet: Number(u.adet), fiyat: Number(u.fiyat), tutar: Number(u.tutar) })), 
+      brutToplam: brutHesap, kovaAdet: kovaAdet, kovaIndirim: kovaIndirim,
       genelToplam: fis.toplam_tutar, tahsilat: fis.tahsilat, kalanBakiye: fis.kalan_bakiye, odeme: fis.odeme_turu || "Bilinmiyor",
       eskiBorc: oGunkuEskiBorc, genelBorc: oGunkuEskiBorc + fis.kalan_bakiye
     });
@@ -368,7 +390,11 @@ export default function App() {
     let text = `*SULTANKÖY SÜT ÜRÜNLERİ*\nFiş No: ${sonFisData.fis_no}\n`;
     text += `Tarih: ${sonFisData.tarih.split("-").reverse().join(".")}\nSayın: *${sonFisData.bayi}*\n--------------------------\n`;
     sonFisData.urunler.forEach((u: any) => { text += `${u.isim}: ${u.adet} x ${fSayi(u.fiyat)} = *${fSayi(u.tutar)}*\n`; });
-    text += `--------------------------\n*GENEL TOPLAM: ${fSayi(sonFisData.genelToplam)} ₺*\nTahsil Edilen: ${fSayi(sonFisData.tahsilat)} ₺\n`;
+    text += `--------------------------\n`;
+    if(sonFisData.kovaAdet > 0) {
+        text += `Brüt Tutar: ${fSayi(sonFisData.brutToplam)} ₺\nİade Kova (${sonFisData.kovaAdet} Adet): -${fSayi(sonFisData.kovaIndirim)} ₺\n`;
+    }
+    text += `*NET TOPLAM: ${fSayi(sonFisData.genelToplam)} ₺*\nTahsil Edilen: ${fSayi(sonFisData.tahsilat)} ₺\n`;
     text += `Bu Fiş Kalan: ${fSayi(sonFisData.kalanBakiye)} ₺\n`;
     if (sonFisData.genelBorc !== 0) {
       text += `\n*GENEL TOPLAM BORCUNUZ: ${fSayi(sonFisData.genelBorc)} ₺*\n`;
@@ -437,12 +463,8 @@ export default function App() {
 
       <div className="table-wrapper"><table className="tbl">
         <thead><tr>
-          <Th label="TARİH" sortKey="tarih" currentSort={sutSort} setSort={setSutSort}>
-             <div style={{ display: 'flex', gap: '4px' }}>
-                <input type="date" className="date-icon-only" title="Başlangıç" value={sutFiltre.baslangic} onChange={(e) => setSutFiltre({...sutFiltre, baslangic: e.target.value})} />
-                <input type="date" className="date-icon-only" title="Bitiş" value={sutFiltre.bitis} onChange={(e) => setSutFiltre({...sutFiltre, bitis: e.target.value})} />
-             </div>
-          </Th>
+          {/* TARİH FİLTRESİ ARTIK AÇILIR PENCERE OLDU */}
+          <Th label="TARİH" sortKey="tarih" currentSort={sutSort} setSort={setSutSort} filterType="sut_tarih" />
           <Th label="ÇİFTLİK" sortKey="ciftlik" currentSort={sutSort} setSort={setSutSort} filterType="sut_ciftlik" />
           <Th label="KG" sortKey="kg" currentSort={sutSort} setSort={setSutSort} align="right" />
           <Th label="FİYAT" sortKey="fiyat" currentSort={sutSort} setSort={setSutSort} align="right" />
@@ -475,12 +497,8 @@ export default function App() {
 
       <div className="table-wrapper"><table className="tbl tbl-satis">
         <thead><tr>
-          <Th label="TARİH" sortKey="tarih" currentSort={fisSort} setSort={setFisSort}>
-             <div style={{ display: 'flex', gap: '4px' }}>
-                <input type="date" className="date-icon-only" title="Başlangıç" value={fisFiltre.baslangic} onChange={(e) => setFisFiltre({...fisFiltre, baslangic: e.target.value})} />
-                <input type="date" className="date-icon-only" title="Bitiş" value={fisFiltre.bitis} onChange={(e) => setFisFiltre({...fisFiltre, bitis: e.target.value})} />
-             </div>
-          </Th>
+          {/* TARİH FİLTRESİ ARTIK AÇILIR PENCERE OLDU */}
+          <Th label="TARİH" sortKey="tarih" currentSort={fisSort} setSort={setFisSort} filterType="fis_tarih" />
           <Th label="BAYİ" sortKey="bayi" currentSort={fisSort} setSort={setFisSort} filterType="fis_bayi" />
           <Th label="TUTAR (₺)" sortKey="toplam_tutar" currentSort={fisSort} setSort={setFisSort} align="right" />
           <Th label="TAHS." sortKey="tahsilat" currentSort={fisSort} setSort={setFisSort} align="right" />
@@ -510,12 +528,8 @@ export default function App() {
 
       <div className="table-wrapper"><table className="tbl tbl-analiz">
         <thead><tr>
-          <Th label="TARİH" sortKey="tarih" currentSort={analizSort} setSort={setAnalizSort} isAnaliz={true}>
-             <div style={{ display: 'flex', gap: '4px' }}>
-                <input type="date" className="date-icon-only" title="Başlangıç" value={analizFiltre.baslangic} onChange={(e) => setAnalizFiltre({...analizFiltre, baslangic: e.target.value})} />
-                <input type="date" className="date-icon-only" title="Bitiş" value={analizFiltre.bitis} onChange={(e) => setAnalizFiltre({...analizFiltre, bitis: e.target.value})} />
-             </div>
-          </Th>
+          {/* TARİH FİLTRESİ ARTIK AÇILIR PENCERE OLDU */}
+          <Th label="TARİH" sortKey="tarih" currentSort={analizSort} setSort={setAnalizSort} isAnaliz={true} filterType="analiz_tarih" />
           <Th label="BAYİ" sortKey="bayi" currentSort={analizSort} setSort={setAnalizSort} isAnaliz={true} filterType="analiz_bayi" />
           <Th label="ÜRÜN" sortKey="urun" currentSort={analizSort} setSort={setAnalizSort} isAnaliz={true} filterType="analiz_urun" />
           <Th label="ADET" sortKey="adet" currentSort={analizSort} setSort={setAnalizSort} isAnaliz={true} align="right" />
@@ -600,11 +614,42 @@ export default function App() {
         {activeFilterModal && (
           <div className="main-content-area" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1400, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }} onClick={() => setActiveFilterModal(null)}>
             <div style={{ backgroundColor: "#fff", padding: "15px", borderRadius: "10px", width: "100%", maxWidth: "260px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.2)" }} onClick={e => e.stopPropagation()}>
+              
               <h4 style={{marginTop: 0, marginBottom: "10px", borderBottom: "1px solid #eee", paddingBottom: "5px", color: "#1e293b"}}>
-                {activeFilterModal === 'sut_ciftlik' ? 'Çiftlik Filtrele' : activeFilterModal === 'fis_bayi' || activeFilterModal === 'analiz_bayi' ? 'Bayi Filtrele' : 'Ürün Filtrele'}
+                {activeFilterModal === 'sut_ciftlik' ? 'Çiftlik Filtrele' : 
+                 activeFilterModal === 'fis_bayi' || activeFilterModal === 'analiz_bayi' ? 'Bayi Filtrele' : 
+                 activeFilterModal === 'analiz_urun' ? 'Ürün Filtrele' : 'Tarih Aralığı Seç'}
               </h4>
+
+              {/* YENİ: TARİH FİLTRELEME EKRANI */}
+              {activeFilterModal.endsWith('_tarih') && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  <div>
+                    <label style={{fontSize: "12px", color: "#64748b"}}>Başlangıç Tarihi</label>
+                    <input type="date" value={
+                      activeFilterModal === 'sut_tarih' ? sutFiltre.baslangic :
+                      activeFilterModal === 'fis_tarih' ? fisFiltre.baslangic : analizFiltre.baslangic
+                    } onChange={(e) => {
+                      if(activeFilterModal === 'sut_tarih') setSutFiltre({...sutFiltre, baslangic: e.target.value});
+                      if(activeFilterModal === 'fis_tarih') setFisFiltre({...fisFiltre, baslangic: e.target.value});
+                      if(activeFilterModal === 'analiz_tarih') setAnalizFiltre({...analizFiltre, baslangic: e.target.value});
+                    }} className="m-inp" style={{width: "100%", marginTop: "4px"}} />
+                  </div>
+                  <div>
+                    <label style={{fontSize: "12px", color: "#64748b"}}>Bitiş Tarihi</label>
+                    <input type="date" value={
+                      activeFilterModal === 'sut_tarih' ? sutFiltre.bitis :
+                      activeFilterModal === 'fis_tarih' ? fisFiltre.bitis : analizFiltre.bitis
+                    } onChange={(e) => {
+                      if(activeFilterModal === 'sut_tarih') setSutFiltre({...sutFiltre, bitis: e.target.value});
+                      if(activeFilterModal === 'fis_tarih') setFisFiltre({...fisFiltre, bitis: e.target.value});
+                      if(activeFilterModal === 'analiz_tarih') setAnalizFiltre({...analizFiltre, bitis: e.target.value});
+                    }} className="m-inp" style={{width: "100%", marginTop: "4px"}} />
+                  </div>
+                </div>
+              )}
+
               <div style={{ maxHeight: "250px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "10px", padding: "4px 0" }}>
-                
                 {activeFilterModal === 'sut_ciftlik' && tedarikciler.map(t => (
                    <label key={t.id} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}>
                      <input type="checkbox" checked={sutFiltre.ciftlikler.includes(t.isim)} onChange={() => handleCheckboxToggle('ciftlikler', setSutFiltre, t.isim)} style={{width:"18px", height:"18px"}}/> {t.isim}
@@ -628,7 +673,6 @@ export default function App() {
                      <input type="checkbox" checked={analizFiltre.urunler.includes(u.isim)} onChange={() => handleCheckboxToggle('urunler', setAnalizFiltre, u.isim)} style={{width:"18px", height:"18px"}}/> {u.isim}
                    </label>
                 ))}
-
               </div>
               
               <div style={{display: "flex", gap: "8px", marginTop: "15px"}}>
@@ -637,6 +681,9 @@ export default function App() {
                   if(activeFilterModal === 'fis_bayi') setFisFiltre({...fisFiltre, bayiler: []});
                   if(activeFilterModal === 'analiz_bayi') setAnalizFiltre({...analizFiltre, bayiler: []});
                   if(activeFilterModal === 'analiz_urun') setAnalizFiltre({...analizFiltre, urunler: []});
+                  if(activeFilterModal === 'sut_tarih') setSutFiltre({...sutFiltre, baslangic: '', bitis: ''});
+                  if(activeFilterModal === 'fis_tarih') setFisFiltre({...fisFiltre, baslangic: '', bitis: ''});
+                  if(activeFilterModal === 'analiz_tarih') setAnalizFiltre({...analizFiltre, baslangic: '', bitis: ''});
                 }} style={{flex: 1, padding: "10px", background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: "6px", fontWeight: "bold", cursor:"pointer"}}>TEMİZLE</button>
                 <button onClick={() => setActiveFilterModal(null)} style={{flex: 1, padding: "10px", background: activeFilterModal.includes('analiz') ? '#8b5cf6' : temaRengi, color: "#fff", border: "none", borderRadius: "6px", fontWeight: "bold", cursor:"pointer"}}>UYGULA</button>
               </div>
@@ -673,7 +720,7 @@ export default function App() {
           </div>
         )}
 
-        {/* SATIŞ FİŞİ KESME EKRANI - ÜRÜN İSİMLERİ İÇİN YER AÇILDI */}
+        {/* SATIŞ FİŞİ KESME EKRANI - İADE KOVA BÖLÜMÜ EKLENDİ */}
         {isFisModalOpen && (
           <div className="main-content-area" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1200, padding: "8px" }}>
             <div style={{ backgroundColor: "#fff", width: "95vw", maxWidth: "400px", maxHeight: "95vh", borderRadius: "8px", display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease-out", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }}>
@@ -691,7 +738,6 @@ export default function App() {
                     const isFilled = (Number(fisDetay[u.id]?.adet) > 0);
                     return (
                       <div key={u.id} style={{ display: 'flex', gap: '4px', alignItems: 'center', padding: '4px 6px', background: isFilled ? (editingFisId ? '#fef3c7' : '#ecfdf5') : '#f8fafc', borderRadius: '4px', border: isFilled ? (editingFisId ? '1px solid #fde68a' : '1px solid #a7f3d0') : '1px solid #e2e8f0' }}>
-                        {/* ÜRÜN ADI GENİŞLETİLDİ (flex: 1) VE KESİLMESİ ENGELLENDİ (whiteSpace: normal) */}
                         <div style={{ flex: 1, minWidth: "90px", fontWeight: 'bold', fontSize: "12px", color: isFilled ? (editingFisId ? "#b45309" : "#065f46") : "#475569", whiteSpace: "normal", lineHeight: "1.2" }}>{u.isim}</div>
                         <input placeholder="Adet" type="number" value={fisDetay[u.id]?.adet || ""} onChange={e => setFisDetay({...fisDetay, [u.id]: {...fisDetay[u.id], adet: e.target.value}})} className="m-inp" style={{flex: "0 0 55px", width: "55px", padding: "4px 2px", textAlign: "right", background: isFilled ? "#fff" : "", fontSize: "12px", height:"28px"}} />
                         <div style={{fontSize:"12px", color:"#94a3b8", width:"8px", textAlign:"center"}}>x</div>
@@ -706,12 +752,26 @@ export default function App() {
                 </div>
               </div>
               <div style={{ padding: "10px 12px", borderTop: "1px solid #e2e8f0", background: "#f8fafc", borderRadius: "0 0 8px 8px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}><span style={{color: "#64748b", fontSize: "13px"}}>Genel Toplam:</span><b style={{color: "#0f172a", fontSize: "15px"}}>{fSayi(fisCanliToplam)} ₺</b></div>
+                
+                {/* YENİ: BRÜT TOPLAM */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}><span style={{color: "#64748b", fontSize: "13px"}}>Ürünler Toplamı:</span><b style={{color: "#475569", fontSize: "14px"}}>{fSayi(fisCanliToplam)} ₺</b></div>
+                
+                {/* YENİ: KOVA İNDİRİMİ */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                  <span style={{color: "#d97706", fontWeight: "bold", fontSize: "13px"}}>İade Kova (15₺):</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <input type="number" placeholder="Adet" value={fisUst.bos_kova} onChange={e => setFisUst({ ...fisUst, bos_kova: e.target.value })} className="m-inp" style={{ flex: "0 0 55px", padding: "4px 6px", textAlign: "right", borderColor: "#fcd34d", fontSize: "13px", height: "28px" }} />
+                    <span style={{ fontSize: "13px", color: "#d97706", width: "45px", textAlign: "right", fontWeight: "bold" }}>-{fSayi(kovaIndirimi)} ₺</span>
+                  </div>
+                </div>
+
+                {/* YENİ: NET TOPLAM */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px", borderTop: "1px dashed #cbd5e1", paddingTop: "6px" }}><span style={{color: "#0f172a", fontWeight: "bold", fontSize: "14px"}}>Genel Toplam:</span><b style={{color: "#0f172a", fontSize: "16px"}}>{fSayi(netToplam)} ₺</b></div>
+
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}><span style={{color: "#2563eb", fontWeight: "bold", fontSize: "13px"}}>Tahsil Edilen:</span><input type="number" placeholder="Alınan..." value={fisUst.tahsilat} onChange={e => setFisUst({ ...fisUst, tahsilat: e.target.value })} className="m-inp" style={{ flex: "0 0 90px", padding: "4px 6px", textAlign: "right", borderColor: "#bfdbfe", fontSize: "13px", height: "28px" }} /></div>
                 
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px", borderTop: "1px dashed #cbd5e1", paddingTop: "6px" }}><span style={{color: (fisCanliToplam - Number(fisUst.tahsilat || 0)) > 0 ? "#dc2626" : "#059669", fontWeight: "bold", fontSize: "13px"}}>BU FİŞTEN KALAN:</span><b style={{color: (fisCanliToplam - Number(fisUst.tahsilat || 0)) > 0 ? "#dc2626" : "#059669", fontSize: "14px"}}>{fSayi(fisCanliToplam - Number(fisUst.tahsilat || 0))} ₺</b></div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px", borderTop: "1px dashed #cbd5e1", paddingTop: "6px" }}><span style={{color: (netToplam - Number(fisUst.tahsilat || 0)) > 0 ? "#dc2626" : "#059669", fontWeight: "bold", fontSize: "13px"}}>BU FİŞTEN KALAN:</span><b style={{color: (netToplam - Number(fisUst.tahsilat || 0)) > 0 ? "#dc2626" : "#059669", fontSize: "14px"}}>{fSayi(netToplam - Number(fisUst.tahsilat || 0))} ₺</b></div>
                 
-                {/* YENİ: GEÇMİŞ BORÇ VE GENEL BORÇ BÖLÜMÜ */}
                 {aktifBayi && (
                   <>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}><span style={{color: "#64748b", fontSize: "11px"}}>Önceki Bakiye:</span><b style={{color: "#64748b", fontSize: "12px"}}>{fSayi(eskiBorc)} ₺</b></div>
@@ -739,11 +799,19 @@ export default function App() {
                   <tbody>{sonFisData.urunler.map((u:any, i:number) => (<tr key={i}><td style={{ padding: '4px 0', borderBottom: '1px dashed #ccc', textAlign:'left' }}>{u.isim}</td><td style={{ padding: '4px 0', textAlign: 'right', borderBottom: '1px dashed #ccc' }}>{fSayi(u.adet)}</td><td style={{ padding: '4px 0', textAlign: 'right', borderBottom: '1px dashed #ccc' }}>{fSayi(u.fiyat)}</td><td style={{ padding: '4px 0', textAlign: 'right', borderBottom: '1px dashed #ccc' }}>{fSayi(u.tutar)}</td></tr>))}</tbody>
                 </table>
                 
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", paddingTop: "4px", color: "#000" }}><span>Genel Toplam:</span><b>{fSayi(sonFisData.genelToplam)}</b></div>
+                {/* YENİ: ÇIKTIDA KOVA İNDİRİMİ GÖSTERİMİ */}
+                {sonFisData.kovaAdet > 0 && (
+                  <>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "#666", paddingTop: "4px" }}><span>Ara Toplam:</span><b>{fSayi(sonFisData.brutToplam)} ₺</b></div>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "#000", paddingTop: "2px", fontWeight: "bold" }}><span>İade Kova ({sonFisData.kovaAdet} Ad):</span><b>-{fSayi(sonFisData.kovaIndirim)} ₺</b></div>
+                  </>
+                )}
+
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", paddingTop: "6px", color: "#000", borderTop: "1px dashed #ccc", marginTop: "4px" }}><span>Genel Toplam:</span><b>{fSayi(sonFisData.genelToplam)}</b></div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", paddingTop: "4px", color: "#000" }}><span>Tahsil Edilen:</span><b>{fSayi(sonFisData.tahsilat)}</b></div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", paddingTop: "4px", color: "#000" }}><span>Bu Fiş Kalan:</span><b>{fSayi(sonFisData.kalanBakiye)}</b></div>
                 
-                {/* YENİ: ÇIKTIDA GENEL BORÇ GÖSTERİMİ */}
+                {/* ÇIKTIDA GENEL BORÇ GÖSTERİMİ */}
                 {(sonFisData.eskiBorc !== 0 || sonFisData.genelBorc !== 0) && (
                   <div style={{ marginTop: "6px", borderTop: "1px solid #000", paddingTop: "6px" }}>
                     {sonFisData.eskiBorc !== 0 && <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "#000", marginBottom: "2px" }}><span>Önceki Bakiye:</span><b>{fSayi(sonFisData.eskiBorc)}</b></div>}
@@ -836,10 +904,6 @@ export default function App() {
         .out-btn { background: #fff; color: #dc2626; border: 1px solid #fecaca; border-radius: 6px; padding: 6px 12px; font-size: 11px; font-weight: bold; cursor: pointer; }
         .ed-btn { background: none; border: none; color: #f59e0b; font-size: 15px; cursor: pointer; padding: 0 2px; }
         .dl-btn { background: none; border: none; color: #dc2626; font-size: 15px; font-weight: bold; cursor: pointer; padding: 0 2px; }
-
-        /* TARİH KUTUCUKLARI (Hücre Altı Yan Yana Kompakt) */
-        .date-inp-small { width: 100%; max-width: 55px; font-size: 9px; padding: 0; border: none; border-bottom: 1px solid rgba(255,255,255,0.3); background: transparent; color: inherit; cursor: pointer; outline: none; }
-        .date-inp-small::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; margin:0; padding:0; }
 
         /* MOBİLDE UÇTAN UCA YASLANMA (SIFIR KENAR BOŞLUĞU) VE MAKSİMUM SIKIŞTIRMA */
         @media (max-width: 600px) {
