@@ -28,6 +28,7 @@ export default function App() {
   const [satisFisList, setSatisFisList] = useState<SatisFis[]>([]); 
   const [satisList, setSatisList] = useState<SatisGiris[]>([]); 
 
+  // AYARLAR
   const temaRengi = "#2563eb"; 
   const [fontSize, setFontSize] = useState<number>(13); 
   const [detayNot, setDetayNot] = useState<any>(null);
@@ -313,7 +314,7 @@ export default function App() {
       brutToplam: fisCanliToplam + (kovaAdet * kovaFiyat), kovaAdet: kovaAdet, kovaIndirim: (kovaAdet * kovaFiyat), 
       genelToplam: fisCanliToplam, tahsilat: tahsilat, kalanBakiye: (fisCanliToplam - tahsilat), odeme: fisUst.odeme_turu,
       eskiBorc: eskiBorc, genelBorc: toplamGenelBorc,
-      gosterBakiye: false // Varsayılan olarak fişte toplam borç GÖSTERİLMEZ
+      gosterBakiye: false
     };
     
     resetFisForm(); setIsFisModalOpen(false); verileriGetir("satis"); setSonFisData(fisGosterimData);
@@ -321,7 +322,7 @@ export default function App() {
 
   const resetFisForm = () => {
     setEditingFisId(null); setEditingFisNo(null);
-    setFisUst({ tarih: bugun, bayi: "", aciklama: "", odeme_turu: "PEŞİN", tahsilat: "" });
+    setFisUst({ tarih: bugun, bayi: "", aciklama: "", odeme_turu: "PEŞİN", tahsilat: "", bos_kova: "" }); // <--- HATA BURADA ÇÖZÜLDÜ
     const temizDetay: any = {};
     urunler.forEach(u => temizDetay[u.id] = { adet: "", fiyat: u.fiyat || "" });
     temizDetay["iade_kova"] = { adet: "", fiyat: "" };
@@ -376,7 +377,7 @@ export default function App() {
       brutToplam: brutHesap, kovaAdet: kovaAdet, kovaIndirim: kovaIndirim,
       genelToplam: fis.toplam_tutar, tahsilat: fis.tahsilat, kalanBakiye: fis.kalan_bakiye, odeme: fis.odeme_turu || "Bilinmiyor",
       eskiBorc: oGunkuEskiBorc, genelBorc: oGunkuEskiBorc + fis.kalan_bakiye,
-      gosterBakiye: false // Varsayılan olarak fişte toplam borç GÖSTERİLMEZ
+      gosterBakiye: false 
     });
   };
 
@@ -414,7 +415,6 @@ export default function App() {
     text += `*NET TOPLAM: ${fSayi(sonFisData.genelToplam)} ₺*\nTahsil Edilen: ${fSayi(sonFisData.tahsilat)} ₺\n`;
     text += `Bu Fiş Kalan: ${fSayi(sonFisData.kalanBakiye)} ₺\n`;
     
-    // EĞER TİK İŞARETLİ İSE WHATSAPP MESAJINA TOPLAM BORCU EKLE
     if (sonFisData.gosterBakiye && sonFisData.genelBorc !== 0) { 
       text += `\n*GENEL TOPLAM BORCUNUZ: ${fSayi(sonFisData.genelBorc)} ₺*\n`; 
     }
@@ -543,13 +543,10 @@ export default function App() {
         <tbody>{fAnalizList.map(s => (
           <tr key={s.id}>
             <td>{s.tarih.split("-").reverse().slice(0, 2).join(".")}</td>
-            {/* ANALİZDE YAZI KESME (TRUNCATE) İPTAL EDİLDİ - TAM İSİM GÖRÜNECEK */}
             <td style={{ fontWeight: "bold" }}>{s.bayi}</td>
             <td>{s.urun}</td>
             <td style={{ textAlign: "right" }}>{fSayi(s.adet)}</td>
-            {/* İADE KOVA İÇİN EKSİ İŞARETİ KALDIRILDI (MUTLAK DEĞER) */}
             <td style={{ textAlign: "right" }}>{fSayi(Math.abs(Number(s.fiyat)))}</td>
-            {/* EKSİ İŞARETİ SADECE TUTAR KISMINDA ÇIKACAK */}
             <td style={{ textAlign: "right", color: Number(s.fiyat) < 0 ? "#dc2626" : "#8b5cf6", fontWeight: "bold" }}>
               {Number(s.fiyat) < 0 ? "-" : ""}{fSayi(Math.abs(Number(s.tutar)))}
             </td>
@@ -747,7 +744,7 @@ export default function App() {
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1200, padding: "10px" }}>
             <div style={{ backgroundColor: "#fff", width: "95vw", maxWidth: "350px", borderRadius: "12px", display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease-out", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }}>
               <div style={{ padding: "12px 15px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: editingSutId ? "#fef3c7" : "#f8fafc", borderRadius: "12px 12px 0 0" }}>
-                <h3 style={{ margin: 0, color: editingSutId ? "#b45309" : temaRengi, fontSize: "15px" }}>{editingSutId ? "✏️ Süt Kaydını Düzenle" : "🥛 Yeni Süt Girişi"}</h3>
+                <h3 style={{ margin: "0 0 15px", color: editingSutId ? "#b45309" : temaRengi, fontSize: "15px" }}>{editingSutId ? "✏️ Süt Kaydını Düzenle" : "🥛 Yeni Süt Girişi"}</h3>
                 <button onClick={() => setIsSutModalOpen(false)} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#94a3b8", padding: 0 }}>✕</button>
               </div>
               <div style={{ padding: "15px", display: "flex", flexDirection: "column", gap: "10px" }}>
