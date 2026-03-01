@@ -171,13 +171,13 @@ export default function App() {
     });
   };
 
-  const handleCheckboxToggle = (listName: 'ciftlikler' | 'bayiler' | 'urunler', _stateObj: any, setStateFn: any, val: string) => {
-    setStateFn((prev: any) => {
-      const arr = prev[listName];
-      if (arr.includes(val)) return { ...prev, [listName]: arr.filter((x: string) => x !== val) };
-      return { ...prev, [listName]: [...arr, val] };
-    });
-  };
+  const handleCheckboxToggle = (listName: 'ciftlikler' | 'bayiler' | 'urunler', setStateFn: any, val: string) => {
+  setStateFn((prev: any) => {
+    const arr = prev[listName];
+    if (arr.includes(val)) return { ...prev, [listName]: arr.filter((x: string) => x !== val) };
+    return { ...prev, [listName]: [...arr, val] };
+  });
+};
 
   const Th = ({ label, sortKey, currentSort, setSort, align="left", filterType = null, children = null, isAnaliz = false }: any) => (
     <th style={{ textAlign: align }}>
