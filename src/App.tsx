@@ -179,6 +179,7 @@ export default function App() {
   });
 };
 
+// YENİDEN DÜZENLENEN KISIM - isAnaliz VE filterType ÖZELLİKLERİ KORUNDU
   const Th = ({ label, sortKey, currentSort, setSort, align="left", filterType = null, children = null, isAnaliz = false }: any) => (
     <th style={{ textAlign: align }}>
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', alignItems: align === 'right' ? 'flex-end' : 'flex-start' }}>
@@ -606,25 +607,25 @@ export default function App() {
                 
                 {activeFilterModal === 'sut_ciftlik' && tedarikciler.map(t => (
                    <label key={t.id} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}>
-                     <input type="checkbox" checked={sutFiltre.ciftlikler.includes(t.isim)} onChange={() => handleCheckboxToggle('ciftlikler', sutFiltre, setSutFiltre, t.isim)} style={{width:"18px", height:"18px"}}/> {t.isim}
+                     <input type="checkbox" checked={sutFiltre.ciftlikler.includes(t.isim)} onChange={() => handleCheckboxToggle('ciftlikler', setSutFiltre, t.isim)} style={{width:"18px", height:"18px"}}/> {t.isim}
                    </label>
                 ))}
 
                 {activeFilterModal === 'fis_bayi' && bayiler.map(b => (
                    <label key={b.id} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}>
-                     <input type="checkbox" checked={fisFiltre.bayiler.includes(b.isim)} onChange={() => handleCheckboxToggle('bayiler', fisFiltre, setFisFiltre, b.isim)} style={{width:"18px", height:"18px"}}/> {b.isim}
+                     <input type="checkbox" checked={fisFiltre.bayiler.includes(b.isim)} onChange={() => handleCheckboxToggle('bayiler', setFisFiltre, b.isim)} style={{width:"18px", height:"18px"}}/> {b.isim}
                    </label>
                 ))}
 
                 {activeFilterModal === 'analiz_bayi' && bayiler.map(b => (
                    <label key={b.id} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}>
-                     <input type="checkbox" checked={analizFiltre.bayiler.includes(b.isim)} onChange={() => handleCheckboxToggle('bayiler', analizFiltre, setAnalizFiltre, b.isim)} style={{width:"18px", height:"18px"}}/> {b.isim}
+                     <input type="checkbox" checked={analizFiltre.bayiler.includes(b.isim)} onChange={() => handleCheckboxToggle('bayiler', setAnalizFiltre, b.isim)} style={{width:"18px", height:"18px"}}/> {b.isim}
                    </label>
                 ))}
 
                 {activeFilterModal === 'analiz_urun' && urunler.map(u => (
                    <label key={u.id} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}>
-                     <input type="checkbox" checked={analizFiltre.urunler.includes(u.isim)} onChange={() => handleCheckboxToggle('urunler', analizFiltre, setAnalizFiltre, u.isim)} style={{width:"18px", height:"18px"}}/> {u.isim}
+                     <input type="checkbox" checked={analizFiltre.urunler.includes(u.isim)} onChange={() => handleCheckboxToggle('urunler', setAnalizFiltre, u.isim)} style={{width:"18px", height:"18px"}}/> {u.isim}
                    </label>
                 ))}
 
