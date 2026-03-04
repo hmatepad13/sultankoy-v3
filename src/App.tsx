@@ -64,7 +64,7 @@ export default function App() {
   const [sutSort, setSutSort] = useState<any>({ key: 'tarih', direction: 'desc' });
 
   // --- SATIŞ STATE'LERİ ---
-  const [satisFiltreKisi, setSatisFiltreKisi] = useState<"benim" | "herkes">("herkes");
+  const [satisFiltreKisi, setSatisFiltreKisi] = useState<"benim" | "herkes">("benim");
   const [satisFiltreTip, setSatisFiltreTip] = useState<"tumu" | "satis" | "tahsilat">("tumu");
   
   const [isFisModalOpen, setIsFisModalOpen] = useState<boolean>(false);
@@ -86,7 +86,7 @@ export default function App() {
   const [analizSort, setAnalizSort] = useState<any>({ key: 'tarih', direction: 'desc' });
 
   // --- GİDER STATE'LERİ ---
-  const [giderFiltreKisi, setGiderFiltreKisi] = useState<"benim" | "tumu">("tumu");
+  const [giderFiltreKisi, setGiderFiltreKisi] = useState<"benim" | "tumu">("benim");
   const [isGiderModalOpen, setIsGiderModalOpen] = useState<boolean>(false);
   const [editingGiderId, setEditingGiderId] = useState<any>(null);
   const [giderForm, setGiderForm] = useState<Gider>({ tarih: bugun, tur: "Genel Gider", aciklama: "", tutar: "" });
