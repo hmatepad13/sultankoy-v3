@@ -5,11 +5,11 @@ import { createClient } from "@supabase/supabase-js";
 interface Ciftlik { id: string; isim: string; }
 interface Bayi { id: string; isim: string; }
 interface Urun { id: string; isim: string; fiyat?: number | string; }
-interface SutGiris { id?: string; tarih: string; ciftlik: string; kg: number | string; fiyat: number | string; toplam_tl?: number; aciklama: string; }
-interface SatisGiris { id?: string; fis_no?: string; tarih: string; bayi: string; urun: string; adet: number | string; fiyat: number | string; toplam_kg?: number; bos_kova?: number | string; tutar?: number; aciklama: string; birim?: number; }
-interface SatisFis { id?: string; fis_no: string; tarih: string; bayi: string; toplam_tutar: number; tahsilat: number; kalan_bakiye: number; odeme_turu: string; aciklama: string; }
-interface Gider { id?: string; tarih: string; tur: string; aciklama: string; tutar: number | string; }
-interface Uretim { id?: string; tarih: string; cig_sut: number | string; sut_fiyat: number | string; sut_tozu: number | string; sut_tozu_fiyat: number | string; tereyag: number | string; tereyag_fiyat: number | string; katki_kg: number | string; katki_fiyat: number | string; su: number | string; kova_3_adet: number | string; kova_3_fiyat: number | string; kova_5_adet: number | string; kova_5_fiyat: number | string; cikti_3kg: number | string; satis_3_fiyat: number | string; cikti_5kg: number | string; satis_5_fiyat: number | string; toplam_kg?: number; toplam_maliyet?: number; kar?: number; aciklama: string; }
+interface SutGiris { id?: string; tarih: string; ciftlik: string; kg: number | string; fiyat: number | string; toplam_tl?: number; aciklama: string; ekleyen?: string; }
+interface SatisGiris { id?: string; fis_no?: string; tarih: string; bayi: string; urun: string; adet: number | string; fiyat: number | string; toplam_kg?: number; bos_kova?: number | string; tutar?: number; aciklama: string; birim?: number; ekleyen?: string; }
+interface SatisFis { id?: string; fis_no: string; tarih: string; bayi: string; toplam_tutar: number; tahsilat: number; kalan_bakiye: number; odeme_turu: string; aciklama: string; ekleyen?: string; }
+interface Gider { id?: string; tarih: string; tur: string; aciklama: string; tutar: number | string; ekleyen?: string; }
+interface Uretim { id?: string; tarih: string; cig_sut: number | string; sut_fiyat: number | string; sut_tozu: number | string; sut_tozu_fiyat: number | string; tereyag: number | string; tereyag_fiyat: number | string; katki_kg: number | string; katki_fiyat: number | string; su: number | string; kova_3_adet: number | string; kova_3_fiyat: number | string; kova_5_adet: number | string; kova_5_fiyat: number | string; cikti_3kg: number | string; satis_3_fiyat: number | string; cikti_5kg: number | string; satis_5_fiyat: number | string; toplam_kg?: number; toplam_maliyet?: number; kar?: number; aciklama: string; ekleyen?: string; }
 
 // --- SUPABASE BAĞLANTISI ---
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
@@ -27,6 +27,7 @@ export default function App() {
   const [session, setSession] = useState<any>(null);
   const [username, setUsername] = useState<string>("");
   const [password, setPassword] = useState<string>("");
+  // İLK AÇILIŞ SATIŞ SEKMEDİR
   const [activeTab, setActiveTab] = useState<string>("satis");
 
   // VERİ LİSTELERİ
@@ -39,19 +40,19 @@ export default function App() {
   const [giderList, setGiderList] = useState<Gider[]>([]);
   const [uretimList, setUretimList] = useState<Uretim[]>([]);
 
-  // AYARLAR
+  // AYARLAR VE UI STATE'LERİ
   const temaRengi = "#2563eb"; 
   const [fontSize, setFontSize] = useState<number>(13); 
   const [detayNot, setDetayNot] = useState<any>(null);
+  
+  // AÇILIR MENÜLER (3 Nokta)
+  const [openDropdown, setOpenDropdown] = useState<{type: string, id: string} | null>(null);
+  const [isDigerOpen, setIsDigerOpen] = useState(false);
 
-  const [yeniTedarikci, setYeniTedarikci] = useState<string>("");
-  const [yeniBayi, setYeniBayi] = useState<string>("");
-  const [yeniUrun, setYeniUrun] = useState<string>("");
-  const [yeniUrunFiyat, setYeniUrunFiyat] = useState<string>("");
-
-  const [acikTedarikci, setAcikTedarikci] = useState<boolean>(false);
-  const [acikBayi, setAcikBayi] = useState<boolean>(false);
-  const [acikUrun, setAcikUrun] = useState<boolean>(false);
+  // YENİ AYARLAR STATE'İ
+  const [activeAyarTab, setActiveAyarTab] = useState<"musteriler" | "urunler" | "ciftlikler">("musteriler");
+  const [yeniAyarDeger, setYeniAyarDeger] = useState("");
+  const [yeniUrunFiyat, setYeniUrunFiyat] = useState("");
 
   const bugun = getLocalDateString();
 
@@ -63,6 +64,9 @@ export default function App() {
   const [sutSort, setSutSort] = useState<any>({ key: 'tarih', direction: 'desc' });
 
   // --- SATIŞ STATE'LERİ ---
+  const [satisFiltreKisi, setSatisFiltreKisi] = useState<"benim" | "herkes">("herkes");
+  const [satisFiltreTip, setSatisFiltreTip] = useState<"tumu" | "satis" | "tahsilat">("tumu");
+  
   const [isFisModalOpen, setIsFisModalOpen] = useState<boolean>(false);
   const [isTahsilatModalOpen, setIsTahsilatModalOpen] = useState<boolean>(false);
   const [tahsilatForm, setTahsilatForm] = useState({ tarih: bugun, bayi: "", miktar: "", odeme_turu: "PEŞİN", aciklama: "" });
@@ -82,6 +86,7 @@ export default function App() {
   const [analizSort, setAnalizSort] = useState<any>({ key: 'tarih', direction: 'desc' });
 
   // --- GİDER STATE'LERİ ---
+  const [giderFiltreKisi, setGiderFiltreKisi] = useState<"benim" | "tumu">("tumu");
   const [isGiderModalOpen, setIsGiderModalOpen] = useState<boolean>(false);
   const [editingGiderId, setEditingGiderId] = useState<any>(null);
   const [giderForm, setGiderForm] = useState<Gider>({ tarih: bugun, tur: "Genel Gider", aciklama: "", tutar: "" });
@@ -95,6 +100,12 @@ export default function App() {
   const [uretimSort, setUretimSort] = useState<any>({ key: 'tarih', direction: 'desc' });
 
   const [activeFilterModal, setActiveFilterModal] = useState<'sut_ciftlik' | 'fis_bayi' | 'analiz_bayi' | 'analiz_urun' | 'sut_tarih' | 'fis_tarih' | 'analiz_tarih' | null>(null);
+
+  // GENEL TIKLAMA YAKALAYICI (Açılır menüleri kapatmak için)
+  const closeAllDropdowns = () => {
+    setOpenDropdown(null);
+    setIsDigerOpen(false);
+  };
 
   useEffect(() => {
     const savedUser = localStorage.getItem("user");
@@ -176,7 +187,7 @@ export default function App() {
 
   const renderNot = (not: any) => {
     if (!not) return "";
-    return not.length <= 15 ? not : <span onClick={() => setDetayNot(not)} style={{ cursor: "pointer", borderBottom: "1px dashed #94a3b8", color: "#3b82f6" }}>{not.substring(0, 15)}...</span>;
+    return not.length <= 15 ? not : <span onClick={(e) => { e.stopPropagation(); setDetayNot(not); }} style={{ cursor: "pointer", borderBottom: "1px dashed #94a3b8", color: "#3b82f6" }}>{not.substring(0, 15)}...</span>;
   };
 
   async function ayarIslem(tablo: string, isim: any, islemTip: string, id: any, resetFn?: any) {
@@ -193,6 +204,12 @@ export default function App() {
     }
     verileriGetir("ayar"); 
   }
+
+  const handleAyarEkle = () => {
+      if (!yeniAyarDeger.trim()) return;
+      const tabloAdi = activeAyarTab === 'musteriler' ? 'bayiler' : activeAyarTab === 'urunler' ? 'urunler' : 'ciftlikler';
+      ayarIslem(tabloAdi, yeniAyarDeger, "ekle", null, setYeniAyarDeger);
+  };
 
   const sortData = (data: any[], sortConfig: any) => {
     if (!sortConfig.key) return data;
@@ -250,7 +267,7 @@ export default function App() {
   // --- KAYIT İŞLEMLERİ ---
   async function handleSutKaydet() {
     if (!sutForm.ciftlik || !sutForm.kg || !sutForm.fiyat) return alert("Çiftlik, KG ve Fiyat alanları zorunludur!");
-    const p = { ...sutForm, kg: Number(sutForm.kg), fiyat: Number(sutForm.fiyat), toplam_tl: Number(sutForm.kg) * Number(sutForm.fiyat) };
+    const p = { ...sutForm, kg: Number(sutForm.kg), fiyat: Number(sutForm.fiyat), toplam_tl: Number(sutForm.kg) * Number(sutForm.fiyat), ekleyen: username };
     const { error } = editingSutId ? await supabase.from("sut_giris").update(p).eq("id", editingSutId) : await supabase.from("sut_giris").insert(p);
     if (error) return alert("Hata: " + error.message);
     setSutForm({ tarih: bugun, ciftlik: "", kg: "", fiyat: "", aciklama: "" }); 
@@ -259,7 +276,7 @@ export default function App() {
 
   async function handleGiderKaydet() {
     if (!giderForm.tarih || !giderForm.tur || !giderForm.tutar) return alert("Tarih, Tür ve Tutar zorunludur!");
-    const p = { ...giderForm, tutar: Number(giderForm.tutar) };
+    const p = { ...giderForm, tutar: Number(giderForm.tutar), ekleyen: username };
     const { error } = editingGiderId ? await supabase.from("giderler").update(p).eq("id", editingGiderId) : await supabase.from("giderler").insert(p);
     if (error) return alert("Hata: " + error.message);
     setGiderForm({ tarih: bugun, tur: "Genel Gider", aciklama: "", tutar: "" });
@@ -306,7 +323,8 @@ export default function App() {
         cikti_5kg: Number(uretimForm.cikti_5kg||0), satis_5_fiyat: Number(uretimForm.satis_5_fiyat||0),
         toplam_kg: topKg,
         toplam_maliyet: maliyet,
-        kar: hesaplananKar
+        kar: hesaplananKar,
+        ekleyen: username
     };
 
     const { error } = editingUretimId ? await supabase.from("uretim").update(p).eq("id", editingUretimId) : await supabase.from("uretim").insert(p);
@@ -332,7 +350,8 @@ export default function App() {
         tahsilat: tMiktar,
         kalan_bakiye: -tMiktar,
         odeme_turu: tahsilatForm.odeme_turu,
-        aciklama: tahsilatForm.aciklama ? `[Sadece Tahsilat] - ${tahsilatForm.aciklama}` : `[Sadece Tahsilat]`
+        aciklama: tahsilatForm.aciklama ? `[Sadece Tahsilat] - ${tahsilatForm.aciklama}` : `[Sadece Tahsilat]`,
+        ekleyen: username
     };
 
     const { error } = await supabase.from("satis_fisleri").insert(fData);
@@ -380,7 +399,7 @@ export default function App() {
   };
 
   const aktifBayi = fisUst.bayi;
-  // Güncel bakiye bulma (Sadece tarih değil, ID ile tam sıra kontrolü)
+  // Güncel bakiye bulma
   const eskiBorc = useMemo(() => {
       if (!aktifBayi) return 0;
       const bayiFisleri = satisFisList.filter(f => f.bayi === aktifBayi && f.id !== editingFisId);
@@ -439,7 +458,7 @@ export default function App() {
         fisUst.aciklama
     ].filter(Boolean).join(" - ");
 
-    const fisMaster = { fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, toplam_tutar: fisCanliToplam, tahsilat: tahsilat, kalan_bakiye: kalanBakiye, odeme_turu: fisUst.odeme_turu, aciklama: genelNot };
+    const fisMaster = { fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, toplam_tutar: fisCanliToplam, tahsilat: tahsilat, kalan_bakiye: kalanBakiye, odeme_turu: fisUst.odeme_turu, aciklama: genelNot, ekleyen: username };
 
     let savedFisId = editingFisId;
 
@@ -456,15 +475,15 @@ export default function App() {
         const kgEslesme = u.isim.match(/(\d+(?:\.\d+)?)\s*(kg|lt|l|gr)\b/i);
         const hesaplananKg = kg > 0 ? kg : (kgEslesme ? Number(kgEslesme[1]) * adet : adet);
 
-        return { fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, urun: u.isim, adet: adet, fiyat: fiyat, birim: kgEslesme ? Number(kgEslesme[1]) : 1, toplam_kg: hesaplananKg, tutar: miktar * fiyat, bos_kova: 0, aciklama: `Bağlı Fiş: ${ortakFisNo}` };
+        return { fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, urun: u.isim, adet: adet, fiyat: fiyat, birim: kgEslesme ? Number(kgEslesme[1]) : 1, toplam_kg: hesaplananKg, tutar: miktar * fiyat, bos_kova: 0, aciklama: `Bağlı Fiş: ${ortakFisNo}`, ekleyen: username };
       });
 
       if (iadeMiktar > 0) {
-        insertArray.push({ fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, urun: "İade", adet: iadeAdet, fiyat: -iadeFiyat, birim: 1, toplam_kg: iadeKg, tutar: -(iadeMiktar * iadeFiyat), bos_kova: 0, aciklama: `Bağlı Fiş: ${ortakFisNo}` });
+        insertArray.push({ fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, urun: "İade", adet: iadeAdet, fiyat: -iadeFiyat, birim: 1, toplam_kg: iadeKg, tutar: -(iadeMiktar * iadeFiyat), bos_kova: 0, aciklama: `Bağlı Fiş: ${ortakFisNo}`, ekleyen: username });
       }
 
       if (kovaMiktar > 0) {
-        insertArray.push({ fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, urun: "Boş Kova", adet: kovaAdet, fiyat: -kovaFiyat, birim: 1, toplam_kg: kovaKg, tutar: -(kovaMiktar * kovaFiyat), bos_kova: kovaAdet, aciklama: `Bağlı Fiş: ${ortakFisNo}` });
+        insertArray.push({ fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, urun: "Boş Kova", adet: kovaAdet, fiyat: -kovaFiyat, birim: 1, toplam_kg: kovaKg, tutar: -(kovaMiktar * kovaFiyat), bos_kova: kovaAdet, aciklama: `Bağlı Fiş: ${ortakFisNo}`, ekleyen: username });
       }
 
       const { error: errDetay } = await supabase.from("satis_giris").insert(insertArray);
@@ -485,19 +504,18 @@ export default function App() {
         const kgEslesme = u.isim.match(/(\d+(?:\.\d+)?)\s*(kg|lt|l|gr)\b/i);
         const hesaplananKg = kg > 0 ? kg : (kgEslesme ? Number(kgEslesme[1]) * adet : adet);
 
-        return { fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, urun: u.isim, adet: adet, fiyat: fiyat, birim: kgEslesme ? Number(kgEslesme[1]) : 1, toplam_kg: hesaplananKg, tutar: miktar * fiyat, bos_kova: 0, aciklama: `Bağlı Fiş: ${ortakFisNo}` };
+        return { fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, urun: u.isim, adet: adet, fiyat: fiyat, birim: kgEslesme ? Number(kgEslesme[1]) : 1, toplam_kg: hesaplananKg, tutar: miktar * fiyat, bos_kova: 0, aciklama: `Bağlı Fiş: ${ortakFisNo}`, ekleyen: username };
       });
 
       if (iadeMiktar > 0) {
-        insertArray.push({ fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, urun: "İade", adet: iadeAdet, fiyat: -iadeFiyat, birim: 1, toplam_kg: iadeKg, tutar: -(iadeMiktar * iadeFiyat), bos_kova: 0, aciklama: `Bağlı Fiş: ${ortakFisNo}` });
+        insertArray.push({ fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, urun: "İade", adet: iadeAdet, fiyat: -iadeFiyat, birim: 1, toplam_kg: iadeKg, tutar: -(iadeMiktar * iadeFiyat), bos_kova: 0, aciklama: `Bağlı Fiş: ${ortakFisNo}`, ekleyen: username });
       }
 
       if (kovaMiktar > 0) {
-        insertArray.push({ fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, urun: "Boş Kova", adet: kovaAdet, fiyat: -kovaFiyat, birim: 1, toplam_kg: kovaKg, tutar: -(kovaMiktar * kovaFiyat), bos_kova: kovaAdet, aciklama: `Bağlı Fiş: ${ortakFisNo}` });
+        insertArray.push({ fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, urun: "Boş Kova", adet: kovaAdet, fiyat: -kovaFiyat, birim: 1, toplam_kg: kovaKg, tutar: -(kovaMiktar * kovaFiyat), bos_kova: kovaAdet, aciklama: `Bağlı Fiş: ${ortakFisNo}`, ekleyen: username });
       }
 
       const { error: errDetay } = await supabase.from("satis_giris").insert(insertArray);
-      // FİNANSAL VERİ TUTARLILIĞI (Kısmi işlem İPTAL / ROLLBACK)
       if (errDetay && savedFisId) {
           await supabase.from("satis_fisleri").delete().eq("id", savedFisId);
           return alert("Sistemsel Hata: Detaylar kaydedilemediği için Fiş tamamen iptal edildi. Lütfen tekrar deneyin. Hata: " + errDetay.message);
@@ -600,7 +618,6 @@ export default function App() {
     const iadeUrun = satisList.find(s => s.fis_no === fis.fis_no && s.urun === "İade");
     const kovaUrun = satisList.find(s => s.fis_no === fis.fis_no && (s.urun === "İade Kova" || s.urun === "Boş Kova"));
     
-    // Doğru önceki bakiye hesabı (Tarih ve ID kontrolü)
     const bayiFisleri = satisFisList.filter(f => f.bayi === fis.bayi && (f.tarih < fis.tarih || (f.tarih === fis.tarih && Number(f.id) < Number(fis.id))));
     const oGunkuEskiBorc = bayiFisleri.reduce((toplam, f) => toplam + Number(f.kalan_bakiye || 0), 0);
     
@@ -660,14 +677,22 @@ export default function App() {
   };
 
   // --- PERFORMANS ODAKLI FİLTRELEME VE TOPLAM HESAPLAMALARI ---
-  const fFisList = useMemo(() => sortData(satisFisList.filter((f: any) => 
-    (fisFiltre.bayiler.length === 0 || fisFiltre.bayiler.includes(f.bayi)) && 
-    (!fisFiltre.baslangic || f.tarih >= fisFiltre.baslangic) && (!fisFiltre.bitis || f.tarih <= fisFiltre.bitis)
-  ), fisSort), [satisFisList, fisFiltre, fisSort]);
+  const fFisList = useMemo(() => sortData(satisFisList.filter((f: any) => {
+    const isBayiMatch = fisFiltre.bayiler.length === 0 || fisFiltre.bayiler.includes(f.bayi);
+    const isTarihMatch = (!fisFiltre.baslangic || f.tarih >= fisFiltre.baslangic) && (!fisFiltre.bitis || f.tarih <= fisFiltre.bitis);
+    const isKisiMatch = satisFiltreKisi === 'tumu' || f.ekleyen === username;
+    const isTipMatch = satisFiltreTip === 'tumu' ? true : (satisFiltreTip === 'tahsilat' ? f.toplam_tutar === 0 : f.toplam_tutar > 0);
+    return isBayiMatch && isTarihMatch && isKisiMatch && isTipMatch;
+  }), fisSort), [satisFisList, fisFiltre, fisSort, satisFiltreKisi, satisFiltreTip, username]);
   
   const tFisToplam = useMemo(() => fFisList.reduce((a: number, b: any) => a + Number(b.toplam_tutar), 0), [fFisList]);
   const tFisTahsilat = useMemo(() => fFisList.reduce((a: number, b: any) => a + Number(b.tahsilat), 0), [fFisList]);
   const tFisKalan = useMemo(() => fFisList.reduce((a: number, b: any) => a + Number(b.kalan_bakiye), 0), [fFisList]);
+
+  // Tahsilat detayları için örnek değerler (İhtiyaca göre Giderden vs çekilebilir)
+  const tAktarilanMiktar = 0; 
+  const tGiderNormal = useMemo(() => giderList.reduce((a: number, b: any) => a + Number(b.tutar), 0), [giderList]);
+  const tNetTahsilat = tFisTahsilat - tAktarilanMiktar - tGiderNormal;
 
   const fSutList = useMemo(() => sortData(sutList.filter((s: any) => 
     (sutFiltre.ciftlikler.length === 0 || sutFiltre.ciftlikler.includes(s.ciftlik)) && 
@@ -684,8 +709,11 @@ export default function App() {
   const tAnalizKg = useMemo(() => fAnalizList.reduce((a: number, b: any) => a + Number(b.toplam_kg), 0), [fAnalizList]);
   const tAnalizTutar = useMemo(() => fAnalizList.reduce((a: number, b: any) => a + Number(b.tutar), 0), [fAnalizList]);
 
-  const fGiderList = useMemo(() => sortData(giderList, giderSort), [giderList, giderSort]);
-  const tGiderNormal = useMemo(() => giderList.reduce((a: number, b: any) => a + Number(b.tutar), 0), [giderList]);
+  const fGiderList = useMemo(() => sortData(giderList.filter((g: any) => 
+    giderFiltreKisi === 'tumu' || g.ekleyen === username
+  ), giderSort), [giderList, giderSort, giderFiltreKisi, username]);
+  const fGTutarNormal = useMemo(() => fGiderList.reduce((a: number, b: any) => a + Number(b.tutar), 0), [fGiderList]);
+
   const tUretimMaliyet = useMemo(() => uretimList.reduce((a: number, b: any) => a + Number(b.toplam_maliyet), 0), [uretimList]);
   const genelToplamGider = tGiderNormal + tUretimMaliyet;
 
@@ -706,10 +734,10 @@ export default function App() {
   const renderOzet = () => (
     <div className="tab-fade-in main-content-area">
       <div className="cards-grid">
-        <div className="card summary-c" style={{ borderLeft: `5px solid #059669` }}><small>Toplam Satış</small><h2 style={{ margin: "5px 0", color: "#059669" }}>{fSayiNoDec(tFisToplam)} ₺</h2></div>
-        <div className="card summary-c" style={{ borderLeft: "5px solid #dc2626" }}><small>Toplam Gider</small><h2 style={{ margin: "5px 0", color: "#dc2626" }}>{fSayiNoDec(genelToplamGider)} ₺</h2></div>
-        <div className="card summary-c" style={{ borderLeft: "5px solid #2563eb" }}><small>Tahsilat</small><h2 style={{ margin: "5px 0", color: "#2563eb" }}>{fSayiNoDec(tFisTahsilat)} ₺</h2></div>
-        <div className="card summary-c" style={{ borderLeft: "5px solid #f59e0b" }}><small>Bayi Açık Hesap (Net)</small><h2 style={{ margin: "5px 0", color: "#f59e0b" }}>{fSayiNoDec(bayiNetDurum)} ₺</h2></div>
+        <div className="card summary-c" style={{ borderLeft: `5px solid #059669` }}><small>Toplam Satış</small><h2 style={{ margin: "5px 0", color: "#059669", fontSize: "20px" }}>{fSayiNoDec(tFisToplam)} ₺</h2></div>
+        <div className="card summary-c" style={{ borderLeft: "5px solid #dc2626" }}><small>Toplam Gider</small><h2 style={{ margin: "5px 0", color: "#dc2626", fontSize: "20px" }}>{fSayiNoDec(genelToplamGider)} ₺</h2></div>
+        <div className="card summary-c" style={{ borderLeft: "5px solid #2563eb" }}><small>Tahsilat</small><h2 style={{ margin: "5px 0", color: "#2563eb", fontSize: "20px" }}>{fSayiNoDec(tFisTahsilat)} ₺</h2></div>
+        <div className="card summary-c" style={{ borderLeft: "5px solid #f59e0b" }}><small>Bayi Açık Hesap (Net)</small><h2 style={{ margin: "5px 0", color: "#f59e0b", fontSize: "20px" }}>{fSayiNoDec(bayiNetDurum)} ₺</h2></div>
       </div>
       <div className="card" style={{marginTop: "5px"}}>
         <h4 style={{ margin: "0 0 10px", borderBottom: "1px solid #e2e8f0", paddingBottom: "5px" }}>Müşteri Borç Durumları</h4>
@@ -730,8 +758,8 @@ export default function App() {
     <div className="tab-fade-in main-content-area">
       <button onClick={() => { setSutForm({ tarih: bugun, ciftlik: "", kg: "", fiyat: "", aciklama: "" }); setEditingSutId(null); setIsSutModalOpen(true); }} className="btn-anim m-btn blue-btn">➕ YENİ SÜT GİRİŞİ</button>
       <div className="compact-totals">
-        <div className="c-kutu" style={{ borderLeftColor: temaRengi }}><span>SÜT</span><b style={{ color: temaRengi }}>{fSayi(tSutKg)} KG</b></div>
-        <div className="c-kutu" style={{ borderLeftColor: temaRengi }}><span>T. TUTAR</span><b style={{ color: temaRengi }}>{fSayiNoDec(tSutTl)} ₺</b></div>
+        <div className="c-kutu" style={{ borderLeftColor: temaRengi }}><span>SÜT</span><b style={{ color: temaRengi, fontSize: "16px" }}>{fSayi(tSutKg)} KG</b></div>
+        <div className="c-kutu" style={{ borderLeftColor: temaRengi }}><span>T. TUTAR</span><b style={{ color: temaRengi, fontSize: "16px" }}>{fSayiNoDec(tSutTl)} ₺</b></div>
       </div>
       <div className="table-wrapper"><table className="tbl">
         <thead><tr>
@@ -749,7 +777,16 @@ export default function App() {
             <td style={{ textAlign: "right" }}>{fSayi(s.kg)}</td>
             <td style={{ textAlign: "right" }}>{fSayi(s.fiyat)}</td>
             <td style={{ textAlign: "right", color: temaRengi, fontWeight: "bold" }}>{fSayiNoDec(s.toplam_tl)}</td>
-            <td className="actions-cell"><div className="action-buttons">{renderNot(s.aciklama)}<button onClick={() => { setEditingSutId(s.id); setSutForm(s as any); setIsSutModalOpen(true); }} className="ed-btn">✏️</button><button onClick={async () => { if(confirm("Sil?")){ await supabase.from("sut_giris").delete().eq("id", s.id); verileriGetir("sut"); } }} className="dl-btn">✕</button></div></td>
+            <td className="actions-cell" style={{position: 'relative'}}>
+               {renderNot(s.aciklama)}
+               <button onClick={(e) => { e.stopPropagation(); setOpenDropdown({ type: 'sut', id: s.id as string }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', padding: '0 8px', color: '#64748b' }}>⋮</button>
+               {openDropdown?.type === 'sut' && openDropdown.id === s.id && (
+                  <div className="dropdown-menu">
+                     <button className="dropdown-item" onClick={() => { setOpenDropdown(null); setEditingSutId(s.id); setSutForm(s as any); setIsSutModalOpen(true); }}>✏️ Düzenle</button>
+                     <button className="dropdown-item" style={{ color: '#dc2626' }} onClick={async () => { setOpenDropdown(null); if(confirm("Sil?")){ await supabase.from("sut_giris").delete().eq("id", s.id); verileriGetir("sut"); } }}>🗑️ Sil</button>
+                  </div>
+               )}
+            </td>
           </tr>))}
         </tbody>
       </table></div>
@@ -758,15 +795,52 @@ export default function App() {
 
   const renderSatis = () => (
     <div className="tab-fade-in main-content-area">
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+      {/* ÜST BUTONLAR */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', alignItems: 'center' }}>
          <button onClick={handleYeniFisAc} className="btn-anim m-btn green-btn" style={{ margin: 0, flex: 2, fontSize: '13px' }}>➕ YENİ SATIŞ FİŞİ</button>
          <button onClick={() => { setTahsilatForm({ tarih: bugun, bayi: "", miktar: "", odeme_turu: "PEŞİN", aciklama: "" }); setIsTahsilatModalOpen(true); }} className="btn-anim m-btn blue-btn" style={{ margin: 0, flex: 1.2, fontSize: '13px', background: '#3b82f6' }}>💸 TAHSİLAT</button>
+         
+         <div style={{position: 'relative', flex: 1}}>
+           <button onClick={(e) => { e.stopPropagation(); setIsDigerOpen(!isDigerOpen); }} className="btn-anim m-btn" style={{ margin: 0, fontSize: '13px', background: '#64748b', width: '100%' }}>DİĞER ▼</button>
+           {isDigerOpen && (
+             <div className="dropdown-menu" style={{top: '110%', width: '100%', left: 0}}>
+               <button className="dropdown-item">Borç Ekle</button>
+               <button className="dropdown-item">Gider Düş</button>
+               <button className="dropdown-item">Kasaya Devir</button>
+             </div>
+           )}
+         </div>
       </div>
+
+      {/* FİLTRE SEKMELERİ */}
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
+         <div style={{ display: 'flex', background: '#e2e8f0', borderRadius: '6px', overflow: 'hidden', flex: 2 }}>
+            <button onClick={() => setSatisFiltreTip('tumu')} style={{ flex: 1, padding: '6px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', background: satisFiltreTip==='tumu'?'#059669':'transparent', color: satisFiltreTip==='tumu'?'#fff':'#475569' }}>Tümü</button>
+            <button onClick={() => setSatisFiltreTip('satis')} style={{ flex: 1, padding: '6px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', background: satisFiltreTip==='satis'?'#059669':'transparent', color: satisFiltreTip==='satis'?'#fff':'#475569' }}>Satış</button>
+            <button onClick={() => setSatisFiltreTip('tahsilat')} style={{ flex: 1, padding: '6px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', background: satisFiltreTip==='tahsilat'?'#059669':'transparent', color: satisFiltreTip==='tahsilat'?'#fff':'#475569' }}>Tahsilat</button>
+         </div>
+         <div style={{ display: 'flex', background: '#e2e8f0', borderRadius: '6px', overflow: 'hidden', flex: 1 }}>
+            <button onClick={() => setSatisFiltreKisi('benim')} style={{ flex: 1, padding: '6px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', background: satisFiltreKisi==='benim'?'#2563eb':'transparent', color: satisFiltreKisi==='benim'?'#fff':'#475569' }}>Benim</button>
+            <button onClick={() => setSatisFiltreKisi('herkes')} style={{ flex: 1, padding: '6px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', background: satisFiltreKisi==='herkes'?'#2563eb':'transparent', color: satisFiltreKisi==='herkes'?'#fff':'#475569' }}>Herkes</button>
+         </div>
+      </div>
+
       <div className="compact-totals">
-        <div className="c-kutu" style={{ borderLeftColor: "#059669" }}><span>TOPLAM</span><b style={{ color: "#059669" }}>{fSayi(tFisToplam)} ₺</b></div>
-        <div className="c-kutu" style={{ borderLeftColor: "#2563eb" }}><span>TAHSİLAT</span><b style={{ color: "#2563eb" }}>{fSayi(tFisTahsilat)} ₺</b></div>
-        <div className="c-kutu" style={{ borderLeftColor: "#dc2626" }}><span>AÇIK HESAP</span><b style={{ color: "#dc2626" }}>{fSayi(tFisKalan)} ₺</b></div>
+        <div className="c-kutu" style={{ borderLeftColor: "#059669" }}><span>TOPLAM</span><b style={{ color: "#059669", fontSize: "16px" }}>{fSayi(tFisToplam)} ₺</b></div>
+        
+        <div className="c-kutu" style={{ borderLeftColor: "#2563eb", position: 'relative', paddingBottom: '2px' }}>
+            <span>TAHSİLAT</span>
+            <b style={{ color: "#2563eb", fontSize: "16px", marginBottom: '4px' }}>{fSayi(tFisTahsilat)} ₺</b>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#64748b', borderTop: '1px dashed #cbd5e1', paddingTop: '2px' }}>
+                <span title="Aktarılan">Akt: {fSayiNoDec(tAktarilanMiktar)}</span>
+                <span title="Gider">Gid: {fSayiNoDec(tGiderNormal)}</span>
+                <span title="Net Tahsilat" style={{fontWeight:'bold', color:'#0f172a'}}>Net: {fSayiNoDec(tNetTahsilat)}</span>
+            </div>
+        </div>
+        
+        <div className="c-kutu" style={{ borderLeftColor: "#dc2626" }}><span>AÇIK HESAP</span><b style={{ color: "#dc2626", fontSize: "16px" }}>{fSayi(tFisKalan)} ₺</b></div>
       </div>
+
       <div className="table-wrapper"><table className="tbl tbl-satis">
         <thead><tr>
           <Th label="TARİH" sortKey="tarih" currentSort={fisSort} setSort={setFisSort} filterType="fis_tarih" />
@@ -783,7 +857,16 @@ export default function App() {
             <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold" }}>{f.toplam_tutar === 0 ? "-" : fSayi(f.toplam_tutar)}</td>
             <td style={{ textAlign: "right", color: "#2563eb", fontWeight: "bold" }}>{fSayi(f.tahsilat)}</td>
             <td style={{ textAlign: "right", color: f.kalan_bakiye > 0 ? "#dc2626" : (f.kalan_bakiye < 0 ? "#059669" : "#64748b"), fontWeight: "bold" }}>{fSayi(f.kalan_bakiye)}</td>
-            <td className="actions-cell"><div className="action-buttons"><button onClick={() => handleFisDetayGoster(f)} className="btn-anim" style={{background: "none", border: "none", padding: "0 2px", cursor: "pointer", fontSize: "16px"}}>🔍</button><button onClick={() => handleFisDuzenle(f)} className="ed-btn">✏️</button><button onClick={() => handleFisSil(f)} className="dl-btn">✕</button></div></td>
+            <td className="actions-cell" style={{position: 'relative'}}>
+               <button onClick={(e) => { e.stopPropagation(); setOpenDropdown({ type: 'satis', id: f.id as string }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', padding: '0 8px', color: '#64748b' }}>⋮</button>
+               {openDropdown?.type === 'satis' && openDropdown.id === f.id && (
+                  <div className="dropdown-menu">
+                     <button className="dropdown-item" onClick={() => { setOpenDropdown(null); handleFisDetayGoster(f); }}>🔍 Görüntüle</button>
+                     <button className="dropdown-item" onClick={() => { setOpenDropdown(null); handleFisDuzenle(f); }}>✏️ Düzenle</button>
+                     <button className="dropdown-item" style={{ color: '#dc2626' }} onClick={() => { setOpenDropdown(null); handleFisSil(f); }}>🗑️ Sil</button>
+                  </div>
+               )}
+            </td>
           </tr>))}
         </tbody>
       </table></div>
@@ -793,8 +876,8 @@ export default function App() {
   const renderAnaliz = () => (
     <div className="tab-fade-in main-content-area">
       <div className="compact-totals" style={{marginTop: "5px"}}>
-        <div className="c-kutu" style={{ borderLeftColor: "#8b5cf6" }}><span>TOPLAM ADET/KG</span><b style={{ color: "#8b5cf6" }}>{fSayi(tAnalizKg)}</b></div>
-        <div className="c-kutu" style={{ borderLeftColor: "#8b5cf6" }}><span>TOPLAM TUTAR</span><b style={{ color: "#8b5cf6" }}>{fSayi(tAnalizTutar)} ₺</b></div>
+        <div className="c-kutu" style={{ borderLeftColor: "#8b5cf6" }}><span>TOPLAM ADET/KG</span><b style={{ color: "#8b5cf6", fontSize: "16px" }}>{fSayi(tAnalizKg)}</b></div>
+        <div className="c-kutu" style={{ borderLeftColor: "#8b5cf6" }}><span>TOPLAM TUTAR</span><b style={{ color: "#8b5cf6", fontSize: "16px" }}>{fSayi(tAnalizTutar)} ₺</b></div>
       </div>
       <div className="table-wrapper"><table className="tbl tbl-analiz">
         <thead><tr>
@@ -825,11 +908,18 @@ export default function App() {
 
   const renderGider = () => (
     <div className="tab-fade-in main-content-area">
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+         <div style={{ display: 'flex', background: '#e2e8f0', borderRadius: '6px', overflow: 'hidden', flex: 1 }}>
+            <button onClick={() => setGiderFiltreKisi('benim')} style={{ flex: 1, padding: '6px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', background: giderFiltreKisi==='benim'?'#dc2626':'transparent', color: giderFiltreKisi==='benim'?'#fff':'#475569' }}>Benim</button>
+            <button onClick={() => setGiderFiltreKisi('tumu')} style={{ flex: 1, padding: '6px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', background: giderFiltreKisi==='tumu'?'#dc2626':'transparent', color: giderFiltreKisi==='tumu'?'#fff':'#475569' }}>Tümü</button>
+         </div>
+      </div>
+
       <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "10px" }}>
         <button onClick={() => { setGiderForm({ tarih: bugun, tur: "Genel Gider", aciklama: "", tutar: "" }); setEditingGiderId(null); setIsGiderModalOpen(true); }} className="btn-anim m-btn" style={{background: "#dc2626", margin: 0, flex: 1, padding: "8px", fontSize: "13px", height: "36px"}}>➕ YENİ GİDER</button>
         <div className="c-kutu" style={{ borderLeftColor: "#dc2626", flex: 1.2, margin: 0, padding: "4px 8px", height: "36px", display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-          <span style={{fontSize: "10px", margin: 0, color: "#64748b"}}>TOPLAM GİDER:</span>
-          <b style={{ color: "#dc2626", fontSize: "14px" }}>{fSayi(tGiderNormal)} ₺</b>
+          <span style={{fontSize: "10px", margin: 0, color: "#64748b"}}>GÖSTERİLEN GİDER:</span>
+          <b style={{ color: "#dc2626", fontSize: "16px" }}>{fSayi(fGTutarNormal)} ₺</b>
         </div>
       </div>
       <div className="table-wrapper"><table className="tbl" style={{borderTop: "3px solid #fca5a5"}}>
@@ -846,8 +936,14 @@ export default function App() {
             <td style={{ fontWeight: "bold" }}>{g.tur}</td>
             <td style={{ textAlign: "right", color: "#dc2626", fontWeight: "bold" }}>{fSayi(g.tutar)}</td>
             <td style={{ color: "#64748b" }} className="truncate-text-td">{g.aciklama}</td>
-            <td className="actions-cell">
-               <div className="action-buttons"><button onClick={() => { setEditingGiderId(g.id); setGiderForm(g as any); setIsGiderModalOpen(true); }} className="ed-btn">✏️</button><button onClick={async () => { if(confirm("Sil?")){ await supabase.from("giderler").delete().eq("id", g.id); verileriGetir("gider"); } }} className="dl-btn">✕</button></div>
+            <td className="actions-cell" style={{position: 'relative'}}>
+               <button onClick={(e) => { e.stopPropagation(); setOpenDropdown({ type: 'gider', id: g.id as string }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', padding: '0 8px', color: '#64748b' }}>⋮</button>
+               {openDropdown?.type === 'gider' && openDropdown.id === g.id && (
+                  <div className="dropdown-menu">
+                     <button className="dropdown-item" onClick={() => { setOpenDropdown(null); setEditingGiderId(g.id); setGiderForm(g as any); setIsGiderModalOpen(true); }}>✏️ Düzenle</button>
+                     <button className="dropdown-item" style={{ color: '#dc2626' }} onClick={async () => { setOpenDropdown(null); if(confirm("Sil?")){ await supabase.from("giderler").delete().eq("id", g.id); verileriGetir("gider"); } }}>🗑️ Sil</button>
+                  </div>
+               )}
             </td>
           </tr>))}
         </tbody>
@@ -857,6 +953,11 @@ export default function App() {
 
   const renderUretim = () => (
     <div className="tab-fade-in main-content-area">
+      <div className="compact-totals" style={{marginBottom: "10px"}}>
+         <div className="c-kutu" style={{ borderLeftColor: "#8b5cf6" }}><span>GİREN TOPLAM KG</span><b style={{ color: "#8b5cf6", fontSize: "16px" }}>{fSayi(uretimList.reduce((a,b)=>a+Number(b.toplam_kg),0))} KG</b></div>
+         <div className="c-kutu" style={{ borderLeftColor: "#dc2626" }}><span>MALİYET TOPLAM TL</span><b style={{ color: "#dc2626", fontSize: "16px" }}>{fSayi(tUretimMaliyet)} ₺</b></div>
+      </div>
+      
       <button onClick={() => { setUretimForm({ tarih: bugun, cig_sut: "", sut_fiyat: uretimSonFiyatlar.sut, sut_tozu: "", sut_tozu_fiyat: uretimSonFiyatlar.toz, tereyag: "", tereyag_fiyat: uretimSonFiyatlar.yag, katki_kg: "", katki_fiyat: uretimSonFiyatlar.katki, su: "", kova_3_adet: "", kova_3_fiyat: uretimSonFiyatlar.kova3, kova_5_adet: "", kova_5_fiyat: uretimSonFiyatlar.kova5, cikti_3kg: "", satis_3_fiyat: uretimSonFiyatlar.satis3, cikti_5kg: "", satis_5_fiyat: uretimSonFiyatlar.satis5, aciklama: "" }); setEditingUretimId(null); setIsUretimModalOpen(true); }} className="btn-anim m-btn" style={{background: "#8b5cf6"}}>➕ YENİ ÜRETİM GİRİŞİ</button>
       <div className="table-wrapper"><table className="tbl" style={{borderTop: "3px solid #c4b5fd"}}>
         <thead><tr>
@@ -872,50 +973,64 @@ export default function App() {
         <tbody>{sortData(uretimList, uretimSort).map(u => (
           <tr key={u.id}>
             <td>{u.tarih.split("-").reverse().slice(0, 2).join(".")}</td>
-            <td style={{fontSize: "9px", color: "#64748b", maxWidth: "120px", whiteSpace: "normal", lineHeight: "1.2"}}>
-              <b style={{color: "#1e293b"}}>{fSayi(u.toplam_kg)} KG</b> <br/>
-              (Süt:{u.cig_sut} Toz:{u.sut_tozu} Yağ:{u.tereyag} Katkı:{u.katki_kg} Su:{u.su})
+            <td style={{fontSize: "11px", color: "#1e293b", fontWeight: "bold"}}>
+              {fSayi(u.toplam_kg)} KG
             </td>
             <td style={{ textAlign: "center", fontWeight: "bold" }}>{u.cikti_3kg} Ad</td>
             <td style={{ textAlign: "center", fontWeight: "bold" }}>{u.cikti_5kg} Ad</td>
             <td style={{ textAlign: "right", color: "#dc2626" }}>{fSayi(u.toplam_maliyet)} ₺</td>
             <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold" }}>{fSayi(u.kar)} ₺</td>
             <td className="truncate-text-td">{u.aciklama}</td>
-            <td className="actions-cell"><div className="action-buttons"><button onClick={() => { setEditingUretimId(u.id); setUretimForm(u as any); setIsUretimModalOpen(true); }} className="ed-btn">✏️</button><button onClick={async () => { if(confirm("Sil?")){ await supabase.from("uretim").delete().eq("id", u.id); verileriGetir("uretim"); } }} className="dl-btn">✕</button></div></td>
+            <td className="actions-cell" style={{position: 'relative'}}>
+               <button onClick={(e) => { e.stopPropagation(); setOpenDropdown({ type: 'uretim', id: u.id as string }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', padding: '0 8px', color: '#64748b' }}>⋮</button>
+               {openDropdown?.type === 'uretim' && openDropdown.id === u.id && (
+                  <div className="dropdown-menu">
+                     <button className="dropdown-item" onClick={() => { setOpenDropdown(null); setEditingUretimId(u.id); setUretimForm(u as any); setIsUretimModalOpen(true); }}>✏️ Düzenle</button>
+                     <button className="dropdown-item" style={{ color: '#dc2626' }} onClick={async () => { setOpenDropdown(null); if(confirm("Sil?")){ await supabase.from("uretim").delete().eq("id", u.id); verileriGetir("uretim"); } }}>🗑️ Sil</button>
+                  </div>
+               )}
+            </td>
           </tr>))}
         </tbody>
       </table></div>
     </div>
   );
 
+  const aktifAyarListesi = activeAyarTab === 'musteriler' ? bayiler : (activeAyarTab === 'urunler' ? urunler : tedarikciler);
+  const aktifTabloAdi = activeAyarTab === 'musteriler' ? 'bayiler' : (activeAyarTab === 'urunler' ? 'urunler' : 'ciftlikler');
+
   const renderAyarlar = () => (
-    <div className="tab-fade-in main-content-area" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-      {[{ t: "ciftlikler", title: "🥛 Süt Tedarikçileri", open: acikTedarikci, setOpen: setAcikTedarikci, val: yeniTedarikci, setVal: setYeniTedarikci, data: tedarikciler, btnColor: temaRengi, isUrun: false }, { t: "bayiler", title: "🏢 Satış Bayileri / Müşteriler", open: acikBayi, setOpen: setAcikBayi, val: yeniBayi, setVal: setYeniBayi, data: bayiler, btnColor: "#059669", isUrun: false }, { t: "urunler", title: "📦 Ürün Listesi", open: acikUrun, setOpen: setAcikUrun, val: yeniUrun, setVal: setYeniUrun, data: urunler, btnColor: "#f59e0b", isUrun: true }].map(sec => (
-        <div key={sec.t} className="card">
-          <div onClick={() => sec.setOpen(!sec.open)} style={{ display: "flex", justifyContent: "space-between", cursor: "pointer" }}>
-            <h4 style={{ margin: 0 }}>{sec.title}</h4><span style={{ fontSize: "11px", color: "#64748b" }}>{sec.open ? "▲ GİZLE" : "▼ AÇ"}</span>
+    <div className="tab-fade-in main-content-area" style={{ display: "flex", gap: "15px", height: "calc(100vh - 160px)", minHeight: "400px" }}>
+       {/* SOL MENÜ */}
+       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '110px', flexShrink: 0 }}>
+          <button onClick={() => setActiveAyarTab('musteriler')} style={{ padding: '12px 8px', borderRadius: '8px', background: activeAyarTab==='musteriler'?'#0f172a':'#fff', color: activeAyarTab==='musteriler'?'#fff':'#475569', border: '1px solid #e2e8f0', fontWeight: 'bold', cursor: 'pointer', textAlign: 'center', fontSize: '12px', transition: 'all 0.2s' }}>Müşteriler</button>
+          <button onClick={() => setActiveAyarTab('urunler')} style={{ padding: '12px 8px', borderRadius: '8px', background: activeAyarTab==='urunler'?'#0f172a':'#fff', color: activeAyarTab==='urunler'?'#fff':'#475569', border: '1px solid #e2e8f0', fontWeight: 'bold', cursor: 'pointer', textAlign: 'center', fontSize: '12px', transition: 'all 0.2s' }}>Ürünler</button>
+          <button onClick={() => setActiveAyarTab('ciftlikler')} style={{ padding: '12px 8px', borderRadius: '8px', background: activeAyarTab==='ciftlikler'?'#0f172a':'#fff', color: activeAyarTab==='ciftlikler'?'#fff':'#475569', border: '1px solid #e2e8f0', fontWeight: 'bold', cursor: 'pointer', textAlign: 'center', fontSize: '12px', transition: 'all 0.2s' }}>Çiftlikler</button>
+          
+          <div style={{ marginTop: 'auto', paddingTop: '20px' }}>
+            <h4 style={{ margin: "0 0 5px", fontSize: '11px', color: '#64748b', textAlign: 'center' }}>Yazı Boyutu</h4>
+            <input type="range" min="10" max="18" value={fontSize} onChange={e => setFontSize(Number(e.target.value))} style={{ width: "100%", cursor: "pointer" }} />
           </div>
-          {sec.open && (
-            <div style={{ marginTop: "15px", borderTop: "1px solid #e2e8f0", paddingTop: "15px" }}>
-              <div className="responsive-form" style={{marginBottom: "10px"}}>
-                <input placeholder="Yeni ekle..." value={sec.val} onChange={e => sec.setVal(e.target.value)} className="m-inp grow-inp" />
-                {sec.isUrun && <input placeholder="Fiyat" type="number" value={yeniUrunFiyat} onChange={e => setYeniUrunFiyat(e.target.value)} className="m-inp num-inp" />}
-                <button onClick={() => ayarIslem(sec.t, sec.val, "ekle", null, sec.setVal)} className="p-btn btn-anim" style={{ background: sec.btnColor, flex: "0 0 100px" }}>EKLE</button>
-              </div>
-              <div className="responsive-form" style={{marginTop: "5px"}}>
-                <select className="m-inp" value="" onChange={(e) => { const sId = e.target.value; if(!sId) return; const targetItem = sec.data.find(d => String(d.id) === String(sId)); if(confirm(`"${targetItem?.isim}" silinecek?`)) { ayarIslem(sec.t, null, "sil", sId); } }} style={{ width: "100%", cursor: "pointer", backgroundColor: "#f8fafc", color: "#64748b" }}>
-                  <option value="">Kayıtlı Listeyi Gör / Silmek İçin Seçin...</option>
-                  {sec.data.map(d => <option key={d.id} value={d.id} style={{color: "#1e293b"}}>{d.isim} {sec.isUrun && (d as Urun).fiyat ? `(${fSayi((d as Urun).fiyat)})` : ""}</option>)}
-                </select>
-              </div>
-            </div>
-          )}
-        </div>
-      ))}
-      <div className="card">
-        <h4 style={{ margin: "0 0 10px" }}>Yazı Boyutu ({fontSize}px)</h4>
-        <input type="range" min="10" max="18" value={fontSize} onChange={e => setFontSize(Number(e.target.value))} style={{ width: "100%", cursor: "pointer" }} />
-      </div>
+       </div>
+
+       {/* SAĞ İÇERİK */}
+       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', overflow: 'hidden' }}>
+          <div style={{ display: 'flex', gap: '8px' }}>
+             <input placeholder={`Yeni ${activeAyarTab.slice(0,-3)} ismi...`} value={yeniAyarDeger} onChange={e => setYeniAyarDeger(e.target.value)} style={{ flex: 1, padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '13px' }} />
+             {activeAyarTab === 'urunler' && <input placeholder="Fiyat" type="number" value={yeniUrunFiyat} onChange={e=>setYeniUrunFiyat(e.target.value)} style={{ width: '70px', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '13px' }} />}
+             <button onClick={handleAyarEkle} style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: '8px', padding: '0 20px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>Ekle</button>
+          </div>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', overflowY: 'auto', paddingRight: '4px' }}>
+             {aktifAyarListesi.map(item => (
+                <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 15px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+                   <span style={{ fontWeight: 'bold', color: '#475569', fontSize: '13px' }}>{item.isim} {activeAyarTab === 'urunler' && (item as Urun).fiyat ? `(${fSayi((item as Urun).fiyat)} ₺)` : ''}</span>
+                   <button onClick={() => { if(confirm(`Silinecek: ${item.isim}`)) ayarIslem(aktifTabloAdi, null, "sil", item.id); }} style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', borderRadius: '4px', width: '26px', height: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '14px' }}>✕</button>
+                </div>
+             ))}
+             {aktifAyarListesi.length === 0 && <div style={{textAlign: 'center', color: '#94a3b8', marginTop: '20px', fontSize: '13px'}}>Kayıt bulunamadı.</div>}
+          </div>
+       </div>
     </div>
   );
 
@@ -923,7 +1038,7 @@ export default function App() {
     return (
       <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fafc", padding: "20px", boxSizing: "border-box" }}>
         <form onSubmit={async (e) => { e.preventDefault(); const target = e.currentTarget as any; if (target.elements.remember.checked) localStorage.setItem('user', username); else localStorage.removeItem('user'); await supabase.auth.signInWithPassword({ email: username.includes("@") ? username : `${username}@sistem.local`, password }); }} style={{ background: "#fff", padding: "30px", borderRadius: "12px", width: "100%", maxWidth: "360px", boxShadow: "0 4px 6px rgba(0,0,0,0.1)", border: "1px solid #e2e8f0" }}>
-          <h2 style={{ margin: "0 0 8px", color: "#0f172a", textAlign: "center" }}>Sultanköy v2</h2><p style={{ margin: "0 0 24px", color: "#64748b", textAlign: "center", fontSize:"14px" }}>Yönetim Paneline Giriş Yapın</p>
+          <h2 style={{ margin: "0 0 8px", color: "#0f172a", textAlign: "center" }}>Sultanköy V4</h2><p style={{ margin: "0 0 24px", color: "#64748b", textAlign: "center", fontSize:"14px" }}>Yönetim Paneline Giriş Yapın</p>
           <input value={username} onChange={e => setUsername(e.target.value)} placeholder="Kullanıcı Adı" style={{ width: "100%", marginBottom: "16px", padding: "8px", border: "1px solid #cbd5e1", borderRadius: "6px", boxSizing: "border-box" }} />
           <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Şifre" style={{ width: "100%", marginBottom: "16px", padding: "8px", border: "1px solid #cbd5e1", borderRadius: "6px", boxSizing: "border-box" }} />
           <label style={{ display: "flex", gap: "8px", fontSize: "13px", color: "#64748b", cursor: "pointer", marginBottom: "20px" }}><input type="checkbox" id="remember" defaultChecked={!!localStorage.getItem('user')} /> Beni Hatırla</label>
@@ -934,10 +1049,19 @@ export default function App() {
   }
   
   return (
-    <div className="app-container" style={{ fontSize: `${fontSize}px` }}>
+    <div className="app-container" style={{ fontSize: `${fontSize}px` }} onClick={closeAllDropdowns}>
+      {/* YENİ HEADER TASARIMI */}
       <header className="header-style">
-        <b style={{ color: temaRengi, fontSize: "16px", marginLeft: "10px" }}>SULTANKÖY v2</b>
-        <button onClick={() => supabase.auth.signOut()} className="out-btn btn-anim" style={{marginRight: "10px"}}>ÇIKIŞ YAP</button>
+        <b style={{ color: temaRengi, fontSize: "18px", marginLeft: "10px" }}>SULTANKÖY V4</b>
+        <div style={{display: 'flex', gap: '15px', alignItems: 'center', marginRight: '10px'}}>
+           <select className="m-inp" style={{padding: "2px 8px", height: "28px", fontSize: "12px", borderRadius: "6px"}}>
+             <option>2026 / 03</option>
+           </select>
+           <span style={{fontSize: "13px", fontWeight: "bold", color: "#0f172a"}}>{username}</span>
+           <button onClick={() => supabase.auth.signOut()} style={{ background: "none", border: "1px solid #fecaca", borderRadius: "50%", width: "32px", height: "32px", color: "#dc2626", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>
+             <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M7.5 1v7h1V1h-1z"/><path d="M3 8.812a4.999 4.999 0 0 1 2.578-4.375l-.485-.874A6 6 0 1 0 11 3.616l-.501.865A5 5 0 1 1 3 8.812z"/></svg>
+           </button>
+        </div>
       </header>
 
       <main className="main-content">
@@ -975,7 +1099,7 @@ export default function App() {
         {/* YENİ SATIŞ FİŞİ EKRANI */}
         {isFisModalOpen && (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1200, padding: "8px" }}>
-            <div style={{ backgroundColor: "#fff", width: "95vw", maxWidth: "420px", maxHeight: "95vh", borderRadius: "8px", display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease-out", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }}>
+            <div style={{ backgroundColor: "#fff", width: "95vw", maxWidth: "420px", maxHeight: "95vh", borderRadius: "8px", display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease-out", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }} onClick={(e) => e.stopPropagation()}>
               <div style={{ padding: "8px 12px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: editingFisId ? "#fef3c7" : "#f8fafc", borderRadius: "8px 8px 0 0" }}>
                 <h3 style={{ margin: "0", color: editingFisId ? "#b45309" : "#059669", fontSize: "15px" }}>{editingFisId ? "✏️ Fişi Düzenle" : "🧾 Yeni Satış Fişi"}</h3>
                 <button onClick={() => setIsFisModalOpen(false)} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#94a3b8", padding: 0, lineHeight: 1 }}>✕</button>
@@ -1182,7 +1306,7 @@ export default function App() {
         {/* TAHSİLAT MODALI */}
         {isTahsilatModalOpen && (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1200, padding: "10px" }}>
-            <div style={{ backgroundColor: "#fff", width: "95vw", maxWidth: "350px", borderRadius: "12px", display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease-out", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }}>
+            <div style={{ backgroundColor: "#fff", width: "95vw", maxWidth: "350px", borderRadius: "12px", display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease-out", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }} onClick={(e) => e.stopPropagation()}>
                <div style={{ padding: "12px 15px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f8fafc", borderRadius: "12px 12px 0 0" }}>
                  <h3 style={{ margin: "0", color: "#2563eb", fontSize: "15px" }}>💸 Yeni Tahsilat Ekle</h3>
                  <button onClick={() => setIsTahsilatModalOpen(false)} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#94a3b8", padding: 0 }}>✕</button>
@@ -1214,7 +1338,7 @@ export default function App() {
         {/* GİDER MODALI */}
         {isGiderModalOpen && (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1200, padding: "10px" }}>
-            <div style={{ backgroundColor: "#fff", width: "95vw", maxWidth: "350px", borderRadius: "12px", display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease-out", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }}>
+            <div style={{ backgroundColor: "#fff", width: "95vw", maxWidth: "350px", borderRadius: "12px", display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease-out", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }} onClick={(e) => e.stopPropagation()}>
               <div style={{ padding: "12px 15px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: editingGiderId ? "#fef2f2" : "#f8fafc", borderRadius: "12px 12px 0 0" }}>
                 <h3 style={{ margin: "0", color: "#dc2626", fontSize: "15px" }}>{editingGiderId ? "✏️ Gider Düzenle" : "💸 Yeni Gider Kaydı"}</h3>
                 <button onClick={() => setIsGiderModalOpen(false)} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#94a3b8", padding: 0 }}>✕</button>
@@ -1239,7 +1363,7 @@ export default function App() {
         {/* SÜT GİRİŞİ MODALI */}
         {isSutModalOpen && (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1200, padding: "10px" }}>
-            <div style={{ backgroundColor: "#fff", width: "95vw", maxWidth: "350px", borderRadius: "12px", display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease-out", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }}>
+            <div style={{ backgroundColor: "#fff", width: "95vw", maxWidth: "350px", borderRadius: "12px", display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease-out", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }} onClick={(e) => e.stopPropagation()}>
               <div style={{ padding: "12px 15px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: editingSutId ? "#fef3c7" : "#f8fafc", borderRadius: "12px 12px 0 0" }}>
                 <h3 style={{ margin: "0", color: editingSutId ? "#b45309" : temaRengi, fontSize: "15px" }}>{editingSutId ? "✏️ Süt Kaydını Düzenle" : "🥛 Yeni Süt Girişi"}</h3>
                 <button onClick={() => setIsSutModalOpen(false)} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#94a3b8", padding: 0 }}>✕</button>
@@ -1269,7 +1393,7 @@ export default function App() {
         {/* ÜRETİM MODALI */}
         {isUretimModalOpen && (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1200, padding: "10px" }}>
-            <div style={{ backgroundColor: "#fff", width: "95vw", maxWidth: "420px", borderRadius: "12px", display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease-out", maxHeight: "95vh" }}>
+            <div style={{ backgroundColor: "#fff", width: "95vw", maxWidth: "420px", borderRadius: "12px", display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease-out", maxHeight: "95vh" }} onClick={(e) => e.stopPropagation()}>
               <div style={{ padding: "10px 12px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: editingUretimId ? "#f3e8ff" : "#f8fafc", borderRadius: "12px 12px 0 0" }}>
                 <h3 style={{ margin: "0", color: "#8b5cf6", fontSize: "14px" }}>{editingUretimId ? "✏️ Üretim Düzenle" : "🏭 Yeni Üretim Kaydı"}</h3>
                 <button onClick={() => setIsUretimModalOpen(false)} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#94a3b8", padding: 0 }}>✕</button>
@@ -1398,8 +1522,8 @@ export default function App() {
       </main>
 
       <footer className="fixed-nav main-content-area">
-        {[{ id: "ozet", i: "📊" }, { id: "sut", i: "🥛" }, { id: "satis", i: "💰" }, { id: "uretim", i: "🏭" }, { id: "gider", i: "💸" }, { id: "analiz", i: "📈" }, { id: "ayarlar", i: "⚙️" }].map(item => (
-          <button key={item.id} onClick={() => { setActiveTab(item.id); setEditingSutId(null); setIsSutModalOpen(false); setIsFisModalOpen(false); setIsTahsilatModalOpen(false); setIsGiderModalOpen(false); setIsUretimModalOpen(false); }} className={`n-item btn-anim ${activeTab === item.id ? 'active' : ''}`} style={activeTab === item.id ? { color: item.id === 'analiz' ? '#8b5cf6' : item.id === 'gider' ? '#dc2626' : item.id === 'uretim' ? '#8b5cf6' : temaRengi, borderTopColor: item.id === 'analiz' ? '#8b5cf6' : item.id === 'gider' ? '#dc2626' : item.id === 'uretim' ? '#8b5cf6' : temaRengi } : {}}>
+        {[{ id: "ozet", i: "📊" }, { id: "sut", i: "🥛" }, { id: "uretim", i: "🏭" }, { id: "satis", i: "💰" }, { id: "gider", i: "💸" }, { id: "analiz", i: "📈" }, { id: "ayarlar", i: "⚙️" }].map(item => (
+          <button key={item.id} onClick={() => { setActiveTab(item.id); setEditingSutId(null); setIsSutModalOpen(false); setIsFisModalOpen(false); setIsTahsilatModalOpen(false); setIsGiderModalOpen(false); setIsUretimModalOpen(false); setOpenDropdown(null); setIsDigerOpen(false); }} className={`n-item btn-anim ${activeTab === item.id ? 'active' : ''}`} style={activeTab === item.id ? { color: item.id === 'analiz' ? '#8b5cf6' : item.id === 'gider' ? '#dc2626' : item.id === 'uretim' ? '#8b5cf6' : temaRengi, borderTopColor: item.id === 'analiz' ? '#8b5cf6' : item.id === 'gider' ? '#dc2626' : item.id === 'uretim' ? '#8b5cf6' : temaRengi } : {}}>
             <span style={{ fontSize: "16px", marginBottom: "2px" }}>{item.i}</span><span style={{ fontSize: "9px", fontWeight: "bold" }}>{item.id.toUpperCase()}</span>
           </button>
         ))}
@@ -1452,17 +1576,18 @@ export default function App() {
         .tbl td { font-size: 11px; border-bottom: 1px solid #f1f5f9; padding: 3px 4px !important; white-space: nowrap; vertical-align: middle; }
         
         .actions-cell { white-space: nowrap !important; width: 1% !important; text-align: right; }
-        .action-buttons { display: flex; gap: 2px; justify-content: flex-end; align-items: center; }
         
+        /* DROPDOWN MENÜLER İÇİN */
+        .dropdown-menu { position: absolute; right: 0; top: 100%; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 50; display: flex; flex-direction: column; padding: 4px; min-width: 120px; }
+        .dropdown-item { padding: 8px 12px; text-align: left; background: none; border: none; font-size: 12px; font-weight: bold; color: #475569; cursor: pointer; width: 100%; border-radius: 4px; }
+        .dropdown-item:hover { background: #f1f5f9; }
+
         .truncate-text-td { max-width: 75px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: bottom; }
 
         .fixed-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 1000px; height: 60px; background: #fff; border-top: 1px solid #e2e8f0; display: flex; z-index: 100; padding: 0 4px; }
         .n-item { flex: 1; border: none; background: none; color: #94a3b8; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; border-top: 3px solid transparent; padding: 0 2px; }
         .n-item.active { background: #f8fafc; }
         .btn-anim { transition: transform 0.1s; } .btn-anim:active { transform: scale(0.95); }
-        .out-btn { background: #fff; color: #dc2626; border: 1px solid #fecaca; border-radius: 6px; padding: 6px 12px; font-size: 11px; font-weight: bold; cursor: pointer; }
-        .ed-btn { background: none; border: none; color: #f59e0b; font-size: 15px; cursor: pointer; padding: 0 2px; }
-        .dl-btn { background: none; border: none; color: #dc2626; font-size: 15px; font-weight: bold; cursor: pointer; padding: 0 2px; }
 
         @media (max-width: 600px) {
           .main-content { padding: 0 !important; padding-bottom: 80px !important; width: 100% !important; overflow-x: hidden !important; }
