@@ -680,7 +680,7 @@ export default function App() {
   const fFisList = useMemo(() => sortData(satisFisList.filter((f: any) => {
     const isBayiMatch = fisFiltre.bayiler.length === 0 || fisFiltre.bayiler.includes(f.bayi);
     const isTarihMatch = (!fisFiltre.baslangic || f.tarih >= fisFiltre.baslangic) && (!fisFiltre.bitis || f.tarih <= fisFiltre.bitis);
-    const isKisiMatch = satisFiltreKisi === 'tumu' || f.ekleyen === username;
+    const isKisiMatch = satisFiltreKisi === 'herkes' || f.ekleyen === username;
     const isTipMatch = satisFiltreTip === 'tumu' ? true : (satisFiltreTip === 'tahsilat' ? f.toplam_tutar === 0 : f.toplam_tutar > 0);
     return isBayiMatch && isTarihMatch && isKisiMatch && isTipMatch;
   }), fisSort), [satisFisList, fisFiltre, fisSort, satisFiltreKisi, satisFiltreTip, username]);
