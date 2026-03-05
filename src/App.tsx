@@ -1,6 +1,7 @@
+
 import { useEffect, useState, useMemo, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
-// --- TİP TANIMLAMALARI ---
+
 interface Ciftlik { id: string; isim: string; }
 interface Bayi { id: string; isim: string; }
 interface Urun { id: string; isim: string; fiyat?: number | string; }
@@ -11,11 +12,34 @@ interface Gider { id?: string; tarih: string; tur: string; aciklama: string; tut
 interface Uretim { id?: string; tarih: string; cig_sut: number | string; sut_fiyat: number | string; sut_tozu: number | string; sut_tozu_fiyat: number | string; tereyag: number | string; tereyag_fiyat: number | string; katki_kg: number | string; katki_fiyat: number | string; su: number | string; kova_3_adet: number | string; kova_3_fiyat: number | string; kova_5_adet: number | string; kova_5_fiyat: number | string; cikti_3kg: number | string; satis_3_fiyat: number | string; cikti_5kg: number | string; satis_5_fiyat: number | string; toplam_kg?: number; toplam_maliyet?: number; kar?: number; aciklama: string; ekleyen?: string; }
 interface CopKutusu { id?: string; tablo_adi: string; veri: any; silinme_tarihi?: string; }
 
-// --- SUPABASE BAĞLANTISI ---
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+export default function App() {
+  const [session, setSession] = useState<any>(null);
+  const [username, setUsername] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [activeTab, setActiveTab] = useState<string>("satis");
+  const [bayiListeAcik, setBayiListeAcik] = useState<boolean>(false);
+  
+  const bayiRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function disariyaTiklandi(event: MouseEvent) {
+      if (bayiRef.current && !bayiRef.current.contains(event.target as Node)) {
+        setBayiListeAcik(false);
+      }
+    }
+    if (bayiListeAcik) {
+      document.addEventListener("mousedown", disariyaTiklandi);
+    }
+    return () => {
+      document.removeEventListener("mousedown", disariyaTiklandi);
+    };
+  }, [bayiListeAcik]);
+
+  // Diğer fonksiyonların ve kodların buradan devam etmeli...
 // YEREL TARİH BULUCU
 const getLocalDateString = () => {
   const d = new Date();
