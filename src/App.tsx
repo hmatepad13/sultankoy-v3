@@ -71,6 +71,9 @@ export default function App() {
   const [secilenDosya, setSecilenDosya] = useState<File | null>(null);
   const [gorselModalUrl, setGorselModalUrl] = useState<string | null>(null);
 
+  // 👇 YENİ: BAYİ LİSTESİ HAFIZASI 👇
+  const [bayiListeAcik, setBayiListeAcik] = useState(false);
+
   const bugun = getLocalDateString();
 
   // --- SÜT STATE'LERİ ---
@@ -1451,57 +1454,64 @@ async function handleCopKutusunuTemizle() {
 
   {/* Akıllı Bayi Seçici Konteynırı */}
   <div style={{ position: "relative", flex: 1 }}>
-    <input 
-      placeholder="Bayi Seç / Ara..." 
-      value={fisUst.bayi} 
-      onChange={e => { 
-        setFisUst({ ...fisUst, bayi: e.target.value });
-        const eslesen = bayiler.find(b => b.isim.toLowerCase() === e.target.value.toLowerCase());
-        if (eslesen) handleBayiSecimi(eslesen.isim);
-      }} 
-      className="m-inp grow-inp" 
-      style={{ fontWeight: "bold", padding: "6px 8px", fontSize: "13px", width: "100%" }} 
-    />
+  <input 
+    placeholder="Bayi Seç / Ara..." 
+    value={fisUst.bayi} 
+    onFocus={() => setBayiListeAcik(true)} 
+    onChange={e => { 
+      setFisUst({ ...fisUst, bayi: e.target.value });
+      setBayiListeAcik(true); 
+      const eslesen = bayiler.find(b => b.isim.toLowerCase() === e.target.value.toLowerCase());
+      if (eslesen) {
+          handleBayiSecimi(eslesen.isim);
+          setBayiListeAcik(false);
+      }
+    }} 
+    className="m-inp grow-inp" 
+    style={{ fontWeight: "bold", padding: "6px 8px", fontSize: "13px", width: "100%" }} 
+  />
 
-    {/* 👇 KLAVYENİN ÜSTÜNDE AÇILAN LİSTE 👇 */}
-    {fisUst.bayi && !bayiler.some(b => b.isim === fisUst.bayi) && (
-      <div style={{ 
-        position: "absolute", 
-        top: "100%", 
-        left: 0, 
-        right: 0, 
-        background: "#fff", 
-        border: "1px solid #2563eb", 
-        borderRadius: "0 0 8px 8px", 
-        zIndex: 9999, 
-        maxHeight: "200px", 
-        overflowY: "auto",
-        boxShadow: "0 10px 15px -3px rgba(0,0,0,0.2)" 
-      }}>
-        {bayiler
-          .filter(b => b.isim.toLowerCase().includes(fisUst.bayi.toLowerCase()))
-          .map(b => (
-            <div 
-              key={b.id} 
-              onClick={() => {
-                setFisUst({ ...fisUst, bayi: b.isim });
-                handleBayiSecimi(b.isim);
-              }}
-              style={{ 
-                padding: "12px 10px", 
-                borderBottom: "1px solid #f1f5f9", 
-                fontSize: "14px", 
-                cursor: "pointer",
-                color: "#1e293b" 
-              }}
-            >
-              {b.isim}
-            </div>
-          ))
-        }
-      </div>
-    )}
-  </div>
+  {bayiListeAcik && (
+    <div style={{ 
+      position: "absolute", 
+      top: "100%", 
+      left: 0, 
+      right: 0, 
+      background: "#fff", 
+      border: "2px solid #2563eb", 
+      borderRadius: "0 0 8px 8px", 
+      zIndex: 9999, 
+      maxHeight: "250px", 
+      overflowY: "auto",
+      boxShadow: "0 10px 15px -3px rgba(0,0,0,0.3)" 
+    }}>
+      <div onClick={() => setBayiListeAcik(false)} style={{ padding: "10px", textAlign: "right", fontSize: "12px", color: "#ef4444", background: "#f8fafc", borderBottom: "1px solid #eee", fontWeight: "bold", cursor: "pointer" }}>✕ KAPAT</div>
+      
+      {bayiler
+        .filter(b => b.isim.toLowerCase().includes(fisUst.bayi.toLowerCase()))
+        .map(b => (
+          <div 
+            key={b.id} 
+            onClick={() => {
+              setFisUst({ ...fisUst, bayi: b.isim });
+              handleBayiSecimi(b.isim);
+              setBayiListeAcik(false);
+            }}
+            style={{ 
+              padding: "14px 10px", 
+              borderBottom: "1px solid #f1f5f9", 
+              fontSize: "14px", 
+              cursor: "pointer",
+              color: "#1e293b",
+              background: fisUst.bayi === b.isim ? "#eff6ff" : "#fff"
+            }}
+          >
+            {b.isim}
+          </div>
+        ))
+      }
+    </div>
+  )}
 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px' }}>
                   {urunler.map(u => {
