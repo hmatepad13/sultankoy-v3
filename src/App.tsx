@@ -1458,6 +1458,7 @@ async function handleCopKutusunuTemizle() {
     placeholder="Bayi Seç / Ara..." 
     value={fisUst.bayi} 
     onFocus={() => setBayiListeAcik(true)} 
+    onClick={() => setBayiListeAcik(true)} 
     onChange={e => { 
       setFisUst({ ...fisUst, bayi: e.target.value });
       setBayiListeAcik(true); 
