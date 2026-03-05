@@ -1183,7 +1183,7 @@ export default function App() {
               </>
           ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', overflowY: 'auto', paddingRight: '4px' }}>
-                 <h4 style={{ margin: "0 0 5px", fontSize: '13px', color: '#dc2626' }}>Son Silinen Kayıtlar</h4>
+                
                  {/* ÇÖP KUTUSU LİSTELEME VE SAYFALAMA */}
 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', overflowY: 'auto', paddingRight: '4px', flex: 1 }}>
     <h4 style={{ margin: "0 0 5px", fontSize: '13px', color: '#dc2626', display: 'flex', justifyContent: 'space-between' }}>
