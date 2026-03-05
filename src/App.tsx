@@ -990,9 +990,16 @@ export default function App() {
           <th></th>
         </tr></thead>
         <tbody>{fFisList.map(f => {
-          const bayiGuncelBorc = bayiBorclari.find(b => b.isim === f.bayi)?.borc || 0;
-          return (
-          <tr key={f.id}>
+  // YÜRÜYEN BAKİYE HESABI: O tarihe ve o fiş numarasına kadar olan borç toplamı
+  const oTarihtekiBorc = satisFisList
+    .filter(fis => 
+      fis.bayi === f.bayi && 
+      (fis.tarih < f.tarih || (fis.tarih === f.tarih && Number(fis.id) <= Number(f.id)))
+    )
+    .reduce((toplam, fis) => toplam + Number(fis.kalan_bakiye || 0), 0);
+
+  return (
+  <tr key={f.id}>
             <td>{f.tarih.split("-").reverse().slice(0, 2).join(".")}</td>
             <td style={{ fontWeight: "bold", minWidth: "120px", color: f.toplam_tutar === 0 && f.odeme_turu !== 'KASAYA DEVİR' ? "#8b5cf6" : (f.bayi === "SİSTEM İŞLEMİ" ? "#475569" : "inherit") }} className="truncate-text-td">
                {f.bayi === "SİSTEM İŞLEMİ" ? `${f.aciklama || f.odeme_turu}` : f.bayi}
@@ -1001,9 +1008,9 @@ export default function App() {
             <td style={{ textAlign: "right", color: f.odeme_turu === 'KASAYA DEVİR' ? "#dc2626" : "#2563eb", fontWeight: "bold" }}>
                {f.odeme_turu === 'KASAYA DEVİR' && f.tahsilat > 0 ? "-" : ""}{fSayi(f.tahsilat)}
             </td>
-            <td style={{ textAlign: "right", color: bayiGuncelBorc > 0 ? "#dc2626" : (bayiGuncelBorc < 0 ? "#059669" : "#64748b"), fontWeight: "bold" }} title="Müşterinin Güncel Toplam Borcu">
-                {f.bayi === "SİSTEM İŞLEMİ" ? "-" : (bayiGuncelBorc === 0 ? "-" : fSayi(bayiGuncelBorc))}
-            </td>
+            <td style={{ textAlign: "right", color: oTarihtekiBorc > 0 ? "#dc2626" : (oTarihtekiBorc < 0 ? "#059669" : "#64748b"), fontWeight: "bold" }} title="O Tarihteki Toplam Borç Durumu">
+    {f.bayi === "SİSTEM İŞLEMİ" ? "-" : (oTarihtekiBorc === 0 ? "-" : fSayi(oTarihtekiBorc))}
+</td>
             <td style={{ textAlign: "center", color: "#64748b" }}>{f.ekleyen ? f.ekleyen.split('@')[0] : "-"}</td>
             <td className="actions-cell" style={{position: 'relative'}}>
                <button onClick={(e) => { e.stopPropagation(); setOpenDropdown({ type: 'satis', id: f.id as string }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', padding: '0 8px', color: '#64748b' }}>⋮</button>
