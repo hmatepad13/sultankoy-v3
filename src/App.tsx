@@ -1533,16 +1533,33 @@ async function handleCopKutusunuTemizle() {
                   <button onClick={() => setGosterilenEkler(p => ({...p, bos_kova: true}))} className="btn-anim" style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "4px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", color: "#dc2626" }}>+ Boş Kova</button>
                 </div>
 
-                {/* İADE VE BOŞ KOVA ÖZEL SATIRLARI (GERİ GELDİ) */}
-                {(gosterilenEkler.iade || Number(fisDetay["v_iade"]?.adet || 0) > 0) && (
-                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center', padding: '4px 6px', background: '#fef2f2', borderRadius: '4px', border: '1px solid #fecaca', marginBottom: "4px" }}>
-                    <div style={{ flex: 1, fontWeight: 'bold', fontSize: "12px", color: "#dc2626" }}>İade</div>
-                    <input placeholder="Ad" type="number" value={fisDetay["v_iade"]?.adet || ""} onChange={e => setFisDetay({...fisDetay, v_iade: {...fisDetay["v_iade"], adet: e.target.value}})} className="m-inp" style={{flex: "0 0 42px", textAlign: "center", fontSize: "12px", height: "24px"}} />
-                    <input placeholder="KG" type="number" step="0.01" value={fisDetay["v_iade"]?.kg || ""} onChange={e => setFisDetay({...fisDetay, v_iade: {...fisDetay["v_iade"], kg: e.target.value}})} className="m-inp" style={{flex: "0 0 50px", textAlign: "center", fontSize: "12px", height: "24px"}} />
-                    <input placeholder="Fiyat" type="number" step="0.01" value={fisDetay["v_iade"]?.fiyat || ""} onChange={e => setFisDetay({...fisDetay, v_iade: {...fisDetay["v_iade"], fiyat: e.target.value}})} className="m-inp" style={{flex: "0 0 60px", textAlign: "right", fontSize: "12px", height: "24px"}} />
-                    <div style={{width: "55px", textAlign: "right", fontWeight: "bold", fontSize: "12px", color: "#dc2626"}}>{fSayi((Number(fisDetay["v_iade"]?.kg) || Number(fisDetay["v_iade"]?.adet || 0)) * Number(fisDetay["v_iade"]?.fiyat || 0))}</div>
-                  </div>
-                )}
+                {/* İADE SATIRI (DİĞER ÜRÜNLERLE AYNI GENİŞLİKTE) */}
+{(gosterilenEkler.iade || Number(fisDetay["v_iade"]?.adet || 0) > 0 || Number(fisDetay["v_iade"]?.kg || 0) > 0) && (
+  <div style={{ display: 'flex', gap: '5px', alignItems: 'center', padding: '5px 6px', background: '#fef2f2', borderRadius: '4px', border: '1px solid #fecaca', marginBottom: "4px" }}>
+    <div style={{ flex: 1, minWidth: "70px", fontWeight: 'bold', fontSize: "12px", color: "#dc2626" }}>İade</div>
+    <input placeholder="Ad" type="number" value={fisDetay["v_iade"]?.adet || ""} onChange={e => setFisDetay({...fisDetay, v_iade: {...fisDetay["v_iade"], adet: e.target.value}})} className="m-inp" style={{ flex: "0 0 50px", width: "50px", textAlign: "center", fontSize: "12px", height: "26px", padding: "2px", borderColor: "#fca5a5" }} />
+    <input placeholder="KG" type="number" step="0.01" value={fisDetay["v_iade"]?.kg || ""} onChange={e => setFisDetay({...fisDetay, v_iade: {...fisDetay["v_iade"], kg: e.target.value}})} className="m-inp" style={{ flex: "0 0 65px", width: "65px", textAlign: "center", fontSize: "12px", height: "26px", padding: "2px", borderColor: "#fca5a5" }} />
+    <div style={{ fontSize: "10px", color: "#94a3b8", width: "6px", textAlign: "center" }}>x</div>
+    <input placeholder="Fiyat" type="number" step="0.01" value={fisDetay["v_iade"]?.fiyat || ""} onChange={e => setFisDetay({...fisDetay, v_iade: {...fisDetay["v_iade"], fiyat: e.target.value}})} className="m-inp" style={{ flex: "0 0 75px", width: "75px", textAlign: "right", fontSize: "12px", height: "26px", padding: "2px 4px", borderColor: "#fca5a5" }} />
+    <div style={{ width: "60px", textAlign: "right", fontWeight: "bold", fontSize: "12px", color: "#dc2626" }}>
+      {fSayi((Number(fisDetay["v_iade"]?.kg) || Number(fisDetay["v_iade"]?.adet || 0)) * Number(fisDetay["v_iade"]?.fiyat || 0))}
+    </div>
+  </div>
+)}
+
+{/* BOŞ KOVA SATIRI (DİĞER ÜRÜNLERLE AYNI GENİŞLİKTE) */}
+{(gosterilenEkler.bos_kova || Number(fisDetay["v_bos_kova"]?.adet || 0) > 0) && (
+  <div style={{ display: 'flex', gap: '5px', alignItems: 'center', padding: '5px 6px', background: '#f8fafc', borderRadius: '4px', border: '1px solid #cbd5e1', marginBottom: "4px" }}>
+    <div style={{ flex: 1, minWidth: "70px", fontWeight: 'bold', fontSize: "12px", color: "#475569" }}>Boş Kova</div>
+    <input placeholder="Ad" type="number" value={fisDetay["v_bos_kova"]?.adet || ""} onChange={e => setFisDetay({...fisDetay, v_bos_kova: {...fisDetay["v_bos_kova"], adet: e.target.value}})} className="m-inp" style={{ flex: "0 0 50px", width: "50px", textAlign: "center", fontSize: "12px", height: "26px", padding: "2px" }} />
+    <input placeholder="KG" type="number" step="0.01" value={fisDetay["v_bos_kova"]?.kg || ""} onChange={e => setFisDetay({...fisDetay, v_bos_kova: {...fisDetay["v_bos_kova"], kg: e.target.value}})} className="m-inp" style={{ flex: "0 0 65px", width: "65px", textAlign: "center", fontSize: "12px", height: "26px", padding: "2px" }} />
+    <div style={{ fontSize: "10px", color: "#94a3b8", width: "6px", textAlign: "center" }}>x</div>
+    <input placeholder="Fiyat" type="number" step="0.01" value={fisDetay["v_bos_kova"]?.fiyat || ""} onChange={e => setFisDetay({...fisDetay, v_bos_kova: {...fisDetay["v_bos_kova"], fiyat: e.target.value}})} className="m-inp" style={{ flex: "0 0 75px", width: "75px", textAlign: "right", fontSize: "12px", height: "26px", padding: "2px 4px" }} />
+    <div style={{ width: "60px", textAlign: "right", fontWeight: "bold", fontSize: "12px", color: "#64748b" }}>
+      {fSayi((Number(fisDetay["v_bos_kova"]?.kg) || Number(fisDetay["v_bos_kova"]?.adet || 0)) * Number(fisDetay["v_bos_kova"]?.fiyat || 0))}
+    </div>
+  </div>
+)}
 
                 {/* AÇIKLAMA VE TESLİM ALAN (GERİ GELDİ) */}
                 <div style={{ display: "flex", gap: "6px", marginTop: "10px" }}>
