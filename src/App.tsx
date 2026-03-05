@@ -1515,7 +1515,7 @@ async function handleCopKutusunuTemizle() {
                         {/* Ürün Adı */}
                         <div style={{ flex: 1, minWidth: "80px", fontWeight: 'bold', fontSize: "12px", color: isFilled ? (editingFisId ? "#b45309" : "#065f46") : "#475569", lineHeight: "1.1", whiteSpace: "normal" }}>{u.isim}</div>
                         
-                        {/* Adet Kutusu - 42px (Bir tık büyüdü) */}
+                        {/* Adet Kutusu */}
                         <input placeholder="Ad" type="number" value={fisDetay[u.id]?.adet || ""} 
                           onChange={(e) => {
                             const val = e.target.value; let nKg = ""; const m = u.isim.match(/(\d+(?:\.\d+)?)/);
@@ -1525,7 +1525,7 @@ async function handleCopKutusunuTemizle() {
                           className="m-inp" style={{ flex: "0 0 42px", width: "42px", textAlign: "center", fontSize: "12px", height: "24px", padding: "2px" }} 
                         />
                         
-                        {/* KG Kutusu - 48px (Bir tık büyüdü) */}
+                        {/* KG Kutusu */}
                         <input placeholder="KG" type="number" step="0.01" value={fisDetay[u.id]?.kg || ""} 
                           onChange={e => setFisDetay({...fisDetay, [u.id]: {...fisDetay[u.id], kg: e.target.value}})} 
                           className="m-inp" style={{ flex: "0 0 48px", width: "48px", textAlign: "center", fontSize: "12px", height: "24px", padding: "2px" }} 
@@ -1533,16 +1533,24 @@ async function handleCopKutusunuTemizle() {
                         
                         <div style={{ fontSize: "10px", color: "#94a3b8", width: "6px", textAlign: "center" }}>x</div>
                         
-                        {/* Fiyat Kutusu - 60px (Bir tık büyüdü) */}
+                        {/* Fiyat Kutusu */}
                         <input placeholder="Fiyat" type="number" step="0.01" value={fisDetay[u.id]?.fiyat || ""} 
                           onChange={e => setFisDetay({...fisDetay, [u.id]: {...fisDetay[u.id], fiyat: e.target.value}})} 
                           className="m-inp" style={{ flex: "0 0 60px", width: "60px", textAlign: "right", fontSize: "12px", height: "24px", padding: "2px" }} 
                         />
                         
-                        {/* Satır Toplamı */}
-                        <div style={{ width: "55px", textAlign: "right", fontWeight: "bold", fontSize: "12px", color: (Number(fisDetay[u.id]?.adet || 0) || Number(fisDetay[u.id]?.kg || 0)) ? "#059669" : "#94a3b8" }}>
-                          { ( (Number(u.isim.match(/([345])\s*kg/i)?.[1]) ? Number(fisDetay[u.id]?.adet) : (Number(fisDetay[u.id]?.kg) > 0 ? Number(fisDetay[u.id]?.kg) : Number(fisDetay[u.id]?.adet))) * Number(fisDetay[u.id]?.fiyat) ) > 0 ? fSayi( (Number(u.isim.match(/([345])\s*kg/i)?.[1]) ? Number(fisDetay[u.id]?.adet) : (Number(fisDetay[u.id]?.kg) > 0 ? Number(fisDetay[u.id]?.kg) : Number(fisDetay[u.id]?.adet))) * Number(fisDetay[u.id]?.fiyat) ) : "-" }
-                        </div>
+                        {/* Satır Toplamı (Build hatası burada çözüldü) */}
+                        {(() => {
+                          const isKova = u.isim.match(/([345])\s*kg/i);
+                          const miktar = isKova ? Number(fisDetay[u.id]?.adet || 0) : (Number(fisDetay[u.id]?.kg) > 0 ? Number(fisDetay[u.id]?.kg) : Number(fisDetay[u.id]?.adet || 0));
+                          const satirToplam = miktar * Number(fisDetay[u.id]?.fiyat || 0);
+                          
+                          return (
+                            <div style={{ width: "55px", textAlign: "right", fontWeight: "bold", fontSize: "12px", color: satirToplam > 0 ? "#059669" : "#94a3b8" }}>
+                              {satirToplam > 0 ? fSayi(satirToplam) : "-"}
+                            </div>
+                          );
+                        })()}
                       </div>
                     );
                   })}
