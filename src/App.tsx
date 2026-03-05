@@ -1448,14 +1448,7 @@ async function handleCopKutusunuTemizle() {
                 
                 {/* TARİH VE AKILLI BAYİ SEÇİCİ */}
                 <div style={{ display: "flex", gap: "6px", marginBottom: "12px", position: "relative" }}>
-                  <input 
-                    type="date" 
-                    value={fisUst.tarih} 
-                    onChange={e => setFisUst({ ...fisUst, tarih: e.target.value })} 
-                    className="m-inp date-click" 
-                    style={{ flex: "0 0 100px", padding: "6px 8px", fontSize: "13px" }} 
-                  />
-
+                  <input type="date" value={fisUst.tarih} onChange={e => setFisUst({ ...fisUst, tarih: e.target.value })} className="m-inp date-click" style={{ flex: "0 0 100px", padding: "6px 8px", fontSize: "13px" }} />
                   <div style={{ position: "relative", flex: 1 }}>
                     <input 
                       placeholder="Bayi Seç / Ara..." 
@@ -1466,33 +1459,16 @@ async function handleCopKutusunuTemizle() {
                         setFisUst({ ...fisUst, bayi: e.target.value });
                         setBayiListeAcik(true); 
                         const eslesen = bayiler.find(b => b.isim.toLowerCase() === e.target.value.toLowerCase());
-                        if (eslesen) {
-                            handleBayiSecimi(eslesen.isim);
-                            setBayiListeAcik(false);
-                        }
+                        if (eslesen) { handleBayiSecimi(eslesen.isim); setBayiListeAcik(false); }
                       }} 
                       className="m-inp grow-inp" 
                       style={{ fontWeight: "bold", padding: "6px 8px", fontSize: "13px", width: "100%" }} 
                     />
-
                     {bayiListeAcik && (
                       <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "2px solid #2563eb", borderRadius: "0 0 8px 8px", zIndex: 9999, maxHeight: "250px", overflowY: "auto", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.3)" }}>
                         <div onClick={() => setBayiListeAcik(false)} style={{ padding: "10px", textAlign: "right", fontSize: "12px", color: "#ef4444", background: "#f8fafc", borderBottom: "1px solid #eee", fontWeight: "bold", cursor: "pointer" }}>✕ KAPAT</div>
                         {bayiler.filter(b => b.isim.toLowerCase().includes(fisUst.bayi.toLowerCase())).map(b => (
-                          <div 
-  key={b.id} 
-  onClick={() => { setFisUst({ ...fisUst, bayi: b.isim }); handleBayiSecimi(b.isim); setBayiListeAcik(false); }} 
-  style={{ 
-    padding: "10px 10px", // Boşluğu azalttık
-    borderBottom: "1px solid #f1f5f9", 
-    fontSize: "12px", // Yazıyı küçülttük
-    cursor: "pointer", 
-    color: "#1e293b", 
-    background: fisUst.bayi === b.isim ? "#eff6ff" : "#fff" 
-  }}
->
-  {b.isim}
-</div>
+                          <div key={b.id} onClick={() => { setFisUst({ ...fisUst, bayi: b.isim }); handleBayiSecimi(b.isim); setBayiListeAcik(false); }} style={{ padding: "10px 10px", borderBottom: "1px solid #f1f5f9", fontSize: "12px", cursor: "pointer", color: "#1e293b", background: fisUst.bayi === b.isim ? "#eff6ff" : "#fff" }}>{b.isim}</div>
                         ))}
                       </div>
                     )}
@@ -1505,50 +1481,23 @@ async function handleCopKutusunuTemizle() {
                     const isimLower = u.isim.toLowerCase();
                     const isFixed = (isimLower.includes("3 kg") || isimLower.includes("5 kg") || (isimLower.includes("kayma") && !isimLower.includes("yoğurt")));
                     const isFilled = (Number(fisDetay[u.id]?.adet) > 0 || Number(fisDetay[u.id]?.kg) > 0);
-                    
-                    // Gösterilme Şartları
                     if (!isFixed && !isFilled && !(gosterilenEkler.tereyagi && isimLower.includes("tereya")) && !(gosterilenEkler.yogurt_kaymagi && isimLower.includes("yoğurt kayma"))) return null;
                     
-                    // Hesaplamalar (Basit isimlerle)
-                    const miktar = u.isim.match(/([345])\s*kg/i) 
-                      ? Number(fisDetay[u.id]?.adet || 0) 
-                      : (Number(fisDetay[u.id]?.kg) > 0 ? Number(fisDetay[u.id]?.kg) : Number(fisDetay[u.id]?.adet || 0));
-                    
+                    const miktar = u.isim.match(/([345])\s*kg/i) ? Number(fisDetay[u.id]?.adet || 0) : (Number(fisDetay[u.id]?.kg) > 0 ? Number(fisDetay[u.id]?.kg) : Number(fisDetay[u.id]?.adet || 0));
                     const satirTutar = miktar * Number(fisDetay[u.id]?.fiyat || 0);
 
                     return (
                       <div key={u.id} style={{ display: 'flex', gap: '4px', alignItems: 'center', padding: '4px 6px', background: isFilled ? (editingFisId ? '#fef3c7' : '#ecfdf5') : '#f8fafc', borderRadius: '4px', border: isFilled ? (editingFisId ? '1px solid #fde68a' : '1px solid #a7f3d0') : '1px solid #e2e8f0', marginBottom: '3px' }}>
-                        {/* Ürün Adı */}
-                        <div style={{ flex: 1, minWidth: "80px", fontWeight: 'bold', fontSize: "12px", color: isFilled ? (editingFisId ? "#b45309" : "#065f46") : "#475569", lineHeight: "1.1", whiteSpace: "normal" }}>{u.isim}</div>
-                        
-                        {/* Adet Kutusu */}
-                        <input placeholder="Ad" type="number" value={fisDetay[u.id]?.adet || ""} 
-                          onChange={(e) => {
-                            const val = e.target.value; let nKg = ""; const m = u.isim.match(/(\d+(?:\.\d+)?)/);
-                            if (m && m[1]) { nKg = val !== "" ? String(Number(val) * Number(m[1])) : ""; }
-                            setFisDetay({...fisDetay, [u.id]: {...fisDetay[u.id], adet: val, kg: nKg}});
-                          }} 
-                          className="m-inp" style={{ flex: "0 0 42px", width: "42px", textAlign: "center", fontSize: "12px", height: "24px", padding: "2px" }} 
-                        />
-                        
-                        {/* KG Kutusu */}
-                        <input placeholder="KG" type="number" step="0.01" value={fisDetay[u.id]?.kg || ""} 
-                          onChange={e => setFisDetay({...fisDetay, [u.id]: {...fisDetay[u.id], kg: e.target.value}})} 
-                          className="m-inp" style={{ flex: "0 0 48px", width: "48px", textAlign: "center", fontSize: "12px", height: "24px", padding: "2px" }} 
-                        />
-                        
-                        <div style={{ fontSize: "10px", color: "#94a3b8", width: "6px", textAlign: "center" }}>x</div>
-                        
-                        {/* Fiyat Kutusu */}
-                        <input placeholder="Fiyat" type="number" step="0.01" value={fisDetay[u.id]?.fiyat || ""} 
-                          onChange={e => setFisDetay({...fisDetay, [u.id]: {...fisDetay[u.id], fiyat: e.target.value}})} 
-                          className="m-inp" style={{ flex: "0 0 60px", width: "60px", textAlign: "right", fontSize: "12px", height: "24px", padding: "2px" }} 
-                        />
-                        
-                        {/* Satır Toplamı */}
-                        <div style={{ width: "55px", textAlign: "right", fontWeight: "bold", fontSize: "12px", color: satirTutar > 0 ? "#059669" : "#94a3b8" }}>
-                          {satirTutar > 0 ? fSayi(satirTutar) : "-"}
-                        </div>
+                        <div style={{ flex: 1, minWidth: "80px", fontWeight: 'bold', fontSize: "12px", color: isFilled ? (editingFisId ? "#b45309" : "#065f46") : "#475569", lineHeight: "1.1" }}>{u.isim}</div>
+                        <input placeholder="Ad" type="number" value={fisDetay[u.id]?.adet || ""} onChange={(e) => {
+                          const val = e.target.value; let nKg = ""; const m = u.isim.match(/(\d+(?:\.\d+)?)/);
+                          if (m && m[1]) { nKg = val !== "" ? String(Number(val) * Number(m[1])) : ""; }
+                          setFisDetay({...fisDetay, [u.id]: {...fisDetay[u.id], adet: val, kg: nKg}});
+                        }} className="m-inp" style={{ flex: "0 0 42px", width: "42px", textAlign: "center", fontSize: "12px", height: "24px", padding: "2px" }} />
+                        <input placeholder="KG" type="number" step="0.01" value={fisDetay[u.id]?.kg || ""} onChange={e => setFisDetay({...fisDetay, [u.id]: {...fisDetay[u.id], kg: e.target.value}})} className="m-inp" style={{ flex: "0 0 48px", width: "48px", textAlign: "center", fontSize: "12px", height: "24px", padding: "2px" }} />
+                        <div style={{ fontSize: "10px", color: "#94a3b8", width: "6px" }}>x</div>
+                        <input placeholder="Fiyat" type="number" step="0.01" value={fisDetay[u.id]?.fiyat || ""} onChange={e => setFisDetay({...fisDetay, [u.id]: {...fisDetay[u.id], fiyat: e.target.value}})} className="m-inp" style={{ flex: "0 0 60px", width: "60px", textAlign: "right", fontSize: "12px", height: "24px", padding: "2px" }} />
+                        <div style={{ width: "55px", textAlign: "right", fontWeight: "bold", fontSize: "12px", color: satirTutar > 0 ? "#059669" : "#94a3b8" }}>{satirTutar > 0 ? fSayi(satirTutar) : "-"}</div>
                       </div>
                     );
                   })}
@@ -1559,11 +1508,10 @@ async function handleCopKutusunuTemizle() {
                   <button onClick={() => setGosterilenEkler(p => ({...p, yogurt_kaymagi: true}))} className="btn-anim" style={{ background: "#f1f5f9", padding: "4px 8px", fontSize: "11px", borderRadius: "4px", border: "1px solid #ccc" }}>+ Y. Kaymağı</button>
                   <button onClick={() => setGosterilenEkler(p => ({...p, iade: true}))} className="btn-anim" style={{ background: "#fef2f2", padding: "4px 8px", fontSize: "11px", borderRadius: "4px", color: "#dc2626", border: "1px solid #fca5a5" }}>+ İade</button>
                 </div>
+              </div>
 
               {/* ALT BİLGİ VE KAYDET */}
               <div style={{ padding: "10px 12px", borderTop: "1px solid #e2e8f0", background: "#f8fafc", borderRadius: "0 0 8px 8px" }}>
-                
-                {/* 📸 FOTOĞRAF YÜKLEME */}
                 <div style={{ marginBottom: "12px", padding: "8px", background: "#fef2f2", border: "1px dashed #fca5a5", borderRadius: "8px" }}>
                   <label style={{ display: "block", marginBottom: "6px", fontSize: "12px", color: "#dc2626", fontWeight: "bold" }}>📸 Kağıt Fiş Fotoğrafı Ekle (Opsiyonel)</label>
                   <input type="file" accept="image/*" onChange={(e) => setSecilenDosya(e.target.files?.[0] || null)} style={{ fontSize: "12px", width: "100%", color: "#475569" }} />
@@ -1580,7 +1528,7 @@ async function handleCopKutusunuTemizle() {
                   </div>
                 )}
                 
-                <button onClick={handleTopluFisKaydet} className="p-btn btn-anim" style={{ background: "#059669", width: "100%", height: "42px", fontSize: "15px" }}>{editingFisId ? "DEĞİŞİKLİKLERİ KAYDET" : "FİŞİ KAYDET"}</button>
+                <button onClick={handleTopluFisKaydet} className="p-btn btn-anim" style={{ background: "#059669", width: "100%", height: "42px", fontSize: "15px" }}>{editingFisId ? "GÜNCELLE" : "FİŞİ KAYDET"}</button>
               </div>
             </div>
           </div>
