@@ -1311,9 +1311,7 @@ export default function App() {
                  <h3 style={{margin:'0 0 10px', color:'#dc2626', fontSize: '16px'}}>⚠️ Dönemi Kapat</h3>
                  <p style={{fontSize:'13px', color:'#475569', lineHeight:'1.4'}}>
     Mevcut dönemi kapatıp yeni aya geçmek istediğinize emin misiniz?<br/><br/>
-    <span style={{fontSize: '11px', color: '#2563eb', fontWeight: 'bold'}}>
-        ℹ️ Eski dönemdeki tüm borç bakiyeleri yeni döneme "Devir Fişi" olarak otomatik aktarılacaktır.
-    </span>
+    <span style={{fontSize: '11px', color: '#94a3b8'}}>(Yeni dönemde borç bakiyeleri bir sonraki döneme devir eder , eski verilerinize üstteki menüden ulaşmaya devam edebilirsiniz.)</span>
 </p>
                  <label style={{display:'flex', alignItems:'center', gap:'8px', fontSize:'13px', fontWeight:'bold', marginTop:'15px', cursor:'pointer', color: '#0f172a'}}><input type="checkbox" checked={donemOnay} onChange={e=>setDonemOnay(e.target.checked)} style={{width:'18px', height:'18px'}} /> Onaylıyorum</label>
                  <div style={{display:'flex', gap:'8px', marginTop:'20px'}}><button onClick={()=>{setIsDonemModalOpen(false); setDonemOnay(false);}} style={{flex:1, padding:'10px', background:'#f1f5f9', border:'1px solid #cbd5e1', borderRadius:'6px', fontWeight:'bold', color:'#475569', cursor: 'pointer'}}>VAZGEÇ</button><button onClick={handleDonemKapat} disabled={!donemOnay} style={{flex:1, padding:'10px', background: donemOnay ? '#dc2626' : '#fca5a5', border:'none', borderRadius:'6px', fontWeight:'bold', color:'#fff', cursor: donemOnay ? 'pointer' : 'not-allowed'}}>EVET, KAPAT</button></div>
