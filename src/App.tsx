@@ -1044,12 +1044,7 @@ async function handleCopKutusunuTemizle() {
     {f.bayi === "SİSTEM İŞLEMİ" ? "-" : (oTarihtekiBorc === 0 ? "-" : fSayi(oTarihtekiBorc))}
 </td>
             <td style={{ textAlign: "center", color: "#64748b" }}>{f.ekleyen ? f.ekleyen.split('@')[0] : "-"}</td>
-            <td className="actions-cell" style={{position: 'relative'}}>
-               {/* EĞER FOTOĞRAF VARSA İKON ÇIKACAK */}
-               {(f as any).fis_gorseli && (
-                   <span onClick={() => setGorselModalUrl((f as any).fis_gorseli)} style={{cursor:'pointer', marginRight:'8px', fontSize:'16px'}} title="Fotoğrafı Gör">🖼️</span>
-               )}
-               
+            <td className="actions-cell" style={{position: 'relative'}}>             
                <button onClick={(e) => { e.stopPropagation(); setOpenDropdown({ type: 'satis', id: f.id as string }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', padding: '0 8px', color: '#64748b' }}>⋮</button>
                {openDropdown?.type === 'satis' && openDropdown.id === f.id && (
                   <div className="dropdown-menu">
