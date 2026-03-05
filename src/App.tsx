@@ -1202,10 +1202,18 @@ export default function App() {
                 
                  {/* ÇÖP KUTUSU LİSTELEME VE SAYFALAMA */}
 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', overflowY: 'auto', paddingRight: '4px', flex: 1 }}>
-    <h4 style={{ margin: "0 0 5px", fontSize: '13px', color: '#dc2626', display: 'flex', justifyContent: 'space-between' }}>
-        <span>Son Silinen Kayıtlar</span>
+    <h4 style={{ margin: "0 0 5px", fontSize: '13px', color: '#dc2626', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <span>Son Silinen Kayıtlar</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        {/* Sadece admin giriş yaptıysa ve çöpte veri varsa butonu göster */}
+        {username === 'admin' && copKutusuList.length > 0 && (
+            <button onClick={handleCopKutusunuTemizle} className="btn-anim" style={{ background: '#dc2626', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 8px', fontSize: '10px', cursor: 'pointer', fontWeight: 'bold' }}>
+                🗑️ Çöpü Boşalt
+            </button>
+        )}
         <span style={{ fontSize: '10px', color: '#94a3b8' }}>Sayfa {trashPage}</span>
-    </h4>
+    </div>
+</h4>
     
     {/* Veriyi 20'şerli parçalara bölüyoruz */}
     {copKutusuList.slice((trashPage - 1) * 20, trashPage * 20).map(c => {
