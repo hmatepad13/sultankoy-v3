@@ -1,6 +1,5 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
-
 // --- TİP TANIMLAMALARI ---
 interface Ciftlik { id: string; isim: string; }
 interface Bayi { id: string; isim: string; }
@@ -29,6 +28,24 @@ export default function App() {
   const [username, setUsername] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [activeTab, setActiveTab] = useState<string>("satis");
+  const bayiRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    function disariyaTiklandi(event: MouseEvent) {
+      // Eğer bayi listesi açıksa VE tıklanan yer bizim işaretlediğimiz kutunun dışındaysa
+      if (bayiRef.current && !bayiRef.current.contains(event.target as Node)) {
+        setBayiListeAcik(false); // Listeyi kapat
+      }
+    }
+
+    if (bayiListeAcik) {
+      document.addEventListener("mousedown", disariyaTiklandi);
+    }
+
+    // Temizlik: Dinleyiciyi kaldır ki telefonun/bilgisayarın yorulmasın
+    return () => {
+      document.removeEventListener("mousedown", disariyaTiklandi);
+    };
+  }, [bayiListeAcik]);
 
   // DÖNEM YÖNETİMİ (Kalıcı)
   const [aktifDonem, setAktifDonem] = useState<string>(() => {
@@ -1463,7 +1480,7 @@ async function handleCopKutusunuTemizle() {
                 {/* TARİH VE BAYİ */}
                 <div style={{ display: "flex", gap: "6px", marginBottom: "12px", position: "relative" }}>
                   <input type="date" value={fisUst.tarih} onChange={e => setFisUst({ ...fisUst, tarih: e.target.value })} className="m-inp" style={{ flex: "0 0 100px", padding: "6px 8px", fontSize: "12px" }} />
-                  <div style={{ position: "relative", flex: 1 }}>
+                  <div style={{ position: "relative", flex: 1 }} ref={bayiRef}>
                     <input placeholder="Bayi Seç / Ara..." value={fisUst.bayi} onFocus={() => setBayiListeAcik(true)} onClick={() => setBayiListeAcik(true)} onChange={e => { setFisUst({ ...fisUst, bayi: e.target.value }); setBayiListeAcik(true); }} className="m-inp grow-inp" style={{ fontWeight: "bold", padding: "6px 8px", fontSize: "12px", width: "100%" }} />
                     {bayiListeAcik && (
                       <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "2px solid #2563eb", borderRadius: "0 0 8px 8px", zIndex: 9999, maxHeight: "200px", overflowY: "auto", boxShadow: "0 4px 10px -3px rgba(0,0,0,0.3)" }}>
