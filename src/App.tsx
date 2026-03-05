@@ -841,10 +841,30 @@ async function handleCopKutusunuTemizle() {
 
   async function handleFisSil(fis: any) {
     if (!confirm(`Bu işlemi (${fis.fis_no || fis.id}) silmek istediğinize emin misiniz?`)) return;
-    await coptKutusunaAt('satis_fisleri', fis);
-    await supabase.from("satis_giris").delete().eq("fis_no", fis.fis_no);
-    await supabase.from("satis_fisleri").delete().eq("id", fis.id);
-    verileriGetir("satis"); verileriGetir("cop");
+    
+    try {
+      // 1. Önce Çöp Kutusuna yedekle
+      await coptKutusunaAt('satis_fisleri', fis);
+      
+      // 2. Analiz verilerini (Ürün detaylarını) SİL
+      // Hem fis_no hem de eğer varsa id üzerinden garantiye alıyoruz
+      if (fis.fis_no) {
+        await supabase.from("satis_giris").delete().eq("fis_no", fis.fis_no);
+      }
+      
+      // 3. Ana Satış Fişini SİL
+      await supabase.from("satis_fisleri").delete().eq("id", fis.id);
+      
+      // 4. VERİLERİ TAZELE (Hem satış hem analiz listesini yeniler)
+      await verileriGetir("hepsi"); 
+      
+      // Başarı mesajı (Opsiyonel, istersen kaldırabilirsin)
+      console.log("İşlem başarıyla silindi ve analiz güncellendi.");
+      
+    } catch (error) {
+      console.error("Silme hatası:", error);
+      alert("Silme işlemi sırasında bir hata oluştu.");
+    }
   }
 
   const handleWhatsappResimGonder = () => {
