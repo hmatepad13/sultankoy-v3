@@ -154,7 +154,31 @@ export default function App() {
     
     return () => subscription.unsubscribe();
   }, []);
+// OTOMATİK ÇIKIŞ (10 Dakika Hareketsizlik)
+  useEffect(() => {
+    if (!session) return;
 
+    let logoutTimer: any;
+
+    const resetTimer = () => {
+      if (logoutTimer) clearTimeout(logoutTimer);
+      logoutTimer = setTimeout(() => {
+        supabase.auth.signOut();
+        alert("10 dakika boyunca işlem yapmadığınız için güvenliğiniz nedeniyle oturumunuz kapatıldı.");
+      }, 10 * 60 * 1000); // 10 dakika = 600.000 milisaniye
+    };
+
+    // Takip edilecek hareketler
+    const events = ["mousemove", "mousedown", "keypress", "scroll", "touchstart"];
+    events.forEach(event => window.addEventListener(event, resetTimer));
+
+    resetTimer(); // Timer'ı başlat
+
+    return () => {
+      if (logoutTimer) clearTimeout(logoutTimer);
+      events.forEach(event => window.removeEventListener(event, resetTimer));
+    };
+  }, [session]);
   useEffect(() => { if (session) verileriGetir("hepsi"); }, [session]);
 
   useEffect(() => {
@@ -1246,7 +1270,7 @@ export default function App() {
           <h2 style={{ margin: "0 0 8px", color: "#0f172a", textAlign: "center" }}>Sultanköy V4</h2><p style={{ margin: "0 0 24px", color: "#64748b", textAlign: "center", fontSize:"14px" }}>Yönetim Paneline Giriş Yapın</p>
           <input value={username} onChange={e => setUsername(e.target.value)} placeholder="Kullanıcı Adı" style={{ width: "100%", marginBottom: "16px", padding: "8px", border: "1px solid #cbd5e1", borderRadius: "6px", boxSizing: "border-box" }} />
           <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Şifre" style={{ width: "100%", marginBottom: "16px", padding: "8px", border: "1px solid #cbd5e1", borderRadius: "6px", boxSizing: "border-box" }} />
-          <label style={{ display: "flex", gap: "8px", fontSize: "13px", color: "#64748b", cursor: "pointer", marginBottom: "20px" }}><input type="checkbox" id="remember" defaultChecked={!!localStorage.getItem('user')} /> Beni Hatırla</label>
+          <label style={{ display: "flex", gap: "8px", fontSize: "13px", color: "#64748b", cursor: "pointer", marginBottom: "20px" }}><input type="checkbox" id="remember" defaultChecked={true} /> Beni Hatırla</label>
           <button type="submit" style={{ width: "100%", padding: "12px", background: temaRengi, color: "#fff", border: "none", borderRadius: "6px", fontWeight: "bold", cursor: "pointer" }}>Giriş Yap</button>
         </form>
       </div>
