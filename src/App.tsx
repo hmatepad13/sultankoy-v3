@@ -1189,7 +1189,8 @@ export default function App() {
                            <strong style={{color: '#dc2626'}}>{c.tablo_adi.toUpperCase()}</strong>
                            <span>{c.silinme_tarihi ? new Date(c.silinme_tarihi).toLocaleString('tr-TR') : ''}</span>
                        </div>
-                       <div style={{wordBreak: "break-all", background: {/* ÇÖP KUTUSU İÇERİĞİ - GÜNCELLENMİŞ HALİ */}
+                       <div style={{wordBreak: "break-all", background: 
+                    {/* ÇÖP KUTUSU İÇERİĞİ - GÜNCELLENMİŞ HALİ */}
 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto', paddingRight: '4px' }}>
     <h4 style={{ margin: "0 0 5px", fontSize: '13px', color: '#dc2626' }}>Son Silinen Kayıtlar</h4>
     {copKutusuList.map(c => (
