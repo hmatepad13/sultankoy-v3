@@ -272,35 +272,19 @@ export default function App() {
         .sort((a,b) => b.borc - a.borc);
   }, [satisFisList]);
 
-  const handleDonemKapat = async () => {
-     if(!donemOnay) return;
-     const [yyyy, mm] = aktifDonem.split('-');
-     let nextM = parseInt(mm) + 1;
-     let nextY = parseInt(yyyy);
-     if(nextM > 12) { nextM = 1; nextY++; }
-     const nextDonem = `${nextY}-${nextM.toString().padStart(2, '0')}`;
+  const handleDonemKapat = () => {
+    if (!donemOnay) return;
+    const [yyyy, mm] = aktifDonem.split('-');
+    let nextM = parseInt(mm) + 1;
+    let nextY = parseInt(yyyy);
+    if (nextM > 12) { nextM = 1; nextY++; }
+    const nextDonem = `${nextY}-${nextM.toString().padStart(2, '0')}`;
 
-     const devirFisleri = bayiBorclari.map(b => ({
-         fis_no: `DEVİR-${Date.now().toString().slice(-4)}${Math.floor(Math.random()*100)}`,
-         tarih: `${nextDonem}-01`,
-         bayi: b.isim,
-         toplam_tutar: b.borc > 0 ? b.borc : 0,
-         tahsilat: b.borc < 0 ? Math.abs(b.borc) : 0,
-         kalan_bakiye: b.borc,
-         odeme_turu: "DEVİR",
-         aciklama: `${aktifDonem} Döneminden Devir`,
-         ekleyen: username
-     }));
-
-     if(devirFisleri.length > 0) {
-         await supabase.from("satis_fisleri").insert(devirFisleri);
-     }
-     
-     setAktifDonem(nextDonem);
-     setIsDonemModalOpen(false);
-     setDonemOnay(false);
-     verileriGetir("satis");
-  }
+    // Sadece dönem bilgisini güncelliyoruz, veritabanına fiş eklemiyoruz
+    setAktifDonem(nextDonem);
+    setIsDonemModalOpen(false);
+    setDonemOnay(false);
+  };
 
   // DÖNEM İZOLASYONLARI
   const periodSatisFis = useMemo(() => satisFisList.filter(f => f.tarih.startsWith(aktifDonem)), [satisFisList, aktifDonem]);
@@ -582,9 +566,10 @@ export default function App() {
   
   const eskiBorc = useMemo(() => {
       if (!aktifBayi) return 0;
-      const bayiFisleri = periodSatisFis.filter(f => f.bayi === aktifBayi && f.id !== editingFisId && f.bayi !== "SİSTEM İŞLEMİ");
+      // periodSatisFis yerine satisFisList kullanarak müşterinin TÜM geçmişini tarıyoruz
+      const bayiFisleri = satisFisList.filter(f => f.bayi === aktifBayi && f.id !== editingFisId && f.bayi !== "SİSTEM İŞLEMİ");
       return bayiFisleri.reduce((toplam, f) => toplam + Number(f.kalan_bakiye || 0), 0);
-  }, [aktifBayi, periodSatisFis, editingFisId]);
+  }, [aktifBayi, satisFisList, editingFisId]);
 
   const fisCanliToplam = useMemo(() => {
     let urunToplami = urunler.reduce((toplam, u) => {
@@ -1311,7 +1296,9 @@ export default function App() {
                  <h3 style={{margin:'0 0 10px', color:'#dc2626', fontSize: '16px'}}>⚠️ Dönemi Kapat</h3>
                  <p style={{fontSize:'13px', color:'#475569', lineHeight:'1.4'}}>
     Mevcut dönemi kapatıp yeni aya geçmek istediğinize emin misiniz?<br/><br/>
-    <span style={{fontSize: '11px', color: '#94a3b8'}}>(Yeni dönemde borç bakiyeleri bir sonraki döneme devir eder , eski verilerinize üstteki menüden ulaşmaya devam edebilirsiniz.)</span>
+    <span style={{fontSize: '11px', color: '#059669', fontWeight: 'bold'}}>
+        ✅ Borçlar silinmez; yeni fiş kestiğinizde müşterinin toplam borcu otomatik olarak eklenmeye devam eder.
+    </span>
 </p>
                  <label style={{display:'flex', alignItems:'center', gap:'8px', fontSize:'13px', fontWeight:'bold', marginTop:'15px', cursor:'pointer', color: '#0f172a'}}><input type="checkbox" checked={donemOnay} onChange={e=>setDonemOnay(e.target.checked)} style={{width:'18px', height:'18px'}} /> Onaylıyorum</label>
                  <div style={{display:'flex', gap:'8px', marginTop:'20px'}}><button onClick={()=>{setIsDonemModalOpen(false); setDonemOnay(false);}} style={{flex:1, padding:'10px', background:'#f1f5f9', border:'1px solid #cbd5e1', borderRadius:'6px', fontWeight:'bold', color:'#475569', cursor: 'pointer'}}>VAZGEÇ</button><button onClick={handleDonemKapat} disabled={!donemOnay} style={{flex:1, padding:'10px', background: donemOnay ? '#dc2626' : '#fca5a5', border:'none', borderRadius:'6px', fontWeight:'bold', color:'#fff', cursor: donemOnay ? 'pointer' : 'not-allowed'}}>EVET, KAPAT</button></div>
