@@ -63,6 +63,7 @@ export default function App() {
 
   // YENİ AYARLAR STATE'İ (Çöp Kutusu Eklendi)
   const [activeAyarTab, setActiveAyarTab] = useState<"musteriler" | "urunler" | "ciftlikler" | "cop_kutusu">("musteriler");
+  const [trashPage, setTrashPage] = useState(1); // Çöp kutusu sayfa numarası
   const [yeniAyarDeger, setYeniAyarDeger] = useState("");
   const [yeniUrunFiyat, setYeniUrunFiyat] = useState("");
 
@@ -1183,47 +1184,54 @@ export default function App() {
           ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', overflowY: 'auto', paddingRight: '4px' }}>
                  <h4 style={{ margin: "0 0 5px", fontSize: '13px', color: '#dc2626' }}>Son Silinen Kayıtlar</h4>
-                 {copKutusuList.map(c => {
-    const tAdi = String(c.tablo_adi).toLowerCase();
-    // Önemli detayları tek satır için hazırlıyoruz
-    let detay = "";
-    let tutar = 0;
+                 {/* ÇÖP KUTUSU LİSTELEME VE SAYFALAMA */}
+<div style={{ display: 'flex', flexDirection: 'column', gap: '4px', overflowY: 'auto', paddingRight: '4px', flex: 1 }}>
+    <h4 style={{ margin: "0 0 5px", fontSize: '13px', color: '#dc2626', display: 'flex', justifyContent: 'space-between' }}>
+        <span>Son Silinen Kayıtlar</span>
+        <span style={{ fontSize: '10px', color: '#94a3b8' }}>Sayfa {trashPage}</span>
+    </h4>
     
-    if (tAdi === 'satis_fisleri') {
-        detay = c.veri.bayi;
-        tutar = c.veri.toplam_tutar;
-    } else if (tAdi === 'giderler') {
-        detay = c.veri.tur;
-        tutar = c.veri.tutar;
-    } else if (tAdi === 'sut_giris') {
-        detay = c.veri.ciftlik;
-        tutar = c.veri.toplam_tl;
-    }
+    {/* Veriyi 20'şerli parçalara bölüyoruz */}
+    {copKutusuList.slice((trashPage - 1) * 20, trashPage * 20).map(c => {
+        const tAdi = String(c.tablo_adi).toLowerCase();
+        let detay = tAdi === 'satis_fisleri' ? c.veri.bayi : (tAdi === 'giderler' ? c.veri.tur : (tAdi === 'sut_giris' ? c.veri.ciftlik : "Detay Yok"));
+        let tutar = tAdi === 'satis_fisleri' ? c.veri.toplam_tutar : (tAdi === 'giderler' ? c.veri.tutar : (tAdi === 'sut_giris' ? c.veri.toplam_tl : 0));
 
-    return (
-        <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 8px', background: '#fff', borderBottom: '1px solid #f1f5f9', fontSize: '11px', color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden' }}>
-            {/* TÜR İKONU/ETİKETİ */}
-            <span style={{ flex: '0 0 45px', fontWeight: 'bold', color: '#dc2626' }}>
-                {tAdi === 'satis_fisleri' ? 'SATIŞ' : tAdi === 'giderler' ? 'GİDER' : 'SÜT'}
-            </span>
-            
-            {/* ANA DETAY (BAYİ/ÇİFTLİK) */}
-            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: '500' }}>
-                {detay}
-            </span>
-            
-            {/* TUTAR */}
-            <span style={{ flex: '0 0 65px', textAlign: 'right', fontWeight: 'bold' }}>
-                {fSayiNoDec(tutar)} ₺
-            </span>
-            
-            {/* TARİH */}
-            <span style={{ flex: '0 0 85px', textAlign: 'right', fontSize: '10px', color: '#94a3b8' }}>
-                {c.silinme_tarihi ? new Date(c.silinme_tarihi).toLocaleDateString('tr-TR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}) : ''}
-            </span>
+        return (
+            <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', background: '#fff', borderBottom: '1px solid #f1f5f9', fontSize: '11px', color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+                <span style={{ flex: '0 0 45px', fontWeight: 'bold', color: '#dc2626' }}>{tAdi === 'satis_fisleri' ? 'SATIŞ' : tAdi === 'giderler' ? 'GİDER' : 'SÜT'}</span>
+                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>{detay}</span>
+                <span style={{ flex: '0 0 65px', textAlign: 'right', fontWeight: 'bold' }}>{fSayiNoDec(tutar)} ₺</span>
+                <span style={{ flex: '0 0 85px', textAlign: 'right', fontSize: '10px', color: '#94a3b8' }}>
+                    {c.silinme_tarihi ? new Date(c.silinme_tarihi).toLocaleDateString('tr-TR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}) : ''}
+                </span>
+            </div>
+        );
+    })}
+
+    {/* SAYFA DEĞİŞTİRME BUTONLARI */}
+    {copKutusuList.length > 20 && (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', marginTop: '10px', padding: '10px 0' }}>
+            <button 
+                disabled={trashPage === 1}
+                onClick={() => setTrashPage(p => p - 1)}
+                style={{ padding: '5px 15px', borderRadius: '6px', border: '1px solid #cbd5e1', background: trashPage === 1 ? '#f1f5f9' : '#fff', cursor: trashPage === 1 ? 'not-allowed' : 'pointer', fontSize: '12px' }}
+            >
+                ⬅️ Geri
+            </button>
+            <b style={{ fontSize: '13px', color: '#475569' }}>{trashPage}</b>
+            <button 
+                disabled={trashPage * 20 >= copKutusuList.length}
+                onClick={() => setTrashPage(p => p + 1)}
+                style={{ padding: '5px 15px', borderRadius: '6px', border: '1px solid #cbd5e1', background: trashPage * 20 >= copKutusuList.length ? '#f1f5f9' : '#fff', cursor: trashPage * 20 >= copKutusuList.length ? 'not-allowed' : 'pointer', fontSize: '12px' }}
+            >
+                İleri ➡️
+            </button>
         </div>
-    );
-})}
+    )}
+
+    {copKutusuList.length === 0 && <div style={{ textAlign: 'center', color: '#94a3b8', marginTop: '20px', fontSize: '12px' }}>Çöp kutusu boş.</div>}
+</div>
                  {copKutusuList.length === 0 && <div style={{textAlign: 'center', color: '#94a3b8', marginTop: '20px', fontSize: '12px'}}>Çöp kutusu boş. (Eğer Supabase tablosunu açmadıysan silinenler buraya düşmez).</div>}
               </div>
           )}
