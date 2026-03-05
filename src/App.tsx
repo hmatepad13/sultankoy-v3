@@ -5,11 +5,11 @@ import { createClient } from "@supabase/supabase-js";
 interface Ciftlik { id: string; isim: string; }
 interface Bayi { id: string; isim: string; }
 interface Urun { id: string; isim: string; fiyat?: number | string; }
-interface SutGiris { id?: string; tarih: string; ciftlik: string; kg: number | string; fiyat: number | string; toplam_tl?: number; aciklama: string; ekleyen?: string; }
-interface SatisGiris { id?: string; fis_no?: string; tarih: string; bayi: string; urun: string; adet: number | string; fiyat: number | string; toplam_kg?: number; bos_kova?: number | string; tutar?: number; aciklama: string; birim?: number; ekleyen?: string; }
-interface SatisFis { id?: string; fis_no: string; tarih: string; bayi: string; toplam_tutar: number; tahsilat: number; kalan_bakiye: number; odeme_turu: string; aciklama: string; ekleyen?: string; }
-interface Gider { id?: string; tarih: string; tur: string; aciklama: string; tutar: number | string; ekleyen?: string; }
-interface Uretim { id?: string; tarih: string; cig_sut: number | string; sut_fiyat: number | string; sut_tozu: number | string; sut_tozu_fiyat: number | string; tereyag: number | string; tereyag_fiyat: number | string; katki_kg: number | string; katki_fiyat: number | string; su: number | string; kova_3_adet: number | string; kova_3_fiyat: number | string; kova_5_adet: number | string; kova_5_fiyat: number | string; cikti_3kg: number | string; satis_3_fiyat: number | string; cikti_5kg: number | string; satis_5_fiyat: number | string; toplam_kg?: number; toplam_maliyet?: number; kar?: number; aciklama: string; ekleyen?: string; }
+interface SutGiris { id?: string; tarih: string; ciftlik: string; kg: number | string; fiyat: number | string; toplam_tl?: number; aciklama: string; ekleyen?: string; silindi?: boolean; }
+interface SatisGiris { id?: string; fis_no?: string; tarih: string; bayi: string; urun: string; adet: number | string; fiyat: number | string; toplam_kg?: number; bos_kova?: number | string; tutar?: number; aciklama: string; birim?: number; ekleyen?: string; silindi?: boolean; }
+interface SatisFis { id?: string; fis_no: string; tarih: string; bayi: string; toplam_tutar: number; tahsilat: number; kalan_bakiye: number; odeme_turu: string; aciklama: string; ekleyen?: string; silindi?: boolean; }
+interface Gider { id?: string; tarih: string; tur: string; aciklama: string; tutar: number | string; ekleyen?: string; silindi?: boolean; }
+interface Uretim { id?: string; tarih: string; cig_sut: number | string; sut_fiyat: number | string; sut_tozu: number | string; sut_tozu_fiyat: number | string; tereyag: number | string; tereyag_fiyat: number | string; katki_kg: number | string; katki_fiyat: number | string; su: number | string; kova_3_adet: number | string; kova_3_fiyat: number | string; kova_5_adet: number | string; kova_5_fiyat: number | string; cikti_3kg: number | string; satis_3_fiyat: number | string; cikti_5kg: number | string; satis_5_fiyat: number | string; toplam_kg?: number; toplam_maliyet?: number; kar?: number; aciklama: string; ekleyen?: string; silindi?: boolean; }
 
 // --- SUPABASE BAĞLANTISI ---
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
@@ -29,10 +29,14 @@ export default function App() {
   const [password, setPassword] = useState<string>("");
   const [activeTab, setActiveTab] = useState<string>("satis");
 
-  // DÖNEM YÖNETİMİ
-  const [aktifDonem, setAktifDonem] = useState<string>(() => getLocalDateString().substring(0, 7));
+  // DÖNEM YÖNETİMİ (KALICI HAFIZA)
+  const [aktifDonem, setAktifDonem] = useState<string>(() => localStorage.getItem("aktifDonem") || getLocalDateString().substring(0, 7));
   const [isDonemModalOpen, setIsDonemModalOpen] = useState(false);
   const [donemOnay, setDonemOnay] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem("aktifDonem", aktifDonem);
+  }, [aktifDonem]);
 
   // VERİ LİSTELERİ
   const [tedarikciler, setTedarikciler] = useState<Ciftlik[]>([]);
@@ -203,25 +207,63 @@ export default function App() {
      return Array.from(set).sort().reverse(); 
   }, [sutList, satisFisList, giderList, uretimList, aktifDonem]);
 
-  const handleDonemKapat = () => {
+  // DÖNEM İZOLASYONLARI (SİLİNMİŞ KAYITLARI FİLTRELE)
+  const periodSatisFis = useMemo(() => satisFisList.filter(f => f.tarih.startsWith(aktifDonem) && !f.silindi), [satisFisList, aktifDonem]);
+  const periodSut = useMemo(() => sutList.filter(s => s.tarih.startsWith(aktifDonem) && !s.silindi), [sutList, aktifDonem]);
+  const periodSatisList = useMemo(() => satisList.filter(s => s.tarih.startsWith(aktifDonem) && !s.silindi), [satisList, aktifDonem]);
+  const periodGider = useMemo(() => giderList.filter(g => g.tarih.startsWith(aktifDonem) && !g.silindi), [giderList, aktifDonem]);
+  const periodUretim = useMemo(() => uretimList.filter(u => u.tarih.startsWith(aktifDonem) && !u.silindi), [uretimList, aktifDonem]);
+
+  // Tüm Fişlerden Müşteri Borç Durumu Hesaplama (SADECE AKTİF DÖNEM İÇİN - ESKİ BAKİYELER SIFIRLANIR)
+  const bayiBorclari = useMemo(() => {
+    const borclar: Record<string, number> = {};
+    periodSatisFis.forEach(f => {
+        if (f.bayi === "SİSTEM İŞLEMİ") return;
+        if(!borclar[f.bayi]) borclar[f.bayi] = 0;
+        borclar[f.bayi] += Number(f.kalan_bakiye);
+    });
+    return Object.keys(borclar)
+        .map(k => ({ isim: k, borc: borclar[k] }))
+        .filter(b => Math.abs(b.borc) > 0.01)
+        .sort((a,b) => b.borc - a.borc);
+  }, [periodSatisFis]);
+
+  const handleDonemKapat = async () => {
      if(!donemOnay) return;
      const [yyyy, mm] = aktifDonem.split('-');
      let nextM = parseInt(mm) + 1;
      let nextY = parseInt(yyyy);
      if(nextM > 12) { nextM = 1; nextY++; }
      const nextDonem = `${nextY}-${nextM.toString().padStart(2, '0')}`;
+     const devirTarihi = `${nextDonem}-01`;
+
+     // OTOMATİK BORÇ DEVRİ
+     const devirIslemleri = bayiBorclari.filter(b => b.borc > 0).map(b => ({
+         fis_no: `DVR-${Date.now()}-${Math.floor(Math.random()*1000)}`,
+         tarih: devirTarihi,
+         bayi: b.isim,
+         toplam_tutar: b.borc,
+         tahsilat: 0,
+         kalan_bakiye: b.borc,
+         odeme_turu: "DEVİR",
+         aciklama: "Geçen Aydan Devir",
+         ekleyen: "SİSTEM",
+         silindi: false
+     }));
+
+     if (devirIslemleri.length > 0) {
+         const { error } = await supabase.from("satis_fisleri").insert(devirIslemleri);
+         if (error) {
+             alert("Devir işlemi sırasında hata oluştu: " + error.message);
+             return;
+         }
+     }
      
      setAktifDonem(nextDonem);
      setIsDonemModalOpen(false);
      setDonemOnay(false);
+     verileriGetir("satis");
   }
-
-  // DÖNEM İZOLASYONLARI
-  const periodSatisFis = useMemo(() => satisFisList.filter(f => f.tarih.startsWith(aktifDonem)), [satisFisList, aktifDonem]);
-  const periodSut = useMemo(() => sutList.filter(s => s.tarih.startsWith(aktifDonem)), [sutList, aktifDonem]);
-  const periodSatisList = useMemo(() => satisList.filter(s => s.tarih.startsWith(aktifDonem)), [satisList, aktifDonem]);
-  const periodGider = useMemo(() => giderList.filter(g => g.tarih.startsWith(aktifDonem)), [giderList, aktifDonem]);
-  const periodUretim = useMemo(() => uretimList.filter(u => u.tarih.startsWith(aktifDonem)), [uretimList, aktifDonem]);
 
   const fSayi = (num: any) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 2 }).format(Number(num) || 0).replace(/,00$/, '');
   const fSayiNoDec = (num: any) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(Number(num) || 0);
@@ -775,6 +817,25 @@ export default function App() {
     verileriGetir("satis"); 
   }
 
+  // --- SOFT DELETE (ÇÖP KUTUSU) ---
+  async function handleSoftDelete(table: string, id: string) {
+      if (!confirm("Bu kaydı çöp kutusuna taşımak istediğinize emin misiniz?")) return;
+      await supabase.from(table).update({ silindi: true }).eq("id", id);
+      verileriGetir("hepsi");
+  }
+
+  async function handleRestore(table: string, id: string) {
+      if (!confirm("Bu kaydı geri yüklemek istediğinize emin misiniz?")) return;
+      await supabase.from(table).update({ silindi: false }).eq("id", id);
+      verileriGetir("hepsi");
+  }
+
+  async function handlePermanentDelete(table: string, id: string) {
+      if (!confirm("Bu kaydı KALICI OLARAK silmek istediğinize emin misiniz? Bu işlem geri alınamaz!")) return;
+      await supabase.from(table).delete().eq("id", id);
+      verileriGetir("hepsi");
+  }
+
   const handleWhatsappResimGonder = () => {
     const fisElement = document.getElementById("print-receipt");
     if (!fisElement) return;
@@ -798,7 +859,7 @@ export default function App() {
   const filteredForTotals = useMemo(() => periodSatisFis.filter((f: any) => {
     const isBayiMatch = fisFiltre.bayiler.length === 0 || fisFiltre.bayiler.includes(f.bayi);
     const isTarihMatch = (!fisFiltre.baslangic || f.tarih >= fisFiltre.baslangic) && (!fisFiltre.bitis || f.tarih <= fisFiltre.bitis);
-    const isKisiMatch = satisFiltreKisi === 'herkes' || f.ekleyen === username;
+    const isKisiMatch = satisFiltreKisi === 'herkes' || (f.ekleyen || "").toLowerCase() === (username || "").toLowerCase();
     return isBayiMatch && isTarihMatch && isKisiMatch;
   }), [periodSatisFis, fisFiltre, satisFiltreKisi, username]);
 
@@ -823,6 +884,26 @@ export default function App() {
     return true;
   }), fisSort), [filteredForTotals, satisFiltreTip, fisSort]);
 
+  // Running Balance Calculation for Display
+  const runningBalanceMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    const dealerBalances: Record<string, number> = {};
+    
+    // Sort by date asc, id asc
+    const sorted = [...periodSatisFis].sort((a, b) => {
+        if (a.tarih !== b.tarih) return a.tarih.localeCompare(b.tarih);
+        return String(a.id).localeCompare(String(b.id));
+    });
+
+    sorted.forEach(f => {
+        if (f.bayi === "SİSTEM İŞLEMİ") return;
+        if (!dealerBalances[f.bayi]) dealerBalances[f.bayi] = 0;
+        dealerBalances[f.bayi] += Number(f.kalan_bakiye);
+        if (f.id) map[f.id] = dealerBalances[f.bayi];
+    });
+    return map;
+  }, [periodSatisFis]);
+
   const fSutList = useMemo(() => sortData(periodSut.filter((s: any) => 
     (sutFiltre.ciftlikler.length === 0 || sutFiltre.ciftlikler.includes(s.ciftlik)) && 
     (!sutFiltre.baslangic || s.tarih >= sutFiltre.baslangic) && (!sutFiltre.bitis || s.tarih <= sutFiltre.bitis)
@@ -839,28 +920,13 @@ export default function App() {
   const tAnalizTutar = useMemo(() => fAnalizList.reduce((a: number, b: any) => a + Number(b.tutar), 0), [fAnalizList]);
 
   const fGiderList = useMemo(() => sortData(periodGider.filter((g: any) => 
-    giderFiltreKisi === 'tumu' || g.ekleyen === username
+    giderFiltreKisi === 'tumu' || (g.ekleyen || "").toLowerCase() === (username || "").toLowerCase()
   ), giderSort), [periodGider, giderSort, giderFiltreKisi, username]);
   const fGTutarNormal = useMemo(() => fGiderList.reduce((a: number, b: any) => a + Number(b.tutar), 0), [fGiderList]);
 
   const tGiderNormal = useMemo(() => periodGider.reduce((a: number, b: any) => a + Number(b.tutar), 0), [periodGider]);
   const tUretimMaliyet = useMemo(() => periodUretim.reduce((a: number, b: any) => a + Number(b.toplam_maliyet), 0), [periodUretim]);
   const genelToplamGider = tGiderNormal + tUretimMaliyet;
-
-  // Tüm Fişlerden Müşteri Borç Durumu Hesaplama
-  const bayiBorclari = useMemo(() => {
-    const borclar: Record<string, number> = {};
-    periodSatisFis.forEach(f => {
-        if (f.bayi === "SİSTEM İŞLEMİ") return;
-        if(!borclar[f.bayi]) borclar[f.bayi] = 0;
-        borclar[f.bayi] += Number(f.kalan_bakiye);
-    });
-    return Object.keys(borclar)
-        .map(k => ({ isim: k, borc: borclar[k] }))
-        .filter(b => Math.abs(b.borc) > 0.01)
-        .sort((a,b) => b.borc - a.borc);
-  }, [periodSatisFis]);
-  const bayiNetDurum = bayiBorclari.reduce((a, b) => a + b.borc, 0);
 
   const renderOzet = () => (
     <div className="tab-fade-in main-content-area">
@@ -914,7 +980,7 @@ export default function App() {
                {openDropdown?.type === 'sut' && openDropdown.id === s.id && (
                   <div className="dropdown-menu">
                      <button title="Düzenle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); setEditingSutId(s.id); setSutForm(s as any); setIsSutModalOpen(true); }}>✏️</button>
-                     <button title="Sil" className="dropdown-item-icon" style={{ color: '#dc2626' }} onClick={async () => { setOpenDropdown(null); if(confirm("Sil?")){ await supabase.from("sut_giris").delete().eq("id", s.id); verileriGetir("sut"); } }}>🗑️</button>
+                     <button title="Sil" className="dropdown-item-icon" style={{ color: '#dc2626' }} onClick={() => { setOpenDropdown(null); handleSoftDelete("sut_giris", s.id as string); }}>🗑️</button>
                   </div>
                )}
             </td>
@@ -936,7 +1002,6 @@ export default function App() {
            {isDigerUstOpen && (
              <div className="dropdown-menu-list" style={{top: '110%', width: '100%', left: 0}}>
                <button className="dropdown-item" onClick={() => { setIsDigerUstOpen(false); setDigerModalConfig({isOpen: true, type: 'borc'}); }}>📝 Borç Ekle</button>
-               <button className="dropdown-item" onClick={() => { setIsDigerUstOpen(false); setDigerModalConfig({isOpen: true, type: 'gider_dus'}); }}>💸 Gider Düş</button>
                <button className="dropdown-item" onClick={() => { setIsDigerUstOpen(false); setDigerModalConfig({isOpen: true, type: 'kasa_devir'}); }}>🏦 Kasaya Devir</button>
              </div>
            )}
@@ -957,7 +1022,6 @@ export default function App() {
                {isDigerFiltreOpen && (
                    <div className="dropdown-menu-list" style={{top: '110%', width: '100%', right: 0}}>
                        <button className="dropdown-item" onClick={() => { setSatisFiltreTip('borc'); setIsDigerFiltreOpen(false); }}>Borç Ekle</button>
-                       <button className="dropdown-item" onClick={() => { setSatisFiltreTip('gider_dus'); setIsDigerFiltreOpen(false); }}>Gider Düş</button>
                        <button className="dropdown-item" onClick={() => { setSatisFiltreTip('kasa_devir'); setIsDigerFiltreOpen(false); }}>Kasaya Devir</button>
                    </div>
                )}
@@ -1005,7 +1069,9 @@ export default function App() {
             <td style={{ textAlign: "right", color: (f.odeme_turu === 'GİDER DÜŞ' || f.odeme_turu === 'KASAYA DEVİR') ? "#dc2626" : "#2563eb", fontWeight: "bold" }}>
                {(f.odeme_turu === 'GİDER DÜŞ' || f.odeme_turu === 'KASAYA DEVİR') && f.tahsilat > 0 ? "-" : ""}{fSayi(f.tahsilat)}
             </td>
-            <td style={{ textAlign: "right", color: f.kalan_bakiye > 0 ? "#dc2626" : (f.kalan_bakiye < 0 ? "#059669" : "#64748b"), fontWeight: "bold" }}>{f.kalan_bakiye === 0 ? "-" : fSayi(f.kalan_bakiye)}</td>
+            <td style={{ textAlign: "right", color: f.kalan_bakiye > 0 ? "#dc2626" : (f.kalan_bakiye < 0 ? "#059669" : "#64748b"), fontWeight: "bold" }}>
+              {f.bayi === "SİSTEM İŞLEMİ" ? "-" : fSayi(runningBalanceMap[f.id as string] || 0)}
+            </td>
             <td style={{ textAlign: "center", color: "#64748b" }}>{f.ekleyen || "-"}</td>
             <td className="actions-cell" style={{position: 'relative'}}>
                <button onClick={(e) => { e.stopPropagation(); setOpenDropdown({ type: 'satis', id: f.id as string }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', padding: '0 8px', color: '#64748b' }}>⋮</button>
@@ -1013,7 +1079,7 @@ export default function App() {
                   <div className="dropdown-menu">
                      {f.bayi !== "SİSTEM İŞLEMİ" && <button title="Görüntüle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); handleFisDetayGoster(f); }}>🔍</button>}
                      {f.bayi !== "SİSTEM İŞLEMİ" && <button title="Düzenle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); handleFisDuzenle(f); }}>✏️</button>}
-                     <button title="Sil" className="dropdown-item-icon" style={{ color: '#dc2626' }} onClick={() => { setOpenDropdown(null); handleFisSil(f); }}>🗑️</button>
+                     <button title="Sil" className="dropdown-item-icon" style={{ color: '#dc2626' }} onClick={() => { setOpenDropdown(null); handleSoftDelete("satis_fisleri", f.id as string); }}>🗑️</button>
                   </div>
                )}
             </td>
@@ -1093,7 +1159,7 @@ export default function App() {
                {openDropdown?.type === 'gider' && openDropdown.id === g.id && (
                   <div className="dropdown-menu">
                      <button title="Düzenle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); setEditingGiderId(g.id); setGiderForm(g as any); setIsGiderModalOpen(true); }}>✏️</button>
-                     <button title="Sil" className="dropdown-item-icon" style={{ color: '#dc2626' }} onClick={async () => { setOpenDropdown(null); if(confirm("Sil?")){ await supabase.from("giderler").delete().eq("id", g.id); verileriGetir("gider"); } }}>🗑️</button>
+                     <button title="Sil" className="dropdown-item-icon" style={{ color: '#dc2626' }} onClick={async () => { setOpenDropdown(null); handleSoftDelete("giderler", g.id as string); }}>🗑️</button>
                   </div>
                )}
             </td>
@@ -1139,7 +1205,7 @@ export default function App() {
                   <div className="dropdown-menu">
                      <button title="Görüntüle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); setUretimDetayData(u); }}>🔍</button>
                      <button title="Düzenle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); setEditingUretimId(u.id); setUretimForm(u as any); setIsUretimModalOpen(true); }}>✏️</button>
-                     <button title="Sil" className="dropdown-item-icon" style={{ color: '#dc2626' }} onClick={async () => { setOpenDropdown(null); if(confirm("Sil?")){ await supabase.from("uretim").delete().eq("id", u.id); verileriGetir("uretim"); } }}>🗑️</button>
+                     <button title="Sil" className="dropdown-item-icon" style={{ color: '#dc2626' }} onClick={async () => { setOpenDropdown(null); handleSoftDelete("uretim", u.id as string); }}>🗑️</button>
                   </div>
                )}
             </td>
@@ -1148,6 +1214,41 @@ export default function App() {
       </table></div>
     </div>
   );
+
+  const renderCopKutusu = () => {
+    const deletedSut = sutList.filter(x => x.silindi);
+    const deletedFis = satisFisList.filter(x => x.silindi);
+    const deletedGider = giderList.filter(x => x.silindi);
+    const deletedUretim = uretimList.filter(x => x.silindi);
+
+    const allDeleted = [
+        ...deletedSut.map(x => ({...x, type: 'sut_giris', label: `Süt: ${x.ciftlik} - ${x.kg} KG`})),
+        ...deletedFis.map(x => ({...x, type: 'satis_fisleri', label: `Satış: ${x.bayi} - ${x.toplam_tutar} TL`})),
+        ...deletedGider.map(x => ({...x, type: 'giderler', label: `Gider: ${x.tur} - ${x.tutar} TL`})),
+        ...deletedUretim.map(x => ({...x, type: 'uretim', label: `Üretim: ${x.tarih}`}))
+    ].sort((a,b) => b.tarih.localeCompare(a.tarih));
+
+    return (
+        <div className="tab-fade-in main-content-area">
+            <h3 style={{color: '#dc2626', borderBottom: '1px solid #e2e8f0', paddingBottom: '10px'}}>🗑️ Çöp Kutusu</h3>
+            <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
+                {allDeleted.map((item: any) => (
+                    <div key={item.id} style={{background: '#fff', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                        <div>
+                            <div style={{fontWeight: 'bold', fontSize: '13px', color: '#1e293b'}}>{item.label}</div>
+                            <div style={{fontSize: '11px', color: '#64748b'}}>{item.tarih} - {item.aciklama}</div>
+                        </div>
+                        <div style={{display: 'flex', gap: '6px'}}>
+                            <button onClick={() => handleRestore(item.type, item.id)} style={{background: '#059669', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer'}}>GERİ YÜKLE</button>
+                            <button onClick={() => handlePermanentDelete(item.type, item.id)} style={{background: '#dc2626', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer'}}>KALICI SİL</button>
+                        </div>
+                    </div>
+                ))}
+                {allDeleted.length === 0 && <div style={{textAlign: 'center', color: '#94a3b8', padding: '20px'}}>Çöp kutusu boş.</div>}
+            </div>
+        </div>
+    );
+  };
 
   const aktifAyarListesi = activeAyarTab === 'musteriler' ? bayiler : (activeAyarTab === 'urunler' ? urunler : tedarikciler);
   const aktifTabloAdi = activeAyarTab === 'musteriler' ? 'bayiler' : (activeAyarTab === 'urunler' ? 'urunler' : 'ciftlikler');
@@ -1238,6 +1339,7 @@ export default function App() {
         {activeTab === "uretim" && renderUretim()}
         {activeTab === "analiz" && renderAnaliz()}
         {activeTab === "ayarlar" && renderAyarlar()}
+        {activeTab === "cop_kutusu" && renderCopKutusu()}
 
         {/* DÖNEM KAPAT MODALI */}
         {isDonemModalOpen && (
@@ -1270,7 +1372,7 @@ export default function App() {
               
               <div style={{display: 'flex', flexDirection: 'column', gap: '2px'}}>
                 <label style={{fontSize: '11px', color: '#64748b'}}>Tarih</label>
-                <input type="date" value={digerForm.tarih} onChange={e => setDigerForm({...digerForm, tarih: e.target.value})} className="m-inp" style={{height: "28px", padding: "4px 8px"}} />
+                <input type="date" value={digerForm.tarih} onChange={e => setDigerForm({...digerForm, tarih: e.target.value})} className="m-inp" style={{height: "28px", padding: "4px 8px"}} onClick={(e) => e.currentTarget.showPicker()} />
               </div>
 
               <div style={{display: 'flex', flexDirection: 'column', gap: '2px'}}>
@@ -1337,8 +1439,8 @@ export default function App() {
               </h4>
               {activeFilterModal.endsWith('_tarih') && (
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                  <div><label style={{fontSize: "12px", color: "#64748b"}}>Başlangıç</label><input type="date" value={activeFilterModal.includes('sut') ? sutFiltre.baslangic : activeFilterModal.includes('fis') ? fisFiltre.baslangic : analizFiltre.baslangic} onChange={(e) => { if(activeFilterModal.includes('sut')) setSutFiltre({...sutFiltre, baslangic: e.target.value}); if(activeFilterModal.includes('fis')) setFisFiltre({...fisFiltre, baslangic: e.target.value}); if(activeFilterModal.includes('analiz')) setAnalizFiltre({...analizFiltre, baslangic: e.target.value}); }} className="m-inp" style={{width: "100%", marginTop: "4px"}} /></div>
-                  <div><label style={{fontSize: "12px", color: "#64748b"}}>Bitiş</label><input type="date" value={activeFilterModal.includes('sut') ? sutFiltre.bitis : activeFilterModal.includes('fis') ? fisFiltre.bitis : analizFiltre.bitis} onChange={(e) => { if(activeFilterModal.includes('sut')) setSutFiltre({...sutFiltre, bitis: e.target.value}); if(activeFilterModal.includes('fis')) setFisFiltre({...fisFiltre, bitis: e.target.value}); if(activeFilterModal.includes('analiz')) setAnalizFiltre({...analizFiltre, bitis: e.target.value}); }} className="m-inp" style={{width: "100%", marginTop: "4px"}} /></div>
+                  <div><label style={{fontSize: "12px", color: "#64748b"}}>Başlangıç</label><input type="date" value={activeFilterModal.includes('sut') ? sutFiltre.baslangic : activeFilterModal.includes('fis') ? fisFiltre.baslangic : analizFiltre.baslangic} onChange={(e) => { if(activeFilterModal.includes('sut')) setSutFiltre({...sutFiltre, baslangic: e.target.value}); if(activeFilterModal.includes('fis')) setFisFiltre({...fisFiltre, baslangic: e.target.value}); if(activeFilterModal.includes('analiz')) setAnalizFiltre({...analizFiltre, baslangic: e.target.value}); }} className="m-inp" style={{width: "100%", marginTop: "4px"}} onClick={(e) => e.currentTarget.showPicker()} /></div>
+                  <div><label style={{fontSize: "12px", color: "#64748b"}}>Bitiş</label><input type="date" value={activeFilterModal.includes('sut') ? sutFiltre.bitis : activeFilterModal.includes('fis') ? fisFiltre.bitis : analizFiltre.bitis} onChange={(e) => { if(activeFilterModal.includes('sut')) setSutFiltre({...sutFiltre, bitis: e.target.value}); if(activeFilterModal.includes('fis')) setFisFiltre({...fisFiltre, bitis: e.target.value}); if(activeFilterModal.includes('analiz')) setAnalizFiltre({...analizFiltre, bitis: e.target.value}); }} className="m-inp" style={{width: "100%", marginTop: "4px"}} onClick={(e) => e.currentTarget.showPicker()} /></div>
                 </div>
               )}
               <div style={{ maxHeight: "250px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "10px", padding: "4px 0" }}>
@@ -1361,7 +1463,7 @@ export default function App() {
               </div>
               <div style={{ padding: "10px 12px", overflowY: "auto", flex: 1 }}>
                 <div style={{display: "flex", gap: "6px", marginBottom: "12px"}}>
-                  <input type="date" value={fisUst.tarih} onChange={e => setFisUst({ ...fisUst, tarih: e.target.value })} className="m-inp" style={{flex: "0 0 100px", padding: "6px 8px", fontSize: "13px"}} />
+                  <input type="date" value={fisUst.tarih} onChange={e => setFisUst({ ...fisUst, tarih: e.target.value })} className="m-inp" style={{flex: "0 0 100px", padding: "6px 8px", fontSize: "13px"}} onClick={(e) => e.currentTarget.showPicker()} />
                   
                   {/* BAYİ ARAMA KISMI */}
                   <input
@@ -1407,6 +1509,13 @@ export default function App() {
                         setFisDetay({...fisDetay, [u.id]: {...fisDetay[u.id], adet: val, kg: newKg}});
                     };
 
+                    const adet = Number(fisDetay[u.id]?.adet) || 0;
+                    const kg = Number(fisDetay[u.id]?.kg) || 0;
+                    const fiyat = Number(fisDetay[u.id]?.fiyat) || 0;
+                    const isKova = u.isim.match(/(3|4|5)\s*kg/i);
+                    const miktar = isKova ? adet : (kg > 0 ? kg : adet);
+                    const anlikTutar = miktar * fiyat;
+
                     return (
                       <div key={u.id} style={{ display: 'flex', gap: '4px', alignItems: 'center', padding: '4px 6px', background: isFilled ? (editingFisId ? '#fef3c7' : '#ecfdf5') : '#f8fafc', borderRadius: '4px', border: isFilled ? (editingFisId ? '1px solid #fde68a' : '1px solid #a7f3d0') : '1px solid #e2e8f0' }}>
                         <div style={{ flex: 1, minWidth: "85px", fontWeight: 'bold', fontSize: "12px", color: isFilled ? (editingFisId ? "#b45309" : "#065f46") : "#475569", whiteSpace: "normal", lineHeight: "1.2" }}>{u.isim}</div>
@@ -1414,6 +1523,7 @@ export default function App() {
                         <input placeholder="KG" type="number" step="0.01" value={fisDetay[u.id]?.kg || ""} onChange={e => setFisDetay({...fisDetay, [u.id]: {...fisDetay[u.id], kg: e.target.value}})} className="m-inp" style={{flex: "0 0 50px", width: "50px", padding: "4px 2px", textAlign: "center", background: isFilled ? "#fff" : "", fontSize: "12px", height:"24px"}} />
                         <div style={{fontSize:"12px", color:"#94a3b8", width:"8px", textAlign:"center"}}>{"x"}</div>
                         <input placeholder="Fiyat" type="number" step="0.01" value={fisDetay[u.id]?.fiyat || ""} onChange={e => setFisDetay({...fisDetay, [u.id]: {...fisDetay[u.id], fiyat: e.target.value}})} className="m-inp" style={{flex: "0 0 60px", width: "60px", padding: "4px 2px", textAlign: "right", background: isFilled ? "#fff" : "", fontSize: "12px", height:"24px"}} />
+                        {anlikTutar > 0 && <div style={{fontSize: "11px", fontWeight: "bold", color: "#059669", minWidth: "50px", textAlign: "right"}}>{fSayi(anlikTutar)}</div>}
                       </div>
                     );
                   })}
@@ -1568,7 +1678,7 @@ export default function App() {
                </div>
                <div style={{ padding: "15px", display: "flex", flexDirection: "column", gap: "10px" }}>
                  <div style={{ display: "flex", gap: "8px" }}>
-                    <input type="date" value={tahsilatForm.tarih} onChange={e => setTahsilatForm({ ...tahsilatForm, tarih: e.target.value })} className="m-inp" style={{ flex: 1 }} />
+                    <input type="date" value={tahsilatForm.tarih} onChange={e => setTahsilatForm({ ...tahsilatForm, tarih: e.target.value })} className="m-inp" style={{ flex: 1 }} onClick={(e) => e.currentTarget.showPicker()} />
                     <input list="bayiler-tahsilat" placeholder="Müşteri/Bayi Seç..." value={tahsilatForm.bayi} onChange={e => setTahsilatForm({ ...tahsilatForm, bayi: e.target.value })} className="m-inp" style={{ flex: 2, fontWeight: "bold" }} />
                     <datalist id="bayiler-tahsilat">
                       {bayiler.map(b => <option key={b.id} value={b.isim}>{b.isim}</option>)}
@@ -1600,7 +1710,7 @@ export default function App() {
               </div>
               <div style={{ padding: "15px", display: "flex", flexDirection: "column", gap: "10px" }}>
                 <div style={{ display: "flex", gap: "8px" }}>
-                   <input type="date" value={giderForm.tarih} onChange={e => setGiderForm({ ...giderForm, tarih: e.target.value })} className="m-inp" style={{ flex: 1 }} />
+                   <input type="date" value={giderForm.tarih} onChange={e => setGiderForm({ ...giderForm, tarih: e.target.value })} className="m-inp" style={{ flex: 1 }} onClick={(e) => e.currentTarget.showPicker()} />
                    <select value={giderForm.tur} onChange={e => setGiderForm({ ...giderForm, tur: e.target.value })} className="m-inp" style={{ flex: 2, fontWeight: "bold" }}>
                      {giderTurleri.map(t => <option key={t} value={t}>{t}</option>)}
                    </select>
@@ -1625,7 +1735,7 @@ export default function App() {
               </div>
               <div style={{ padding: "15px", display: "flex", flexDirection: "column", gap: "10px" }}>
                 <div style={{ display: "flex", gap: "8px" }}>
-                   <input type="date" value={sutForm.tarih} onChange={e => setSutForm({ ...sutForm, tarih: e.target.value })} className="m-inp" style={{ flex: 1 }} />
+                   <input type="date" value={sutForm.tarih} onChange={e => setSutForm({ ...sutForm, tarih: e.target.value })} className="m-inp" style={{ flex: 1 }} onClick={(e) => e.currentTarget.showPicker()} />
                    <select value={sutForm.ciftlik} onChange={e => setSutForm({ ...sutForm, ciftlik: e.target.value })} className="m-inp" style={{ flex: 2, fontWeight: "bold" }}>
                      <option value="">Çiftlik Seç...</option>
                      {tedarikciler.map(t => <option key={t.id} value={t.isim}>{t.isim}</option>)}
@@ -1654,7 +1764,7 @@ export default function App() {
                 <button onClick={() => setIsUretimModalOpen(false)} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#94a3b8", padding: 0 }}>✕</button>
               </div>
               <div style={{ padding: "10px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
-                <input type="date" value={uretimForm.tarih} onChange={e => setUretimForm({ ...uretimForm, tarih: e.target.value })} className="m-inp small-inp" style={{ width: "110px", fontWeight: "bold" }} />
+                <input type="date" value={uretimForm.tarih} onChange={e => setUretimForm({ ...uretimForm, tarih: e.target.value })} className="m-inp small-inp" style={{ width: "110px", fontWeight: "bold" }} onClick={(e) => e.currentTarget.showPicker()} />
                 
                 <div style={{ border: "1px solid #e2e8f0", borderRadius: "6px", padding: "8px", background: "#f8fafc" }}>
                   <h4 style={{margin: "0 0 8px", fontSize: "11px", color: "#64748b"}}>⬇️ GİREN HAMMADDELER (Maliyet)</h4>
@@ -1777,9 +1887,9 @@ export default function App() {
       </main>
 
       <footer className="fixed-nav main-content-area">
-        {[{ id: "ozet", i: "📊" }, { id: "sut", i: "🥛" }, { id: "uretim", i: "🏭" }, { id: "satis", i: "💰" }, { id: "gider", i: "💸" }, { id: "analiz", i: "📈" }, { id: "ayarlar", i: "⚙️" }].map(item => (
-          <button key={item.id} onClick={() => { setActiveTab(item.id); setEditingSutId(null); setIsSutModalOpen(false); setIsFisModalOpen(false); setIsTahsilatModalOpen(false); setIsGiderModalOpen(false); setIsUretimModalOpen(false); setOpenDropdown(null); setIsDigerUstOpen(false); setIsDigerFiltreOpen(false); }} className={`n-item btn-anim ${activeTab === item.id ? 'active' : ''}`} style={activeTab === item.id ? { color: item.id === 'analiz' ? '#8b5cf6' : item.id === 'gider' ? '#dc2626' : item.id === 'uretim' ? '#8b5cf6' : temaRengi, borderTopColor: item.id === 'analiz' ? '#8b5cf6' : item.id === 'gider' ? '#dc2626' : item.id === 'uretim' ? '#8b5cf6' : temaRengi } : {}}>
-            <span style={{ fontSize: "16px", marginBottom: "2px" }}>{item.i}</span><span style={{ fontSize: "9px", fontWeight: "bold" }}>{item.id.toUpperCase()}</span>
+        {[{ id: "ozet", i: "📊" }, { id: "sut", i: "🥛" }, { id: "uretim", i: "🏭" }, { id: "satis", i: "💰" }, { id: "gider", i: "💸" }, { id: "analiz", i: "📈" }, { id: "ayarlar", i: "⚙️" }, { id: "cop_kutusu", i: "🗑️" }].map(item => (
+          <button key={item.id} onClick={() => { setActiveTab(item.id); setEditingSutId(null); setIsSutModalOpen(false); setIsFisModalOpen(false); setIsTahsilatModalOpen(false); setIsGiderModalOpen(false); setIsUretimModalOpen(false); setOpenDropdown(null); setIsDigerUstOpen(false); setIsDigerFiltreOpen(false); }} className={`n-item btn-anim ${activeTab === item.id ? 'active' : ''}`} style={activeTab === item.id ? { color: item.id === 'analiz' ? '#8b5cf6' : item.id === 'gider' ? '#dc2626' : item.id === 'uretim' ? '#8b5cf6' : item.id === 'cop_kutusu' ? '#dc2626' : temaRengi, borderTopColor: item.id === 'analiz' ? '#8b5cf6' : item.id === 'gider' ? '#dc2626' : item.id === 'uretim' ? '#8b5cf6' : item.id === 'cop_kutusu' ? '#dc2626' : temaRengi } : {}}>
+            <span style={{ fontSize: "16px", marginBottom: "2px" }}>{item.i}</span><span style={{ fontSize: "9px", fontWeight: "bold" }}>{item.id.toUpperCase().replace('_', ' ')}</span>
           </button>
         ))}
       </footer>
