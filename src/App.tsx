@@ -1184,43 +1184,43 @@ export default function App() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', overflowY: 'auto', paddingRight: '4px' }}>
                  <h4 style={{ margin: "0 0 5px", fontSize: '13px', color: '#dc2626' }}>Son Silinen Kayıtlar</h4>
                  {copKutusuList.map(c => {
-    // Veritabanından büyük veya küçük harf gelse de tanıması için süzüyoruz
     const tAdi = String(c.tablo_adi).toLowerCase();
+    // Önemli detayları tek satır için hazırlıyoruz
+    let detay = "";
+    let tutar = 0;
+    
+    if (tAdi === 'satis_fisleri') {
+        detay = c.veri.bayi;
+        tutar = c.veri.toplam_tutar;
+    } else if (tAdi === 'giderler') {
+        detay = c.veri.tur;
+        tutar = c.veri.tutar;
+    } else if (tAdi === 'sut_giris') {
+        detay = c.veri.ciftlik;
+        tutar = c.veri.toplam_tl;
+    }
+
     return (
-        <div key={c.id} style={{ padding: '10px', background: '#fff', border: '1px solid #fecaca', borderRadius: '8px', fontSize: '12px', color: '#1e293b', marginBottom: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", borderBottom: "1px dashed #fecaca", paddingBottom: "4px" }}>
-                <strong style={{ color: '#dc2626' }}>{tAdi === 'satis_fisleri' ? 'SATIŞ FİŞİ' : tAdi.toUpperCase()}</strong>
-                <span style={{ fontSize: '10px', color: '#94a3b8' }}>{c.silinme_tarihi ? new Date(c.silinme_tarihi).toLocaleString('tr-TR') : ''}</span>
-            </div>
-            <div style={{ lineHeight: '1.5' }}>
-                {tAdi === 'satis_fisleri' && (
-                    <>
-                        <div><b>Fiş No:</b> {c.veri.fis_no}</div>
-                        <div><b>Bayi:</b> {c.veri.bayi}</div>
-                        <div><b>Tarih:</b> {c.veri.tarih}</div>
-                        <div><b>Tutar:</b> <span style={{color: '#059669', fontWeight: 'bold'}}>{fSayi(c.veri.toplam_tutar)} ₺</span></div>
-                    </>
-                )}
-                {tAdi === 'giderler' && (
-                    <>
-                        <div><b>Tür:</b> {c.veri.tur}</div>
-                        <div><b>Açıklama:</b> {c.veri.aciklama}</div>
-                        <div><b>Tutar:</b> <span style={{color: '#dc2626', fontWeight: 'bold'}}>{fSayi(c.veri.tutar)} ₺</span></div>
-                    </>
-                )}
-                {tAdi === 'sut_giris' && (
-                    <>
-                        <div><b>Çiftlik:</b> {c.veri.ciftlik}</div>
-                        <div><b>Miktar:</b> {c.veri.kg} KG</div>
-                        <div><b>Tutar:</b> {fSayi(c.veri.toplam_tl)} ₺</div>
-                    </>
-                )}
-                {/* Diğer tablolar için genel gösterim */}
-                {['satis_fisleri', 'giderler', 'sut_giris'].indexOf(tAdi) === -1 && (
-                    <div style={{fontSize: '10px', color: '#64748b', fontStyle: 'italic'}}>Detay: {c.veri.aciklama || c.veri.id}</div>
-                )}
-                <div style={{fontSize: '9px', color: '#94a3b8', marginTop: '4px', borderTop: '1px solid #f1f5f9', paddingTop: '2px'}}>Silen: {c.veri.ekleyen || 'Bilinmiyor'}</div>
-            </div>
+        <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 8px', background: '#fff', borderBottom: '1px solid #f1f5f9', fontSize: '11px', color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+            {/* TÜR İKONU/ETİKETİ */}
+            <span style={{ flex: '0 0 45px', fontWeight: 'bold', color: '#dc2626' }}>
+                {tAdi === 'satis_fisleri' ? 'SATIŞ' : tAdi === 'giderler' ? 'GİDER' : 'SÜT'}
+            </span>
+            
+            {/* ANA DETAY (BAYİ/ÇİFTLİK) */}
+            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: '500' }}>
+                {detay}
+            </span>
+            
+            {/* TUTAR */}
+            <span style={{ flex: '0 0 65px', textAlign: 'right', fontWeight: 'bold' }}>
+                {fSayiNoDec(tutar)} ₺
+            </span>
+            
+            {/* TARİH */}
+            <span style={{ flex: '0 0 85px', textAlign: 'right', fontSize: '10px', color: '#94a3b8' }}>
+                {c.silinme_tarihi ? new Date(c.silinme_tarihi).toLocaleDateString('tr-TR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}) : ''}
+            </span>
         </div>
     );
 })}
