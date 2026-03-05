@@ -10,6 +10,10 @@ interface SatisGiris { id?: string; fis_no?: string; tarih: string; bayi: string
 interface SatisFis { id?: string; fis_no: string; tarih: string; bayi: string; toplam_tutar: number; tahsilat: number; kalan_bakiye: number; odeme_turu: string; aciklama: string; ekleyen?: string; }
 interface Gider { id?: string; tarih: string; tur: string; aciklama: string; tutar: number | string; ekleyen?: string; }
 interface Uretim { id?: string; tarih: string; cig_sut: number | string; sut_fiyat: number | string; sut_tozu: number | string; sut_tozu_fiyat: number | string; tereyag: number | string; tereyag_fiyat: number | string; katki_kg: number | string; katki_fiyat: number | string; su: number | string; kova_3_adet: number | string; kova_3_fiyat: number | string; kova_5_adet: number | string; kova_5_fiyat: number | string; cikti_3kg: number | string; satis_3_fiyat: number | string; cikti_5kg: number | string; satis_5_fiyat: number | string; toplam_kg?: number; toplam_maliyet?: number; kar?: number; aciklama: string; ekleyen?: string; }
+<<<<<<< HEAD
+interface CopKutusu { id?: string; tablo_adi: string; veri: any; silinme_tarihi?: string; }
+=======
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
 
 // --- SUPABASE BAĞLANTISI ---
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
@@ -29,8 +33,16 @@ export default function App() {
   const [password, setPassword] = useState<string>("");
   const [activeTab, setActiveTab] = useState<string>("satis");
 
+<<<<<<< HEAD
+  // DÖNEM YÖNETİMİ (Kalıcı - LocalStorage)
+  const [aktifDonem, setAktifDonem] = useState<string>(() => {
+      const saved = localStorage.getItem("aktifDonem");
+      return saved || getLocalDateString().substring(0, 7);
+  });
+=======
   // DÖNEM YÖNETİMİ
   const [aktifDonem, setAktifDonem] = useState<string>(() => getLocalDateString().substring(0, 7));
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
   const [isDonemModalOpen, setIsDonemModalOpen] = useState(false);
   const [donemOnay, setDonemOnay] = useState(false);
 
@@ -43,6 +55,7 @@ export default function App() {
   const [satisList, setSatisList] = useState<SatisGiris[]>([]); 
   const [giderList, setGiderList] = useState<Gider[]>([]);
   const [uretimList, setUretimList] = useState<Uretim[]>([]);
+  const [copKutusuList, setCopKutusuList] = useState<CopKutusu[]>([]);
 
   // AYARLAR VE UI STATE'LERİ
   const temaRengi = "#2563eb"; 
@@ -54,12 +67,21 @@ export default function App() {
   const [isDigerUstOpen, setIsDigerUstOpen] = useState(false);
   const [isDigerFiltreOpen, setIsDigerFiltreOpen] = useState(false);
 
+<<<<<<< HEAD
+  // DİĞER İŞLEMLER (GİDER DÜŞ KALKTI)
+  const [digerModalConfig, setDigerModalConfig] = useState<{isOpen: boolean, type: 'borc'|'kasa_devir'|null}>({isOpen: false, type: null});
+  const [digerForm, setDigerForm] = useState({tarih: getLocalDateString(), tutar: "", aciklama: ""});
+
+  // YENİ AYARLAR STATE'İ (Çöp Kutusu Eklendi)
+  const [activeAyarTab, setActiveAyarTab] = useState<"musteriler" | "urunler" | "ciftlikler" | "cop_kutusu">("musteriler");
+=======
   // DİĞER İŞLEMLER (BORÇ EKLE, GİDER DÜŞ, KASAYA DEVİR)
   const [digerModalConfig, setDigerModalConfig] = useState<{isOpen: boolean, type: 'borc'|'gider_dus'|'kasa_devir'|null}>({isOpen: false, type: null});
   const [digerForm, setDigerForm] = useState({tarih: getLocalDateString(), tutar: "", aciklama: ""});
 
   // YENİ AYARLAR STATE'İ
   const [activeAyarTab, setActiveAyarTab] = useState<"musteriler" | "urunler" | "ciftlikler">("musteriler");
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
   const [yeniAyarDeger, setYeniAyarDeger] = useState("");
   const [yeniUrunFiyat, setYeniUrunFiyat] = useState("");
 
@@ -74,7 +96,11 @@ export default function App() {
 
   // --- SATIŞ STATE'LERİ ---
   const [satisFiltreKisi, setSatisFiltreKisi] = useState<"benim" | "herkes">("benim");
+<<<<<<< HEAD
+  const [satisFiltreTip, setSatisFiltreTip] = useState<"tumu" | "satis" | "tahsilat" | "borc" | "kasa_devir">("tumu");
+=======
   const [satisFiltreTip, setSatisFiltreTip] = useState<"tumu" | "satis" | "tahsilat" | "borc" | "gider_dus" | "kasa_devir">("tumu");
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
   
   const [isFisModalOpen, setIsFisModalOpen] = useState<boolean>(false);
   const [isTahsilatModalOpen, setIsTahsilatModalOpen] = useState<boolean>(false);
@@ -143,7 +169,19 @@ export default function App() {
 
   useEffect(() => { if (session) verileriGetir("hepsi"); }, [session]);
 
-  async function verileriGetir(hedef: "hepsi" | "satis" | "sut" | "gider" | "uretim" | "ayar" = "hepsi") {
+  useEffect(() => {
+      localStorage.setItem("aktifDonem", aktifDonem);
+  }, [aktifDonem]);
+
+  async function coptKutusunaAt(tablo: string, veri: any) {
+      try {
+          await supabase.from("cop_kutusu").insert({ tablo_adi: tablo, veri: veri, silinme_tarihi: new Date().toISOString() });
+      } catch (e) {
+          console.warn("Çöp kutusuna atılamadı. Supabase tablosu olmayabilir.");
+      }
+  }
+
+  async function verileriGetir(hedef: "hepsi" | "satis" | "sut" | "gider" | "uretim" | "ayar" | "cop" = "hepsi") {
     try {
       if (hedef === "hepsi" || hedef === "ayar") {
         const [{ data: c }, { data: b }, { data: u }] = await Promise.all([
@@ -189,6 +227,11 @@ export default function App() {
         if (ur) setUretimList(ur);
       }
 
+      if (hedef === "hepsi" || hedef === "cop") {
+          const { data: cop } = await supabase.from("cop_kutusu").select("*").order("silinme_tarihi", { ascending: false });
+          if(cop) setCopKutusuList(cop);
+      }
+
     } catch (error) { console.error(error); }
   }
 
@@ -203,17 +246,58 @@ export default function App() {
      return Array.from(set).sort().reverse(); 
   }, [sutList, satisFisList, giderList, uretimList, aktifDonem]);
 
+<<<<<<< HEAD
+  // Tüm Fişlerden Müşteri Borç Durumu Hesaplama (Akıllı Kapatma ve Gerçek Borç için gerekli)
+  const bayiBorclari = useMemo(() => {
+    const borclar: Record<string, number> = {};
+    satisFisList.forEach(f => {
+        if (f.bayi === "SİSTEM İŞLEMİ") return;
+        if(!borclar[f.bayi]) borclar[f.bayi] = 0;
+        borclar[f.bayi] += Number(f.kalan_bakiye);
+    });
+    return Object.keys(borclar)
+        .map(k => ({ isim: k, borc: borclar[k] }))
+        .filter(b => Math.abs(b.borc) > 0.01)
+        .sort((a,b) => b.borc - a.borc);
+  }, [satisFisList]);
+
+  const handleDonemKapat = async () => {
+=======
   const handleDonemKapat = () => {
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
      if(!donemOnay) return;
      const [yyyy, mm] = aktifDonem.split('-');
      let nextM = parseInt(mm) + 1;
      let nextY = parseInt(yyyy);
      if(nextM > 12) { nextM = 1; nextY++; }
      const nextDonem = `${nextY}-${nextM.toString().padStart(2, '0')}`;
+<<<<<<< HEAD
+
+     const devirFisleri = bayiBorclari.map(b => ({
+         fis_no: `DEVİR-${Date.now().toString().slice(-4)}${Math.floor(Math.random()*100)}`,
+         tarih: `${nextDonem}-01`,
+         bayi: b.isim,
+         toplam_tutar: b.borc > 0 ? b.borc : 0,
+         tahsilat: b.borc < 0 ? Math.abs(b.borc) : 0,
+         kalan_bakiye: b.borc,
+         odeme_turu: "DEVİR",
+         aciklama: `${aktifDonem} Döneminden Devir`,
+         ekleyen: username
+     }));
+
+     if(devirFisleri.length > 0) {
+         await supabase.from("satis_fisleri").insert(devirFisleri);
+     }
+=======
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
      
      setAktifDonem(nextDonem);
      setIsDonemModalOpen(false);
      setDonemOnay(false);
+<<<<<<< HEAD
+     verileriGetir("satis");
+=======
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
   }
 
   // DÖNEM İZOLASYONLARI
@@ -438,15 +522,24 @@ export default function App() {
     let kalan = 0;
     let toplam = 0;
 
+<<<<<<< HEAD
+    if (digerModalConfig.type === 'kasa_devir') {
+        tahsilat = Number(digerForm.tutar);
+=======
     // Gider düş veya kasaya devir işlemi, tahsilatı eksiltir
     if (digerModalConfig.type === 'gider_dus' || digerModalConfig.type === 'kasa_devir') {
         tahsilat = Number(digerForm.tutar); // Kendi türüyle kaydedip ekranda düşeceğiz
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
     } else if (digerModalConfig.type === 'borc') {
         toplam = Number(digerForm.tutar);
         kalan = Number(digerForm.tutar);
     }
 
+<<<<<<< HEAD
+    const tipMetni = digerModalConfig.type === 'kasa_devir' ? 'KASAYA DEVİR' : 'BORÇ EKLE';
+=======
     const tipMetni = digerModalConfig.type === 'gider_dus' ? 'GİDER DÜŞ' : (digerModalConfig.type === 'kasa_devir' ? 'KASAYA DEVİR' : 'BORÇ EKLE');
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
 
     const fData = {
         fis_no: fNo,
@@ -505,7 +598,11 @@ export default function App() {
   };
 
   const aktifBayi = fisUst.bayi;
+<<<<<<< HEAD
+  
+=======
   // Güncel bakiye bulma (SADECE AKTİF DÖNEM İÇİN - ESKİ BAKİYELER SIFIRLANIR)
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
   const eskiBorc = useMemo(() => {
       if (!aktifBayi) return 0;
       const bayiFisleri = periodSatisFis.filter(f => f.bayi === aktifBayi && f.id !== editingFisId && f.bayi !== "SİSTEM İŞLEMİ");
@@ -517,7 +614,11 @@ export default function App() {
       const adet = Number(fisDetay[u.id]?.adet) || 0;
       const kg = Number(fisDetay[u.id]?.kg) || 0;
       const fiyat = Number(fisDetay[u.id]?.fiyat) || 0;
+<<<<<<< HEAD
+      const isKova = u.isim.match(/([345])\s*kg/i);
+=======
       const isKova = u.isim.match(/(3|4|5)\s*kg/i);
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
       const miktar = isKova ? adet : (kg > 0 ? kg : adet); 
       return toplam + (miktar * fiyat);
     }, 0);
@@ -579,7 +680,11 @@ export default function App() {
       const insertArray = eklenecekUrunler.map((u) => {
         const adet = Number(fisDetay[u.id].adet), kg = Number(fisDetay[u.id].kg), fiyat = Number(fisDetay[u.id].fiyat);
         const kgEslesme = u.isim.match(/(\d+(?:\.\d+)?)\s*(kg|lt|l|gr)\b/i);
+<<<<<<< HEAD
+        const isKova = u.isim.match(/([345])\s*kg/i);
+=======
         const isKova = u.isim.match(/(3|4|5)\s*kg/i);
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
         
         const hesaplananKg = isKova ? (adet * Number(isKova[1])) : (kg > 0 ? kg : (kgEslesme ? Number(kgEslesme[1]) * adet : adet));
         const miktar = isKova ? adet : (kg > 0 ? kg : adet);
@@ -611,7 +716,11 @@ export default function App() {
       const insertArray = eklenecekUrunler.map((u) => {
         const adet = Number(fisDetay[u.id].adet), kg = Number(fisDetay[u.id].kg), fiyat = Number(fisDetay[u.id].fiyat);
         const kgEslesme = u.isim.match(/(\d+(?:\.\d+)?)\s*(kg|lt|l|gr)\b/i);
+<<<<<<< HEAD
+        const isKova = u.isim.match(/([345])\s*kg/i);
+=======
         const isKova = u.isim.match(/(3|4|5)\s*kg/i);
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
         
         const hesaplananKg = isKova ? (adet * Number(isKova[1])) : (kg > 0 ? kg : (kgEslesme ? Number(kgEslesme[1]) * adet : adet));
         const miktar = isKova ? adet : (kg > 0 ? kg : adet);
@@ -636,8 +745,8 @@ export default function App() {
     }
     
     const ekstraIndirimler = [];
-    if (iadeMiktar > 0) ekstraIndirimler.push({ isim: "İade", miktar: iadeMiktar, birim: iadeKg > 0 ? "KG" : "Ad", tutar: iadeMiktar * iadeFiyat });
-    if (kovaMiktar > 0) ekstraIndirimler.push({ isim: "Boş Kova", miktar: kovaMiktar, birim: kovaKg > 0 ? "KG" : "Ad", tutar: kovaMiktar * kovaFiyat });
+    if (iadeMiktar > 0) ekstraIndirimler.push({ isim: "İade", adet: iadeAdet, kg: iadeKg, fiyat: iadeFiyat, tutar: -(iadeMiktar * iadeFiyat) });
+    if (kovaMiktar > 0) ekstraIndirimler.push({ isim: "Boş Kova", adet: kovaAdet, kg: kovaKg, fiyat: kovaFiyat, tutar: -(kovaMiktar * kovaFiyat) });
 
     const fisGosterimData = {
       id: savedFisId,
@@ -646,7 +755,11 @@ export default function App() {
          const adet = Number(fisDetay[u.id].adet);
          const kg = Number(fisDetay[u.id].kg);
          const fiyat = Number(fisDetay[u.id].fiyat);
+<<<<<<< HEAD
+         const isKova = u.isim.match(/([345])\s*kg/i);
+=======
          const isKova = u.isim.match(/(3|4|5)\s*kg/i);
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
          const miktar = isKova ? adet : (kg > 0 ? kg : adet);
          return { isim: u.isim, adet: adet, kg: kg, fiyat: fiyat, tutar: miktar * fiyat };
       }),
@@ -716,7 +829,11 @@ export default function App() {
           const adetNum = Number(buUrun.adet);
           const tutarNum = Number(buUrun.tutar);
           const fiyatNum = Number(buUrun.fiyat);
+<<<<<<< HEAD
+          const isKova = u.isim.match(/([345])\s*kg/i);
+=======
           const isKova = u.isim.match(/(3|4|5)\s*kg/i);
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
           if (fiyatNum !== 0 && !isKova && Math.abs(tutarNum - (adetNum * fiyatNum)) > 0.01) {
               calculatedKg = String(tutarNum / fiyatNum);
           }
@@ -738,8 +855,8 @@ export default function App() {
     const oGunkuEskiBorc = bayiFisleri.reduce((toplam, f) => toplam + Number(f.kalan_bakiye || 0), 0);
     
     let ekstraIndirimler = [];
-    if (iadeUrun) ekstraIndirimler.push({ isim: "İade", miktar: iadeUrun.toplam_kg && Number(iadeUrun.toplam_kg) > 0 ? iadeUrun.toplam_kg : iadeUrun.adet, birim: iadeUrun.toplam_kg && Number(iadeUrun.toplam_kg) > 0 ? "KG" : "Ad", tutar: Math.abs(Number(iadeUrun.tutar)) });
-    if (kovaUrun) ekstraIndirimler.push({ isim: kovaUrun.urun === "İade Kova" ? "İade Kova" : "Boş Kova", miktar: kovaUrun.toplam_kg && Number(kovaUrun.toplam_kg) > 0 ? kovaUrun.toplam_kg : kovaUrun.adet, birim: kovaUrun.toplam_kg && Number(kovaUrun.toplam_kg) > 0 ? "KG" : "Ad", tutar: Math.abs(Number(kovaUrun.tutar)) });
+    if (iadeUrun) ekstraIndirimler.push({ isim: "İade", adet: iadeUrun.adet, kg: iadeUrun.toplam_kg, fiyat: Math.abs(Number(iadeUrun.fiyat)), tutar: -Math.abs(Number(iadeUrun.tutar)) });
+    if (kovaUrun) ekstraIndirimler.push({ isim: kovaUrun.urun === "İade Kova" ? "İade Kova" : "Boş Kova", adet: kovaUrun.adet, kg: kovaUrun.toplam_kg, fiyat: Math.abs(Number(kovaUrun.fiyat)), tutar: -Math.abs(Number(kovaUrun.tutar)) });
 
     let safAciklama = fis.aciklama || "";
     let tAlan = "";
@@ -757,7 +874,11 @@ export default function App() {
       urunler: ilgiliUrunler.map(u => {
           let calculatedKg = 0;
           const a = Number(u.adet), t = Number(u.tutar), f = Number(u.fiyat);
+<<<<<<< HEAD
+          const isKova = String(u.urun).match(/([345])\s*kg/i);
+=======
           const isKova = String(u.urun).match(/(3|4|5)\s*kg/i);
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
           if (f !== 0 && !isKova && Math.abs(t - (a * f)) > 0.01) calculatedKg = t / f;
           return { isim: u.urun, adet: a, kg: calculatedKg, fiyat: f, tutar: t };
       }), 
@@ -770,9 +891,14 @@ export default function App() {
 
   async function handleFisSil(fis: any) {
     if (!confirm(`Bu işlemi (${fis.fis_no || fis.id}) silmek istediğinize emin misiniz?`)) return;
+<<<<<<< HEAD
+    await coptKutusunaAt('satis_fisleri', fis);
+=======
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
     await supabase.from("satis_giris").delete().eq("fis_no", fis.fis_no);
     await supabase.from("satis_fisleri").delete().eq("id", fis.id);
     verileriGetir("satis"); 
+    verileriGetir("cop");
   }
 
   const handleWhatsappResimGonder = () => {
@@ -798,6 +924,29 @@ export default function App() {
   const filteredForTotals = useMemo(() => periodSatisFis.filter((f: any) => {
     const isBayiMatch = fisFiltre.bayiler.length === 0 || fisFiltre.bayiler.includes(f.bayi);
     const isTarihMatch = (!fisFiltre.baslangic || f.tarih >= fisFiltre.baslangic) && (!fisFiltre.bitis || f.tarih <= fisFiltre.bitis);
+<<<<<<< HEAD
+    const isKisiMatch = satisFiltreKisi === 'herkes' || (f.ekleyen && username && f.ekleyen.split('@')[0] === username.split('@')[0]);
+    return isBayiMatch && isTarihMatch && isKisiMatch;
+  }), [periodSatisFis, fisFiltre, satisFiltreKisi, username]);
+
+  // 2. AŞAMA: Özet kutuları için genel toplamları hesaplıyoruz
+  const tFisToplam = useMemo(() => filteredForTotals.filter(f => f.odeme_turu !== 'KASAYA DEVİR').reduce((a: number, b: any) => a + Number(b.toplam_tutar), 0), [filteredForTotals]);
+  const tFisTahsilatRaw = useMemo(() => filteredForTotals.filter(f => f.odeme_turu !== 'KASAYA DEVİR' && f.odeme_turu !== 'BORÇ EKLE').reduce((a: number, b: any) => a + Number(b.tahsilat), 0), [filteredForTotals]);
+  const tFisKalan = useMemo(() => filteredForTotals.filter(f => f.odeme_turu !== 'KASAYA DEVİR').reduce((a: number, b: any) => a + Number(b.kalan_bakiye), 0), [filteredForTotals]);
+
+  // Ekstra Kasa ve Gider Hesapları (Giderler artık Gider Tablosundan O Personel/Admin İçin Çekiliyor)
+  const tKullaniciGider = useMemo(() => periodGider.filter(g => (g.ekleyen && username && g.ekleyen.split('@')[0] === username.split('@')[0])).reduce((a: number, b: any) => a + Number(b.tutar), 0), [periodGider, username]);
+  const tKasayaDevir = useMemo(() => filteredForTotals.filter(f => f.odeme_turu === 'KASAYA DEVİR').reduce((a: number, b: any) => a + Number(b.tahsilat), 0), [filteredForTotals]);
+  const tNetTahsilat = tFisTahsilatRaw - tKullaniciGider - tKasayaDevir;
+
+  // 3. AŞAMA: Tabloda listelenecek verileri TİP filtresine göre sınırla
+  const fFisList = useMemo(() => sortData(filteredForTotals.filter((f: any) => {
+    if (satisFiltreTip === 'tumu') return !['KASAYA DEVİR', 'BORÇ EKLE'].includes(f.odeme_turu); 
+    if (satisFiltreTip === 'borc') return f.odeme_turu === 'BORÇ EKLE';
+    if (satisFiltreTip === 'kasa_devir') return f.odeme_turu === 'KASAYA DEVİR';
+    if (satisFiltreTip === 'tahsilat') return f.toplam_tutar === 0 && f.odeme_turu !== 'KASAYA DEVİR' && f.odeme_turu !== 'BORÇ EKLE';
+    if (satisFiltreTip === 'satis') return f.toplam_tutar > 0 && f.odeme_turu !== 'KASAYA DEVİR' && f.odeme_turu !== 'BORÇ EKLE';
+=======
     const isKisiMatch = satisFiltreKisi === 'herkes' || f.ekleyen === username;
     return isBayiMatch && isTarihMatch && isKisiMatch;
   }), [periodSatisFis, fisFiltre, satisFiltreKisi, username]);
@@ -820,6 +969,7 @@ export default function App() {
     if (satisFiltreTip === 'kasa_devir') return f.odeme_turu === 'KASAYA DEVİR';
     if (satisFiltreTip === 'tahsilat') return f.toplam_tutar === 0 && f.odeme_turu !== 'GİDER DÜŞ' && f.odeme_turu !== 'KASAYA DEVİR' && f.odeme_turu !== 'BORÇ EKLE';
     if (satisFiltreTip === 'satis') return f.toplam_tutar > 0 && f.odeme_turu !== 'GİDER DÜŞ' && f.odeme_turu !== 'KASAYA DEVİR' && f.odeme_turu !== 'BORÇ EKLE';
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
     return true;
   }), fisSort), [filteredForTotals, satisFiltreTip, fisSort]);
 
@@ -839,7 +989,11 @@ export default function App() {
   const tAnalizTutar = useMemo(() => fAnalizList.reduce((a: number, b: any) => a + Number(b.tutar), 0), [fAnalizList]);
 
   const fGiderList = useMemo(() => sortData(periodGider.filter((g: any) => 
+<<<<<<< HEAD
+    giderFiltreKisi === 'tumu' || (g.ekleyen && username && g.ekleyen.split('@')[0] === username.split('@')[0])
+=======
     giderFiltreKisi === 'tumu' || g.ekleyen === username
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
   ), giderSort), [periodGider, giderSort, giderFiltreKisi, username]);
   const fGTutarNormal = useMemo(() => fGiderList.reduce((a: number, b: any) => a + Number(b.tutar), 0), [fGiderList]);
 
@@ -847,6 +1001,8 @@ export default function App() {
   const tUretimMaliyet = useMemo(() => periodUretim.reduce((a: number, b: any) => a + Number(b.toplam_maliyet), 0), [periodUretim]);
   const genelToplamGider = tGiderNormal + tUretimMaliyet;
 
+<<<<<<< HEAD
+=======
   // Tüm Fişlerden Müşteri Borç Durumu Hesaplama
   const bayiBorclari = useMemo(() => {
     const borclar: Record<string, number> = {};
@@ -860,6 +1016,7 @@ export default function App() {
         .filter(b => Math.abs(b.borc) > 0.01)
         .sort((a,b) => b.borc - a.borc);
   }, [periodSatisFis]);
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
   const bayiNetDurum = bayiBorclari.reduce((a, b) => a + b.borc, 0);
 
   const renderOzet = () => (
@@ -914,7 +1071,11 @@ export default function App() {
                {openDropdown?.type === 'sut' && openDropdown.id === s.id && (
                   <div className="dropdown-menu">
                      <button title="Düzenle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); setEditingSutId(s.id); setSutForm(s as any); setIsSutModalOpen(true); }}>✏️</button>
+<<<<<<< HEAD
+                     <button title="Sil" className="dropdown-item-icon" style={{ color: '#dc2626' }} onClick={async () => { setOpenDropdown(null); if(confirm("Sil?")){ await coptKutusunaAt('sut_giris', s); await supabase.from("sut_giris").delete().eq("id", s.id); verileriGetir("sut"); verileriGetir("cop"); } }}>🗑️</button>
+=======
                      <button title="Sil" className="dropdown-item-icon" style={{ color: '#dc2626' }} onClick={async () => { setOpenDropdown(null); if(confirm("Sil?")){ await supabase.from("sut_giris").delete().eq("id", s.id); verileriGetir("sut"); } }}>🗑️</button>
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
                   </div>
                )}
             </td>
@@ -931,6 +1092,9 @@ export default function App() {
          <button onClick={handleYeniFisAc} className="btn-anim m-btn green-btn" style={{ margin: 0, flex: 2, fontSize: '13px' }}>➕ YENİ SATIŞ FİŞİ</button>
          <button onClick={() => { setTahsilatForm({ tarih: bugun, bayi: "", miktar: "", odeme_turu: "PEŞİN", aciklama: "" }); setIsTahsilatModalOpen(true); }} className="btn-anim m-btn blue-btn" style={{ margin: 0, flex: 1.2, fontSize: '13px', background: '#3b82f6' }}>💸 TAHSİLAT</button>
          
+<<<<<<< HEAD
+         <button onClick={() => setDigerModalConfig({isOpen: true, type: 'kasa_devir'})} className="btn-anim m-btn" style={{ margin: 0, flex: 1, fontSize: '13px', background: '#64748b', padding: '12px 0' }}>🏦 KASAYA DEVİR</button>
+=======
          <div style={{position: 'relative', flex: 1}}>
            <button onClick={(e) => { e.stopPropagation(); setIsDigerUstOpen(!isDigerUstOpen); setIsDigerFiltreOpen(false); }} className="btn-anim m-btn" style={{ margin: 0, fontSize: '13px', background: '#64748b', width: '100%', padding: '12px 0' }}>DİĞER ▼</button>
            {isDigerUstOpen && (
@@ -941,10 +1105,18 @@ export default function App() {
              </div>
            )}
          </div>
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
       </div>
 
       {/* FİLTRE SEKMELERİ */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
+<<<<<<< HEAD
+         <div style={{ display: 'flex', background: '#e2e8f0', borderRadius: '6px', overflow: 'hidden', flex: 2 }}>
+            <button onClick={() => setSatisFiltreTip('tumu')} style={{ flex: 1, padding: '6px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', background: satisFiltreTip==='tumu'?'#059669':'transparent', color: satisFiltreTip==='tumu'?'#fff':'#475569' }}>Tümü</button>
+            <button onClick={() => setSatisFiltreTip('satis')} style={{ flex: 1, padding: '6px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', background: satisFiltreTip==='satis'?'#059669':'transparent', color: satisFiltreTip==='satis'?'#fff':'#475569' }}>Satış</button>
+            <button onClick={() => setSatisFiltreTip('tahsilat')} style={{ flex: 1, padding: '6px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', background: satisFiltreTip==='tahsilat'?'#059669':'transparent', color: satisFiltreTip==='tahsilat'?'#fff':'#475569' }}>Tahsilat</button>
+            <button onClick={() => setSatisFiltreTip('kasa_devir')} style={{ flex: 1.2, padding: '6px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', whiteSpace: 'nowrap', background: satisFiltreTip === 'kasa_devir' ? '#059669' : 'transparent', color: satisFiltreTip === 'kasa_devir' ? '#fff' : '#475569' }}>Kasa Devir</button>
+=======
          <div style={{ display: 'flex', background: '#e2e8f0', borderRadius: '6px', overflow: 'visible', flex: 2 }}>
             <button onClick={() => setSatisFiltreTip('tumu')} style={{ flex: 1, padding: '6px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', borderRadius: '6px 0 0 6px', background: satisFiltreTip==='tumu'?'#059669':'transparent', color: satisFiltreTip==='tumu'?'#fff':'#475569' }}>Tümü</button>
             <button onClick={() => setSatisFiltreTip('satis')} style={{ flex: 1, padding: '6px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', background: satisFiltreTip==='satis'?'#059669':'transparent', color: satisFiltreTip==='satis'?'#fff':'#475569' }}>Satış</button>
@@ -962,6 +1134,7 @@ export default function App() {
                    </div>
                )}
             </div>
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
          </div>
          <div style={{ display: 'flex', background: '#e2e8f0', borderRadius: '6px', overflow: 'hidden', flex: 1 }}>
             <button onClick={() => setSatisFiltreKisi('benim')} style={{ flex: 1, padding: '6px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', background: satisFiltreKisi==='benim'?'#2563eb':'transparent', color: satisFiltreKisi==='benim'?'#fff':'#475569' }}>Benim</button>
@@ -977,7 +1150,11 @@ export default function App() {
             <b style={{ color: "#2563eb", fontSize: "16px", marginBottom: '4px' }}>{fSayi(tFisTahsilatRaw)} ₺</b>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#64748b', borderTop: '1px dashed #cbd5e1', paddingTop: '2px' }}>
                 <span title="Aktarılan">Akt: {fSayiNoDec(tKasayaDevir)}</span>
+<<<<<<< HEAD
+                <span title="Gider">Gid: {fSayiNoDec(tKullaniciGider)}</span>
+=======
                 <span title="Gider">Gid: {fSayiNoDec(tGiderDus)}</span>
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
                 <span title="Net Tahsilat" style={{fontWeight:'bold', color:'#0f172a'}}>Net: {fSayiNoDec(tNetTahsilat)}</span>
             </div>
         </div>
@@ -988,16 +1165,36 @@ export default function App() {
       <div className="table-wrapper"><table className="tbl tbl-satis">
         <thead><tr>
           <Th label="TARİH" sortKey="tarih" currentSort={fisSort} setSort={setFisSort} filterType="fis_tarih" />
+<<<<<<< HEAD
+          <Th label={['borc', 'kasa_devir'].includes(satisFiltreTip) ? "AÇIKLAMA" : "BAYİ"} sortKey={['borc', 'kasa_devir'].includes(satisFiltreTip) ? "aciklama" : "bayi"} currentSort={fisSort} setSort={setFisSort} filterType="fis_bayi" />
+=======
           <Th label={['borc', 'gider_dus', 'kasa_devir'].includes(satisFiltreTip) ? "AÇIKLAMA" : "BAYİ"} sortKey={['borc', 'gider_dus', 'kasa_devir'].includes(satisFiltreTip) ? "aciklama" : "bayi"} currentSort={fisSort} setSort={setFisSort} filterType="fis_bayi" />
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
           <Th label="TUTAR" sortKey="toplam_tutar" currentSort={fisSort} setSort={setFisSort} align="right" />
           <Th label="TAHS." sortKey="tahsilat" currentSort={fisSort} setSort={setFisSort} align="right" />
           <Th label="KALAN" sortKey="kalan_bakiye" currentSort={fisSort} setSort={setFisSort} align="right" />
           <Th label="KİŞİ" sortKey="ekleyen" currentSort={fisSort} setSort={setFisSort} align="center" />
           <th></th>
         </tr></thead>
-        <tbody>{fFisList.map(f => (
+        <tbody>{fFisList.map(f => {
+          // Gerçek Bakiye Gösterimi (Müşterinin Genel Toplam Borcu)
+          const bayiGuncelBorc = bayiBorclari.find(b => b.isim === f.bayi)?.borc || 0;
+          return (
           <tr key={f.id}>
             <td>{f.tarih.split("-").reverse().slice(0, 2).join(".")}</td>
+<<<<<<< HEAD
+            <td style={{ fontWeight: "bold", minWidth: "120px", color: f.toplam_tutar === 0 && f.odeme_turu !== 'KASAYA DEVİR' ? "#8b5cf6" : (f.bayi === "SİSTEM İŞLEMİ" ? "#475569" : "inherit") }} className="truncate-text-td">
+               {f.bayi === "SİSTEM İŞLEMİ" ? `${f.aciklama || f.odeme_turu}` : f.bayi}
+            </td>
+            <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold" }}>{f.toplam_tutar === 0 ? "-" : fSayi(f.toplam_tutar)}</td>
+            <td style={{ textAlign: "right", color: f.odeme_turu === 'KASAYA DEVİR' ? "#dc2626" : "#2563eb", fontWeight: "bold" }}>
+               {f.odeme_turu === 'KASAYA DEVİR' && f.tahsilat > 0 ? "-" : ""}{fSayi(f.tahsilat)}
+            </td>
+            <td style={{ textAlign: "right", color: bayiGuncelBorc > 0 ? "#dc2626" : (bayiGuncelBorc < 0 ? "#059669" : "#64748b"), fontWeight: "bold" }} title="Müşterinin Güncel Toplam Borcu">
+                {bayiGuncelBorc === 0 ? "-" : fSayi(bayiGuncelBorc)}
+            </td>
+            <td style={{ textAlign: "center", color: "#64748b" }}>{f.ekleyen ? f.ekleyen.split('@')[0] : "-"}</td>
+=======
             <td style={{ fontWeight: "bold", minWidth: "120px", color: f.toplam_tutar === 0 && f.odeme_turu !== 'GİDER DÜŞ' && f.odeme_turu !== 'KASAYA DEVİR' ? "#8b5cf6" : (f.bayi === "SİSTEM İŞLEMİ" ? "#475569" : "inherit") }} className="truncate-text-td">
                {f.bayi === "SİSTEM İŞLEMİ" ? `${f.aciklama || f.odeme_turu}` : f.bayi}
             </td>
@@ -1007,6 +1204,7 @@ export default function App() {
             </td>
             <td style={{ textAlign: "right", color: f.kalan_bakiye > 0 ? "#dc2626" : (f.kalan_bakiye < 0 ? "#059669" : "#64748b"), fontWeight: "bold" }}>{f.kalan_bakiye === 0 ? "-" : fSayi(f.kalan_bakiye)}</td>
             <td style={{ textAlign: "center", color: "#64748b" }}>{f.ekleyen || "-"}</td>
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
             <td className="actions-cell" style={{position: 'relative'}}>
                <button onClick={(e) => { e.stopPropagation(); setOpenDropdown({ type: 'satis', id: f.id as string }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', padding: '0 8px', color: '#64748b' }}>⋮</button>
                {openDropdown?.type === 'satis' && openDropdown.id === f.id && (
@@ -1017,7 +1215,12 @@ export default function App() {
                   </div>
                )}
             </td>
+<<<<<<< HEAD
+          </tr>
+        )})}
+=======
           </tr>))}
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
         </tbody>
       </table></div>
     </div>
@@ -1067,7 +1270,11 @@ export default function App() {
 
       <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "10px" }}>
         <button onClick={() => { setGiderForm({ tarih: bugun, tur: "Genel Gider", aciklama: "", tutar: "" }); setEditingGiderId(null); setIsGiderModalOpen(true); }} className="btn-anim m-btn" style={{background: "#dc2626", margin: 0, flex: 1, padding: "8px", fontSize: "13px", height: "36px"}}>➕ YENİ GİDER</button>
+<<<<<<< HEAD
+        <div className="c-kutu" style={{ borderLeftColor: "#dc2626", flex: 1.2, margin: 0, padding: "4px 8px", height: "36px", display: "flex", flexDirection: "row", alignItems: "center", justifyItems: "space-between" }}>
+=======
         <div className="c-kutu" style={{ borderLeftColor: "#dc2626", flex: 1.2, margin: 0, padding: "4px 8px", height: "36px", display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
           <span style={{fontSize: "10px", margin: 0, color: "#64748b"}}>GÖSTERİLEN GİDER:</span>
           <b style={{ color: "#dc2626", fontSize: "16px" }}>{fSayi(fGTutarNormal)} ₺</b>
         </div>
@@ -1087,13 +1294,21 @@ export default function App() {
             <td style={{ fontWeight: "bold" }}>{g.tur}</td>
             <td style={{ textAlign: "right", color: "#dc2626", fontWeight: "bold" }}>{fSayi(g.tutar)}</td>
             <td style={{ color: "#64748b" }} className="truncate-text-td">{g.aciklama}</td>
+<<<<<<< HEAD
+            <td style={{ textAlign: "center", color: "#64748b" }}>{g.ekleyen ? g.ekleyen.split('@')[0] : "-"}</td>
+=======
             <td style={{ textAlign: "center", color: "#64748b" }}>{g.ekleyen || "-"}</td>
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
             <td className="actions-cell" style={{position: 'relative'}}>
                <button onClick={(e) => { e.stopPropagation(); setOpenDropdown({ type: 'gider', id: g.id as string }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', padding: '0 8px', color: '#64748b' }}>⋮</button>
                {openDropdown?.type === 'gider' && openDropdown.id === g.id && (
                   <div className="dropdown-menu">
                      <button title="Düzenle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); setEditingGiderId(g.id); setGiderForm(g as any); setIsGiderModalOpen(true); }}>✏️</button>
+<<<<<<< HEAD
+                     <button title="Sil" className="dropdown-item-icon" style={{ color: '#dc2626' }} onClick={async () => { setOpenDropdown(null); if(confirm("Sil?")){ await coptKutusunaAt('giderler', g); await supabase.from("giderler").delete().eq("id", g.id); verileriGetir("gider"); verileriGetir("cop"); } }}>🗑️</button>
+=======
                      <button title="Sil" className="dropdown-item-icon" style={{ color: '#dc2626' }} onClick={async () => { setOpenDropdown(null); if(confirm("Sil?")){ await supabase.from("giderler").delete().eq("id", g.id); verileriGetir("gider"); } }}>🗑️</button>
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
                   </div>
                )}
             </td>
@@ -1139,7 +1354,11 @@ export default function App() {
                   <div className="dropdown-menu">
                      <button title="Görüntüle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); setUretimDetayData(u); }}>🔍</button>
                      <button title="Düzenle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); setEditingUretimId(u.id); setUretimForm(u as any); setIsUretimModalOpen(true); }}>✏️</button>
+<<<<<<< HEAD
+                     <button title="Sil" className="dropdown-item-icon" style={{ color: '#dc2626' }} onClick={async () => { setOpenDropdown(null); if(confirm("Sil?")){ await coptKutusunaAt('uretim', u); await supabase.from("uretim").delete().eq("id", u.id); verileriGetir("uretim"); verileriGetir("cop"); } }}>🗑️</button>
+=======
                      <button title="Sil" className="dropdown-item-icon" style={{ color: '#dc2626' }} onClick={async () => { setOpenDropdown(null); if(confirm("Sil?")){ await supabase.from("uretim").delete().eq("id", u.id); verileriGetir("uretim"); } }}>🗑️</button>
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
                   </div>
                )}
             </td>
@@ -1153,12 +1372,22 @@ export default function App() {
   const aktifTabloAdi = activeAyarTab === 'musteriler' ? 'bayiler' : (activeAyarTab === 'urunler' ? 'urunler' : 'ciftlikler');
 
   const renderAyarlar = () => (
+<<<<<<< HEAD
+    <div className="tab-fade-in main-content-area" style={{ display: "flex", gap: "10px", height: "calc(100vh - 160px)", minHeight: "400px" }}>
+       {/* SOL MENÜ */}
+       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '90px', flexShrink: 0 }}>
+          <button onClick={() => setActiveAyarTab('musteriler')} style={{ padding: '8px 4px', borderRadius: '8px', background: activeAyarTab==='musteriler'?'#0f172a':'#fff', color: activeAyarTab==='musteriler'?'#fff':'#475569', border: '1px solid #e2e8f0', fontWeight: 'bold', cursor: 'pointer', textAlign: 'center', fontSize: '11px', transition: 'all 0.2s' }}>Müşteriler</button>
+          <button onClick={() => setActiveAyarTab('urunler')} style={{ padding: '8px 4px', borderRadius: '8px', background: activeAyarTab==='urunler'?'#0f172a':'#fff', color: activeAyarTab==='urunler'?'#fff':'#475569', border: '1px solid #e2e8f0', fontWeight: 'bold', cursor: 'pointer', textAlign: 'center', fontSize: '11px', transition: 'all 0.2s' }}>Ürünler</button>
+          <button onClick={() => setActiveAyarTab('ciftlikler')} style={{ padding: '8px 4px', borderRadius: '8px', background: activeAyarTab==='ciftlikler'?'#0f172a':'#fff', color: activeAyarTab==='ciftlikler'?'#fff':'#475569', border: '1px solid #e2e8f0', fontWeight: 'bold', cursor: 'pointer', textAlign: 'center', fontSize: '11px', transition: 'all 0.2s' }}>Çiftlikler</button>
+          <button onClick={() => { setActiveAyarTab('cop_kutusu'); verileriGetir("cop"); }} style={{ padding: '8px 4px', borderRadius: '8px', background: activeAyarTab==='cop_kutusu'?'#dc2626':'#fff', color: activeAyarTab==='cop_kutusu'?'#fff':'#dc2626', border: '1px solid #fecaca', fontWeight: 'bold', cursor: 'pointer', textAlign: 'center', fontSize: '11px', transition: 'all 0.2s', marginTop: "10px" }}>🗑️ Çöp Kutusu</button>
+=======
     <div className="tab-fade-in main-content-area" style={{ display: "flex", gap: "15px", height: "calc(100vh - 160px)", minHeight: "400px" }}>
        {/* SOL MENÜ */}
        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '110px', flexShrink: 0 }}>
           <button onClick={() => setActiveAyarTab('musteriler')} style={{ padding: '12px 8px', borderRadius: '8px', background: activeAyarTab==='musteriler'?'#0f172a':'#fff', color: activeAyarTab==='musteriler'?'#fff':'#475569', border: '1px solid #e2e8f0', fontWeight: 'bold', cursor: 'pointer', textAlign: 'center', fontSize: '12px', transition: 'all 0.2s' }}>Müşteriler</button>
           <button onClick={() => setActiveAyarTab('urunler')} style={{ padding: '12px 8px', borderRadius: '8px', background: activeAyarTab==='urunler'?'#0f172a':'#fff', color: activeAyarTab==='urunler'?'#fff':'#475569', border: '1px solid #e2e8f0', fontWeight: 'bold', cursor: 'pointer', textAlign: 'center', fontSize: '12px', transition: 'all 0.2s' }}>Ürünler</button>
           <button onClick={() => setActiveAyarTab('ciftlikler')} style={{ padding: '12px 8px', borderRadius: '8px', background: activeAyarTab==='ciftlikler'?'#0f172a':'#fff', color: activeAyarTab==='ciftlikler'?'#fff':'#475569', border: '1px solid #e2e8f0', fontWeight: 'bold', cursor: 'pointer', textAlign: 'center', fontSize: '12px', transition: 'all 0.2s' }}>Çiftlikler</button>
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
           
           <div style={{ marginTop: 'auto', paddingTop: '20px' }}>
             <h4 style={{ margin: "0 0 5px", fontSize: '11px', color: '#64748b', textAlign: 'center' }}>Yazı Boyutu</h4>
@@ -1168,6 +1397,47 @@ export default function App() {
 
        {/* SAĞ İÇERİK */}
        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', overflow: 'hidden' }}>
+<<<<<<< HEAD
+          {activeAyarTab !== 'cop_kutusu' ? (
+              <>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                     <input placeholder={`Yeni ${activeAyarTab.slice(0,-3)} ismi...`} value={yeniAyarDeger} onChange={e => setYeniAyarDeger(e.target.value)} style={{ flex: 1, padding: '8px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '13px' }} />
+                     {activeAyarTab === 'urunler' && <input placeholder="Fiyat" type="number" value={yeniUrunFiyat} onChange={e=>setYeniUrunFiyat(e.target.value)} style={{ width: '60px', padding: '8px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '13px' }} />}
+                     <button onClick={handleAyarEkle} style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: '8px', padding: '0 15px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>Ekle</button>
+                  </div>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', overflowY: 'auto', paddingRight: '4px' }}>
+                     {aktifAyarListesi.map(item => (
+                        <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+                           <span style={{ fontWeight: 'bold', color: '#475569', fontSize: '12px' }}>{item.isim} {activeAyarTab === 'urunler' && (item as Urun).fiyat ? `(${fSayi((item as Urun).fiyat)} ₺)` : ''}</span>
+                           <button onClick={() => { if(confirm(`Silinecek: ${item.isim}`)) ayarIslem(aktifTabloAdi, null, "sil", item.id); }} style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', borderRadius: '4px', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '12px' }}>✕</button>
+                        </div>
+                     ))}
+                     {aktifAyarListesi.length === 0 && <div style={{textAlign: 'center', color: '#94a3b8', marginTop: '20px', fontSize: '13px'}}>Kayıt bulunamadı.</div>}
+
+                     {activeAyarTab === 'musteriler' && (
+                        <button onClick={handleTopluMusteriEkle} style={{background: '#8b5cf6', color: '#fff', padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', marginTop: '15px'}}>
+                           📥 {topluMusteriler.length} Hazır Müşteriyi İçe Aktar
+                        </button>
+                     )}
+                  </div>
+              </>
+          ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', overflowY: 'auto', paddingRight: '4px' }}>
+                 <h4 style={{ margin: "0 0 5px", fontSize: '13px', color: '#dc2626' }}>Son Silinen Kayıtlar</h4>
+                 {copKutusuList.map(c => (
+                    <div key={c.id} style={{ padding: '8px 10px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', fontSize: '11px', color: '#475569' }}>
+                       <div style={{display: "flex", justifyContent: "space-between", marginBottom: "4px"}}>
+                           <strong style={{color: '#dc2626'}}>{c.tablo_adi.toUpperCase()}</strong>
+                           <span>{c.silinme_tarihi ? new Date(c.silinme_tarihi).toLocaleString('tr-TR') : ''}</span>
+                       </div>
+                       <div style={{wordBreak: "break-all", background: "#fff", padding: "4px", borderRadius: "4px"}}>{JSON.stringify(c.veri).substring(0,100)}...</div>
+                    </div>
+                 ))}
+                 {copKutusuList.length === 0 && <div style={{textAlign: 'center', color: '#94a3b8', marginTop: '20px', fontSize: '12px'}}>Çöp kutusu boş (Veya veritabanı tablosu henüz yok).</div>}
+              </div>
+          )}
+=======
           <div style={{ display: 'flex', gap: '8px' }}>
              <input placeholder={`Yeni ${activeAyarTab.slice(0,-3)} ismi...`} value={yeniAyarDeger} onChange={e => setYeniAyarDeger(e.target.value)} style={{ flex: 1, padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '13px' }} />
              {activeAyarTab === 'urunler' && <input placeholder="Fiyat" type="number" value={yeniUrunFiyat} onChange={e=>setYeniUrunFiyat(e.target.value)} style={{ width: '70px', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '13px' }} />}
@@ -1189,6 +1459,7 @@ export default function App() {
                 </button>
              )}
           </div>
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
        </div>
     </div>
   );
@@ -1212,18 +1483,30 @@ export default function App() {
       {/* YENİ HEADER TASARIMI */}
       <header className="header-style">
         <b style={{ color: temaRengi, fontSize: "18px", marginLeft: "10px" }}>SULTANKÖY V4</b>
+<<<<<<< HEAD
+        <div style={{display: 'flex', gap: '10px', alignItems: 'center', marginRight: '10px'}}>
+=======
         <div style={{display: 'flex', gap: '15px', alignItems: 'center', marginRight: '10px'}}>
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
            <select 
               value={aktifDonem} 
               onChange={e => {
                  if(e.target.value === "KAPAT") setIsDonemModalOpen(true);
                  else setAktifDonem(e.target.value);
               }} 
+<<<<<<< HEAD
+              className="m-inp" style={{padding: "2px 6px", height: "28px", fontSize: "12px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", flex: "0 0 auto"}}>
+             {aylar.map(ay => <option key={ay} value={ay}>{ay.replace('-', ' / ')}</option>)}
+             <option value="KAPAT">⚠️ Dönemi Kapat</option>
+           </select>
+           <span style={{fontSize: "13px", fontWeight: "bold", color: "#0f172a"}}>{username ? username.split('@')[0] : 'Kullanıcı'}</span>
+=======
               className="m-inp" style={{padding: "2px 8px", height: "28px", fontSize: "12px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer"}}>
              {aylar.map(ay => <option key={ay} value={ay}>{ay.replace('-', ' / ')}</option>)}
              <option value="KAPAT">⚠️ Dönemi Kapat</option>
            </select>
            <span style={{fontSize: "13px", fontWeight: "bold", color: "#0f172a"}}>{username}</span>
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
            <button onClick={() => supabase.auth.signOut()} style={{ background: "none", border: "1px solid #fecaca", borderRadius: "50%", width: "32px", height: "32px", color: "#dc2626", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>
              <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M7.5 1v7h1V1h-1z"/><path d="M3 8.812a4.999 4.999 0 0 1 2.578-4.375l-.485-.874A6 6 0 1 0 11 3.616l-.501.865A5 5 0 1 1 3 8.812z"/></svg>
            </button>
@@ -1246,7 +1529,11 @@ export default function App() {
                  <h3 style={{margin:'0 0 10px', color:'#dc2626', fontSize: '16px'}}>⚠️ Dönemi Kapat</h3>
                  <p style={{fontSize:'13px', color:'#475569', lineHeight:'1.4'}}>
                      Mevcut dönemi kapatıp yeni aya geçmek istediğinize emin misiniz?<br/><br/>
+<<<<<<< HEAD
+                     <span style={{fontSize: '11px', color: '#94a3b8'}}>(Yeni dönemde bakiyeler sıfırdan başlar, içerideki açık hesaplar yeni döneme otomatik olarak "Devir" fişi şeklinde aktarılır.)</span>
+=======
                      <span style={{fontSize: '11px', color: '#94a3b8'}}>(Yeni dönemde bakiyeler sıfırdan başlar, eski verilerinize üstteki menüden ulaşmaya devam edebilirsiniz.)</span>
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
                  </p>
                  <label style={{display:'flex', alignItems:'center', gap:'8px', fontSize:'13px', fontWeight:'bold', marginTop:'15px', cursor:'pointer', color: '#0f172a'}}>
                      <input type="checkbox" checked={donemOnay} onChange={e=>setDonemOnay(e.target.checked)} style={{width:'18px', height:'18px'}} />
@@ -1260,6 +1547,40 @@ export default function App() {
           </div>
         )}
 
+<<<<<<< HEAD
+        {/* DİĞER İŞLEMLER MODALI (KASA) */}
+        {digerModalConfig.isOpen && (
+          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1400, padding: "10px" }}>
+            <div style={{ backgroundColor: "#fff", width: "95vw", maxWidth: "350px", borderRadius: "12px", display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease-out", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }} onClick={e => e.stopPropagation()}>
+               
+               <div style={{ padding: "12px 15px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f8fafc", borderRadius: "12px 12px 0 0" }}>
+                 <h3 style={{ margin: "0", color: "#64748b", fontSize: "15px" }}>🏦 Kasaya Devir</h3>
+                 <button onClick={() => { setDigerModalConfig({isOpen: false, type: null}); setDigerForm({tarih: getLocalDateString(), tutar: "", aciklama: ""}); }} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#94a3b8", padding: 0 }}>✕</button>
+               </div>
+               
+               <div style={{ padding: "15px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                 <div style={{ display: "flex", gap: "8px" }}>
+                    <div style={{flex: 1}}>
+                      <label style={{fontSize: "11px", color: "#64748b"}}>Tarih</label>
+                      <input type="date" value={digerForm.tarih} onChange={e => setDigerForm({...digerForm, tarih: e.target.value})} className="m-inp date-click" style={{ width: "100%" }} />
+                    </div>
+                    <div style={{flex: 1}}>
+                      <label style={{fontSize: "11px", color: "#64748b"}}>Tutar (₺)</label>
+                      <input type="number" step="0.01" value={digerForm.tutar} onChange={e => setDigerForm({...digerForm, tutar: e.target.value})} className="m-inp" style={{width: "100%", textAlign: "right", color: "#0f172a", fontWeight: "bold"}} />
+                    </div>
+                 </div>
+                 
+                 <div>
+                   <label style={{fontSize: "11px", color: "#64748b"}}>Açıklama / Not</label>
+                   <input placeholder="Opsiyonel..." value={digerForm.aciklama} onChange={e => setDigerForm({...digerForm, aciklama: e.target.value})} className="m-inp" style={{width: "100%"}} />
+                 </div>
+               </div>
+               
+               <div style={{ padding: "12px 15px", borderTop: "1px solid #e2e8f0", background: "#f8fafc", borderRadius: "0 0 12px 12px" }}>
+                 <button onClick={handleDigerIslemKaydet} className="p-btn btn-anim" style={{ background: "#64748b", width: "100%", height: "45px", fontSize: "15px" }}>KAYDET</button>
+               </div>
+
+=======
         {/* DİĞER İŞLEMLER MODALI (BORÇ/GİDER/KASA) */}
         {digerModalConfig.isOpen && (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", zIndex: 1400, display: "flex", alignItems: "center", justifyContent: "center", padding: "10px" }}>
@@ -1287,6 +1608,7 @@ export default function App() {
                  <button onClick={() => { setDigerModalConfig({isOpen: false, type: null}); setDigerForm({tarih: getLocalDateString(), tutar: "", aciklama: ""}); }} style={{ flex: 1, padding: "8px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: "6px", color: "#475569", fontWeight: "bold", fontSize: "12px", cursor: 'pointer' }}>VAZGEÇ</button>
                  <button onClick={handleDigerIslemKaydet} style={{ flex: 1, padding: "8px", background: "#2563eb", border: "none", borderRadius: "6px", color: "#fff", fontWeight: "bold", fontSize: "12px", cursor: 'pointer' }}>KAYDET</button>
               </div>
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
             </div>
           </div>
         )}
@@ -1337,8 +1659,8 @@ export default function App() {
               </h4>
               {activeFilterModal.endsWith('_tarih') && (
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                  <div><label style={{fontSize: "12px", color: "#64748b"}}>Başlangıç</label><input type="date" value={activeFilterModal.includes('sut') ? sutFiltre.baslangic : activeFilterModal.includes('fis') ? fisFiltre.baslangic : analizFiltre.baslangic} onChange={(e) => { if(activeFilterModal.includes('sut')) setSutFiltre({...sutFiltre, baslangic: e.target.value}); if(activeFilterModal.includes('fis')) setFisFiltre({...fisFiltre, baslangic: e.target.value}); if(activeFilterModal.includes('analiz')) setAnalizFiltre({...analizFiltre, baslangic: e.target.value}); }} className="m-inp" style={{width: "100%", marginTop: "4px"}} /></div>
-                  <div><label style={{fontSize: "12px", color: "#64748b"}}>Bitiş</label><input type="date" value={activeFilterModal.includes('sut') ? sutFiltre.bitis : activeFilterModal.includes('fis') ? fisFiltre.bitis : analizFiltre.bitis} onChange={(e) => { if(activeFilterModal.includes('sut')) setSutFiltre({...sutFiltre, bitis: e.target.value}); if(activeFilterModal.includes('fis')) setFisFiltre({...fisFiltre, bitis: e.target.value}); if(activeFilterModal.includes('analiz')) setAnalizFiltre({...analizFiltre, bitis: e.target.value}); }} className="m-inp" style={{width: "100%", marginTop: "4px"}} /></div>
+                  <div><label style={{fontSize: "12px", color: "#64748b"}}>Başlangıç</label><input type="date" value={activeFilterModal.includes('sut') ? sutFiltre.baslangic : activeFilterModal.includes('fis') ? fisFiltre.baslangic : analizFiltre.baslangic} onChange={(e) => { if(activeFilterModal.includes('sut')) setSutFiltre({...sutFiltre, baslangic: e.target.value}); if(activeFilterModal.includes('fis')) setFisFiltre({...fisFiltre, baslangic: e.target.value}); if(activeFilterModal.includes('analiz')) setAnalizFiltre({...analizFiltre, baslangic: e.target.value}); }} className="m-inp date-click" style={{width: "100%", marginTop: "4px"}} /></div>
+                  <div><label style={{fontSize: "12px", color: "#64748b"}}>Bitiş</label><input type="date" value={activeFilterModal.includes('sut') ? sutFiltre.bitis : activeFilterModal.includes('fis') ? fisFiltre.bitis : analizFiltre.bitis} onChange={(e) => { if(activeFilterModal.includes('sut')) setSutFiltre({...sutFiltre, bitis: e.target.value}); if(activeFilterModal.includes('fis')) setFisFiltre({...fisFiltre, bitis: e.target.value}); if(activeFilterModal.includes('analiz')) setAnalizFiltre({...analizFiltre, bitis: e.target.value}); }} className="m-inp date-click" style={{width: "100%", marginTop: "4px"}} /></div>
                 </div>
               )}
               <div style={{ maxHeight: "250px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "10px", padding: "4px 0" }}>
@@ -1361,7 +1683,7 @@ export default function App() {
               </div>
               <div style={{ padding: "10px 12px", overflowY: "auto", flex: 1 }}>
                 <div style={{display: "flex", gap: "6px", marginBottom: "12px"}}>
-                  <input type="date" value={fisUst.tarih} onChange={e => setFisUst({ ...fisUst, tarih: e.target.value })} className="m-inp" style={{flex: "0 0 100px", padding: "6px 8px", fontSize: "13px"}} />
+                  <input type="date" value={fisUst.tarih} onChange={e => setFisUst({ ...fisUst, tarih: e.target.value })} className="m-inp date-click" style={{flex: "0 0 100px", padding: "6px 8px", fontSize: "13px"}} />
                   
                   {/* BAYİ ARAMA KISMI */}
                   <input
@@ -1393,19 +1715,26 @@ export default function App() {
                     if (!isFixed && !isFilled && !(gosterilenEkler.tereyagi && isTereyagi) && !(gosterilenEkler.yogurt_kaymagi && isYogurtKaymagi)) return null;
 
                     const handleAdetChange = (e: any) => {
-                        const val = e.target.value;
-                        let newKg = fisDetay[u.id]?.kg || "";
-                        const match = u.isim.match(/(\d+)\s*kg/i);
-                        if (match && match[1]) {
-                            const multiplier = Number(match[1]);
-                            if (val !== "") {
-                                newKg = String(Number(val) * multiplier);
-                            } else {
-                                newKg = "";
-                            }
-                        }
-                        setFisDetay({...fisDetay, [u.id]: {...fisDetay[u.id], adet: val, kg: newKg}});
-                    };
+    const val = e.target.value;
+    let newKg = fisDetay[u.id]?.kg || "";
+    
+    // Ürün adındaki ilk sayıyı bulur (örn: "3kg", "3 kg", "1.5 lt" hepsini yakalar)
+    const match = u.isim.match(/(\d+(?:\.\d+)?)/); 
+    
+    if (match && match[1]) {
+        const multiplier = Number(match[1]);
+        if (val !== "") {
+            newKg = String(Number(val) * multiplier);
+        } else {
+            newKg = "";
+        }
+    }
+    setFisDetay({...fisDetay, [u.id]: {...fisDetay[u.id], adet: val, kg: newKg}});
+};
+                    
+                    const canliIsKova = u.isim.match(/([345])\s*kg/i);
+                    const canliMiktar = canliIsKova ? Number(fisDetay[u.id]?.adet || 0) : (Number(fisDetay[u.id]?.kg) > 0 ? Number(fisDetay[u.id]?.kg) : Number(fisDetay[u.id]?.adet || 0));
+                    const canliSatirTutar = canliMiktar * Number(fisDetay[u.id]?.fiyat || 0);
 
                     return (
                       <div key={u.id} style={{ display: 'flex', gap: '4px', alignItems: 'center', padding: '4px 6px', background: isFilled ? (editingFisId ? '#fef3c7' : '#ecfdf5') : '#f8fafc', borderRadius: '4px', border: isFilled ? (editingFisId ? '1px solid #fde68a' : '1px solid #a7f3d0') : '1px solid #e2e8f0' }}>
@@ -1414,6 +1743,7 @@ export default function App() {
                         <input placeholder="KG" type="number" step="0.01" value={fisDetay[u.id]?.kg || ""} onChange={e => setFisDetay({...fisDetay, [u.id]: {...fisDetay[u.id], kg: e.target.value}})} className="m-inp" style={{flex: "0 0 50px", width: "50px", padding: "4px 2px", textAlign: "center", background: isFilled ? "#fff" : "", fontSize: "12px", height:"24px"}} />
                         <div style={{fontSize:"12px", color:"#94a3b8", width:"8px", textAlign:"center"}}>{"x"}</div>
                         <input placeholder="Fiyat" type="number" step="0.01" value={fisDetay[u.id]?.fiyat || ""} onChange={e => setFisDetay({...fisDetay, [u.id]: {...fisDetay[u.id], fiyat: e.target.value}})} className="m-inp" style={{flex: "0 0 60px", width: "60px", padding: "4px 2px", textAlign: "right", background: isFilled ? "#fff" : "", fontSize: "12px", height:"24px"}} />
+                        <div style={{width: "55px", textAlign: "right", fontWeight: "bold", fontSize: "12px", color: canliSatirTutar > 0 ? "#059669" : "#94a3b8"}}>{canliSatirTutar > 0 ? fSayi(canliSatirTutar) : "-"}</div>
                       </div>
                     );
                   })}
@@ -1434,6 +1764,7 @@ export default function App() {
                       <input placeholder="KG" type="number" step="0.01" value={fisDetay["v_iade"]?.kg || ""} onChange={e => setFisDetay({...fisDetay, v_iade: {...fisDetay["v_iade"], kg: e.target.value}})} className="m-inp" style={{flex: "0 0 50px", width: "50px", padding: "4px 2px", textAlign: "center", background: "#fff", fontSize: "12px", height:"24px", borderColor: "#fca5a5"}} />
                       <div style={{fontSize:"12px", color:"#94a3b8", width:"8px", textAlign:"center"}}>{"x"}</div>
                       <input placeholder="Fiyat" type="number" step="0.01" value={fisDetay["v_iade"]?.fiyat || ""} onChange={e => setFisDetay({...fisDetay, v_iade: {...fisDetay["v_iade"], fiyat: e.target.value}})} className="m-inp" style={{flex: "0 0 60px", width: "60px", padding: "4px 2px", textAlign: "right", background: "#fff", fontSize: "12px", height:"24px", borderColor: "#fca5a5"}} />
+                      <div style={{width: "55px", textAlign: "right", fontWeight: "bold", fontSize: "12px", color: "#dc2626"}}>{fSayi((Number(fisDetay["v_iade"]?.kg) > 0 ? Number(fisDetay["v_iade"]?.kg) : Number(fisDetay["v_iade"]?.adet||0)) * Number(fisDetay["v_iade"]?.fiyat||0))}</div>
                     </div>
                   )}
 
@@ -1445,6 +1776,7 @@ export default function App() {
                       <input placeholder="KG" type="number" step="0.01" value={fisDetay["v_bos_kova"]?.kg || ""} onChange={e => setFisDetay({...fisDetay, v_bos_kova: {...fisDetay["v_bos_kova"], kg: e.target.value}})} className="m-inp" style={{flex: "0 0 50px", width: "50px", padding: "4px 2px", textAlign: "center", background: "#fff", fontSize: "12px", height:"24px", borderColor: "#fca5a5"}} />
                       <div style={{fontSize:"12px", color:"#94a3b8", width:"8px", textAlign:"center"}}>{"x"}</div>
                       <input placeholder="Fiyat" type="number" step="0.01" value={fisDetay["v_bos_kova"]?.fiyat || ""} onChange={e => setFisDetay({...fisDetay, v_bos_kova: {...fisDetay["v_bos_kova"], fiyat: e.target.value}})} className="m-inp" style={{flex: "0 0 60px", width: "60px", padding: "4px 2px", textAlign: "right", background: "#fff", fontSize: "12px", height:"24px", borderColor: "#fca5a5"}} />
+                      <div style={{width: "55px", textAlign: "right", fontWeight: "bold", fontSize: "12px", color: "#dc2626"}}>{fSayi((Number(fisDetay["v_bos_kova"]?.kg) > 0 ? Number(fisDetay["v_bos_kova"]?.kg) : Number(fisDetay["v_bos_kova"]?.adet||0)) * Number(fisDetay["v_bos_kova"]?.fiyat||0))}</div>
                     </div>
                   )}
 
@@ -1486,28 +1818,40 @@ export default function App() {
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#000", marginBottom: "2px" }}><span>Sayın:</span><b style={{textAlign: "right"}}>{sonFisData.bayi}</b></div>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "9px", color: "#000", marginBottom: "12px" }}><span>Fiş No:</span><b>{sonFisData.fis_no}</b></div>
                   
-                  {sonFisData.urunler.length > 0 && (
+                  {(sonFisData.urunler.length > 0 || (sonFisData.ekstraIndirimler && sonFisData.ekstraIndirimler.length > 0)) && (
                     <table style={{ width: '100%', fontSize: '11px', textAlign: 'left', borderCollapse: 'collapse', marginBottom: '12px', color: '#000' }}>
                       <thead><tr style={{ borderBottom: '1px solid #000' }}><th style={{ paddingBottom: '4px' }}>Ürün</th><th style={{ paddingBottom: '4px', textAlign: 'center' }}>Adet</th><th style={{ paddingBottom: '4px', textAlign: 'center' }}>KG</th><th style={{ paddingBottom: '4px', textAlign: 'right' }}>B.Fiyat</th><th style={{ paddingBottom: '4px', textAlign: 'right' }}>Tutar</th></tr></thead>
-                      <tbody>{sonFisData.urunler.map((u:any, i:number) => (<tr key={i}><td style={{ padding: '4px 0', borderBottom: '1px dashed #ccc' }}>{u.isim}</td><td style={{ padding: '4px 0', textAlign: 'center', borderBottom: '1px dashed #ccc' }}>{u.adet || '-'}</td><td style={{ padding: '4px 0', textAlign: 'center', borderBottom: '1px dashed #ccc' }}>{u.kg > 0 ? u.kg : '-'}</td><td style={{ padding: '4px 0', textAlign: 'right', borderBottom: '1px dashed #ccc' }}>{fSayi(u.fiyat)}</td><td style={{ padding: '4px 0', textAlign: 'right', borderBottom: '1px dashed #ccc' }}>{fSayi(u.tutar)}</td></tr>))}</tbody>
+                      <tbody>
+                        {sonFisData.urunler.map((u:any, i:number) => (
+                          <tr key={`u-${i}`}>
+                            <td style={{ padding: '4px 0', borderBottom: '1px dashed #ccc' }}>{u.isim}</td>
+                            <td style={{ padding: '4px 0', textAlign: 'center', borderBottom: '1px dashed #ccc' }}>{u.adet || '-'}</td>
+                            <td style={{ padding: '4px 0', textAlign: 'center', borderBottom: '1px dashed #ccc' }}>{u.kg > 0 ? u.kg : '-'}</td>
+                            <td style={{ padding: '4px 0', textAlign: 'right', borderBottom: '1px dashed #ccc' }}>{fSayi(u.fiyat)}</td>
+                            <td style={{ padding: '4px 0', textAlign: 'right', borderBottom: '1px dashed #ccc' }}>{fSayi(u.tutar)}</td>
+                          </tr>
+                        ))}
+                        {sonFisData.ekstraIndirimler && sonFisData.ekstraIndirimler.map((ek:any, i:number) => (
+                          <tr key={`ek-${i}`}>
+                            <td style={{ padding: '4px 0', borderBottom: '1px dashed #ccc' }}>{ek.isim}</td>
+                            <td style={{ padding: '4px 0', textAlign: 'center', borderBottom: '1px dashed #ccc' }}>{ek.adet || '-'}</td>
+                            <td style={{ padding: '4px 0', textAlign: 'center', borderBottom: '1px dashed #ccc' }}>{ek.kg > 0 ? ek.kg : '-'}</td>
+                            <td style={{ padding: '4px 0', textAlign: 'right', borderBottom: '1px dashed #ccc' }}>{fSayi(ek.fiyat)}</td>
+                            <td style={{ padding: '4px 0', textAlign: 'right', borderBottom: '1px dashed #ccc' }}>{fSayi(ek.tutar)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
                     </table>
                   )}
-                  
-                  {sonFisData.ekstraIndirimler && sonFisData.ekstraIndirimler.map((ek: any, i: number) => (
-                    <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "#000", paddingTop: "2px", fontWeight: "bold" }}>
-                      <span>{ek.isim} ({ek.miktar} {ek.birim}):</span>
-                      <b>-{fSayi(ek.tutar)}</b>
-                    </div>
-                  ))}
 
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", paddingTop: "6px", color: "#000", borderTop: "1px dashed #ccc", marginTop: "4px" }}><span>Genel Toplam:</span><b>{fSayi(sonFisData.genelToplam)} ₺</b></div>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", paddingTop: "4px", color: "#000" }}><span>Tahsil Edilen:</span><b>{fSayi(sonFisData.tahsilat)}</b></div>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", paddingTop: "4px", color: "#000" }}><span>Bu Fiş Kalan:</span><b>{fSayi(sonFisData.kalanBakiye)}</b></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", paddingTop: "4px", color: "#000" }}><span>Bu Fişten Kalan:</span><b>{fSayi(sonFisData.kalanBakiye)}</b></div>
                   
                   {sonFisData.gosterBakiye && (sonFisData.eskiBorc !== 0 || sonFisData.genelBorc !== 0) && (
                     <div style={{ marginTop: "6px", borderTop: "1px solid #000", paddingTop: "6px" }}>
                       {sonFisData.eskiBorc !== 0 && <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "#000", marginBottom: "2px" }}><span>Önceki Bakiye:</span><b>{fSayi(sonFisData.eskiBorc)} ₺</b></div>}
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", color: "#000", fontWeight: "bold" }}><span>TOPLAM BORÇ:</span><b>{fSayi(sonFisData.genelBorc)} ₺</b></div>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", color: "#000", fontWeight: "bold" }}><span>GENEL TOPLAM BORÇ:</span><b>{fSayi(sonFisData.genelBorc)} ₺</b></div>
                     </div>
                   )}
                   {sonFisData.teslim_alan && (
@@ -1524,7 +1868,7 @@ export default function App() {
                 
                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', background: '#e2e8f0', padding: '8px', borderRadius: '6px', cursor: 'pointer', color: '#1e293b', fontWeight: 'bold' }}>
                   <input type="checkbox" checked={sonFisData.gosterBakiye} onChange={e => setSonFisData({...sonFisData, gosterBakiye: e.target.checked})} style={{ width: '16px', height: '16px' }} />
-                  Fiş Çıktısında Müşteriye Toplam Borcu Göster
+                  Fiş Çıktısında Müşteriye Genel Toplam Borcu Göster
                 </label>
 
                 <div style={{ display: "flex", gap: "6px" }}>
@@ -1568,7 +1912,7 @@ export default function App() {
                </div>
                <div style={{ padding: "15px", display: "flex", flexDirection: "column", gap: "10px" }}>
                  <div style={{ display: "flex", gap: "8px" }}>
-                    <input type="date" value={tahsilatForm.tarih} onChange={e => setTahsilatForm({ ...tahsilatForm, tarih: e.target.value })} className="m-inp" style={{ flex: 1 }} />
+                    <input type="date" value={tahsilatForm.tarih} onChange={e => setTahsilatForm({ ...tahsilatForm, tarih: e.target.value })} className="m-inp date-click" style={{ flex: 1 }} />
                     <input list="bayiler-tahsilat" placeholder="Müşteri/Bayi Seç..." value={tahsilatForm.bayi} onChange={e => setTahsilatForm({ ...tahsilatForm, bayi: e.target.value })} className="m-inp" style={{ flex: 2, fontWeight: "bold" }} />
                     <datalist id="bayiler-tahsilat">
                       {bayiler.map(b => <option key={b.id} value={b.isim}>{b.isim}</option>)}
@@ -1600,7 +1944,7 @@ export default function App() {
               </div>
               <div style={{ padding: "15px", display: "flex", flexDirection: "column", gap: "10px" }}>
                 <div style={{ display: "flex", gap: "8px" }}>
-                   <input type="date" value={giderForm.tarih} onChange={e => setGiderForm({ ...giderForm, tarih: e.target.value })} className="m-inp" style={{ flex: 1 }} />
+                   <input type="date" value={giderForm.tarih} onChange={e => setGiderForm({ ...giderForm, tarih: e.target.value })} className="m-inp date-click" style={{ flex: 1 }} />
                    <select value={giderForm.tur} onChange={e => setGiderForm({ ...giderForm, tur: e.target.value })} className="m-inp" style={{ flex: 2, fontWeight: "bold" }}>
                      {giderTurleri.map(t => <option key={t} value={t}>{t}</option>)}
                    </select>
@@ -1625,7 +1969,7 @@ export default function App() {
               </div>
               <div style={{ padding: "15px", display: "flex", flexDirection: "column", gap: "10px" }}>
                 <div style={{ display: "flex", gap: "8px" }}>
-                   <input type="date" value={sutForm.tarih} onChange={e => setSutForm({ ...sutForm, tarih: e.target.value })} className="m-inp" style={{ flex: 1 }} />
+                   <input type="date" value={sutForm.tarih} onChange={e => setSutForm({ ...sutForm, tarih: e.target.value })} className="m-inp date-click" style={{ flex: 1 }} />
                    <select value={sutForm.ciftlik} onChange={e => setSutForm({ ...sutForm, ciftlik: e.target.value })} className="m-inp" style={{ flex: 2, fontWeight: "bold" }}>
                      <option value="">Çiftlik Seç...</option>
                      {tedarikciler.map(t => <option key={t.id} value={t.isim}>{t.isim}</option>)}
@@ -1654,7 +1998,7 @@ export default function App() {
                 <button onClick={() => setIsUretimModalOpen(false)} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#94a3b8", padding: 0 }}>✕</button>
               </div>
               <div style={{ padding: "10px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
-                <input type="date" value={uretimForm.tarih} onChange={e => setUretimForm({ ...uretimForm, tarih: e.target.value })} className="m-inp small-inp" style={{ width: "110px", fontWeight: "bold" }} />
+                <input type="date" value={uretimForm.tarih} onChange={e => setUretimForm({ ...uretimForm, tarih: e.target.value })} className="m-inp small-inp date-click" style={{ width: "110px", fontWeight: "bold" }} />
                 
                 <div style={{ border: "1px solid #e2e8f0", borderRadius: "6px", padding: "8px", background: "#f8fafc" }}>
                   <h4 style={{margin: "0 0 8px", fontSize: "11px", color: "#64748b"}}>⬇️ GİREN HAMMADDELER (Maliyet)</h4>
@@ -1792,6 +2136,10 @@ export default function App() {
         #root { display: block !important; padding: 0 !important; margin: 0 auto !important; width: 100% !important; text-align: left !important; }
         input::placeholder { color: #94a3b8 !important; opacity: 1; }
         
+        /* TARİH KUTUSU TAKVİM HER YERDEN AÇILMA DESTEĞİ */
+        input[type="date"] { position: relative; cursor: pointer; }
+        input[type="date"]::-webkit-calendar-picker-indicator { position: absolute; top: 0; left: 0; right: 0; bottom: 0; width: auto; height: auto; color: transparent; background: transparent; cursor: pointer; }
+
         .app-container { max-width: 800px; margin: 0 auto; width: 100%; min-height: 100vh; background: #f8fafc; position: relative; overflow-x: hidden; }
         
         .header-style { display: flex; justify-content: space-between; padding: 12px 0; background: #fff; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; z-index: 50; width: 100%; align-items: center; }
@@ -1837,7 +2185,11 @@ export default function App() {
         .dropdown-menu-list .dropdown-item { padding: 8px 12px; text-align: left; background: none; border: none; font-size: 12px; font-weight: bold; color: #475569; cursor: pointer; width: 100%; border-radius: 4px; }
         .dropdown-menu-list .dropdown-item:hover { background: #f1f5f9; }
 
+<<<<<<< HEAD
+        /* YATAY İKONLU 3 NOKTA MENÜSÜ */
+=======
         /* YATAY İKONLU 3 NOKTA MENÜSÜ (Taşmayı Engellemek İçin) */
+>>>>>>> 207ec744598892f3d9df59b274a43ac5c29713f0
         .dropdown-menu { position: absolute; right: 30px; top: 50%; transform: translateY(-50%); background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); z-index: 100; display: flex; flex-direction: row; padding: 4px; gap: 8px; }
         .dropdown-item-icon { background: none; border: none; cursor: pointer; font-size: 16px; padding: 6px; border-radius: 4px; transition: background 0.1s; display: flex; align-items: center; justify-content: center;}
         .dropdown-item-icon:hover { background: #f1f5f9; }
