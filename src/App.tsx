@@ -1439,11 +1439,70 @@ async function handleCopKutusunuTemizle() {
                 <button onClick={() => setIsFisModalOpen(false)} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#94a3b8", padding: 0, lineHeight: 1 }}>✕</button>
               </div>
               <div style={{ padding: "10px 12px", overflowY: "auto", flex: 1 }}>
-                <div style={{display: "flex", gap: "6px", marginBottom: "12px"}}>
-                  <input type="date" value={fisUst.tarih} onChange={e => setFisUst({ ...fisUst, tarih: e.target.value })} className="m-inp date-click" style={{flex: "0 0 100px", padding: "6px 8px", fontSize: "13px"}} />
-                  <input list="bayiler-list" placeholder="Bayi Seç / Ara..." value={fisUst.bayi} onChange={e => { setFisUst({ ...fisUst, bayi: e.target.value }); if (bayiler.find(b => b.isim === e.target.value)) { handleBayiSecimi(e.target.value); } }} className="m-inp grow-inp" style={{fontWeight: "bold", padding: "6px 8px", fontSize: "13px"}} />
-                  <datalist id="bayiler-list">{bayiler.map(b => <option key={b.id} value={b.isim}>{b.isim}</option>)}</datalist>
-                </div>
+                <div style={{ display: "flex", gap: "6px", marginBottom: "12px", position: "relative" }}>
+  {/* Tarih Seçici */}
+  <input 
+    type="date" 
+    value={fisUst.tarih} 
+    onChange={e => setFisUst({ ...fisUst, tarih: e.target.value })} 
+    className="m-inp date-click" 
+    style={{ flex: "0 0 100px", padding: "6px 8px", fontSize: "13px" }} 
+  />
+
+  {/* Akıllı Bayi Seçici Konteynırı */}
+  <div style={{ position: "relative", flex: 1 }}>
+    <input 
+      placeholder="Bayi Seç / Ara..." 
+      value={fisUst.bayi} 
+      onChange={e => { 
+        setFisUst({ ...fisUst, bayi: e.target.value });
+        const eslesen = bayiler.find(b => b.isim.toLowerCase() === e.target.value.toLowerCase());
+        if (eslesen) handleBayiSecimi(eslesen.isim);
+      }} 
+      className="m-inp grow-inp" 
+      style={{ fontWeight: "bold", padding: "6px 8px", fontSize: "13px", width: "100%" }} 
+    />
+
+    {/* 👇 KLAVYENİN ÜSTÜNDE AÇILAN LİSTE 👇 */}
+    {fisUst.bayi && !bayiler.some(b => b.isim === fisUst.bayi) && (
+      <div style={{ 
+        position: "absolute", 
+        top: "100%", 
+        left: 0, 
+        right: 0, 
+        background: "#fff", 
+        border: "1px solid #2563eb", 
+        borderRadius: "0 0 8px 8px", 
+        zIndex: 9999, 
+        maxHeight: "200px", 
+        overflowY: "auto",
+        boxShadow: "0 10px 15px -3px rgba(0,0,0,0.2)" 
+      }}>
+        {bayiler
+          .filter(b => b.isim.toLowerCase().includes(fisUst.bayi.toLowerCase()))
+          .map(b => (
+            <div 
+              key={b.id} 
+              onClick={() => {
+                setFisUst({ ...fisUst, bayi: b.isim });
+                handleBayiSecimi(b.isim);
+              }}
+              style={{ 
+                padding: "12px 10px", 
+                borderBottom: "1px solid #f1f5f9", 
+                fontSize: "14px", 
+                cursor: "pointer",
+                color: "#1e293b" 
+              }}
+            >
+              {b.isim}
+            </div>
+          ))
+        }
+      </div>
+    )}
+  </div>
+</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px' }}>
                   {urunler.map(u => {
                     const isimLower = u.isim.toLowerCase();
