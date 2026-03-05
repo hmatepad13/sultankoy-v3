@@ -521,7 +521,8 @@ export default function App() {
     const yeniDetay = { ...fisDetay };
     
     urunler.forEach(u => {
-      const bayiSatislari = periodSatisList.filter(s => s.bayi === secilenBayi && s.urun === u.isim);
+      // SADECE AKTİF DÖNEME DEĞİL, TÜM GEÇMİŞ SATIŞLARA BAKILACAK
+      const bayiSatislari = satisList.filter(s => s.bayi === secilenBayi && s.urun === u.isim);
       let hafizaFiyat = u.fiyat || "";
       if (bayiSatislari.length > 0) {
         const sonSatis = bayiSatislari.sort((a,b) => new Date(b.tarih).getTime() - new Date(a.tarih).getTime())[0];
@@ -530,14 +531,14 @@ export default function App() {
       if (!editingFisId) yeniDetay[u.id] = { adet: fisDetay[u.id]?.adet || "", kg: fisDetay[u.id]?.kg || "", fiyat: String(hafizaFiyat) };
     });
 
-    const bayiIadeler = periodSatisList.filter(s => s.bayi === secilenBayi && s.urun === "İade");
+    const bayiIadeler = satisList.filter(s => s.bayi === secilenBayi && s.urun === "İade");
     let hafizaIadeFiyat = "15";
     if (bayiIadeler.length > 0) {
         const sonIade = bayiIadeler.sort((a,b) => new Date(b.tarih).getTime() - new Date(a.tarih).getTime())[0];
         hafizaIadeFiyat = String(Math.abs(Number(sonIade.fiyat)));
     }
     
-    const bayiKovalar = periodSatisList.filter(s => s.bayi === secilenBayi && s.urun === "Boş Kova");
+    const bayiKovalar = satisList.filter(s => s.bayi === secilenBayi && s.urun === "Boş Kova");
     let hafizaKovaFiyat = "15";
     if (bayiKovalar.length > 0) {
         const sonKova = bayiKovalar.sort((a,b) => new Date(b.tarih).getTime() - new Date(a.tarih).getTime())[0];
