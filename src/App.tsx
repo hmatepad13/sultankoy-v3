@@ -1524,18 +1524,23 @@ async function handleCopKutusunuTemizle() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}><span style={{color: "#0f172a", fontWeight: "bold", fontSize: "14px"}}>Genel Toplam:</span><b style={{color: "#0f172a", fontSize: "16px"}}>{fSayi(fisCanliToplam)} ₺</b></div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}><span style={{color: "#2563eb", fontWeight: "bold", fontSize: "13px"}}>Tahsil Edilen:</span><input type="number" placeholder="Alınan..." value={fisUst.tahsilat} onChange={e => setFisUst({ ...fisUst, tahsilat: e.target.value })} className="m-inp" style={{ flex: "0 0 90px", padding: "4px 6px", textAlign: "right", borderColor: "#bfdbfe", fontSize: "13px", height: "28px" }} /></div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px", borderTop: "1px dashed #cbd5e1", paddingTop: "6px" }}><span style={{color: (fisCanliToplam - Number(fisUst.tahsilat || 0)) > 0 ? "#dc2626" : "#059669", fontWeight: "bold", fontSize: "13px"}}>BU FİŞTEN KALAN:</span><b style={{color: (fisCanliToplam - Number(fisUst.tahsilat || 0)) > 0 ? "#dc2626" : "#059669", fontSize: "14px"}}>{fSayi(fisCanliToplam - Number(fisUst.tahsilat || 0))} ₺</b></div>
-                {/* 📸 FOTOĞRAF / KAMERA YÜKLEME ALANI */}
-              <div style={{ marginBottom: "12px", padding: "8px", background: "#fef2f2", border: "1px dashed #fca5a5", borderRadius: "8px" }}>
-                  <div style={{ marginBottom: "12px", padding: "8px", background: "#fef2f2", border: "1px dashed #fca5a5", borderRadius: "8px" }}>
-  <label style={{ display: "block", marginBottom: "6px", fontSize: "12px", color: "#dc2626", fontWeight: "bold" }}>📸 Kağıt Fiş Fotoğrafı Ekle (Opsiyonel)</label>
+               {/* 📸 FOTOĞRAF / KAMERA YÜKLEME ALANI */}
+<div style={{ marginBottom: "12px", padding: "8px", background: "#fef2f2", border: "1px dashed #fca5a5", borderRadius: "8px" }}>
+  <label style={{ display: "block", marginBottom: "6px", fontSize: "12px", color: "#dc2626", fontWeight: "bold" }}>
+    📸 Kağıt Fiş Fotoğrafı Ekle (Opsiyonel)
+  </label>
   <input 
       type="file" 
       accept="image/*" 
-      // capture satırını sildik, böylece hem kamera hem galeri açılacak
+      /* capture satırı tamamen yok, telefon artık seçim sunmak zorunda */
       onChange={(e) => setSecilenDosya(e.target.files?.[0] || null)}
       style={{ fontSize: "12px", width: "100%", color: "#475569" }}
   />
-  {secilenDosya && <div style={{ fontSize: "11px", color: "#059669", marginTop: "5px", fontWeight: "bold" }}>✅ Fotoğraf hazır: {secilenDosya.name}</div>}
+  {secilenDosya && (
+    <div style={{ fontSize: "11px", color: "#059669", marginTop: "5px", fontWeight: "bold" }}>
+      ✅ Fotoğraf hazır: {secilenDosya.name}
+    </div>
+  )}
 </div>
                 {aktifBayi && (
                   <>
