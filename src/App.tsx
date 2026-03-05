@@ -61,11 +61,15 @@ export default function App() {
   const [digerModalConfig, setDigerModalConfig] = useState<{isOpen: boolean, type: 'kasa_devir'|null}>({isOpen: false, type: null});
   const [digerForm, setDigerForm] = useState({tarih: getLocalDateString(), tutar: "", aciklama: ""});
 
-  // YENİ AYARLAR STATE'İ (Çöp Kutusu Eklendi)
+ // YENİ AYARLAR STATE'İ (Çöp Kutusu Eklendi)
   const [activeAyarTab, setActiveAyarTab] = useState<"musteriler" | "urunler" | "ciftlikler" | "cop_kutusu">("musteriler");
   const [trashPage, setTrashPage] = useState(1); // Çöp kutusu sayfa numarası
   const [yeniAyarDeger, setYeniAyarDeger] = useState("");
   const [yeniUrunFiyat, setYeniUrunFiyat] = useState("");
+
+  // FOTOĞRAF YÜKLEME İÇİN EKLENEN YENİ STATELER
+  const [secilenDosya, setSecilenDosya] = useState<File | null>(null);
+  const [gorselModalUrl, setGorselModalUrl] = useState<string | null>(null);
 
   const bugun = getLocalDateString();
 
@@ -621,7 +625,8 @@ async function handleCopKutusunuTemizle() {
     const kovaFiyat = Number(fisDetay["v_bos_kova"]?.fiyat) || 0;
     const kovaMiktar = kovaKg > 0 ? kovaKg : kovaAdet;
 
-    if (eklenecekUrunler.length === 0 && iadeMiktar === 0 && kovaMiktar === 0) return alert("Fişte işlem yok! Ürün, iade veya kova girin.");
+    // FOTOĞRAF KONTROLÜ EKLENDİ (!secilenDosya)
+    if (eklenecekUrunler.length === 0 && iadeMiktar === 0 && kovaMiktar === 0 && !secilenDosya) return alert("Fişte işlem yok! Ürün, iade, kova veya fotoğraf girin.");
 
     const ortakFisNo = editingFisNo || `F-${Date.now().toString().slice(-6)}${Math.floor(Math.random()*1000)}`;
     const tahsilat = Number(fisUst.tahsilat) || 0;
@@ -633,7 +638,25 @@ async function handleCopKutusunuTemizle() {
         fisUst.aciklama
     ].filter(Boolean).join(" - ");
 
-    const fisMaster = { fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, toplam_tutar: fisCanliToplam, tahsilat: tahsilat, kalan_bakiye: kalanBakiye, odeme_turu: fisUst.odeme_turu, aciklama: genelNot, ekleyen: username };
+    // YENİ EKLENEN FOTOĞRAF YÜKLEME KISMI
+    let yuklenenGorselLink = null;
+    if (secilenDosya) {
+        const dosyaAdi = `${Date.now()}-${secilenDosya.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
+        const { error: uploadError } = await supabase.storage.from('fis_gorselleri').upload(dosyaAdi, secilenDosya);
+        
+        if (uploadError) {
+            alert("Fotoğraf yüklenirken hata oluştu: " + uploadError.message);
+            return;
+        }
+        
+        const { data: publicUrlData } = supabase.storage.from('fis_gorselleri').getPublicUrl(dosyaAdi);
+        yuklenenGorselLink = publicUrlData.publicUrl;
+    }
+
+    const fisMaster: any = { fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, toplam_tutar: fisCanliToplam, tahsilat: tahsilat, kalan_bakiye: kalanBakiye, odeme_turu: fisUst.odeme_turu, aciklama: genelNot, ekleyen: username };
+    
+    // FOTOĞRAF LİNKİ VARSA VERİTABANINA EKLİYORUZ
+    if (yuklenenGorselLink) fisMaster.fis_gorseli = yuklenenGorselLink;
 
     let savedFisId = editingFisId;
 
@@ -656,20 +679,17 @@ async function handleCopKutusunuTemizle() {
         return { fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, urun: u.isim, adet: adet, fiyat: fiyat, birim: kgEslesme ? Number(kgEslesme[1]) : 1, toplam_kg: hesaplananKg, tutar: tutar, bos_kova: 0, aciklama: `Bağlı Fiş: ${ortakFisNo}`, ekleyen: username };
       });
 
-      if (iadeMiktar > 0) {
-        insertArray.push({ fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, urun: "İade", adet: iadeAdet, fiyat: -iadeFiyat, birim: 1, toplam_kg: iadeKg, tutar: -(iadeMiktar * iadeFiyat), bos_kova: 0, aciklama: `Bağlı Fiş: ${ortakFisNo}`, ekleyen: username });
-      }
+      if (iadeMiktar > 0) insertArray.push({ fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, urun: "İade", adet: iadeAdet, fiyat: -iadeFiyat, birim: 1, toplam_kg: iadeKg, tutar: -(iadeMiktar * iadeFiyat), bos_kova: 0, aciklama: `Bağlı Fiş: ${ortakFisNo}`, ekleyen: username });
+      if (kovaMiktar > 0) insertArray.push({ fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, urun: "Boş Kova", adet: kovaAdet, fiyat: -kovaFiyat, birim: 1, toplam_kg: kovaKg, tutar: -(kovaMiktar * kovaFiyat), bos_kova: kovaAdet, aciklama: `Bağlı Fiş: ${ortakFisNo}`, ekleyen: username });
 
-      if (kovaMiktar > 0) {
-        insertArray.push({ fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, urun: "Boş Kova", adet: kovaAdet, fiyat: -kovaFiyat, birim: 1, toplam_kg: kovaKg, tutar: -(kovaMiktar * kovaFiyat), bos_kova: kovaAdet, aciklama: `Bağlı Fiş: ${ortakFisNo}`, ekleyen: username });
-      }
-
-      const { error: errDetay } = await supabase.from("satis_giris").insert(insertArray);
-      if (errDetay) {
-        alert("Detaylar kaydedilirken hata oluştu! Eski verileriniz geri yükleniyor...");
-        const kurtarilacakVeriler = eskiDetaylar.map(eski => { const { id, ...gerisi } = eski; return gerisi; });
-        await supabase.from("satis_giris").insert(kurtarilacakVeriler);
-        verileriGetir("satis"); return; 
+      if (insertArray.length > 0) {
+          const { error: errDetay } = await supabase.from("satis_giris").insert(insertArray);
+          if (errDetay) {
+            alert("Detaylar kaydedilirken hata oluştu! Eski verileriniz geri yükleniyor...");
+            const kurtarilacakVeriler = eskiDetaylar.map(eski => { const { id, ...gerisi } = eski; return gerisi; });
+            await supabase.from("satis_giris").insert(kurtarilacakVeriler);
+            verileriGetir("satis"); return; 
+          }
       }
     } else {
       const { data: newFisData, error: errFisIns } = await supabase.from("satis_fisleri").insert(fisMaster).select().single();
@@ -688,21 +708,21 @@ async function handleCopKutusunuTemizle() {
         return { fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, urun: u.isim, adet: adet, fiyat: fiyat, birim: kgEslesme ? Number(kgEslesme[1]) : 1, toplam_kg: hesaplananKg, tutar: tutar, bos_kova: 0, aciklama: `Bağlı Fiş: ${ortakFisNo}`, ekleyen: username };
       });
 
-      if (iadeMiktar > 0) {
-        insertArray.push({ fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, urun: "İade", adet: iadeAdet, fiyat: -iadeFiyat, birim: 1, toplam_kg: iadeKg, tutar: -(iadeMiktar * iadeFiyat), bos_kova: 0, aciklama: `Bağlı Fiş: ${ortakFisNo}`, ekleyen: username });
-      }
+      if (iadeMiktar > 0) insertArray.push({ fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, urun: "İade", adet: iadeAdet, fiyat: -iadeFiyat, birim: 1, toplam_kg: iadeKg, tutar: -(iadeMiktar * iadeFiyat), bos_kova: 0, aciklama: `Bağlı Fiş: ${ortakFisNo}`, ekleyen: username });
+      if (kovaMiktar > 0) insertArray.push({ fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, urun: "Boş Kova", adet: kovaAdet, fiyat: -kovaFiyat, birim: 1, toplam_kg: kovaKg, tutar: -(kovaMiktar * kovaFiyat), bos_kova: kovaAdet, aciklama: `Bağlı Fiş: ${ortakFisNo}`, ekleyen: username });
 
-      if (kovaMiktar > 0) {
-        insertArray.push({ fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, urun: "Boş Kova", adet: kovaAdet, fiyat: -kovaFiyat, birim: 1, toplam_kg: kovaKg, tutar: -(kovaMiktar * kovaFiyat), bos_kova: kovaAdet, aciklama: `Bağlı Fiş: ${ortakFisNo}`, ekleyen: username });
-      }
-
-      const { error: errDetay } = await supabase.from("satis_giris").insert(insertArray);
-      if (errDetay && savedFisId) {
-          await supabase.from("satis_fisleri").delete().eq("id", savedFisId);
-          return alert("Sistemsel Hata: Detaylar kaydedilemediği için Fiş tamamen iptal edildi. Lütfen tekrar deneyin. Hata: " + errDetay.message);
+      if (insertArray.length > 0) {
+          const { error: errDetay } = await supabase.from("satis_giris").insert(insertArray);
+          if (errDetay && savedFisId) {
+              await supabase.from("satis_fisleri").delete().eq("id", savedFisId);
+              return alert("Sistemsel Hata: Detaylar kaydedilemediği için Fiş tamamen iptal edildi. Lütfen tekrar deneyin. Hata: " + errDetay.message);
+          }
       }
     }
     
+    // YENİ: İŞLEM BİTİNCE FOTOĞRAFI HAFIZADAN SİLİYORUZ
+    setSecilenDosya(null);
+
     const ekstraIndirimler = [];
     if (iadeMiktar > 0) ekstraIndirimler.push({ isim: "İade", adet: iadeAdet, kg: iadeKg, fiyat: iadeFiyat, tutar: -(iadeMiktar * iadeFiyat) });
     if (kovaMiktar > 0) ekstraIndirimler.push({ isim: "Boş Kova", adet: kovaAdet, kg: kovaKg, fiyat: kovaFiyat, tutar: -(kovaMiktar * kovaFiyat) });
@@ -1022,10 +1042,19 @@ async function handleCopKutusunuTemizle() {
 </td>
             <td style={{ textAlign: "center", color: "#64748b" }}>{f.ekleyen ? f.ekleyen.split('@')[0] : "-"}</td>
             <td className="actions-cell" style={{position: 'relative'}}>
+               {/* EĞER FOTOĞRAF VARSA İKON ÇIKACAK */}
+               {(f as any).fis_gorseli && (
+                   <span onClick={() => setGorselModalUrl((f as any).fis_gorseli)} style={{cursor:'pointer', marginRight:'8px', fontSize:'16px'}} title="Fotoğrafı Gör">🖼️</span>
+               )}
+               
                <button onClick={(e) => { e.stopPropagation(); setOpenDropdown({ type: 'satis', id: f.id as string }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', padding: '0 8px', color: '#64748b' }}>⋮</button>
                {openDropdown?.type === 'satis' && openDropdown.id === f.id && (
                   <div className="dropdown-menu">
                      {f.bayi !== "SİSTEM İŞLEMİ" && <button title="Görüntüle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); handleFisDetayGoster(f); }}>🔍</button>}
+                     
+                     {/* MENÜ İÇİNE DE FOTOĞRAF GÖR BUTONU EKLENDİ */}
+                     {(f as any).fis_gorseli && <button title="Fotoğrafı Gör" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); setGorselModalUrl((f as any).fis_gorseli); }}>🖼️</button>}
+
                      {f.bayi !== "SİSTEM İŞLEMİ" && <button title="Düzenle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); handleFisDuzenle(f); }}>✏️</button>}
                      <button title="Sil" className="dropdown-item-icon" style={{ color: '#dc2626' }} onClick={() => { setOpenDropdown(null); handleFisSil(f); }}>🗑️</button>
                   </div>
@@ -1495,7 +1524,18 @@ async function handleCopKutusunuTemizle() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}><span style={{color: "#0f172a", fontWeight: "bold", fontSize: "14px"}}>Genel Toplam:</span><b style={{color: "#0f172a", fontSize: "16px"}}>{fSayi(fisCanliToplam)} ₺</b></div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}><span style={{color: "#2563eb", fontWeight: "bold", fontSize: "13px"}}>Tahsil Edilen:</span><input type="number" placeholder="Alınan..." value={fisUst.tahsilat} onChange={e => setFisUst({ ...fisUst, tahsilat: e.target.value })} className="m-inp" style={{ flex: "0 0 90px", padding: "4px 6px", textAlign: "right", borderColor: "#bfdbfe", fontSize: "13px", height: "28px" }} /></div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px", borderTop: "1px dashed #cbd5e1", paddingTop: "6px" }}><span style={{color: (fisCanliToplam - Number(fisUst.tahsilat || 0)) > 0 ? "#dc2626" : "#059669", fontWeight: "bold", fontSize: "13px"}}>BU FİŞTEN KALAN:</span><b style={{color: (fisCanliToplam - Number(fisUst.tahsilat || 0)) > 0 ? "#dc2626" : "#059669", fontSize: "14px"}}>{fSayi(fisCanliToplam - Number(fisUst.tahsilat || 0))} ₺</b></div>
-                
+                {/* 📸 FOTOĞRAF / KAMERA YÜKLEME ALANI */}
+              <div style={{ marginBottom: "12px", padding: "8px", background: "#fef2f2", border: "1px dashed #fca5a5", borderRadius: "8px" }}>
+                  <label style={{ display: "block", marginBottom: "6px", fontSize: "12px", color: "#dc2626", fontWeight: "bold" }}>📸 Kağıt Fiş Fotoğrafı Ekle (Opsiyonel)</label>
+                  <input 
+                      type="file" 
+                      accept="image/*" 
+                      capture="environment" 
+                      onChange={(e) => setSecilenDosya(e.target.files?.[0] || null)}
+                      style={{ fontSize: "12px", width: "100%", color: "#475569" }}
+                  />
+                  {secilenDosya && <div style={{ fontSize: "11px", color: "#059669", marginTop: "5px", fontWeight: "bold" }}>✅ Fotoğraf hazır: {secilenDosya.name}</div>}
+              </div>
                 {aktifBayi && (
                   <>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}><span style={{color: "#64748b", fontSize: "11px"}}>Önceki Bakiye:</span><b style={{color: "#64748b", fontSize: "12px"}}>{fSayi(eskiBorc)} ₺</b></div>
@@ -1729,6 +1769,24 @@ async function handleCopKutusunuTemizle() {
             </div>
           </div>
         )}
+
+        {/* BÜYÜK BOY FOTOĞRAF GÖSTERME MODALI BURAYA EKLENDİ */}
+        {gorselModalUrl && (
+          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: "20px" }} onClick={() => setGorselModalUrl(null)}>
+            <div style={{ backgroundColor: "#fff", padding: "10px", borderRadius: "12px", position: "relative", maxWidth: "90vw", maxHeight: "90vh", display: "flex", flexDirection: "column" }} onClick={e => e.stopPropagation()}>
+              <button onClick={() => setGorselModalUrl(null)} style={{ position: "absolute", top: "-15px", right: "-15px", background: "#ef4444", color: "#fff", border: "2px solid #fff", borderRadius: "50%", width: "35px", height: "35px", cursor: "pointer", fontWeight: "bold", fontSize: "16px", boxShadow: "0 4px 6px rgba(0,0,0,0.3)" }}>✕</button>
+              
+              <div style={{ overflow: "auto", display: "flex", justifyContent: "center", alignItems: "center" }}>
+                 <img src={gorselModalUrl} alt="Fiş Görseli" style={{ maxWidth: "100%", maxHeight: "75vh", objectFit: "contain", borderRadius: "4px" }} />
+              </div>
+              
+              <a href={gorselModalUrl} target="_blank" rel="noreferrer" style={{ marginTop: "15px", padding: "10px", textAlign: "center", background: "#f1f5f9", color: "#2563eb", fontSize: "14px", textDecoration: "none", fontWeight: "bold", borderRadius: "8px", border: "1px solid #cbd5e1", display: "block" }}>
+                📥 Tam Boyutta Aç / İndir
+              </a>
+            </div>
+          </div>
+        )}
+
       </main>
 
       <footer className="fixed-nav main-content-area">
