@@ -119,9 +119,6 @@ export default function App() {
   };
 
   useEffect(() => {
-    const savedUser = localStorage.getItem("user");
-    if (savedUser) setUsername(savedUser);
-
     let viewportMeta = document.querySelector('meta[name="viewport"]');
     if (!viewportMeta) {
       viewportMeta = document.createElement('meta');
@@ -137,8 +134,23 @@ export default function App() {
       document.head.appendChild(script);
     }
 
-    supabase.auth.getSession().then(({ data: { session: s } }: any) => setSession(s));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: any, s: any) => setSession(s));
+    // Oturum bilgisini Supabase'den kesin olarak alan fonksiyon
+    const handleSession = (s: any) => {
+      setSession(s);
+      if (s && s.user && s.user.email) {
+        // Supabase email olarak tuttuğu için '@' işaretinden öncesini isim olarak alıyoruz
+        const gercekIsim = s.user.email.split('@')[0];
+        setUsername(gercekIsim);
+        localStorage.setItem('user', gercekIsim); // Hafızayı da güncelliyoruz
+      } else {
+        const savedUser = localStorage.getItem("user");
+        if (savedUser) setUsername(savedUser);
+      }
+    };
+
+    supabase.auth.getSession().then(({ data: { session: s } }: any) => handleSession(s));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: any, s: any) => handleSession(s));
+    
     return () => subscription.unsubscribe();
   }, []);
 
