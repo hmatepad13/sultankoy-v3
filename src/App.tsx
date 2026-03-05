@@ -1526,16 +1526,17 @@ async function handleCopKutusunuTemizle() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px", borderTop: "1px dashed #cbd5e1", paddingTop: "6px" }}><span style={{color: (fisCanliToplam - Number(fisUst.tahsilat || 0)) > 0 ? "#dc2626" : "#059669", fontWeight: "bold", fontSize: "13px"}}>BU FİŞTEN KALAN:</span><b style={{color: (fisCanliToplam - Number(fisUst.tahsilat || 0)) > 0 ? "#dc2626" : "#059669", fontSize: "14px"}}>{fSayi(fisCanliToplam - Number(fisUst.tahsilat || 0))} ₺</b></div>
                 {/* 📸 FOTOĞRAF / KAMERA YÜKLEME ALANI */}
               <div style={{ marginBottom: "12px", padding: "8px", background: "#fef2f2", border: "1px dashed #fca5a5", borderRadius: "8px" }}>
-                  <label style={{ display: "block", marginBottom: "6px", fontSize: "12px", color: "#dc2626", fontWeight: "bold" }}>📸 Kağıt Fiş Fotoğrafı Ekle (Opsiyonel)</label>
-                  <input 
-                      type="file" 
-                      accept="image/*" 
-                      capture="environment" 
-                      onChange={(e) => setSecilenDosya(e.target.files?.[0] || null)}
-                      style={{ fontSize: "12px", width: "100%", color: "#475569" }}
-                  />
-                  {secilenDosya && <div style={{ fontSize: "11px", color: "#059669", marginTop: "5px", fontWeight: "bold" }}>✅ Fotoğraf hazır: {secilenDosya.name}</div>}
-              </div>
+                  <div style={{ marginBottom: "12px", padding: "8px", background: "#fef2f2", border: "1px dashed #fca5a5", borderRadius: "8px" }}>
+  <label style={{ display: "block", marginBottom: "6px", fontSize: "12px", color: "#dc2626", fontWeight: "bold" }}>📸 Kağıt Fiş Fotoğrafı Ekle (Opsiyonel)</label>
+  <input 
+      type="file" 
+      accept="image/*" 
+      // capture satırını sildik, böylece hem kamera hem galeri açılacak
+      onChange={(e) => setSecilenDosya(e.target.files?.[0] || null)}
+      style={{ fontSize: "12px", width: "100%", color: "#475569" }}
+  />
+  {secilenDosya && <div style={{ fontSize: "11px", color: "#059669", marginTop: "5px", fontWeight: "bold" }}>✅ Fotoğraf hazır: {secilenDosya.name}</div>}
+</div>
                 {aktifBayi && (
                   <>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}><span style={{color: "#64748b", fontSize: "11px"}}>Önceki Bakiye:</span><b style={{color: "#64748b", fontSize: "12px"}}>{fSayi(eskiBorc)} ₺</b></div>
