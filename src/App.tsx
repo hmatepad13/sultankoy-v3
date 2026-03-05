@@ -192,7 +192,16 @@ export default function App() {
           console.warn("Çöp kutusuna atılamadı.");
       }
   }
-
+async function handleCopKutusunuTemizle() {
+      if (username !== 'admin') return alert("Bu işlem için yetkiniz yok.");
+      if (confirm("⚠️ DİKKAT: Çöp kutusundaki TÜM kayıtlar kalıcı olarak silinecek! Onaylıyor musunuz?")) {
+          const { error } = await supabase.from("cop_kutusu").delete().not("id", "is", null);
+          if (error) return alert("Hata: " + error.message);
+          
+          if (typeof setTrashPage !== 'undefined') setTrashPage(1); 
+          verileriGetir("cop");
+      }
+  }
   async function verileriGetir(hedef: "hepsi" | "satis" | "sut" | "gider" | "uretim" | "ayar" | "cop" = "hepsi") {
     try {
       if (hedef === "hepsi" || hedef === "ayar") {
