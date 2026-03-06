@@ -88,10 +88,6 @@ export default function App() {
   // FOTOĞRAF YÜKLEME İÇİN EKLENEN YENİ STATELER
   const [secilenDosya, setSecilenDosya] = useState<File | null>(null);
   const [gorselModalUrl, setGorselModalUrl] = useState<string | null>(null);
-
-  // 👇 YENİ: BAYİ LİSTESİ HAFIZASI 👇
-  const [bayiListeAcik, setBayiListeAcik] = useState(false);
-
   const bugun = getLocalDateString();
 
   // --- SÜT STATE'LERİ ---
