@@ -39,6 +39,44 @@ export default function App() {
     };
   }, [bayiListeAcik]);
 
+  // ... (Diğer fonksiyonların) ...
+
+  // Modal içindeki bayi seçim kısmını şu şekilde güncelle:
+  
+  <div style={{ display: "flex", gap: "6px", marginBottom: "12px", position: "relative" }}>
+    <input type="date" value={fisUst.tarih} onChange={e => setFisUst({ ...fisUst, tarih: e.target.value })} className="m-inp" style={{ flex: "0 0 100px", padding: "6px 8px", fontSize: "12px" }} />
+    <div style={{ position: "relative", flex: 1 }} ref={bayiRef}>
+      <input 
+        placeholder="Bayi Seç / Ara..." 
+        value={fisUst.bayi} 
+        onFocus={() => setBayiListeAcik(true)} 
+        onClick={() => setBayiListeAcik(true)} 
+        onChange={e => { setFisUst({ ...fisUst, bayi: e.target.value }); setBayiListeAcik(true); }} 
+        className="m-inp grow-inp" 
+        style={{ fontWeight: "bold", padding: "6px 8px", fontSize: "12px", width: "100%" }} 
+      />
+      {bayiListeAcik && (
+        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "2px solid #2563eb", borderRadius: "0 0 8px 8px", zIndex: 9999, maxHeight: "200px", overflowY: "auto", boxShadow: "0 4px 10px -3px rgba(0,0,0,0.3)" }}>
+          {bayiler
+            .filter(b => b.isim.toLowerCase().includes(fisUst.bayi.toLowerCase()))
+            .map(b => (
+              <div 
+                key={b.id} 
+                onClick={() => { 
+                  setFisUst({ ...fisUst, bayi: b.isim }); 
+                  handleBayiSecimi(b.isim); 
+                  setBayiListeAcik(false); 
+                }} 
+                style={{ padding: "4px 10px", borderBottom: "1px solid #f1f5f9", fontSize: "12px", cursor: "pointer", color: "#1e293b", background: fisUst.bayi === b.isim ? "#eff6ff" : "#fff", lineHeight: "1.2" }}
+              >
+                {b.isim}
+              </div>
+            ))}
+        </div>
+      )}
+    </div>
+  </div>
+
   // Diğer fonksiyonların ve kodların buradan devam etmeli...
 // YEREL TARİH BULUCU
 const getLocalDateString = () => {
