@@ -837,29 +837,6 @@ export default function App() {
       }
     }
     
-    setSecilenDosya(null);
-
-    const ekstraIndirimler = [];
-    if (iadeMiktar > 0) ekstraIndirimler.push({ isim: "İade", adet: iadeAdet, kg: iadeKg, fiyat: iadeFiyat, tutar: -(iadeMiktar * iadeFiyat) });
-    if (kovaMiktar > 0) ekstraIndirimler.push({ isim: "Boş Kova", adet: kovaAdet, kg: kovaKg, fiyat: kovaFiyat, tutar: -(kovaMiktar * kovaFiyat) });
-
-    const fisGosterimData = {
-      id: savedFisId,
-      fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, aciklama: fisUst.aciklama, teslim_alan: fisUst.teslim_alan,
-      urunler: eklenecekUrunler.map(u => {
-         const adet = Number(fisDetay[u.id].adet);
-         const kg = Number(fisDetay[u.id].kg);
-         const fiyat = Number(fisDetay[u.id].fiyat);
-         const isKova = u.isim.match(/([345])\s*kg/i);
-         const miktar = isKova ? adet : (kg > 0 ? kg : adet);
-         return { isim: u.isim, adet: adet, kg: kg, fiyat: fiyat, tutar: miktar * fiyat };
-      }),
-      ekstraIndirimler,
-      genelToplam: fisCanliToplam, tahsilat: tahsilat, kalanBakiye: (fisCanliToplam - tahsilat), odeme: fisUst.odeme_turu,
-      eskiBorc: eskiBorc, genelBorc: toplamGenelBorc,
-      gosterBakiye: false
-    };
-    
     resetFisForm(); setIsFisModalOpen(false); verileriGetir("satis"); setSonFisData(fisGosterimData);
   }
 
@@ -1875,96 +1852,31 @@ export default function App() {
           </div>
         )}
 
-      </main>
-
-      <footer className="fixed-nav main-content-area">
-        {[{ id: "ozet", i: "📊" }, { id: "sut", i: "🥛" }, { id: "uretim", i: "🏭" }, { id: "satis", i: "💰" }, { id: "gider", i: "💸" }, { id: "analiz", i: "📈" }, { id: "ayarlar", i: "⚙️" }].map(item => (
-          <button key={item.id} onClick={() => { setActiveTab(item.id); setEditingSutId(null); setIsSutModalOpen(false); setIsFisModalOpen(false); setIsTahsilatModalOpen(false); setIsGiderModalOpen(false); setIsUretimModalOpen(false); setIsKaymakModalOpen(false); setOpenDropdown(null); }} className={`n-item btn-anim ${activeTab === item.id ? 'active' : ''}`} style={activeTab === item.id ? { color: item.id === 'analiz' ? '#8b5cf6' : item.id === 'gider' ? '#dc2626' : item.id === 'uretim' ? '#8b5cf6' : temaRengi, borderTopColor: item.id === 'analiz' ? '#8b5cf6' : item.id === 'gider' ? '#dc2626' : item.id === 'uretim' ? '#8b5cf6' : temaRengi } : {}}>
-            <span style={{ fontSize: "16px", marginBottom: "2px" }}>{item.i}</span><span style={{ fontSize: "9px", fontWeight: "bold" }}>{item.id.toUpperCase()}</span>
-          </button>
-        ))}
-      </footer>
-
-      <style>{`
-        * { box-sizing: border-box; }
-        :root { color-scheme: light !important; }
-        
-        html, body { width: 100%; max-width: 100%; overflow-x: hidden !important; margin: 0 !important; padding: 0 !important; background: #e2e8f0 !important; font-family: -apple-system, system-ui, sans-serif; color: #1e293b !important; }
-        #root { display: block !important; padding: 0 !important; margin: 0 auto !important; width: 100% !important; text-align: left !important; }
-        input::placeholder { color: #94a3b8 !important; opacity: 1; }
-        
-        input[type="date"] { position: relative; cursor: pointer; }
-        input[type="date"]::-webkit-calendar-picker-indicator { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
-
-        .app-container { max-width: 800px; margin: 0 auto; width: 100%; min-height: 100vh; background: #e2e8f0; position: relative; overflow-x: hidden; }
-        .header-style { display: flex; justify-content: space-between; padding: 12px 0; background: #fff; border-bottom: 1px solid #cbd5e1; position: sticky; top: 0; z-index: 50; width: 100%; align-items: center; }
-        .main-content { padding: 10px; padding-bottom: 80px; width: 100%; box-sizing: border-box; }
-        .tab-fade-in { animation: fadeIn 0.3s ease-in-out; width: 100%; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-        
-        .m-inp { flex: 1 1 120px; padding: 8px; font-size: 13px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; background: #fff; color: #1e293b !important; }
-        .small-inp { padding: 2px 4px !important; font-size: 11px !important; height: 24px !important; }
-        .micro-inp { text-align: center; } .micro-inp-right { text-align: right; }
-        .grow-inp { flex: 1 1 120px !important; }
-        .p-btn { flex: 0 0 auto !important; padding: 0 20px; height: 36px; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; }
-        
-        .card { background: #fff; padding: 15px; border-radius: 12px; border: 1px solid #cbd5e1; margin-bottom: 15px; width: 100%; box-sizing: border-box; }
-        .cards-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
-        .m-btn { width: 100%; padding: 12px; color: #fff; border: none; border-radius: 10px; font-weight: bold; font-size: 15px; cursor: pointer; margin-bottom: 10px; }
-        .green-btn { background: #059669; } .blue-btn { background: #2563eb; }
-        
-        .compact-totals { display: flex; gap: 6px; margin-bottom: 12px; width: 100%; justify-content: space-between; }
-        .c-kutu { flex: 1; background: #fff; padding: 10px 4px; border-radius: 8px; border: 1px solid #cbd5e1; border-left-width: 4px; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02); text-align: center; }
-        .c-kutu span { font-size: 9px; color: #64748b; font-weight: bold; margin-bottom: 2px; }
-        .c-kutu b { font-size: 13px; white-space: nowrap; }
-        
-        .table-wrapper { width: 100%; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; overflow-x: auto; box-sizing: border-box; }
-        .tbl { width: 100%; border-collapse: collapse; table-layout: auto; min-width: 100%; }
-        .tbl th { background: #f1f5f9; border-bottom: 1px solid #cbd5e1; color: #475569; font-weight: bold; font-size: 10px; padding: 3px 4px !important; white-space: nowrap; }
-        .tbl-satis th { background: #5b9bd5 !important; color: white !important; }
-        .tbl-analiz th { background: #8b5cf6 !important; color: white !important; }
-        .tbl td { font-size: 11px; border-bottom: 1px solid #f1f5f9; padding: 3px 4px !important; white-space: nowrap; vertical-align: middle; }
-        
-        .actions-cell { white-space: nowrap !important; width: 1% !important; text-align: right; }
-        .dropdown-menu { position: absolute; right: 30px; top: 50%; transform: translateY(-50%); background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); z-index: 100; display: flex; flex-direction: row; padding: 4px; gap: 8px; }
-        .dropdown-item-icon { background: none; border: none; cursor: pointer; font-size: 16px; padding: 6px; border-radius: 4px; transition: background 0.1s; display: flex; align-items: center; justify-content: center;}
-        .dropdown-item-icon:hover { background: #f1f5f9; }
-
-        .truncate-text-td { max-width: 75px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: bottom; }
-
-        .fixed-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 1000px; height: 60px; background: #fff; border-top: 1px solid #cbd5e1; display: flex; z-index: 100; padding: 0 4px; }
-        .n-item { flex: 1; border: none; background: none; color: #94a3b8; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; border-top: 3px solid transparent; padding: 0 2px; }
-        .n-item.active { background: #f8fafc; }
-        .btn-anim { transition: transform 0.1s; } .btn-anim:active { transform: scale(0.95); }
-
-        @media (max-width: 600px) {
-          .main-content { padding: 0 !important; padding-bottom: 80px !important; width: 100% !important; overflow-x: hidden !important; }
-          .table-wrapper { width: 100% !important; border-radius: 0 !important; border-left: none !important; border-right: none !important; margin: 0 !important; }
-          .tbl th, .tbl td { padding: 3px 2px !important; font-size: 11px !important; }
-          .tbl th:first-child, .tbl td:first-child { padding-left: 4px !important; }
-          .tbl th:last-child, .tbl td:last-child { padding-right: 4px !important; }
-          .card, .m-btn { width: calc(100% - 8px) !important; margin-left: 4px !important; margin-right: 4px !important; box-sizing: border-box !important; }
-          .cards-grid { width: calc(100% - 8px) !important; margin-left: 4px !important; margin-right: 4px !important; }
-          .compact-totals { width: calc(100% - 4px) !important; margin-left: 2px !important; margin-right: 2px !important; gap: 4px !important; }
-          .card { border-radius: 8px !important; padding: 12px !important; margin-bottom: 8px !important; }
-          .summary-c { margin-left: 0 !important; margin-right: 0 !important; border-radius: 6px !important; width: 100% !important; }
-          .c-kutu { border-radius: 4px !important; padding: 6px 2px !important; }
-          .truncate-text-td { max-width: 65px !important; }
-          .n-item { padding: 0; }
-          .n-item span:first-child { font-size: 14px !important; }
-          .n-item span:last-child { font-size: 8px !important; letter-spacing: -0.5px; }
-        }
-
-        @media print {
-          @page { margin: 0; size: 58mm auto; }
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: #fff !important; overflow: visible !important; width: auto !important; max-width: none !important; }
-          .main-content-area, header, footer { display: none !important; }
-          .print-modal-wrapper { position: static !important; display: block !important; background: transparent !important; padding: 0 !important; }
-          .print-modal-content { max-width: 100% !important; border-radius: 0 !important; box-shadow: none !important; }
-          #print-receipt { border: none !important; padding: 0 !important; width: 55mm; margin: 0 auto; display: block !important; }
-          .no-print { display: none !important; }
-        }
-      `}</style>
-    </div>
-  );
-}
+        {/* ÜRETİM DETAY GÖSTERİM MODALI */}
+        {uretimDetayData && (
+          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1300, padding: "10px" }}>
+            <div style={{ backgroundColor: "#f8fafc", borderRadius: "10px", width: "95vw", maxWidth: "360px", overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: "90vh" }} onClick={(e) => e.stopPropagation()}>
+              <div style={{ padding: "15px", textAlign: "center", borderBottom: "1px dashed #cbd5e1", background: "#fff", overflowY: "auto" }}>
+                  <h3 style={{ margin: "0 0 5px", color: (!uretimDetayData.uretim_tipi || uretimDetayData.uretim_tipi === 'Yoğurt') ? "#8b5cf6" : "#d946ef", fontSize: "16px" }}>🏭 {uretimDetayData.uretim_tipi || 'Yoğurt'} Üretim Detayı</h3>
+                  <div style={{ fontSize: "12px", color: "#64748b" }}>Tarih: {uretimDetayData.tarih.split("-").reverse().join(".")}</div>
+                  
+                  {(!uretimDetayData.uretim_tipi || uretimDetayData.uretim_tipi === 'Yoğurt') ? (
+                  <>
+                  <div style={{textAlign: "left", marginTop: "15px"}}>
+                     <h4 style={{fontSize: "12px", margin: "0 0 5px", color: "#475569", borderBottom: "1px solid #e2e8f0"}}>Giren Hammaddeler (Maliyet)</h4>
+                     <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '3px 0'}}><span>Süt ({fSayi(uretimDetayData.cig_sut)} kg x {fSayi(uretimDetayData.sut_fiyat)})</span><b>{fSayi(Number(uretimDetayData.cig_sut)*Number(uretimDetayData.sut_fiyat))} ₺</b></div>
+                     <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '3px 0'}}><span>Toz ({fSayi(uretimDetayData.sut_tozu)} kg x {fSayi(uretimDetayData.sut_tozu_fiyat)})</span><b>{fSayi(Number(uretimDetayData.sut_tozu)*Number(uretimDetayData.sut_tozu_fiyat))} ₺</b></div>
+                     <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '3px 0'}}><span>Yağ ({fSayi(uretimDetayData.tereyag)} kg x {fSayi(uretimDetayData.tereyag_fiyat)})</span><b>{fSayi(Number(uretimDetayData.tereyag)*Number(uretimDetayData.tereyag_fiyat))} ₺</b></div>
+                     <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '3px 0'}}><span>Katkı ({fSayi(uretimDetayData.katki_kg)} kg x {fSayi(uretimDetayData.katki_fiyat)})</span><b>{fSayi(Number(uretimDetayData.katki_kg)*Number(uretimDetayData.katki_fiyat))} ₺</b></div>
+                     <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '3px 0'}}><span>Su ({fSayi(uretimDetayData.su)} kg)</span><b>-</b></div>
+                     <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '3px 0'}}><span>3'lük Kova ({fSayi(uretimDetayData.kova_3_adet)} Ad x {fSayi(uretimDetayData.kova_3_fiyat)})</span><b>{fSayi(Number(uretimDetayData.kova_3_adet)*Number(uretimDetayData.kova_3_fiyat))} ₺</b></div>
+                     <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '3px 0'}}><span>5'lik Kova ({fSayi(uretimDetayData.kova_5_adet)} Ad x {fSayi(uretimDetayData.kova_5_fiyat)})</span><b>{fSayi(Number(uretimDetayData.kova_5_adet)*Number(uretimDetayData.kova_5_fiyat))} ₺</b></div>
+                  </div>
+                  <div style={{textAlign: "left", marginTop: "15px"}}>
+                     <h4 style={{fontSize: "12px", margin: "0 0 5px", color: "#475569", borderBottom: "1px solid #e2e8f0"}}>Çıkan Ürünler (Değer)</h4>
+                     <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '3px 0'}}><span>3 KG Yoğurt ({uretimDetayData.cikti_3kg} Ad x {fSayi(uretimDetayData.satis_3_fiyat)})</span><b>{fSayi(Number(uretimDetayData.cikti_3kg)*Number(uretimDetayData.satis_3_fiyat))} ₺</b></div>
+                     <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '3px 0'}}><span>5 KG Yoğurt ({uretimDetayData.cikti_5kg} Ad x {fSayi(uretimDetayData.satis_5_fiyat)})</span><b>{fSayi(Number(uretimDetayData.cikti_5kg)*Number(uretimDetayData.satis_5_fiyat))} ₺</b></div>
+                  </div>
+                  </>
+                  ) : (
+                  <>
