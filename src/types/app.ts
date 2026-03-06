@@ -77,6 +77,7 @@ export interface Gider {
 export interface Uretim {
   id?: string;
   tarih: string;
+  uretim_tipi?: "yogurt" | "sut_kaymagi";
   cig_sut: number | string;
   sut_fiyat: number | string;
   sut_tozu: number | string;
@@ -86,15 +87,24 @@ export interface Uretim {
   katki_kg: number | string;
   katki_fiyat: number | string;
   su: number | string;
+  su_fiyat?: number | string;
+  krema?: number | string;
+  krema_fiyat?: number | string;
+  diger_adet?: number | string;
+  diger_kg?: number | string;
+  diger_fiyat?: number | string;
   kova_3_adet: number | string;
   kova_3_fiyat: number | string;
   kova_5_adet: number | string;
   kova_5_fiyat: number | string;
+  cikti_2kg?: number | string;
+  satis_2_fiyat?: number | string;
   cikti_3kg: number | string;
   satis_3_fiyat: number | string;
   cikti_5kg: number | string;
   satis_5_fiyat: number | string;
   toplam_kg?: number;
+  cikan_toplam_kg?: number;
   toplam_maliyet?: number;
   kar?: number;
   aciklama: string;
