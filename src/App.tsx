@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { LoginScreen } from "./components/LoginScreen";
 import { SettingsPanel } from "./components/SettingsPanel";
 import {
@@ -102,6 +102,8 @@ export default function App() {
   const [editingFisNo, setEditingFisNo] = useState<string | null>(null);
   const [fisUst, setFisUst] = useState({ tarih: bugun, bayi: "", aciklama: "", odeme_turu: "PEŞİN", tahsilat: "", bos_kova: "", teslim_alan: "" });
   const [fisDetay, setFisDetay] = useState<FisDetayMap>({});
+  const [fisGorselDosya, setFisGorselDosya] = useState<File | null>(null);
+  const [fisGorselMevcutYol, setFisGorselMevcutYol] = useState("");
   const [gosterilenEkler, setGosterilenEkler] = useState({ tereyagi: false, yogurt_kaymagi: false, iade: false, bos_kova: false });
   const [sonFisData, setSonFisData] = useState<any>(null);
 
@@ -701,6 +703,55 @@ export default function App() {
 
   const toplamGenelBorc = eskiBorc + (fisCanliToplam - Number(fisUst.tahsilat || 0));
 
+  const fisGorselDosyaAdi = useMemo(() => {
+    if (fisGorselDosya?.name) return fisGorselDosya.name;
+    if (!fisGorselMevcutYol) return "";
+    return fisGorselMevcutYol.split("/").pop() || fisGorselMevcutYol;
+  }, [fisGorselDosya, fisGorselMevcutYol]);
+
+  const handleFisGorselSec = (event: ChangeEvent<HTMLInputElement>) => {
+    const secilen = event.target.files?.[0];
+    event.target.value = "";
+    if (!secilen) return;
+    if (!secilen.type.startsWith("image/")) {
+      alert("Lütfen sadece görsel dosyası seçin.");
+      return;
+    }
+    setFisGorselDosya(secilen);
+  };
+
+  const handleFisGorselTemizle = () => {
+    setFisGorselDosya(null);
+    setFisGorselMevcutYol("");
+  };
+
+  const fisGorseliniSil = async (yol?: string | null) => {
+    if (!yol) return;
+    const { error } = await supabase.storage.from("fis_gorselleri").remove([yol]);
+    if (error) {
+      console.warn("Fiş görseli silinemedi:", error.message);
+    }
+  };
+
+  const fisGorseliYukle = async (fisNo: string) => {
+    if (!fisGorselDosya) return fisGorselMevcutYol || null;
+
+    const uzanti = fisGorselDosya.name.split(".").pop()?.toLowerCase() || "jpg";
+    const temizFisNo = fisNo.replace(/[^a-zA-Z0-9_-]/g, "_");
+    const dosyaYolu = `${temizFisNo}-${Date.now()}.${uzanti}`;
+
+    const { error } = await supabase.storage.from("fis_gorselleri").upload(dosyaYolu, fisGorselDosya, {
+      contentType: fisGorselDosya.type,
+      upsert: false,
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    return dosyaYolu;
+  };
+
   async function handleTopluFisKaydet() {
     if (!fisUst.bayi) return alert("Lütfen bir Bayi/Market seçin!");
     if (!bayiler.some(b => b.isim === fisUst.bayi)) return alert("Lütfen listeden geçerli bir Bayi/Market seçin! Kendiniz rastgele isim giremezsiniz.");
@@ -722,6 +773,14 @@ export default function App() {
     const ortakFisNo = editingFisNo || `F-${Date.now().toString().slice(-6)}${Math.floor(Math.random()*1000)}`;
     const tahsilat = Number(fisUst.tahsilat) || 0;
     const kalanBakiye = fisCanliToplam - tahsilat;
+    const yeniGorselSecildi = Boolean(fisGorselDosya);
+    let fisGorselYolu = fisGorselMevcutYol || null;
+
+    try {
+      fisGorselYolu = await fisGorseliYukle(ortakFisNo);
+    } catch (error: any) {
+      return alert(`Fiş görseli yüklenemedi: ${error?.message || "Bilinmeyen hata"}`);
+    }
     
     const genelNot = [
         fisUst.teslim_alan ? `[Teslim Alan: ${fisUst.teslim_alan}]` : '',
@@ -729,14 +788,19 @@ export default function App() {
         fisUst.aciklama
     ].filter(Boolean).join(" - ");
 
-    const fisMaster = { fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, toplam_tutar: fisCanliToplam, tahsilat: tahsilat, kalan_bakiye: kalanBakiye, odeme_turu: fisUst.odeme_turu, aciklama: genelNot, ekleyen: aktifKullaniciEposta };
+    const fisMaster = { fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, toplam_tutar: fisCanliToplam, tahsilat: tahsilat, kalan_bakiye: kalanBakiye, odeme_turu: fisUst.odeme_turu, aciklama: genelNot, ekleyen: aktifKullaniciEposta, fis_gorseli: fisGorselYolu };
 
     let savedFisId = editingFisId;
 
     if (editingFisId) {
       const eskiDetaylar = satisList.filter(s => s.fis_no === ortakFisNo);
       const { error: errFisUpd } = await supabase.from("satis_fisleri").update(fisMaster).eq("id", editingFisId);
-      if (errFisUpd) return alert("Güncelleme Hatası: " + veritabaniHatasiMesaji("satis_fisleri", errFisUpd));
+      if (errFisUpd) {
+        if (yeniGorselSecildi && fisGorselYolu && fisGorselYolu !== fisGorselMevcutYol) {
+          await fisGorseliniSil(fisGorselYolu);
+        }
+        return alert("Güncelleme Hatası: " + veritabaniHatasiMesaji("satis_fisleri", errFisUpd));
+      }
       
       await supabase.from("satis_giris").delete().eq("fis_no", ortakFisNo);
 
@@ -771,7 +835,12 @@ export default function App() {
       }
     } else {
       const { data: newFisData, error: errFisIns } = await supabase.from("satis_fisleri").insert(fisMaster).select().single();
-      if (errFisIns) return alert("Kayıt Hatası: " + veritabaniHatasiMesaji("satis_fisleri", errFisIns));
+      if (errFisIns) {
+        if (yeniGorselSecildi && fisGorselYolu && fisGorselYolu !== fisGorselMevcutYol) {
+          await fisGorseliniSil(fisGorselYolu);
+        }
+        return alert("Kayıt Hatası: " + veritabaniHatasiMesaji("satis_fisleri", errFisIns));
+      }
       savedFisId = newFisData?.id;
       
       const insertArray = eklenecekUrunler.map((u) => {
@@ -796,9 +865,16 @@ export default function App() {
 
       const { error: errDetay } = await supabase.from("satis_giris").insert(insertArray);
       if (errDetay && savedFisId) {
+          if (yeniGorselSecildi && fisGorselYolu && fisGorselYolu !== fisGorselMevcutYol) {
+            await fisGorseliniSil(fisGorselYolu);
+          }
           await supabase.from("satis_fisleri").delete().eq("id", savedFisId);
           return alert("Sistemsel Hata: Detaylar kaydedilemediği için Fiş tamamen iptal edildi. Lütfen tekrar deneyin. Hata: " + errDetay.message);
       }
+    }
+
+    if (yeniGorselSecildi && fisGorselMevcutYol && fisGorselMevcutYol !== fisGorselYolu) {
+      await fisGorseliniSil(fisGorselMevcutYol);
     }
     
     const ekstraIndirimler = [];
@@ -808,6 +884,7 @@ export default function App() {
     const fisGosterimData = {
       id: savedFisId,
       fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, aciklama: fisUst.aciklama, teslim_alan: fisUst.teslim_alan,
+      fis_gorseli: fisGorselYolu,
       urunler: eklenecekUrunler.map(u => {
          const adet = Number(fisDetay[u.id].adet);
          const kg = Number(fisDetay[u.id].kg);
@@ -828,6 +905,8 @@ export default function App() {
   const resetFisForm = () => {
     setEditingFisId(null); setEditingFisNo(null);
     setFisUst({ tarih: bugun, bayi: "", aciklama: "", odeme_turu: "PEŞİN", tahsilat: "", bos_kova: "", teslim_alan: "" });
+    setFisGorselDosya(null);
+    setFisGorselMevcutYol("");
     setGosterilenEkler({ tereyagi: false, yogurt_kaymagi: false, iade: false, bos_kova: false });
     const temizDetay: any = {};
     urunler.forEach(u => temizDetay[u.id] = { adet: "", kg: "", fiyat: u.fiyat || "" });
@@ -840,6 +919,8 @@ export default function App() {
 
   const handleFisDuzenle = (fis: any) => {
     setEditingFisId(fis.id); setEditingFisNo(fis.fis_no);
+    setFisGorselDosya(null);
+    setFisGorselMevcutYol(fis.fis_gorseli || "");
     let safAciklama = fis.aciklama || "";
     let tAlan = "";
 
@@ -899,7 +980,7 @@ export default function App() {
     if (safAciklama.includes("[Sadece Tahsilat]")) safAciklama = safAciklama.replace(/\[Sadece Tahsilat\]\s*-\s*/, "").replace(/\[Sadece Tahsilat\]/, "");
 
     setSonFisData({ 
-      id: fis.id, fis_no: fis.fis_no, tarih: fis.tarih, bayi: fis.bayi, aciklama: safAciklama, teslim_alan: tAlan,
+      id: fis.id, fis_no: fis.fis_no, tarih: fis.tarih, bayi: fis.bayi, aciklama: safAciklama, teslim_alan: tAlan, fis_gorseli: fis.fis_gorseli,
       urunler: ilgiliUrunler.map(u => {
           let calculatedKg = 0;
           const a = Number(u.adet), t = Number(u.tutar), f = Number(u.fiyat);
@@ -921,7 +1002,9 @@ export default function App() {
     // Varsa fiş görselini de storage'dan siliyoruz
     if (fis.fis_gorseli) {
       const raw: string = fis.fis_gorseli;
-      const key = raw.includes("/") ? raw.split("/").pop() || raw : raw;
+      const key = raw.includes("/object/public/fis_gorselleri/")
+        ? raw.split("/object/public/fis_gorselleri/").pop() || raw
+        : raw;
       if (key) {
         const { error: removeError } = await supabase
           .storage
@@ -1725,6 +1808,22 @@ export default function App() {
                 <div style={{display: "flex", gap: "6px", marginTop: "6px"}}>
                   <input placeholder="Teslim Alan (İsim Soyisim)" value={fisUst.teslim_alan || ""} onChange={e => setFisUst({ ...fisUst, teslim_alan: e.target.value })} className="m-inp grow-inp" style={{padding: "6px 8px", fontSize: "12px", height: "30px"}} />
                 </div>
+                <div style={{display: "flex", gap: "6px", marginTop: "6px", alignItems: "center", flexWrap: "wrap"}}>
+                  <label className="btn-anim" style={{ background: "#e2e8f0", border: "1px solid #cbd5e1", borderRadius: "6px", padding: "6px 10px", fontSize: "12px", fontWeight: "bold", color: "#334155", cursor: "pointer" }}>
+                    <input type="file" accept="image/*" onChange={handleFisGorselSec} style={{ display: "none" }} />
+                    {fisGorselDosyaAdi ? "Fotoğrafı Değiştir" : "Fotoğraf Ekle"}
+                  </label>
+                  {fisGorselDosyaAdi && (
+                    <>
+                      <span style={{ fontSize: "11px", color: "#64748b", maxWidth: "150px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {fisGorselDosyaAdi}
+                      </span>
+                      <button onClick={handleFisGorselTemizle} className="btn-anim" style={{ background: "transparent", border: "1px solid #fecaca", color: "#dc2626", borderRadius: "6px", padding: "6px 8px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}>
+                        Temizle
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
               <div style={{ padding: "10px 12px", borderTop: "1px solid #e2e8f0", background: "#f8fafc", borderRadius: "0 0 8px 8px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}><span style={{color: "#0f172a", fontWeight: "bold", fontSize: "14px"}}>Genel Toplam:</span><b style={{color: "#0f172a", fontSize: "16px"}}>{fSayi(fisCanliToplam)} ₺</b></div>
@@ -1749,9 +1848,9 @@ export default function App() {
               <div style={{ overflowY: "auto", flex: 1 }}>
                 <div id="print-receipt" style={{ background: "#fff", padding: "15px", textAlign: "center", borderBottom: "1px dashed #cbd5e1" }}>
                   <h2 style={{ margin: "0 0 2px", color: "#000", fontSize: "18px" }}>SULTANKÖY</h2><div style={{ color: "#000", fontSize: "11px", marginBottom: "12px" }}>Süt Ürünleri</div>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#000", marginBottom: "2px" }}><span>Tarih:</span><b>{sonFisData.tarih.split("-").reverse().join(".")}</b></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#000", marginBottom: "2px" }}><span>Tarih | Fiş No:</span><b>{sonFisData.tarih.split("-").reverse().join(".")} | {sonFisData.fis_no}</b></div>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#000", marginBottom: "2px" }}><span>Sayın:</span><b style={{textAlign: "right"}}>{sonFisData.bayi}</b></div>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "9px", color: "#000", marginBottom: "12px" }}><span>Fiş No:</span><b>{sonFisData.fis_no}</b></div>
+                  <div style={{ fontSize: "9px", color: "#000", marginBottom: "12px", textAlign: "left" }}>{sonFisData.aciklama || ""}</div>
                   
                   {(sonFisData.urunler.length > 0 || (sonFisData.ekstraIndirimler && sonFisData.ekstraIndirimler.length > 0)) && (
                     <table style={{ width: '100%', fontSize: '11px', textAlign: 'left', borderCollapse: 'collapse', marginBottom: '12px', color: '#000' }}>
@@ -1814,8 +1913,8 @@ export default function App() {
                   </button>
                 </div>
                 <div style={{ display: "flex", gap: "6px", marginTop: "4px" }}>
-                  <button onClick={() => { const fakeFis = { id: sonFisData.id, fis_no: sonFisData.fis_no, tarih: sonFisData.tarih, bayi: sonFisData.bayi, odeme_turu: sonFisData.odeme, aciklama: sonFisData.aciklama || "", tahsilat: sonFisData.tahsilat, kalan_bakiye: sonFisData.kalanBakiye, toplam_tutar: sonFisData.genelToplam }; setSonFisData(null); handleFisDuzenle(fakeFis as any); }} className="btn-anim" style={{ flex: 1, padding: "8px", background: "#f59e0b", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", fontSize: "12px" }}>✏️ DÜZENLE</button>
-                  <button onClick={() => { if(confirm("Silinecek?")) { handleFisSil({ id: sonFisData.id, fis_no: sonFisData.fis_no } as any); setSonFisData(null); } }} className="btn-anim" style={{ flex: 1, padding: "8px", background: "#dc2626", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", fontSize: "12px" }}>🗑️ SİL</button>
+                  <button onClick={() => { const fakeFis = { id: sonFisData.id, fis_no: sonFisData.fis_no, tarih: sonFisData.tarih, bayi: sonFisData.bayi, odeme_turu: sonFisData.odeme, aciklama: sonFisData.aciklama || "", tahsilat: sonFisData.tahsilat, kalan_bakiye: sonFisData.kalanBakiye, toplam_tutar: sonFisData.genelToplam, fis_gorseli: sonFisData.fis_gorseli }; setSonFisData(null); handleFisDuzenle(fakeFis as any); }} className="btn-anim" style={{ flex: 1, padding: "8px", background: "#f59e0b", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", fontSize: "12px" }}>✏️ DÜZENLE</button>
+                  <button onClick={() => { if(confirm("Silinecek?")) { handleFisSil({ id: sonFisData.id, fis_no: sonFisData.fis_no, fis_gorseli: sonFisData.fis_gorseli } as any); setSonFisData(null); } }} className="btn-anim" style={{ flex: 1, padding: "8px", background: "#dc2626", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", fontSize: "12px" }}>🗑️ SİL</button>
                 </div>
                 <button onClick={() => setSonFisData(null)} className="btn-anim" style={{ width: "100%", padding: "8px", background: "transparent", color: "#64748b", border: "1px solid #cbd5e1", borderRadius: "8px", fontWeight: "bold", fontSize: "11px", marginTop: "2px" }}>KAPAT</button>
               </div>

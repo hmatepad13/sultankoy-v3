@@ -62,6 +62,7 @@ export interface SatisFis {
   odeme_turu: string;
   aciklama: string;
   ekleyen?: string;
+  fis_gorseli?: string | null;
 }
 
 export interface Gider {
