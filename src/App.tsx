@@ -709,6 +709,28 @@ export default function App() {
     return fisGorselMevcutYol.split("/").pop() || fisGorselMevcutYol;
   }, [fisGorselDosya, fisGorselMevcutYol]);
 
+  const fisGorselStorageYolu = (raw?: string | null) => {
+    if (!raw) return "";
+
+    const ayiraclar = [
+      "/storage/v1/object/sign/fis_gorselleri/",
+      "/storage/v1/object/public/fis_gorselleri/",
+      "/object/public/fis_gorselleri/",
+    ];
+
+    for (const ayirac of ayiraclar) {
+      if (raw.includes(ayirac)) {
+        return raw.split(ayirac).pop()?.split("?")[0] || "";
+      }
+    }
+
+    if (raw.startsWith("http://") || raw.startsWith("https://")) {
+      return "";
+    }
+
+    return raw;
+  };
+
   const handleFisGorselSec = (event: ChangeEvent<HTMLInputElement>) => {
     const secilen = event.target.files?.[0];
     event.target.value = "";
@@ -726,11 +748,40 @@ export default function App() {
   };
 
   const fisGorseliniSil = async (yol?: string | null) => {
-    if (!yol) return;
-    const { error } = await supabase.storage.from("fis_gorselleri").remove([yol]);
+    const storageYolu = fisGorselStorageYolu(yol);
+    if (!storageYolu) return;
+    const { error } = await supabase.storage.from("fis_gorselleri").remove([storageYolu]);
     if (error) {
       console.warn("Fiş görseli silinemedi:", error.message);
     }
+  };
+
+  const handleFisGorselGoster = async (fis: SatisFis) => {
+    if (!fis.fis_gorseli) return;
+
+    const raw = fis.fis_gorseli;
+    const storageYolu = fisGorselStorageYolu(raw);
+
+    if (!storageYolu && (raw.startsWith("http://") || raw.startsWith("https://"))) {
+      window.open(raw, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    if (!storageYolu) {
+      alert("FiÅŸ gÃ¶rseli aÃ§Ä±lamadÄ±.");
+      return;
+    }
+
+    const { data, error } = await supabase.storage
+      .from("fis_gorselleri")
+      .createSignedUrl(storageYolu, 60 * 5);
+
+    if (error || !data?.signedUrl) {
+      alert("FiÅŸ gÃ¶rseli aÃ§Ä±lamadÄ±: " + (error?.message || "Bilinmeyen hata"));
+      return;
+    }
+
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   };
 
   const fisGorseliYukle = async (fisNo: string) => {
@@ -1001,10 +1052,7 @@ export default function App() {
 
     // Varsa fiş görselini de storage'dan siliyoruz
     if (fis.fis_gorseli) {
-      const raw: string = fis.fis_gorseli;
-      const key = raw.includes("/object/public/fis_gorselleri/")
-        ? raw.split("/object/public/fis_gorselleri/").pop() || raw
-        : raw;
+      const key = fisGorselStorageYolu(fis.fis_gorseli);
       if (key) {
         const { error: removeError } = await supabase
           .storage
@@ -1247,14 +1295,14 @@ export default function App() {
   };
 
   const renderOzet = () => (
-    <div className="tab-fade-in main-content-area">
+    <div className="tab-fade-in main-content-area" style={{ display: "flex", flexDirection: "column" }}>
       <div className="cards-grid">
         <div className="card summary-c" style={{ borderLeft: `5px solid #059669` }}><small>Toplam Satış</small><h2 style={{ margin: "5px 0", color: "#059669", fontSize: "20px" }}>{fSayiNoDec(tFisToplam)} ₺</h2></div>
         <div className="card summary-c" style={{ borderLeft: "5px solid #dc2626" }}><small>Toplam Gider</small><h2 style={{ margin: "5px 0", color: "#dc2626", fontSize: "20px" }}>{fSayiNoDec(genelToplamGider)} ₺</h2></div>
         <div className="card summary-c" style={{ borderLeft: "5px solid #2563eb" }}><small>Tahsilat</small><h2 style={{ margin: "5px 0", color: "#2563eb", fontSize: "20px" }}>{fSayiNoDec(tFisTahsilatRaw)} ₺</h2></div>
         <div className="card summary-c" style={{ borderLeft: "5px solid #f59e0b" }}><small>Bayi Açık Hesap</small><h2 style={{ margin: "5px 0", color: "#f59e0b", fontSize: "20px" }}>{fSayiNoDec(bayiNetDurum)} ₺</h2></div>
       </div>
-      <div className="card" style={{marginTop: "5px"}}>
+      <div className="card" style={{marginTop: "5px", order: 2}}>
         <h4 style={{ margin: "0 0 10px", borderBottom: "1px solid #e2e8f0", paddingBottom: "5px" }}>Müşteri Borç Durumları</h4>
         <div style={{maxHeight: '300px', overflowY: 'auto', paddingRight: '5px'}}>
             {bayiBorclari.map((b, i) => (
@@ -1266,7 +1314,7 @@ export default function App() {
             {bayiBorclari.length === 0 && <div style={{color: '#94a3b8', fontSize: '12px'}}>Açık hesap bulunmuyor.</div>}
         </div>
       </div>
-      <div className="card" style={{marginTop: "5px"}}>
+      <div className="card" style={{marginTop: "5px", order: 1}}>
         <h4 style={{ margin: "0 0 10px", borderBottom: "1px solid #e2e8f0", paddingBottom: "5px" }}>Personel Özetleri</h4>
         <div style={{maxHeight: '300px', overflowY: 'auto', paddingRight: '5px'}}>
           <table className="tbl" style={{ fontSize: "12px" }}>
@@ -1409,6 +1457,7 @@ export default function App() {
                <button onClick={(e) => { e.stopPropagation(); setOpenDropdown({ type: 'satis', id: f.id as string }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', padding: '0 8px', color: '#64748b' }}>⋮</button>
                {openDropdown?.type === 'satis' && openDropdown.id === f.id && (
                   <div className="dropdown-menu">
+                     {f.fis_gorseli && <button title="Fotoğrafı Aç" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); handleFisGorselGoster(f); }}>📷</button>}
                      {f.bayi !== "SİSTEM İŞLEMİ" && <button title="Görüntüle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); handleFisDetayGoster(f); }}>🔍</button>}
                      {f.bayi !== "SİSTEM İŞLEMİ" && <button title="Düzenle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); handleFisDuzenle(f); }}>✏️</button>}
                      <button title="Sil" className="dropdown-item-icon" style={{ color: '#dc2626' }} onClick={() => { setOpenDropdown(null); handleFisSil(f); }}>🗑️</button>
@@ -1850,7 +1899,6 @@ export default function App() {
                   <h2 style={{ margin: "0 0 2px", color: "#000", fontSize: "18px" }}>SULTANKÖY</h2><div style={{ color: "#000", fontSize: "11px", marginBottom: "12px" }}>Süt Ürünleri</div>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#000", marginBottom: "2px" }}><span>Tarih | Fiş No:</span><b>{sonFisData.tarih.split("-").reverse().join(".")} | {sonFisData.fis_no}</b></div>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#000", marginBottom: "2px" }}><span>Sayın:</span><b style={{textAlign: "right"}}>{sonFisData.bayi}</b></div>
-                  <div style={{ fontSize: "9px", color: "#000", marginBottom: "12px", textAlign: "left" }}>{sonFisData.aciklama || ""}</div>
                   
                   {(sonFisData.urunler.length > 0 || (sonFisData.ekstraIndirimler && sonFisData.ekstraIndirimler.length > 0)) && (
                     <table style={{ width: '100%', fontSize: '11px', textAlign: 'left', borderCollapse: 'collapse', marginBottom: '12px', color: '#000' }}>

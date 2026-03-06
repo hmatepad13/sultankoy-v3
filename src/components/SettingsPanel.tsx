@@ -50,6 +50,104 @@ const kartStili = {
   padding: "14px",
 } as const;
 
+const kayitObjesi = (veri: unknown): Record<string, unknown> | null => {
+  if (!veri || typeof veri !== "object" || Array.isArray(veri)) return null;
+  return veri as Record<string, unknown>;
+};
+
+const metinDegeri = (veri: Record<string, unknown> | null, alan: string) => {
+  const deger = veri?.[alan];
+  return typeof deger === "string" && deger.trim() ? deger.trim() : "";
+};
+
+const sayiDegeri = (veri: Record<string, unknown> | null, alan: string) => {
+  const deger = veri?.[alan];
+  if (typeof deger === "number" && Number.isFinite(deger)) return deger;
+  if (typeof deger === "string" && deger.trim() && !Number.isNaN(Number(deger))) return Number(deger);
+  return null;
+};
+
+const paraMetni = (deger: number | null) => (deger === null ? "" : `${fSayi(deger)} ₺`);
+
+const copKutusuOzetiniGetir = (tabloAdi: string, veri: unknown) => {
+  const kayit = kayitObjesi(veri);
+  if (!kayit) {
+    return {
+      baslik: "Kayıt özeti alınamadı",
+      detay: typeof veri === "string" ? veri : "Ham veri görüntülenemedi.",
+    };
+  }
+
+  const tarih = metinDegeri(kayit, "tarih");
+  const bayi = metinDegeri(kayit, "bayi");
+  const fisNo = metinDegeri(kayit, "fis_no");
+  const ciftlik = metinDegeri(kayit, "ciftlik");
+  const urun = metinDegeri(kayit, "urun");
+  const tur = metinDegeri(kayit, "tur");
+  const aciklama = metinDegeri(kayit, "aciklama");
+
+  if (tabloAdi === "satis_fisleri") {
+    const detaylar = [tarih, bayi, paraMetni(sayiDegeri(kayit, "toplam_tutar")), paraMetni(sayiDegeri(kayit, "kalan_bakiye"))].filter(Boolean);
+    return {
+      baslik: fisNo || bayi || "Satış fişi",
+      detay: detaylar.join(" | ") || "Satış fişi kaydı",
+    };
+  }
+
+  if (tabloAdi === "satis_giris") {
+    const detaylar = [tarih, bayi, urun, paraMetni(sayiDegeri(kayit, "tutar"))].filter(Boolean);
+    return {
+      baslik: urun || fisNo || "Satış satırı",
+      detay: detaylar.join(" | ") || "Satış satırı kaydı",
+    };
+  }
+
+  if (tabloAdi === "sut_giris") {
+    const detaylar = [tarih, ciftlik, `${fSayi(sayiDegeri(kayit, "kg") || 0)} kg`, paraMetni(sayiDegeri(kayit, "toplam_tl"))].filter(Boolean);
+    return {
+      baslik: ciftlik || "Süt girişi",
+      detay: detaylar.join(" | "),
+    };
+  }
+
+  if (tabloAdi === "giderler") {
+    const detaylar = [tarih, tur, paraMetni(sayiDegeri(kayit, "tutar")), aciklama].filter(Boolean);
+    return {
+      baslik: tur || "Gider kaydı",
+      detay: detaylar.join(" | "),
+    };
+  }
+
+  if (tabloAdi === "uretim") {
+    const detaylar = [
+      tarih,
+      paraMetni(sayiDegeri(kayit, "toplam_maliyet")),
+      paraMetni(sayiDegeri(kayit, "kar")),
+      aciklama,
+    ].filter(Boolean);
+    return {
+      baslik: tarih ? `${tarih} üretim kaydı` : "Üretim kaydı",
+      detay: detaylar.join(" | "),
+    };
+  }
+
+  const genelDetaylar = [
+    tarih,
+    bayi,
+    ciftlik,
+    urun,
+    tur,
+    aciklama,
+    paraMetni(sayiDegeri(kayit, "tutar")),
+    paraMetni(sayiDegeri(kayit, "toplam_tutar")),
+  ].filter(Boolean);
+
+  return {
+    baslik: fisNo || bayi || ciftlik || urun || tur || tabloAdi,
+    detay: genelDetaylar.join(" | ") || JSON.stringify(kayit).substring(0, 120),
+  };
+};
+
 export function SettingsPanel({
   activeAyarTab,
   setActiveAyarTab,
@@ -442,25 +540,33 @@ export function SettingsPanel({
           <div style={{ display: "flex", flexDirection: "column", gap: "6px", overflowY: "auto", paddingRight: "4px" }}>
             <h4 style={{ margin: "0 0 5px", fontSize: "13px", color: "#dc2626" }}>Son Silinen Kayıtlar</h4>
             {copKutusuList.map((kayit) => (
-              <div
-                key={kayit.id}
-                style={{
-                  padding: "8px 10px",
-                  background: "#fef2f2",
-                  border: "1px solid #fecaca",
-                  borderRadius: "8px",
-                  fontSize: "11px",
-                  color: "#475569",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-                  <strong style={{ color: "#dc2626" }}>{kayit.tablo_adi.toUpperCase()}</strong>
-                  <span>{kayit.silinme_tarihi ? new Date(kayit.silinme_tarihi).toLocaleString("tr-TR") : ""}</span>
-                </div>
-                <div style={{ wordBreak: "break-all", background: "#fff", padding: "4px", borderRadius: "4px" }}>
-                  {JSON.stringify(kayit.veri).substring(0, 100)}...
-                </div>
-              </div>
+              (() => {
+                const ozet = copKutusuOzetiniGetir(kayit.tablo_adi, kayit.veri);
+                return (
+                  <div
+                    key={kayit.id}
+                    style={{
+                      padding: "8px 10px",
+                      background: "#fef2f2",
+                      border: "1px solid #fecaca",
+                      borderRadius: "8px",
+                      fontSize: "11px",
+                      color: "#475569",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", gap: "8px" }}>
+                      <strong style={{ color: "#dc2626" }}>{kayit.tablo_adi.toUpperCase()}</strong>
+                      <span style={{ textAlign: "right" }}>
+                        {kayit.silinme_tarihi ? new Date(kayit.silinme_tarihi).toLocaleString("tr-TR") : ""}
+                      </span>
+                    </div>
+                    <div style={{ background: "#fff", padding: "7px 8px", borderRadius: "6px", border: "1px solid #fee2e2" }}>
+                      <div style={{ fontWeight: 700, color: "#0f172a", marginBottom: "4px" }}>{ozet.baslik}</div>
+                      <div style={{ color: "#475569", lineHeight: 1.45 }}>{ozet.detay}</div>
+                    </div>
+                  </div>
+                );
+              })()
             ))}
             {copKutusuList.length === 0 && (
               <div style={{ textAlign: "center", color: "#94a3b8", marginTop: "20px", fontSize: "12px" }}>
