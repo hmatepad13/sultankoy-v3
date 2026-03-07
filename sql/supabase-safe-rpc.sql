@@ -142,8 +142,8 @@ begin
       v_fis_no := public.app_new_fis_no('F');
     end if;
 
-    delete from public.satis_giris
-    where fis_no = v_fis_no;
+    delete from public.satis_giris as sg
+    where sg.fis_no = v_fis_no;
 
     insert into public.satis_giris (
       fis_no,
@@ -209,8 +209,8 @@ begin
     if nullif(btrim(coalesce(p_fis_no, '')), '') is not null then
       if exists (
         select 1
-        from public.satis_fisleri
-        where fis_no = p_fis_no
+        from public.satis_fisleri as sf
+        where sf.fis_no = p_fis_no
       ) then
         raise exception 'Ayni fis no zaten var: %', p_fis_no;
       end if;
