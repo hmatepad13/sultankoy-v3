@@ -16,6 +16,7 @@ import type {
   Bayi,
   Ciftlik,
   CopKutusu,
+  DepolamaDurumu,
   FisDetayMap,
   Gider,
   GiderTuru,
@@ -34,6 +35,8 @@ import { getLocalDateString } from "./utils/date";
 import { normalizeUsername } from "./utils/format";
 
 const URETIM_META_ETIKETI = "[URETIM_META]";
+const SUPABASE_FREE_DATABASE_LIMIT_BYTES = 500_000_000;
+const SUPABASE_FREE_STORAGE_LIMIT_BYTES = 1_000_000_000;
 
 const sayiDegeri = (deger: unknown) => {
   if (typeof deger === "number" && Number.isFinite(deger)) return deger;
@@ -384,6 +387,9 @@ export default function App() {
   const [yetkiKaynak, setYetkiKaynak] = useState<"supabase" | "local">("local");
   const [yetkiUyari, setYetkiUyari] = useState("");
   const [isBackupLoading, setIsBackupLoading] = useState(false);
+  const [depolamaDurumu, setDepolamaDurumu] = useState<DepolamaDurumu | null>(null);
+  const [isDepolamaLoading, setIsDepolamaLoading] = useState(false);
+  const [depolamaHata, setDepolamaHata] = useState("");
   const [authHata, setAuthHata] = useState("");
   
   // AÇILIR MENÜLER
@@ -643,6 +649,43 @@ export default function App() {
       (mesaj.includes(`public.${fonksiyonAdi}`.toLowerCase()) &&
         (mesaj.includes("schema cache") || mesaj.includes("not find") || mesaj.includes("does not exist")))
     );
+  };
+
+  const depolamaDurumunuGetir = async (force = false) => {
+    if (isDepolamaLoading) return;
+    if (!force && depolamaDurumu) return;
+
+    setIsDepolamaLoading(true);
+    setDepolamaHata("");
+
+    const { data, error } = await supabase.rpc("get_storage_usage_summary");
+
+    if (error) {
+      if (rpcBulunamadiMi(error, "get_storage_usage_summary")) {
+        setDepolamaHata("Depolama raporu icin SQL fonksiyonu henuz kurulmamis. SQL dosyasini bir kez calistirman gerekiyor.");
+      } else {
+        setDepolamaHata(`Depolama bilgisi alinamadi: ${error.message || "Bilinmeyen hata"}`);
+      }
+      setIsDepolamaLoading(false);
+      return;
+    }
+
+    const kayit = Array.isArray(data) ? data[0] : data;
+    const databaseBytes = Number(kayit?.database_bytes || 0);
+    const imageBytes = Number(kayit?.image_bytes || 0);
+    const imageCount = Number(kayit?.image_count || 0);
+
+    setDepolamaDurumu({
+      databaseBytes,
+      databaseTotalBytes: SUPABASE_FREE_DATABASE_LIMIT_BYTES,
+      databaseRemainingBytes: Math.max(SUPABASE_FREE_DATABASE_LIMIT_BYTES - databaseBytes, 0),
+      imageBytes,
+      imageTotalBytes: SUPABASE_FREE_STORAGE_LIMIT_BYTES,
+      imageRemainingBytes: Math.max(SUPABASE_FREE_STORAGE_LIMIT_BYTES - imageBytes, 0),
+      imageCount,
+      updatedAt: new Date().toISOString(),
+    });
+    setIsDepolamaLoading(false);
   };
 
   const yerelOturumuTemizle = async () => {
@@ -3077,7 +3120,12 @@ export default function App() {
   const renderAyarlar = () => (
     <SettingsPanel
       activeAyarTab={activeAyarTab}
-      setActiveAyarTab={setActiveAyarTab}
+      setActiveAyarTab={(tab) => {
+        setActiveAyarTab(tab);
+        if (tab === "depolama" && !depolamaDurumu && !isDepolamaLoading && !depolamaHata) {
+          void depolamaDurumunuGetir();
+        }
+      }}
       bayiler={bayiler}
       urunler={urunler}
       tedarikciler={tedarikciler}
@@ -3103,6 +3151,10 @@ export default function App() {
       onExcelBackup={handleExcelBackup}
       onJsonBackup={handleJsonBackup}
       isBackupLoading={isBackupLoading}
+      depolamaDurumu={depolamaDurumu}
+      isDepolamaLoading={isDepolamaLoading}
+      depolamaHata={depolamaHata}
+      onLoadDepolama={depolamaDurumunuGetir}
       isAdmin={isAdmin}
       mevcutKullanici={mevcutKullanici}
       kullaniciListesi={kullaniciListesi}

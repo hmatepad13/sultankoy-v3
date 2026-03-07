@@ -6,6 +6,7 @@ export type ActiveAyarTab =
   | "ciftlikler"
   | "gider_turleri"
   | "cop_kutusu"
+  | "depolama"
   | "yedekleme"
   | "yetkiler";
 
@@ -191,4 +192,15 @@ export interface YedekVerisi {
   ciftlikler: Ciftlik[];
   copKutusuList: CopKutusu[];
   tabYetkileri: KullaniciSekmeYetkisi[];
+}
+
+export interface DepolamaDurumu {
+  databaseBytes: number;
+  databaseTotalBytes: number;
+  databaseRemainingBytes: number;
+  imageBytes: number;
+  imageTotalBytes: number;
+  imageRemainingBytes: number;
+  imageCount: number;
+  updatedAt: string;
 }

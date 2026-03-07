@@ -7,6 +7,7 @@ import type {
   Bayi,
   Ciftlik,
   CopKutusu,
+  DepolamaDurumu,
   GiderTuru,
   KullaniciSekmeYetkisi,
   SekmeYetkiMap,
@@ -32,6 +33,10 @@ interface SettingsPanelProps {
   onJsonBackup: () => void;
   onHtmlBackup: () => void;
   isBackupLoading: boolean;
+  depolamaDurumu: DepolamaDurumu | null;
+  isDepolamaLoading: boolean;
+  depolamaHata: string;
+  onLoadDepolama: (force?: boolean) => void;
   isAdmin: boolean;
   mevcutKullanici: string;
   kullaniciListesi: string[];
@@ -67,6 +72,19 @@ const sayiDegeri = (veri: Record<string, unknown> | null, alan: string) => {
 };
 
 const paraMetni = (deger: number | null) => (deger === null ? "" : `${fSayi(deger)} ₺`);
+
+const byteMetni = (bytes: number) => {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
+  const birimler = ["B", "KB", "MB", "GB", "TB"];
+  let index = 0;
+  let deger = bytes;
+  while (deger >= 1000 && index < birimler.length - 1) {
+    deger /= 1000;
+    index += 1;
+  }
+  const fractionDigits = deger >= 100 ? 0 : deger >= 10 ? 1 : 2;
+  return `${new Intl.NumberFormat("tr-TR", { maximumFractionDigits: fractionDigits }).format(deger)} ${birimler[index]}`;
+};
 
 const copKutusuOzetiniGetir = (tabloAdi: string, veri: unknown) => {
   const kayit = kayitObjesi(veri);
@@ -166,6 +184,10 @@ export function SettingsPanel({
   onJsonBackup,
   onHtmlBackup,
   isBackupLoading,
+  depolamaDurumu,
+  isDepolamaLoading,
+  depolamaHata,
+  onLoadDepolama,
   isAdmin,
   mevcutKullanici,
   kullaniciListesi,
@@ -511,6 +533,81 @@ export function SettingsPanel({
                 {isBackupLoading ? "Hazırlanıyor..." : "JSON Yedeği İndir"}
               </button>
             </div>
+          </div>
+        )}
+
+        {activeAyarTab === "depolama" && (
+          <div style={{ display: "grid", gap: "12px", overflowY: "auto" }}>
+            <div style={kartStili}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px", flexWrap: "wrap", marginBottom: "8px" }}>
+                <h3 style={{ margin: 0, fontSize: "15px", color: "#0f172a" }}>Depolama Durumu</h3>
+                <button
+                  onClick={() => onLoadDepolama(true)}
+                  disabled={isDepolamaLoading}
+                  style={{
+                    background: "#0369a1",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "8px",
+                    padding: "7px 12px",
+                    fontWeight: "bold",
+                    cursor: isDepolamaLoading ? "wait" : "pointer",
+                    fontSize: "12px",
+                  }}
+                >
+                  {isDepolamaLoading ? "Yenileniyor..." : "Yenile"}
+                </button>
+              </div>
+              <p style={{ margin: 0, color: "#64748b", fontSize: "12px", lineHeight: 1.5 }}>
+                Bu veri sadece bu sekme acildiginda cekilir. Toplam alan bilgisi mevcut Free plan limitlerine gore gosterilir.
+              </p>
+            </div>
+
+            {depolamaHata && (
+              <div
+                style={{
+                  ...kartStili,
+                  background: "#fff7ed",
+                  borderColor: "#fdba74",
+                  color: "#9a3412",
+                  fontSize: "12px",
+                  lineHeight: 1.5,
+                }}
+              >
+                {depolamaHata}
+              </div>
+            )}
+
+            <div style={{ display: "grid", gap: "10px", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+              <div style={kartStili}>
+                <div style={{ color: "#0369a1", fontWeight: "bold", fontSize: "13px", marginBottom: "8px" }}>Database</div>
+                <div style={{ fontSize: "22px", fontWeight: 700, color: "#0f172a", marginBottom: "6px" }}>
+                  {byteMetni(depolamaDurumu?.databaseBytes || 0)}
+                </div>
+                <div style={{ display: "grid", gap: "4px", fontSize: "12px", color: "#475569" }}>
+                  <div>Toplam: {byteMetni(depolamaDurumu?.databaseTotalBytes || 500000000)}</div>
+                  <div>Kalan: {byteMetni(depolamaDurumu?.databaseRemainingBytes || 0)}</div>
+                </div>
+              </div>
+
+              <div style={kartStili}>
+                <div style={{ color: "#0f766e", fontWeight: "bold", fontSize: "13px", marginBottom: "8px" }}>Gorseller</div>
+                <div style={{ fontSize: "22px", fontWeight: 700, color: "#0f172a", marginBottom: "6px" }}>
+                  {byteMetni(depolamaDurumu?.imageBytes || 0)}
+                </div>
+                <div style={{ display: "grid", gap: "4px", fontSize: "12px", color: "#475569" }}>
+                  <div>Toplam: {byteMetni(depolamaDurumu?.imageTotalBytes || 1000000000)}</div>
+                  <div>Kalan: {byteMetni(depolamaDurumu?.imageRemainingBytes || 0)}</div>
+                  <div>Dosya: {new Intl.NumberFormat("tr-TR").format(depolamaDurumu?.imageCount || 0)}</div>
+                </div>
+              </div>
+            </div>
+
+            {depolamaDurumu?.updatedAt && (
+              <div style={{ color: "#94a3b8", fontSize: "11px", textAlign: "right" }}>
+                Son guncelleme: {new Date(depolamaDurumu.updatedAt).toLocaleString("tr-TR")}
+              </div>
+            )}
           </div>
         )}
 
