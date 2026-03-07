@@ -2,12 +2,20 @@
 import { useEffect, useEffectEvent, useMemo, useRef, useState, type ChangeEvent, type CSSProperties } from "react";
 import { LoginScreen } from "./components/LoginScreen";
 import { SettingsPanel } from "./components/SettingsPanel";
+import JSZip from "jszip";
 import {
   GIDER_TURLERI,
   TAB_TANIMLARI,
   TEMA_RENGI,
 } from "./constants/app";
-import { yedegiExcelIndir, yedegiHtmlIndir, yedegiJsonIndir } from "./lib/backup";
+import {
+  excelYedekDosyasiOlustur,
+  htmlYedekDosyasiOlustur,
+  jsonYedekDosyasiOlustur,
+  yedegiExcelIndir,
+  yedegiHtmlIndir,
+  yedegiJsonIndir,
+} from "./lib/backup";
 import { adminMi, kullaniciYetkileriniKaydet, kullaniciYetkileriniYukle, kullaniciYetkisiniBul } from "./lib/permissions";
 import { supabase } from "./lib/supabase";
 import type {
@@ -32,11 +40,21 @@ import type {
   YedekVerisi,
 } from "./types/app";
 import { getLocalDateString } from "./utils/date";
-import { normalizeUsername } from "./utils/format";
+import { dosyaIndir, normalizeUsername } from "./utils/format";
 
 const URETIM_META_ETIKETI = "[URETIM_META]";
 const SUPABASE_FREE_DATABASE_LIMIT_BYTES = 500_000_000;
 const SUPABASE_FREE_STORAGE_LIMIT_BYTES = 1_000_000_000;
+const FIS_GORSELLERI_BUCKET = "fis_gorselleri";
+
+const yedekDosyaTarihiGetir = (isoTarih: string) =>
+  isoTarih
+    .replace(/[-:]/g, "")
+    .replace("T", "-")
+    .slice(0, 13);
+
+const storageKlasoruMu = (item: { id?: string | null; metadata?: Record<string, unknown> | null }) =>
+  !item.id || item.metadata == null;
 
 const sayiDegeri = (deger: unknown) => {
   if (typeof deger === "number" && Number.isFinite(deger)) return deger;
@@ -58,6 +76,36 @@ const miktarSatirTutari = (kg: unknown, adet: unknown, fiyat: unknown) => {
   const adetDegeri = sayiDegeri(adet);
   const miktar = kgDegeri > 0 ? kgDegeri : adetDegeri;
   return miktar * sayiDegeri(fiyat);
+};
+
+const bucketDosyaYollariniTopla = async (klasor = ""): Promise<string[]> => {
+  const tumYollar: string[] = [];
+  let offset = 0;
+
+  while (true) {
+    const { data, error } = await supabase.storage.from(FIS_GORSELLERI_BUCKET).list(klasor, {
+      limit: 1000,
+      offset,
+      sortBy: { column: "name", order: "asc" },
+    });
+
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+
+    for (const item of data) {
+      const tamYol = klasor ? `${klasor}/${item.name}` : item.name;
+      if (storageKlasoruMu(item)) {
+        tumYollar.push(...(await bucketDosyaYollariniTopla(tamYol)));
+      } else {
+        tumYollar.push(tamYol);
+      }
+    }
+
+    if (data.length < 1000) break;
+    offset += data.length;
+  }
+
+  return tumYollar;
 };
 
 const uretimMetaAlanlari = [
@@ -2281,6 +2329,67 @@ export default function App() {
     }
   };
 
+  const handleFullBackup = async () => {
+    setIsBackupLoading(true);
+    try {
+      const zip = new JSZip();
+      const jsonDosya = jsonYedekDosyasiOlustur(yedekVerisi);
+      const htmlDosya = htmlYedekDosyasiOlustur(yedekVerisi);
+      const excelDosya = excelYedekDosyasiOlustur(yedekVerisi);
+      const raporKlasoru = zip.folder("veri_yedekleri");
+
+      raporKlasoru?.file(jsonDosya.dosyaAdi, jsonDosya.icerik);
+      raporKlasoru?.file(htmlDosya.dosyaAdi, htmlDosya.icerik);
+      raporKlasoru?.file(excelDosya.dosyaAdi, excelDosya.icerik);
+
+      const storageHatalari: string[] = [];
+      const gorselKlasoru = zip.folder(FIS_GORSELLERI_BUCKET);
+      const dosyaYollari = await bucketDosyaYollariniTopla();
+
+      for (const dosyaYolu of dosyaYollari) {
+        const { data, error } = await supabase.storage.from(FIS_GORSELLERI_BUCKET).download(dosyaYolu);
+        if (error || !data) {
+          storageHatalari.push(`${dosyaYolu}: ${error?.message || "Indirilemedi"}`);
+          continue;
+        }
+
+        gorselKlasoru?.file(dosyaYolu, data);
+      }
+
+      zip.file(
+        "README.txt",
+        [
+          "Sultankoy tam yedek paketi",
+          `Olusturma tarihi: ${yedekVerisi.alindiTarih}`,
+          `Aktif donem: ${yedekVerisi.aktifDonem}`,
+          `Veri kaynagi: ${yedekVerisi.kaynak}`,
+          `Gorsel dosyasi sayisi: ${dosyaYollari.length}`,
+          storageHatalari.length > 0 ? "" : "",
+          storageHatalari.length > 0 ? "Indirilemeyen gorseller:" : "",
+          ...storageHatalari,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      );
+
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      dosyaIndir(
+        zipBlob,
+        `sultankoy-tam-yedek-${yedekDosyaTarihiGetir(yedekVerisi.alindiTarih)}.zip`,
+        "application/zip",
+      );
+
+      if (storageHatalari.length > 0) {
+        alert(`Tam yedek indirildi, ancak ${storageHatalari.length} gorsel indirilemedi. README dosyasina eklendi.`);
+      }
+    } catch (error) {
+      const mesaj = error instanceof Error ? error.message : "Tam yedek hazirlanamadi.";
+      alert(`Tam yedek hatasi: ${mesaj}`);
+    } finally {
+      setIsBackupLoading(false);
+    }
+  };
+
   const handlePermissionSave = async (next: KullaniciSekmeYetkisi[]) => {
     const { kayitlar, kaynak, uyari } = await kullaniciYetkileriniKaydet(next);
     setTabYetkileri(kayitlar);
@@ -3198,6 +3307,7 @@ export default function App() {
       onOpenTrash={() => verileriGetir("cop")}
       onEmptyTrash={handleEmptyTrash}
       onHtmlBackup={handleHtmlBackup}
+      onFullBackup={handleFullBackup}
       onExcelBackup={handleExcelBackup}
       onJsonBackup={handleJsonBackup}
       isBackupLoading={isBackupLoading}

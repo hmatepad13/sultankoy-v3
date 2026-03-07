@@ -33,6 +33,7 @@ interface SettingsPanelProps {
   onExcelBackup: () => void;
   onJsonBackup: () => void;
   onHtmlBackup: () => void;
+  onFullBackup: () => void;
   isBackupLoading: boolean;
   depolamaDurumu: DepolamaDurumu | null;
   isDepolamaLoading: boolean;
@@ -185,6 +186,7 @@ export function SettingsPanel({
   onExcelBackup,
   onJsonBackup,
   onHtmlBackup,
+  onFullBackup,
   isBackupLoading,
   depolamaDurumu,
   isDepolamaLoading,
@@ -489,6 +491,21 @@ export function SettingsPanel({
               </p>
             </div>
             <div style={{ ...kartStili, display: "grid", gap: "10px" }}>
+              <button
+                onClick={onFullBackup}
+                disabled={isBackupLoading}
+                style={{
+                  background: "#0f172a",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "10px",
+                  padding: "12px 14px",
+                  fontWeight: "bold",
+                  cursor: isBackupLoading ? "wait" : "pointer",
+                }}
+              >
+                {isBackupLoading ? "Hazirlaniyor..." : "Tam Yedek ZIP İndir"}
+              </button>
               <button
                 onClick={onHtmlBackup}
                 disabled={isBackupLoading}
