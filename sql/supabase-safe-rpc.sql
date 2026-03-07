@@ -80,10 +80,13 @@ as $$
     or public.app_normalize_username(target_ekleyen) = public.app_normalize_username(public.app_requester_email());
 $$;
 
+drop function if exists public.app_save_satis_fisi(bigint, date, text, numeric, numeric, numeric, text, text, jsonb, text, text);
+
 create or replace function public.app_save_satis_fisi(
   p_fis_id bigint default null,
   p_tarih date default null,
   p_bayi text default null,
+  p_bayi_id uuid default null,
   p_toplam_tutar numeric default 0,
   p_tahsilat numeric default 0,
   p_kalan_bakiye numeric default 0,
@@ -149,7 +152,9 @@ begin
       fis_no,
       tarih,
       bayi,
+      bayi_id,
       urun,
+      urun_id,
       birim,
       adet,
       fiyat,
@@ -164,7 +169,9 @@ begin
       v_fis_no,
       p_tarih,
       p_bayi,
+      coalesce(detay.bayi_id, p_bayi_id),
       detay.urun,
+      detay.urun_id,
       detay.birim,
       detay.adet,
       detay.fiyat,
@@ -175,7 +182,9 @@ begin
       coalesce(v_existing.ekleyen, v_requester_email),
       v_existing.created_by
     from jsonb_to_recordset(p_detaylar) as detay(
+      bayi_id uuid,
       urun text,
+      urun_id uuid,
       birim numeric,
       adet numeric,
       fiyat numeric,
@@ -195,6 +204,7 @@ begin
     set
       tarih = p_tarih,
       bayi = p_bayi,
+      bayi_id = p_bayi_id,
       toplam_tutar = coalesce(p_toplam_tutar, 0),
       tahsilat = coalesce(p_tahsilat, 0),
       kalan_bakiye = coalesce(p_kalan_bakiye, 0),
@@ -224,6 +234,7 @@ begin
       fis_no,
       tarih,
       bayi,
+      bayi_id,
       toplam_tutar,
       tahsilat,
       kalan_bakiye,
@@ -237,6 +248,7 @@ begin
       v_fis_no,
       p_tarih,
       p_bayi,
+      p_bayi_id,
       coalesce(p_toplam_tutar, 0),
       coalesce(p_tahsilat, 0),
       coalesce(p_kalan_bakiye, 0),
@@ -252,7 +264,9 @@ begin
       fis_no,
       tarih,
       bayi,
+      bayi_id,
       urun,
+      urun_id,
       birim,
       adet,
       fiyat,
@@ -267,7 +281,9 @@ begin
       v_fis_no,
       p_tarih,
       p_bayi,
+      coalesce(detay.bayi_id, p_bayi_id),
       detay.urun,
+      detay.urun_id,
       detay.birim,
       detay.adet,
       detay.fiyat,
@@ -278,7 +294,9 @@ begin
       v_requester_email,
       v_requester_id
     from jsonb_to_recordset(p_detaylar) as detay(
+      bayi_id uuid,
       urun text,
+      urun_id uuid,
       birim numeric,
       adet numeric,
       fiyat numeric,
@@ -407,6 +425,7 @@ begin
     fis_no,
     tarih,
     bayi,
+    bayi_id,
     toplam_tutar,
     tahsilat,
     kalan_bakiye,
@@ -443,6 +462,7 @@ begin
     public.app_new_fis_no('DEVIR'),
     v_next_date,
     bayi,
+    bayi_ref.id,
     case when running_balance > 0 then running_balance else 0 end,
     case when running_balance < 0 then abs(running_balance) else 0 end,
     running_balance,
@@ -451,6 +471,12 @@ begin
     v_requester_email,
     v_requester_id
   from balanced
+  left join lateral (
+    select id
+    from public.bayiler
+    where isim = balanced.bayi
+    limit 1
+  ) as bayi_ref on true
   where rn = 1
     and abs(running_balance) > 0.01;
 
@@ -460,6 +486,7 @@ begin
     fis_no,
     tarih,
     bayi,
+    bayi_id,
     toplam_tutar,
     tahsilat,
     kalan_bakiye,
@@ -525,6 +552,7 @@ begin
     public.app_new_fis_no('PDEVIR'),
     v_next_date,
     'SİSTEM İŞLEMİ',
+    null,
     net,
     0,
     acik_bakiye,
@@ -553,7 +581,7 @@ grant execute on function public.app_normalize_username(text) to authenticated;
 grant execute on function public.app_new_fis_no(text) to authenticated;
 grant execute on function public.app_is_admin() to authenticated;
 grant execute on function public.app_can_manage_record(uuid, text) to authenticated;
-grant execute on function public.app_save_satis_fisi(bigint, date, text, numeric, numeric, numeric, text, text, jsonb, text, text) to authenticated;
+grant execute on function public.app_save_satis_fisi(bigint, date, text, uuid, numeric, numeric, numeric, text, text, jsonb, text, text) to authenticated;
 grant execute on function public.app_delete_satis_fisi(bigint) to authenticated;
 grant execute on function public.app_close_period(text) to authenticated;
 

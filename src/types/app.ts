@@ -28,6 +28,7 @@ export interface SutGiris {
   id?: string;
   tarih: string;
   ciftlik: string;
+  ciftlik_id?: string | null;
   kg: number | string;
   fiyat: number | string;
   toplam_tl?: number;
@@ -40,7 +41,9 @@ export interface SatisGiris {
   fis_no?: string;
   tarih: string;
   bayi: string;
+  bayi_id?: string | null;
   urun: string;
+  urun_id?: string | null;
   adet: number | string;
   fiyat: number | string;
   toplam_kg?: number;
@@ -56,6 +59,7 @@ export interface SatisFis {
   fis_no: string;
   tarih: string;
   bayi: string;
+  bayi_id?: string | null;
   toplam_tutar: number;
   tahsilat: number;
   kalan_bakiye: number;

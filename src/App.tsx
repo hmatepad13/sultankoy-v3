@@ -429,6 +429,13 @@ export default function App() {
   const [uretimForm, setUretimForm] = useState<Uretim>(bosUretimFormu(aktifDonemTarihi(), "yogurt"));
   const [uretimSort, setUretimSort] = useState<SortConfig>({ key: 'tarih', direction: 'desc' });
 
+  const eslesenKayitIdBul = <T extends { id: string; isim: string }>(liste: T[], isim?: string | null) =>
+    liste.find((item) => item.isim === isim)?.id ?? null;
+
+  const seciliBayiId = (bayiAdi?: string | null) => eslesenKayitIdBul(bayiler, bayiAdi);
+  const seciliUrunId = (urunAdi?: string | null) => eslesenKayitIdBul(urunler, urunAdi);
+  const seciliCiftlikId = (ciftlikAdi?: string | null) => eslesenKayitIdBul(tedarikciler, ciftlikAdi);
+
   const [activeFilterModal, setActiveFilterModal] = useState<'sut_ciftlik' | 'fis_bayi' | 'analiz_bayi' | 'analiz_urun' | 'sut_tarih' | 'fis_tarih' | 'analiz_tarih' | null>(null);
 
   const closeAllDropdowns = () => {
@@ -728,10 +735,11 @@ export default function App() {
      }
 
      const devirFisleri = bayiBorclari.map((b, index) => ({
-         fis_no: benzersizFisNoOlustur("DEVIR", index),
-         tarih: `${nextDonem}-01`,
-         bayi: b.isim,
-         toplam_tutar: b.borc > 0 ? b.borc : 0,
+        fis_no: benzersizFisNoOlustur("DEVIR", index),
+        tarih: `${nextDonem}-01`,
+        bayi: b.isim,
+        bayi_id: seciliBayiId(b.isim),
+        toplam_tutar: b.borc > 0 ? b.borc : 0,
          tahsilat: b.borc < 0 ? Math.abs(b.borc) : 0,
          kalan_bakiye: b.borc,
          odeme_turu: "DEVİR",
@@ -744,6 +752,7 @@ export default function App() {
        .map((p, index) => ({
          fis_no: benzersizFisNoOlustur("PDEVIR", index),
          tarih: `${nextDonem}-01`,
+         bayi_id: null,
          bayi: "SİSTEM İŞLEMİ",
          toplam_tutar: p.net,
          tahsilat: 0,
@@ -908,7 +917,14 @@ export default function App() {
     if (editingSutId && !kaydiDuzenleyebilirMi(duzenlenenKayit?.ekleyen)) {
       return alert("Bu süt kaydını sadece ekleyen kullanıcı veya admin düzenleyebilir.");
     }
-    const p = { ...sutForm, kg: Number(sutForm.kg), fiyat: Number(sutForm.fiyat), toplam_tl: Number(sutForm.kg) * Number(sutForm.fiyat), ekleyen: aktifKullaniciEposta };
+    const p = {
+      ...sutForm,
+      ciftlik_id: seciliCiftlikId(sutForm.ciftlik),
+      kg: Number(sutForm.kg),
+      fiyat: Number(sutForm.fiyat),
+      toplam_tl: Number(sutForm.kg) * Number(sutForm.fiyat),
+      ekleyen: aktifKullaniciEposta,
+    };
     const { error } = editingSutId ? await supabase.from("sut_giris").update(p).eq("id", editingSutId) : await supabase.from("sut_giris").insert(p);
     if (error) return alert("Hata: " + error.message);
     setSutForm({ tarih: aktifDonemTarihi(), ciftlik: "", kg: "", fiyat: "", aciklama: "" }); 
@@ -1054,6 +1070,7 @@ export default function App() {
         fis_no: fNo,
         tarih: tahsilatForm.tarih,
         bayi: tahsilatForm.bayi,
+        bayi_id: seciliBayiId(tahsilatForm.bayi),
         toplam_tutar: 0,
         tahsilat: tMiktar,
         kalan_bakiye: -tMiktar,
@@ -1079,6 +1096,7 @@ export default function App() {
     const fData = {
         fis_no: fNo,
         tarih: digerForm.tarih,
+        bayi_id: null,
         bayi: "SİSTEM İŞLEMİ",
         toplam_tutar: 0,
         tahsilat: tahsilat,
@@ -1352,6 +1370,7 @@ export default function App() {
     const kalanBakiye = fisCanliToplam - tahsilat;
     const yeniGorselSecildi = Boolean(fisGorselDosya);
     let fisGorselYolu = fisGorselMevcutYol || null;
+    const secilenBayiId = seciliBayiId(fisUst.bayi);
 
     const detayPayloadlari = () => {
       const insertArray = eklenecekUrunler.map((u) => {
@@ -1369,7 +1388,9 @@ export default function App() {
           fis_no: ortakFisNo,
           tarih: fisUst.tarih,
           bayi: fisUst.bayi,
+          bayi_id: secilenBayiId,
           urun: u.isim,
+          urun_id: seciliUrunId(u.isim),
           adet,
           fiyat,
           birim: kgEslesme ? Number(kgEslesme[1]) : 1,
@@ -1385,7 +1406,9 @@ export default function App() {
         insertArray.push({
           fis_no: ortakFisNo,
           tarih: fisUst.tarih,
+          bayi_id: secilenBayiId,
           bayi: fisUst.bayi,
+          urun_id: null,
           urun: "İade",
           adet: iadeAdet,
           fiyat: -iadeFiyat,
@@ -1402,7 +1425,9 @@ export default function App() {
         insertArray.push({
           fis_no: ortakFisNo,
           tarih: fisUst.tarih,
+          bayi_id: secilenBayiId,
           bayi: fisUst.bayi,
+          urun_id: null,
           urun: "Boş Kova",
           adet: kovaAdet,
           fiyat: -kovaFiyat,
@@ -1439,12 +1464,26 @@ export default function App() {
         fisUst.aciklama
     ].filter(Boolean).join(" - ");
 
-    const fisMaster = { fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, toplam_tutar: fisCanliToplam, tahsilat: tahsilat, kalan_bakiye: kalanBakiye, odeme_turu: fisUst.odeme_turu, aciklama: genelNot, ekleyen: aktifKullaniciEposta, fis_gorseli: fisGorselYolu };
+    const fisMaster = {
+      fis_no: ortakFisNo,
+      tarih: fisUst.tarih,
+      bayi: fisUst.bayi,
+      bayi_id: secilenBayiId,
+      toplam_tutar: fisCanliToplam,
+      tahsilat: tahsilat,
+      kalan_bakiye: kalanBakiye,
+      odeme_turu: fisUst.odeme_turu,
+      aciklama: genelNot,
+      ekleyen: aktifKullaniciEposta,
+      fis_gorseli: fisGorselYolu,
+    };
 
     let savedFisId = editingFisId;
 
     const rpcDetaylari = detayPayloadlari().map((detay) => ({
+      bayi_id: detay.bayi_id,
       urun: detay.urun,
+      urun_id: detay.urun_id,
       birim: Number(detay.birim) || 0,
       adet: Number(detay.adet) || 0,
       fiyat: Number(detay.fiyat) || 0,
@@ -1458,6 +1497,7 @@ export default function App() {
       p_fis_id: editingFisId ?? null,
       p_tarih: fisUst.tarih,
       p_bayi: fisUst.bayi,
+      p_bayi_id: secilenBayiId,
       p_toplam_tutar: fisCanliToplam,
       p_tahsilat: tahsilat,
       p_kalan_bakiye: kalanBakiye,
