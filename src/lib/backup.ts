@@ -18,6 +18,33 @@ const sheetEkle = (workbook: XLSX.WorkBook, ad: string, veri: Array<Record<strin
   XLSX.utils.book_append_sheet(workbook, sheet, ad.slice(0, 31));
 };
 
+const bolumluSheetEkle = (
+  workbook: XLSX.WorkBook,
+  ad: string,
+  bolumler: Array<{ baslik: string; satirlar: Array<Record<string, unknown>> }>,
+) => {
+  const aoa: unknown[][] = [];
+
+  bolumler.forEach((bolum, index) => {
+    if (index > 0) aoa.push([]);
+    aoa.push([bolum.baslik]);
+
+    if (bolum.satirlar.length === 0) {
+      aoa.push(["Kayit yok"]);
+      return;
+    }
+
+    const basliklar = Object.keys(bolum.satirlar[0]);
+    aoa.push(basliklar);
+    bolum.satirlar.forEach((satir) => {
+      aoa.push(basliklar.map((baslik) => satir[baslik] ?? ""));
+    });
+  });
+
+  const sheet = XLSX.utils.aoa_to_sheet(aoa);
+  XLSX.utils.book_append_sheet(workbook, sheet, ad.slice(0, 31));
+};
+
 const donemGetir = (tarih?: string | null) => (tarih ? tarih.substring(0, 7) : "");
 const kisaTarih = (tarih?: string | null) => (tarih ? tarih.split("-").reverse().join(".") : "");
 const kisiGetir = (deger?: string | null) => normalizeUsername(deger);
@@ -160,6 +187,9 @@ const tumDonemleriGetir = (veri: YedekVerisi) => {
 const listeyiDonemeGoreFiltrele = <T extends { tarih?: string | null }>(liste: T[], donem: string) =>
   liste.filter((item) => donemGetir(item.tarih) === donem);
 
+const rapordaGosterilenSatisFisi = (fis: Pick<SatisFis, "odeme_turu">) =>
+  !cariDevirMi(fis.odeme_turu) && !personelDevirMi(fis.odeme_turu) && !kasayaDevirMi(fis.odeme_turu);
+
 const personelDevirKeyGetir = (aciklama?: string | null) => {
   const eslesme = aciklama?.match(/\((.*?)\)/);
   return eslesme?.[1] ? kisiGetir(eslesme[1]) || eslesme[1] : "Bilinmiyor";
@@ -299,6 +329,31 @@ const donemOzetiOlustur = (veri: YedekVerisi) =>
     };
   });
 
+const donemRaporKartlariniOlustur = (veri: YedekVerisi, donem: string) => {
+  const donemSatisFisleri = listeyiDonemeGoreFiltrele(veri.satisFisList, donem);
+  const donemGiderleri = listeyiDonemeGoreFiltrele(veri.giderList, donem);
+  const donemUretimleri = listeyiDonemeGoreFiltrele(veri.uretimList, donem);
+  const rapordaGorunenFisler = donemSatisFisleri.filter(rapordaGosterilenSatisFisi);
+  const satisToplami = rapordaGorunenFisler.reduce((toplam, item) => toplam + Number(item.toplam_tutar || 0), 0);
+  const tahsilatToplami = rapordaGorunenFisler.reduce((toplam, item) => toplam + Number(item.tahsilat || 0), 0);
+  const giderToplami = donemGiderleri.reduce((toplam, item) => toplam + Number(item.tutar || 0), 0);
+  const uretimMaliyeti = donemUretimleri.reduce((toplam, item) => toplam + Number(item.toplam_maliyet || 0), 0);
+  const acikHesap = Object.values(satisBakiyeDurumuHesapla(veri.satisFisList, donem).bakiyeler).reduce(
+    (toplam, borc) => toplam + borc,
+    0,
+  );
+  const sutBorcu = sutcuBorcunuHesapla(veri.sutList, veri.giderList, donem);
+
+  return [
+    { baslik: "Donem", deger: donem },
+    { baslik: "Satis", deger: fSayi(satisToplami) },
+    { baslik: "Gider", deger: fSayi(giderToplami + uretimMaliyeti) },
+    { baslik: "Tahsilat", deger: fSayi(tahsilatToplami) },
+    { baslik: "Acik Hesap", deger: fSayi(acikHesap) },
+    { baslik: "Sut Borcu", deger: fSayi(sutBorcu) },
+  ];
+};
+
 const ozetKartlariniCevir = (kartlar: OzetKart[], aktifDonem: string) => [
   { Baslik: "Aktif Donem", Deger: aktifDonem },
   ...kartlar.map((item) => ({
@@ -416,6 +471,7 @@ export const yedegiExcelIndir = (veri: YedekVerisi) => {
   const satisFisToplamBorcMap = satisFisToplamBorcMapOlustur(veri.satisFisList);
   const donemMusteriBorclari = donemBazliMusteriBorclariOlustur(veri);
   const donemPersonelOzetleri = donemBazliPersonelOzetleriOlustur(veri);
+  const donemler = tumDonemleriGetir(veri);
 
   const yedekBilgisi = [
     { Alan: "Alinma Tarihi", Deger: veri.alindiTarih },
@@ -435,7 +491,7 @@ export const yedegiExcelIndir = (veri: YedekVerisi) => {
     Aciklama: item.aciklama || "",
   }));
 
-  const satisFisleriSayfasi = veri.satisFisList.map((item) => {
+  const satisFisleriSayfasi = veri.satisFisList.filter(rapordaGosterilenSatisFisi).map((item) => {
     const { teslimAlan, aciklama } = fisAciklamasiniAyir(item.aciklama);
     return {
       Donem: donemGetir(item.tarih),
@@ -535,6 +591,137 @@ export const yedegiExcelIndir = (veri: YedekVerisi) => {
   sheetEkle(workbook, "Cop Kutusu", copKutusuOzetleri(veri));
   sheetEkle(workbook, "Yetkiler", yetkiSayfasi);
 
+  donemler.forEach((donem) => {
+    const donemSatisFisleri = listeyiDonemeGoreFiltrele(veri.satisFisList, donem).filter(rapordaGosterilenSatisFisi);
+    const donemSatisDetaylari = listeyiDonemeGoreFiltrele(veri.satisList, donem);
+    const donemSutKayitlari = listeyiDonemeGoreFiltrele(veri.sutList, donem);
+    const donemGiderleri = listeyiDonemeGoreFiltrele(veri.giderList, donem);
+    const donemYogurtUretimleri = listeyiDonemeGoreFiltrele(
+      veri.uretimList.filter((item) => (item.uretim_tipi || "yogurt") === "yogurt"),
+      donem,
+    );
+    const donemSutKaymagiUretimleri = listeyiDonemeGoreFiltrele(
+      veri.uretimList.filter((item) => item.uretim_tipi === "sut_kaymagi"),
+      donem,
+    );
+    const donemMusteriBorclariSatirlari = Object.entries(satisBakiyeDurumuHesapla(veri.satisFisList, donem).bakiyeler)
+      .filter(([, borc]) => Math.abs(borc) > 0.01)
+      .sort(([, a], [, b]) => b - a)
+      .map(([musteri, borc]) => ({ Musteri: musteri, Borc: borc }));
+    const donemPersonelSatirlari = personelOzetleriniOlustur(
+      listeyiDonemeGoreFiltrele(veri.satisFisList, donem),
+      listeyiDonemeGoreFiltrele(veri.giderList, donem),
+    ).map((item) => ({
+      Personel: item.isim,
+      Satis: item.satis,
+      Tahsilat: item.tahsilat,
+      Gider: item.gider,
+      "Kasaya Devir": item.kasayaDevir,
+      Net: item.net,
+      "Acik Bakiye": item.acikBakiye,
+    }));
+
+    bolumluSheetEkle(workbook, `${donem} Rapor`, [
+      {
+        baslik: "Ozet",
+        satirlar: donemRaporKartlariniOlustur(veri, donem).map((item) => ({
+          Baslik: item.baslik,
+          Deger: item.deger,
+        })),
+      },
+      {
+        baslik: "Musteri Borclari",
+        satirlar: donemMusteriBorclariSatirlari,
+      },
+      {
+        baslik: "Personel",
+        satirlar: donemPersonelSatirlari,
+      },
+      {
+        baslik: "Satis Fisleri",
+        satirlar: donemSatisFisleri.map((item) => {
+          const { teslimAlan, aciklama } = fisAciklamasiniAyir(item.aciklama);
+          return {
+            Tarih: kisaTarih(item.tarih),
+            "Fis No": item.fis_no,
+            Bayi: item.bayi,
+            Tutar: Number(item.toplam_tutar || 0),
+            Tahsilat: Number(item.tahsilat || 0),
+            "Bu Fisten Kalan": Number(item.kalan_bakiye || 0),
+            "Toplam Borc": item.id ? satisFisToplamBorcMap[String(item.id)] ?? 0 : 0,
+            "Odeme Turu": item.odeme_turu,
+            "Teslim Alan": teslimAlan,
+            Aciklama: aciklama,
+            Kisi: kisiGetir(item.ekleyen),
+          };
+        }),
+      },
+      {
+        baslik: "Satis Detay",
+        satirlar: donemSatisDetaylari.map((item) => ({
+          Tarih: kisaTarih(item.tarih),
+          Bayi: item.bayi,
+          Urun: item.urun,
+          Adet: Number(item.adet || 0),
+          KG: Number(item.toplam_kg || 0),
+          Fiyat: Number(item.fiyat || 0),
+          Tutar: Number(item.tutar || 0),
+          Kisi: kisiGetir(item.ekleyen),
+        })),
+      },
+      {
+        baslik: "Sut",
+        satirlar: donemSutKayitlari.map((item) => ({
+          Tarih: kisaTarih(item.tarih),
+          Ciftlik: item.ciftlik,
+          KG: Number(item.kg || 0),
+          Fiyat: Number(item.fiyat || 0),
+          Tutar: Number(item.toplam_tl || 0),
+          Kisi: kisiGetir(item.ekleyen),
+          Aciklama: item.aciklama || "",
+        })),
+      },
+      {
+        baslik: "Gider",
+        satirlar: donemGiderleri.map((item) => ({
+          Tarih: kisaTarih(item.tarih),
+          Tur: item.tur,
+          Tutar: Number(item.tutar || 0),
+          Aciklama: item.aciklama || "",
+          Kisi: kisiGetir(item.ekleyen),
+        })),
+      },
+      {
+        baslik: "Yogurt Uretim",
+        satirlar: donemYogurtUretimleri.map((item) => ({
+          Tarih: kisaTarih(item.tarih),
+          "Giren KG": Number(item.toplam_kg || 0),
+          "Cikan KG": Number(item.cikan_toplam_kg || 0),
+          "3'luk": Number(item.cikti_3kg || 0),
+          "5'lik": Number(item.cikti_5kg || 0),
+          Maliyet: Number(item.toplam_maliyet || 0),
+          Kar: Number(item.kar || 0),
+          Aciklama: item.aciklama || "",
+          Kisi: kisiGetir(item.ekleyen),
+        })),
+      },
+      {
+        baslik: "Sut Kaymagi",
+        satirlar: donemSutKaymagiUretimleri.map((item) => ({
+          Tarih: kisaTarih(item.tarih),
+          "Giren KG": Number(item.toplam_kg || 0),
+          "Cikan KG": Number(item.cikan_toplam_kg || 0),
+          "2'lik": Number(item.cikti_2kg || 0),
+          "3'luk": Number(item.cikti_3kg || 0),
+          Maliyet: Number(item.toplam_maliyet || 0),
+          Kar: Number(item.kar || 0),
+          Aciklama: item.aciklama || "",
+          Kisi: kisiGetir(item.ekleyen),
+        })),
+      },
+    ]);
+  });
+
   XLSX.writeFile(workbook, `sultankoy-yedek-tum-donemler-${yedekDosyaTarihi(veri.alindiTarih)}.xlsx`);
 };
 
@@ -563,33 +750,7 @@ export const yedegiHtmlIndir = (veri: YedekVerisi) => {
         "Sutcuye Borcumuz",
       ];
 
-  const donemIcinOzetKartlari = (donem: string) => {
-    const donemSatisFisleri = listeyiDonemeGoreFiltrele(veri.satisFisList, donem);
-    const donemGiderleri = listeyiDonemeGoreFiltrele(veri.giderList, donem);
-    const donemUretimleri = listeyiDonemeGoreFiltrele(veri.uretimList, donem);
-    const satisToplami = donemSatisFisleri
-      .filter((item) => !kasayaDevirMi(item.odeme_turu))
-      .reduce((toplam, item) => toplam + Number(item.toplam_tutar || 0), 0);
-    const tahsilatToplami = donemSatisFisleri
-      .filter((item) => !kasayaDevirMi(item.odeme_turu))
-      .reduce((toplam, item) => toplam + Number(item.tahsilat || 0), 0);
-    const giderToplami = donemGiderleri.reduce((toplam, item) => toplam + Number(item.tutar || 0), 0);
-    const uretimMaliyeti = donemUretimleri.reduce((toplam, item) => toplam + Number(item.toplam_maliyet || 0), 0);
-    const acikHesap = Object.values(satisBakiyeDurumuHesapla(veri.satisFisList, donem).bakiyeler).reduce(
-      (toplam, borc) => toplam + borc,
-      0,
-    );
-    const sutBorcu = sutcuBorcunuHesapla(veri.sutList, veri.giderList, donem);
-
-    return htmlKartlar([
-      { baslik: "Donem", deger: donem },
-      { baslik: "Satis", deger: fSayi(satisToplami) },
-      { baslik: "Gider", deger: fSayi(giderToplami + uretimMaliyeti) },
-      { baslik: "Tahsilat", deger: fSayi(tahsilatToplami) },
-      { baslik: "Acik Hesap", deger: fSayi(acikHesap) },
-      { baslik: "Sut Borcu", deger: fSayi(sutBorcu) },
-    ]);
-  };
+  const donemIcinOzetKartlari = (donem: string) => htmlKartlar(donemRaporKartlariniOlustur(veri, donem));
 
   const donemBloklariniOlustur = (icerikOlustur: (donem: string) => string) =>
     secilebilirDonemler
@@ -639,7 +800,7 @@ export const yedegiHtmlIndir = (veri: YedekVerisi) => {
   const satisFisleriTablosu = donemBloklariniOlustur((donem) =>
     htmlTablo(
       ["Tarih", "Fis No", "Bayi", "Tutar", "Tahsilat", "Bu Fisten Kalan", "Toplam Borc", "Odeme Turu", "Teslim Alan", "Aciklama", "Kisi"],
-      listeyiDonemeGoreFiltrele(veri.satisFisList, donem).map((item) => {
+      listeyiDonemeGoreFiltrele(veri.satisFisList, donem).filter(rapordaGosterilenSatisFisi).map((item) => {
         const detay = fisAciklamasiniAyir(item.aciklama);
         return {
           Tarih: kisaTarih(item.tarih),
