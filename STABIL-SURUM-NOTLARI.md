@@ -1,11 +1,12 @@
 # Stabil Surum Notlari
 
-Tarih: `2026-03-07 07:06:04`
+Tarih: `2026-03-07 12:33:15`
 Canli adres: `https://sultankoy-v3.vercel.app/`
+Kod referansi: `7db438f`
 
 ## Genel Durum
 
-Bu not, su an duzenli calistigi gozlenen surumu sabitlemek icin olusturuldu. Bir sorun cikarsa bu dosya, yedek arsivleri ve git etiketi birlikte referans alinacak.
+Bu not, RPC guvenlik katmani eklendikten sonraki stabil surumu sabitlemek icin olusturuldu. Bir sorun cikarsa bu dosya, yedek arsivleri ve git etiketi birlikte referans alinacak.
 
 ## Calisan Ana Ozellikler
 
@@ -27,13 +28,24 @@ Bu not, su an duzenli calistigi gozlenen surumu sabitlemek icin olusturuldu. Bir
 - Ayarlar ekraninda yetki yonetimi aktif
 - Excel ve JSON yedek alma aktif
 
+## Veri Guvenligi Icin Son Eklemeler
+
+- `satis_fisleri.fis_no` icin benzersizlik korumasi eklendi
+- Cakisan eski `fis_no` kayitlari ayristirildi
+- Satis kaydetme icin `app_save_satis_fisi` RPC hazirlandi ve uygulama once bunu kullanir
+- Satis silme icin `app_delete_satis_fisi` RPC hazirlandi ve uygulama once bunu kullanir
+- Donem kapatma icin `app_close_period` RPC hazirlandi ve uygulama once bunu kullanir
+- RPC bulunamazsa uygulama kontrollu fallback akista calismaya devam eder
+- Cop kutusu kaydi basarisizsa silme akisi iptal edilir
+
 ## Bilinen Teknik Notlar
 
 - Uygulama tek parca bundle oldugu icin build sirasinda `chunk size` uyarisi veriyor
 - Bu uyari su an calismayi bozmuyor
+- `satis_fisleri` ile `satis_giris` arasinda hala gercek veritabani foreign key yok; ilerde eklenebilir
 
 ## Geri Donus Referanslari
 
-- Tam yedek: `backups/sultankoy-v3-tam-yedek-20260307-070604.zip`
-- Kaynak yedegi: `backups/sultankoy-v3-kaynak-yedek-20260307-070604.zip`
-- Git etiketi: `backup-stabil-20260307-070604`
+- Tam yedek: `backups/sultankoy-v3-tam-yedek-20260307-123315.zip`
+- Kaynak yedegi: `backups/sultankoy-v3-kaynak-yedek-20260307-123315.zip`
+- Git etiketi: `backup-rpc-stabil-20260307-123315`
