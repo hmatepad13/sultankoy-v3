@@ -2050,10 +2050,12 @@ export default function App() {
          </div>
       </div>
 
-      <button onClick={() => { setGiderForm({ tarih: aktifDonemTarihi(), tur: "Genel Gider", aciklama: "", tutar: "" }); setEditingGiderId(null); setIsGiderModalOpen(true); }} className="btn-anim m-btn" style={{background: "#dc2626", margin: 0, fontSize: "13px"}}>➕ YENİ GİDER</button>
-      {renderKompaktToplamlar([
-        { etiket: "GÖSTERİLEN GİDER", deger: `${fSayi(fGTutarNormal)} ₺`, renk: "#dc2626" },
-      ], { marginTop: "10px" })}
+      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center", marginBottom: "10px" }}>
+        <button onClick={() => { setGiderForm({ tarih: aktifDonemTarihi(), tur: "Genel Gider", aciklama: "", tutar: "" }); setEditingGiderId(null); setIsGiderModalOpen(true); }} className="btn-anim m-btn" style={{ background: "#dc2626", margin: 0, minWidth: "150px", fontSize: "13px" }}>➕ YENİ GİDER</button>
+        <div style={{ border: "1px solid #dc262633", background: "#dc262610", color: "#dc2626", borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", flex: 1 }}>
+          GÖSTERİLEN GİDER: {fSayi(fGTutarNormal)} ₺
+        </div>
+      </div>
       <div className="table-wrapper"><table className="tbl" style={{borderTop: "3px solid #fca5a5"}}>
         <thead><tr>
           <Th label="TARİH" sortKey="tarih" currentSort={giderSort} setSort={setGiderSort} />
