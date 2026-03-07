@@ -3113,8 +3113,14 @@ export default function App() {
     if (!ozetMiniDetay) return null;
 
     return (
-      <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1320, padding: "14px" }} onClick={() => setOzetMiniDetay(null)}>
-        <div style={{ background: "#fff", borderRadius: "12px", width: "100%", maxWidth: "320px", padding: "14px", boxShadow: "0 20px 45px rgba(15, 23, 42, 0.2)" }} onClick={(e) => e.stopPropagation()}>
+      <div
+        style={{ position: "fixed", inset: 0, backgroundColor: "transparent", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 1320, padding: "92px 14px 14px" }}
+        onClick={() => setOzetMiniDetay(null)}
+      >
+        <div
+          style={{ background: "#fff", borderRadius: "12px", width: "100%", maxWidth: "320px", padding: "14px", border: "1px solid #dbeafe", boxShadow: "0 14px 30px rgba(15, 23, 42, 0.14)" }}
+          onClick={(e) => e.stopPropagation()}
+        >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
             <h4 style={{ margin: 0, color: ozetMiniDetay.renk, fontSize: "14px" }}>{ozetMiniDetay.baslik}</h4>
             <button onClick={() => setOzetMiniDetay(null)} style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: "18px", padding: 0 }}>✕</button>
