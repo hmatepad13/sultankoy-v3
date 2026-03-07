@@ -197,7 +197,7 @@ const satisBakiyeDurumuHesapla = (kayitlar: SatisFis[], sonDonem?: string) => {
     if (sonDonem && donem > sonDonem) return;
     if (!bayi || bayi === "SİSTEM İŞLEMİ") return;
 
-    if (fis.odeme_turu === "DEVİR") {
+    if (fisDonemDevirMi(fis)) {
       bakiyeler[bayi] = Number(fis.kalan_bakiye || 0);
     } else {
       bakiyeler[bayi] = (bakiyeler[bayi] || 0) + Number(fis.kalan_bakiye || 0);
@@ -217,6 +217,16 @@ const odemeTurunuNormalizeEt = (odemeTuru?: string | null) =>
 const fisDevirMi = (fis: Partial<SatisFis>) => {
   const odemeTuru = odemeTurunuNormalizeEt(fis.odeme_turu);
   return odemeTuru === "DEVİR" || odemeTuru === "DEVIR" || odemeTuru === "PERSONEL DEVİR" || odemeTuru === "PERSONEL DEVIR";
+};
+
+const fisDonemDevirMi = (fis: Partial<SatisFis>) => {
+  const odemeTuru = odemeTurunuNormalizeEt(fis.odeme_turu);
+  return odemeTuru === "DEVİR" || odemeTuru === "DEVIR";
+};
+
+const fisPersonelDevirMi = (fis: Partial<SatisFis>) => {
+  const odemeTuru = odemeTurunuNormalizeEt(fis.odeme_turu);
+  return odemeTuru === "PERSONEL DEVİR" || odemeTuru === "PERSONEL DEVIR";
 };
 
 const fisKasayaDevirMi = (fis: Partial<SatisFis>) => {
@@ -2097,18 +2107,20 @@ export default function App() {
     };
 
     periodSatisFis.forEach((f: any) => {
-      const key = f.odeme_turu === "PERSONEL DEVİR" && f.bayi === "SİSTEM İŞLEMİ"
-        ? getPersonelDevirKey(f.aciklama)
-        : getKey(f.ekleyen);
+      const personelDevir = fisPersonelDevirMi(f) && f.bayi === "SİSTEM İŞLEMİ";
+      const donemDevir = fisDonemDevirMi(f);
+      const key = personelDevir ? getPersonelDevirKey(f.aciklama) : getKey(f.ekleyen);
       if (!map[key]) {
         map[key] = { isim: key, satis: 0, tahsilat: 0, gider: 0, kasayaDevir: 0, net: 0, acikBakiye: 0, devirNet: 0, devirAcik: 0 };
       }
 
-      if (f.odeme_turu === "KASAYA DEVİR") {
+      if (fisKasayaDevirMi(f)) {
         map[key].kasayaDevir += Number(f.tahsilat) || 0;
-      } else if (f.odeme_turu === "PERSONEL DEVİR" && f.bayi === "SİSTEM İŞLEMİ") {
+      } else if (personelDevir) {
         map[key].devirNet += Number(f.toplam_tutar) || 0;
         map[key].devirAcik += Number(f.kalan_bakiye) || 0;
+      } else if (donemDevir) {
+        return;
       } else {
         if (f.bayi !== "SİSTEM İŞLEMİ" && Number(f.toplam_tutar) > 0) {
           map[key].satis += Number(f.toplam_tutar) || 0;
