@@ -227,6 +227,20 @@ const benzersizFisNoOlustur = (prefix: string, index = 0) => {
   return `${prefix}-${zaman}${sira}${rastgele}`;
 };
 
+const gorunenFisNoOlustur = (fis?: { id?: string | number; fis_no?: string | null }) => {
+  const idDegeri = Number(fis?.id);
+  if (Number.isFinite(idDegeri) && idDegeri > 0) {
+    return String(idDegeri).padStart(4, "0");
+  }
+
+  const rakamlar = String(fis?.fis_no || "").replace(/\D/g, "");
+  if (rakamlar) {
+    return rakamlar.slice(-4).padStart(4, "0");
+  }
+
+  return "0000";
+};
+
 const uretimCikanToplamAdet = (kayit: Partial<Uretim>) => {
   const tip = kayit.uretim_tipi || "yogurt";
   if (tip === "sut_kaymagi") {
@@ -1215,7 +1229,7 @@ export default function App() {
 
     const raw = fis.fis_gorseli;
     const storageYolu = fisGorselStorageYolu(raw);
-    const baslik = `${fis.bayi || "Fiş"} • ${fis.fis_no || "Görsel"}`;
+    const baslik = `${fis.bayi || "Fiş"} • ${gorunenFisNoOlustur(fis)}`;
 
     if (!storageYolu && (raw.startsWith("http://") || raw.startsWith("https://"))) {
       setFisGorselOnizleme({ url: raw, baslik });
@@ -3150,7 +3164,7 @@ export default function App() {
                     <span>Tarih | Fiş No:</span>
                     <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end", textAlign: "right", flexWrap: "wrap" }}>
                       <span>{sonFisData.tarih.split("-").reverse().join(".")}</span>
-                      <b style={{ color: "#94a3b8", fontWeight: 600 }}>{sonFisData.fis_no}</b>
+                      <b style={{ color: "#94a3b8", fontWeight: 600 }}>{gorunenFisNoOlustur(sonFisData)}</b>
                     </div>
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#000", marginBottom: "2px" }}><span>Sayın:</span><b style={{textAlign: "right"}}>{sonFisData.bayi}</b></div>
