@@ -220,6 +220,35 @@ const fisKasayaDevirMi = (fis: Partial<SatisFis>) => {
   return odemeTuru === "KASAYA DEVİR" || odemeTuru === "KASAYA DEVIR";
 };
 
+const giderTurunuNormalizeEt = (tur?: string | null) =>
+  String(tur || "")
+    .toLocaleLowerCase("tr-TR")
+    .replace(/ü/g, "u")
+    .replace(/ö/g, "o")
+    .replace(/ı/g, "i")
+    .replace(/ş/g, "s")
+    .replace(/ğ/g, "g")
+    .replace(/ç/g, "c");
+
+const sutOdemesiMi = (tur?: string | null) => giderTurunuNormalizeEt(tur) === "sut odemesi";
+
+const sutcuBorcunuHesapla = (sutKayitlari: SutGiris[], giderKayitlari: Gider[], sonDonem?: string) => {
+  const toplamSutTutari = sutKayitlari.reduce((toplam, item) => {
+    const donem = String(item.tarih || "").substring(0, 7);
+    if (sonDonem && donem > sonDonem) return toplam;
+    return toplam + Number(item.toplam_tl || 0);
+  }, 0);
+
+  const toplamSutOdemesi = giderKayitlari.reduce((toplam, item) => {
+    const donem = String(item.tarih || "").substring(0, 7);
+    if (sonDonem && donem > sonDonem) return toplam;
+    if (!sutOdemesiMi(item.tur)) return toplam;
+    return toplam + Number(item.tutar || 0);
+  }, 0);
+
+  return toplamSutTutari - toplamSutOdemesi;
+};
+
 const benzersizFisNoOlustur = (prefix: string, index = 0) => {
   const zaman = Date.now().toString(36).toUpperCase();
   const sira = index.toString().padStart(2, "0");
@@ -1808,14 +1837,7 @@ export default function App() {
 
   const tGiderNormal = useMemo(() => periodGider.reduce((a: number, b: any) => a + Number(b.tutar), 0), [periodGider]);
   const tUretimMaliyet = useMemo(() => periodUretim.reduce((a: number, b: any) => a + Number(b.toplam_maliyet), 0), [periodUretim]);
-  const tSutOdemesi = useMemo(
-    () =>
-      periodGider
-        .filter((g) => String(g.tur || "").toLocaleLowerCase("tr-TR") === "süt ödemesi")
-        .reduce((toplam, g) => toplam + Number(g.tutar || 0), 0),
-    [periodGider],
-  );
-  const sutcuyeBorcumuz = useMemo(() => tSutTl - tSutOdemesi, [tSutOdemesi, tSutTl]);
+  const sutcuyeBorcumuz = useMemo(() => sutcuBorcunuHesapla(sutList, giderList, aktifDonem), [aktifDonem, giderList, sutList]);
   const aktifUretimTipi = uretimForm.uretim_tipi || "yogurt";
   const siraliUretimList = useMemo(() => sortData(periodUretim, uretimSort), [periodUretim, uretimSort]);
   const yogurtUretimListesi = useMemo(

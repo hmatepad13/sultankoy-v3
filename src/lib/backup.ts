@@ -41,6 +41,35 @@ const kasayaDevirMi = (odemeTuru?: string | null) => {
   return normal === "KASAYA DEVİR" || normal === "KASAYA DEVIR";
 };
 
+const giderTurunuNormalizeEt = (tur?: string | null) =>
+  String(tur || "")
+    .toLocaleLowerCase("tr-TR")
+    .replace(/ü/g, "u")
+    .replace(/ö/g, "o")
+    .replace(/ı/g, "i")
+    .replace(/ş/g, "s")
+    .replace(/ğ/g, "g")
+    .replace(/ç/g, "c");
+
+const sutOdemesiMi = (tur?: string | null) => giderTurunuNormalizeEt(tur) === "sut odemesi";
+
+const sutcuBorcunuHesapla = (sutKayitlari: YedekVerisi["sutList"], giderKayitlari: Gider[], sonDonem?: string) => {
+  const toplamSutTutari = sutKayitlari.reduce((toplam, item) => {
+    const donem = donemGetir(item.tarih);
+    if (sonDonem && donem > sonDonem) return toplam;
+    return toplam + Number(item.toplam_tl || 0);
+  }, 0);
+
+  const toplamSutOdemesi = giderKayitlari.reduce((toplam, item) => {
+    const donem = donemGetir(item.tarih);
+    if (sonDonem && donem > sonDonem) return toplam;
+    if (!sutOdemesiMi(item.tur)) return toplam;
+    return toplam + Number(item.tutar || 0);
+  }, 0);
+
+  return toplamSutTutari - toplamSutOdemesi;
+};
+
 const yedekDosyaTarihi = (isoTarih: string) =>
   isoTarih
     .replace(/[-:]/g, "")
@@ -248,10 +277,7 @@ const donemOzetiOlustur = (veri: YedekVerisi) =>
     const donemSatisToplami = donemSatisFisleri
       .filter((item) => !cariDevirMi(item.odeme_turu) && !personelDevirMi(item.odeme_turu) && !kasayaDevirMi(item.odeme_turu))
       .reduce((toplam, item) => toplam + Number(item.toplam_tutar || 0), 0);
-    const sutcuyeBorc = donemSutKayitlari.reduce((toplam, item) => toplam + Number(item.toplam_tl || 0), 0) -
-      donemGiderleri
-        .filter((item) => String(item.tur || "").toLocaleLowerCase("tr-TR") === "süt ödemesi")
-        .reduce((toplam, item) => toplam + Number(item.tutar || 0), 0);
+    const sutcuyeBorc = sutcuBorcunuHesapla(veri.sutList, veri.giderList, donem);
 
     return {
       Donem: donem,
