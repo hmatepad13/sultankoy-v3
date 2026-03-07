@@ -2340,7 +2340,7 @@ export default function App() {
         <div style={{ minWidth: 0, flex: 1 }}>
           <h3 style={{ margin: 0, color: renk, fontSize: "14px" }}>{baslik}</h3>
         </div>
-        <button onClick={onYeniClick} className="btn-anim m-btn" style={{ background: renk, margin: 0, minWidth: "146px", width: "auto", padding: "9px 10px", fontSize: "11px", whiteSpace: "nowrap", flex: "0 0 auto" }}>
+        <button onClick={onYeniClick} className="btn-anim m-btn inline-mobile-btn" style={{ background: renk, margin: 0, minWidth: "118px", width: "auto", padding: "8px 8px", fontSize: "10px", whiteSpace: "nowrap", flex: "0 0 auto" }}>
           {butonMetni}
         </button>
       </div>
