@@ -401,7 +401,7 @@ export function SettingsPanel({
             <div style={kartStili}>
               <h3 style={{ margin: "0 0 8px", fontSize: "15px", color: "#0f172a" }}>Veri Yedekleme</h3>
               <p style={{ margin: 0, color: "#64748b", fontSize: "13px", lineHeight: 1.5 }}>
-                Excel yedeği ekranlardaki ana veri sekmelerini ayrı sayfalara böler. JSON yedeği ise tam veri dökümünü alır.
+                Excel yedeği kullanıcının ekranda gördüğü sade tablo görünümünü ayrı sayfalara böler. JSON yedeği ise tam veri dökümünü alır.
               </p>
             </div>
             <div style={{ ...kartStili, display: "grid", gap: "10px" }}>
