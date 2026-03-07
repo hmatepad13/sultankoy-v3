@@ -2364,7 +2364,9 @@ export default function App() {
                   <td style={{ textAlign: "right", color: renk, fontWeight: "bold" }}>{fSayi(cikanAdet)}</td>
                   <td style={{ textAlign: "right", color: "#dc2626" }}>{fSayi(u.toplam_maliyet)}</td>
                   <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold" }}>{fSayi(u.kar)}</td>
-                  <td className="truncate-text-td" style={{ maxWidth: "68px" }} onClick={(e) => { e.stopPropagation(); setUretimDetayData(u); }} title={u.aciklama || "Detay için tıklayın"}>{uretimNotunuKisalt(u.aciklama, 8)}</td>
+                  <td className="truncate-text-td" style={{ maxWidth: "68px" }} title={u.aciklama || "-"}>
+                    {uretimNotunuKisalt(u.aciklama, 8)}
+                  </td>
                   <td className="actions-cell" style={{ position: "relative" }}>
                     <button onClick={(e) => { e.stopPropagation(); setOpenDropdown({ type: "uretim", id: u.id as string }); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "18px", padding: "0 8px", color: "#64748b" }}>⋮</button>
                     {openDropdown?.type === "uretim" && openDropdown.id === u.id && (
