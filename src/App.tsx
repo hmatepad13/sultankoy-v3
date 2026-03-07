@@ -1947,11 +1947,11 @@ export default function App() {
 
   const ozetKartlari = useMemo<OzetKart[]>(
     () => [
-      { baslik: "Toplam Satış", deger: tFisToplam },
-      { baslik: "Toplam Gider", deger: genelToplamGider },
+      { baslik: "Satış", deger: tFisToplam },
+      { baslik: "Gider", deger: genelToplamGider },
       { baslik: "Tahsilat", deger: tFisTahsilatRaw },
-      { baslik: "Bayi Açık Hesap", deger: bayiNetDurum },
-      { baslik: "Sütçüye Borcumuz", deger: sutcuyeBorcumuz },
+      { baslik: "Açık Hesap", deger: bayiNetDurum },
+      { baslik: "Süt Borcu", deger: sutcuyeBorcumuz },
     ],
     [bayiNetDurum, genelToplamGider, sutcuyeBorcumuz, tFisTahsilatRaw, tFisToplam],
   );
