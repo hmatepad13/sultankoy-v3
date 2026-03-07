@@ -157,6 +157,9 @@ const tumDonemleriGetir = (veri: YedekVerisi) => {
   return Array.from(donemler).sort().reverse();
 };
 
+const listeyiDonemeGoreFiltrele = <T extends { tarih?: string | null }>(liste: T[], donem: string) =>
+  liste.filter((item) => donemGetir(item.tarih) === donem);
+
 const personelDevirKeyGetir = (aciklama?: string | null) => {
   const eslesme = aciklama?.match(/\((.*?)\)/);
   return eslesme?.[1] ? kisiGetir(eslesme[1]) || eslesme[1] : "Bilinmiyor";
@@ -183,9 +186,9 @@ const personelOzetleriniOlustur = (satisFisleri: SatisFis[], giderler: Gider[]) 
   const map: Record<string, PersonelOzeti> = {};
 
   satisFisleri.forEach((fis) => {
-    const key = personelDevirMi(fis.odeme_turu) && sistemIslemiMi(fis.bayi)
-      ? personelDevirKeyGetir(fis.aciklama)
-      : kisiGetir(fis.ekleyen) || "Bilinmiyor";
+    const personelDevir = personelDevirMi(fis.odeme_turu) && sistemIslemiMi(fis.bayi);
+    const donemDevir = cariDevirMi(fis.odeme_turu);
+    const key = personelDevir ? personelDevirKeyGetir(fis.aciklama) : kisiGetir(fis.ekleyen) || "Bilinmiyor";
     const kayit = personelKaydiGetir(map, key);
 
     if (kasayaDevirMi(fis.odeme_turu)) {
@@ -193,11 +196,13 @@ const personelOzetleriniOlustur = (satisFisleri: SatisFis[], giderler: Gider[]) 
       return;
     }
 
-    if (personelDevirMi(fis.odeme_turu) && sistemIslemiMi(fis.bayi)) {
+    if (personelDevir) {
       kayit.devirNet += Number(fis.toplam_tutar || 0);
       kayit.devirAcik += Number(fis.kalan_bakiye || 0);
       return;
     }
+
+    if (donemDevir) return;
 
     if (!sistemIslemiMi(fis.bayi) && Number(fis.toplam_tutar || 0) > 0) {
       kayit.satis += Number(fis.toplam_tutar || 0);
@@ -258,7 +263,7 @@ const donemBazliPersonelOzetleriOlustur = (veri: YedekVerisi) =>
       "Acik Bakiye": item.acikBakiye,
       "Devir Net": item.devirNet,
       "Devir Acik": item.devirAcik,
-    })),
+      })),
   );
 
 const donemOzetiOlustur = (veri: YedekVerisi) =>
@@ -536,8 +541,12 @@ export const yedegiExcelIndir = (veri: YedekVerisi) => {
 export const yedegiHtmlIndir = (veri: YedekVerisi) => {
   const satisFisToplamBorcMap = satisFisToplamBorcMapOlustur(veri.satisFisList);
   const donemOzetleri = donemOzetiOlustur(veri);
-  const donemMusteriBorclari = donemBazliMusteriBorclariOlustur(veri);
-  const donemPersonelOzetleri = donemBazliPersonelOzetleriOlustur(veri);
+  const secilebilirDonemler = Array.from(
+    new Set([...tumDonemleriGetir(veri), veri.aktifDonem].filter(Boolean)),
+  ).sort().reverse();
+  const varsayilanDonem = secilebilirDonemler.includes(veri.aktifDonem)
+    ? veri.aktifDonem
+    : secilebilirDonemler[0] || veri.aktifDonem;
   const donemOzetBasliklari = donemOzetleri.length > 0
     ? Object.keys(donemOzetleri[0])
     : [
@@ -554,120 +563,152 @@ export const yedegiHtmlIndir = (veri: YedekVerisi) => {
         "Sutcuye Borcumuz",
       ];
 
-  const aktifOzetKartlari = htmlKartlar([
-    { baslik: "Aktif Donem", deger: veri.aktifDonem },
-    ...veri.ozetKartlari.map((item) => ({ baslik: item.baslik, deger: fSayi(item.deger) })),
-  ]);
+  const donemIcinOzetKartlari = (donem: string) => {
+    const donemSatisFisleri = listeyiDonemeGoreFiltrele(veri.satisFisList, donem);
+    const donemGiderleri = listeyiDonemeGoreFiltrele(veri.giderList, donem);
+    const donemUretimleri = listeyiDonemeGoreFiltrele(veri.uretimList, donem);
+    const satisToplami = donemSatisFisleri
+      .filter((item) => !kasayaDevirMi(item.odeme_turu))
+      .reduce((toplam, item) => toplam + Number(item.toplam_tutar || 0), 0);
+    const tahsilatToplami = donemSatisFisleri
+      .filter((item) => !kasayaDevirMi(item.odeme_turu))
+      .reduce((toplam, item) => toplam + Number(item.tahsilat || 0), 0);
+    const giderToplami = donemGiderleri.reduce((toplam, item) => toplam + Number(item.tutar || 0), 0);
+    const uretimMaliyeti = donemUretimleri.reduce((toplam, item) => toplam + Number(item.toplam_maliyet || 0), 0);
+    const acikHesap = Object.values(satisBakiyeDurumuHesapla(veri.satisFisList, donem).bakiyeler).reduce(
+      (toplam, borc) => toplam + borc,
+      0,
+    );
+    const sutBorcu = sutcuBorcunuHesapla(veri.sutList, veri.giderList, donem);
 
-  const aktifMusteriTablosu = htmlTablo(
-    ["Musteri", "Borc"],
-    veri.bayiBorclari.map((item) => ({
-      Musteri: item.isim,
-      Borc: item.deger,
-    })),
+    return htmlKartlar([
+      { baslik: "Donem", deger: donem },
+      { baslik: "Satis", deger: fSayi(satisToplami) },
+      { baslik: "Gider", deger: fSayi(giderToplami + uretimMaliyeti) },
+      { baslik: "Tahsilat", deger: fSayi(tahsilatToplami) },
+      { baslik: "Acik Hesap", deger: fSayi(acikHesap) },
+      { baslik: "Sut Borcu", deger: fSayi(sutBorcu) },
+    ]);
+  };
+
+  const donemBloklariniOlustur = (icerikOlustur: (donem: string) => string) =>
+    secilebilirDonemler
+      .map(
+        (donem) => `
+          <div class="period-block${donem === varsayilanDonem ? "" : " hidden"}" data-period="${escapeHtml(donem)}">
+            ${icerikOlustur(donem)}
+          </div>`,
+      )
+      .join("");
+
+  const donemOzetTablosu = donemBloklariniOlustur((donem) =>
+    htmlTablo(
+      donemOzetBasliklari,
+      donemOzetleri.filter((item) => String(item.Donem) === donem) as Array<Record<string, unknown>>,
+    ),
   );
 
-  const aktifPersonelTablosu = htmlTablo(
-    ["Personel", "Satis", "Tahsilat", "Gider", "Kasaya Devir", "Net", "Acik Bakiye"],
-    veri.personelOzetleri.map((item) => ({
-      Personel: item.isim,
-      Satis: item.satis,
-      Tahsilat: item.tahsilat,
-      Gider: item.gider,
-      "Kasaya Devir": item.kasayaDevir,
-      Net: item.net,
-      "Acik Bakiye": item.acikBakiye,
-    })),
+  const musteriBorclariTablosu = donemBloklariniOlustur((donem) => {
+    const bakiyeler = satisBakiyeDurumuHesapla(veri.satisFisList, donem).bakiyeler;
+    const satirlar = Object.entries(bakiyeler)
+      .filter(([, borc]) => Math.abs(borc) > 0.01)
+      .sort(([, borcA], [, borcB]) => borcB - borcA)
+      .map(([musteri, borc]) => ({ Musteri: musteri, Borc: borc }));
+
+    return htmlTablo(["Musteri", "Borc"], satirlar);
+  });
+
+  const personelTablosu = donemBloklariniOlustur((donem) =>
+    htmlTablo(
+      ["Personel", "Satis", "Tahsilat", "Gider", "Kasaya Devir", "Net", "Acik Bakiye"],
+      personelOzetleriniOlustur(
+        listeyiDonemeGoreFiltrele(veri.satisFisList, donem),
+        listeyiDonemeGoreFiltrele(veri.giderList, donem),
+      ).map((item) => ({
+        Personel: item.isim,
+        Satis: item.satis,
+        Tahsilat: item.tahsilat,
+        Gider: item.gider,
+        "Kasaya Devir": item.kasayaDevir,
+        Net: item.net,
+        "Acik Bakiye": item.acikBakiye,
+      })),
+    ),
   );
 
-  const donemOzetTablosu = htmlTablo(donemOzetBasliklari, donemOzetleri as Array<Record<string, unknown>>);
-
-  const donemMusteriTablosu = htmlTablo(
-    ["Donem", "Musteri", "Borc"],
-    donemMusteriBorclari.map((item) => ({
-      Donem: item.Donem,
-      Musteri: item.Musteri,
-      Borc: item.Borc,
-    })),
+  const satisFisleriTablosu = donemBloklariniOlustur((donem) =>
+    htmlTablo(
+      ["Tarih", "Fis No", "Bayi", "Tutar", "Tahsilat", "Bu Fisten Kalan", "Toplam Borc", "Odeme Turu", "Teslim Alan", "Aciklama", "Kisi"],
+      listeyiDonemeGoreFiltrele(veri.satisFisList, donem).map((item) => {
+        const detay = fisAciklamasiniAyir(item.aciklama);
+        return {
+          Tarih: kisaTarih(item.tarih),
+          "Fis No": item.fis_no,
+          Bayi: item.bayi,
+          Tutar: Number(item.toplam_tutar || 0),
+          Tahsilat: Number(item.tahsilat || 0),
+          "Bu Fisten Kalan": Number(item.kalan_bakiye || 0),
+          "Toplam Borc": item.id ? satisFisToplamBorcMap[String(item.id)] ?? 0 : 0,
+          "Odeme Turu": item.odeme_turu,
+          "Teslim Alan": detay.teslimAlan,
+          Aciklama: detay.aciklama,
+          Kisi: kisiGetir(item.ekleyen),
+        };
+      }),
+    ),
   );
 
-  const donemPersonelTablosu = htmlTablo(
-    ["Donem", "Personel", "Satis", "Tahsilat", "Gider", "Kasaya Devir", "Net", "Acik Bakiye"],
-    donemPersonelOzetleri.map((item) => ({
-      Donem: item.Donem,
-      Personel: item.Personel,
-      Satis: item.Satis,
-      Tahsilat: item.Tahsilat,
-      Gider: item.Gider,
-      "Kasaya Devir": item["Kasaya Devir"],
-      Net: item.Net,
-      "Acik Bakiye": item["Acik Bakiye"],
-    })),
-  );
-
-  const satisFisleriTablosu = htmlTablo(
-    ["Tarih", "Fis No", "Bayi", "Tutar", "Tahsilat", "Bu Fisten Kalan", "Toplam Borc", "Odeme Turu", "Teslim Alan", "Aciklama", "Kisi"],
-    veri.satisFisList.map((item) => {
-      const detay = fisAciklamasiniAyir(item.aciklama);
-      return {
+  const satisDetayTablosu = donemBloklariniOlustur((donem) =>
+    htmlTablo(
+      ["Tarih", "Bayi", "Urun", "Adet", "KG", "Fiyat", "Tutar", "Kisi"],
+      listeyiDonemeGoreFiltrele(veri.satisList, donem).map((item) => ({
         Tarih: kisaTarih(item.tarih),
-        "Fis No": item.fis_no,
         Bayi: item.bayi,
-        Tutar: Number(item.toplam_tutar || 0),
-        Tahsilat: Number(item.tahsilat || 0),
-        "Bu Fisten Kalan": Number(item.kalan_bakiye || 0),
-        "Toplam Borc": item.id ? satisFisToplamBorcMap[String(item.id)] ?? 0 : 0,
-        "Odeme Turu": item.odeme_turu,
-        "Teslim Alan": detay.teslimAlan,
-        Aciklama: detay.aciklama,
+        Urun: item.urun,
+        Adet: Number(item.adet || 0),
+        KG: Number(item.toplam_kg || 0),
+        Fiyat: Number(item.fiyat || 0),
+        Tutar: Number(item.tutar || 0),
         Kisi: kisiGetir(item.ekleyen),
-      };
-    }),
+      })),
+    ),
   );
 
-  const satisDetayTablosu = htmlTablo(
-    ["Tarih", "Bayi", "Urun", "Adet", "KG", "Fiyat", "Tutar", "Kisi"],
-    veri.satisList.map((item) => ({
-      Tarih: kisaTarih(item.tarih),
-      Bayi: item.bayi,
-      Urun: item.urun,
-      Adet: Number(item.adet || 0),
-      KG: Number(item.toplam_kg || 0),
-      Fiyat: Number(item.fiyat || 0),
-      Tutar: Number(item.tutar || 0),
-      Kisi: kisiGetir(item.ekleyen),
-    })),
+  const sutTablosu = donemBloklariniOlustur((donem) =>
+    htmlTablo(
+      ["Tarih", "Ciftlik", "KG", "Fiyat", "Tutar", "Kisi", "Aciklama"],
+      listeyiDonemeGoreFiltrele(veri.sutList, donem).map((item) => ({
+        Tarih: kisaTarih(item.tarih),
+        Ciftlik: item.ciftlik,
+        KG: Number(item.kg || 0),
+        Fiyat: Number(item.fiyat || 0),
+        Tutar: Number(item.toplam_tl || 0),
+        Kisi: kisiGetir(item.ekleyen),
+        Aciklama: item.aciklama || "",
+      })),
+    ),
   );
 
-  const sutTablosu = htmlTablo(
-    ["Tarih", "Ciftlik", "KG", "Fiyat", "Tutar", "Kisi", "Aciklama"],
-    veri.sutList.map((item) => ({
-      Tarih: kisaTarih(item.tarih),
-      Ciftlik: item.ciftlik,
-      KG: Number(item.kg || 0),
-      Fiyat: Number(item.fiyat || 0),
-      Tutar: Number(item.toplam_tl || 0),
-      Kisi: kisiGetir(item.ekleyen),
-      Aciklama: item.aciklama || "",
-    })),
+  const giderTablosu = donemBloklariniOlustur((donem) =>
+    htmlTablo(
+      ["Tarih", "Tur", "Tutar", "Kisi", "Aciklama"],
+      listeyiDonemeGoreFiltrele(veri.giderList, donem).map((item) => ({
+        Tarih: kisaTarih(item.tarih),
+        Tur: item.tur,
+        Tutar: Number(item.tutar || 0),
+        Kisi: kisiGetir(item.ekleyen),
+        Aciklama: item.aciklama || "",
+      })),
+    ),
   );
 
-  const giderTablosu = htmlTablo(
-    ["Tarih", "Tur", "Tutar", "Kisi", "Aciklama"],
-    veri.giderList.map((item) => ({
-      Tarih: kisaTarih(item.tarih),
-      Tur: item.tur,
-      Tutar: Number(item.tutar || 0),
-      Kisi: kisiGetir(item.ekleyen),
-      Aciklama: item.aciklama || "",
-    })),
-  );
-
-  const yogurtTablosu = htmlTablo(
+  const yogurtTablosu = donemBloklariniOlustur((donem) =>
+    htmlTablo(
     ["Tarih", "Giren KG", "Cikan KG", "3'lük", "5'lik", "Maliyet", "Kar", "Kisi", "Aciklama"],
-    veri.uretimList
-      .filter((item) => (item.uretim_tipi || "yogurt") === "yogurt")
-      .map((item) => ({
+    listeyiDonemeGoreFiltrele(
+      veri.uretimList.filter((item) => (item.uretim_tipi || "yogurt") === "yogurt"),
+      donem,
+    ).map((item) => ({
         Tarih: kisaTarih(item.tarih),
         "Giren KG": Number(item.toplam_kg || 0),
         "Cikan KG": Number(item.cikan_toplam_kg || 0),
@@ -678,13 +719,16 @@ export const yedegiHtmlIndir = (veri: YedekVerisi) => {
         Kisi: kisiGetir(item.ekleyen),
         Aciklama: item.aciklama || "",
       })),
+    ),
   );
 
-  const sutKaymagiTablosu = htmlTablo(
+  const sutKaymagiTablosu = donemBloklariniOlustur((donem) =>
+    htmlTablo(
     ["Tarih", "Giren KG", "Cikan KG", "2'lik", "3'lük", "Maliyet", "Kar", "Kisi", "Aciklama"],
-    veri.uretimList
-      .filter((item) => item.uretim_tipi === "sut_kaymagi")
-      .map((item) => ({
+    listeyiDonemeGoreFiltrele(
+      veri.uretimList.filter((item) => item.uretim_tipi === "sut_kaymagi"),
+      donem,
+    ).map((item) => ({
         Tarih: kisaTarih(item.tarih),
         "Giren KG": Number(item.toplam_kg || 0),
         "Cikan KG": Number(item.cikan_toplam_kg || 0),
@@ -695,6 +739,7 @@ export const yedegiHtmlIndir = (veri: YedekVerisi) => {
         Kisi: kisiGetir(item.ekleyen),
         Aciklama: item.aciklama || "",
       })),
+    ),
   );
 
   const tanimlarTablosu = htmlTablo(
@@ -717,71 +762,71 @@ export const yedegiHtmlIndir = (veri: YedekVerisi) => {
     {
       id: "ozet",
       etiket: "Ozet",
-      baslik: "Aktif Donem Ozeti",
-      aciklama: "Uygulamada o anda gorulen ust toplamlar.",
-      icerik: aktifOzetKartlari,
+      baslik: "Donem Ozeti",
+      aciklama: "Secilen donemin ust toplam gorunumu.",
+      icerik: donemBloklariniOlustur((donem) => donemIcinOzetKartlari(donem)),
     },
     {
       id: "donemler",
       etiket: "Donemler",
-      baslik: "Donem Ozetleri",
-      aciklama: "Tum donemlerin toplu gorunumu.",
+      baslik: "Donem Ozeti Tablosu",
+      aciklama: "Secilen donemin tek satirlik rapor ozeti.",
       icerik: donemOzetTablosu,
     },
     {
       id: "musteriler",
       etiket: "Musteri Borclari",
       baslik: "Musteri Borclari",
-      aciklama: "Aktif donem ve tum donem bakiyeleri birlikte listelenir.",
-      icerik: aktifMusteriTablosu + donemMusteriTablosu,
+      aciklama: "Secilen donemin sonunda olusan musteri bakiyeleri.",
+      icerik: musteriBorclariTablosu,
     },
     {
       id: "personel",
       etiket: "Personel",
       baslik: "Personel Ozetleri",
       aciklama: "Tahsilat, gider, kasaya devir ve net bakiye takibi.",
-      icerik: aktifPersonelTablosu + donemPersonelTablosu,
+      icerik: personelTablosu,
     },
     {
       id: "satis-fisleri",
       etiket: "Satis Fisleri",
       baslik: "Satis Fisleri",
-      aciklama: "Kullaniciya yakin fis listesi gorunumu.",
+      aciklama: "Secilen donemin fis listesi.",
       icerik: satisFisleriTablosu,
     },
     {
       id: "satis-detay",
       etiket: "Satis Detay",
       baslik: "Satis Detaylari",
-      aciklama: "Urun bazli satis satirlari.",
+      aciklama: "Secilen donemin urun bazli satis satirlari.",
       icerik: satisDetayTablosu,
     },
     {
       id: "sut",
       etiket: "Sut",
       baslik: "Sut Hareketleri",
-      aciklama: "",
+      aciklama: "Secilen donemin sut girisleri.",
       icerik: sutTablosu,
     },
     {
       id: "gider",
       etiket: "Gider",
       baslik: "Gider Hareketleri",
-      aciklama: "",
+      aciklama: "Secilen donemin gider listesi.",
       icerik: giderTablosu,
     },
     {
       id: "yogurt",
       etiket: "Yogurt Uretim",
       baslik: "Yogurt Uretimleri",
-      aciklama: "",
+      aciklama: "Secilen donemin yogurt uretim kayitlari.",
       icerik: yogurtTablosu,
     },
     {
       id: "kaymak",
       etiket: "Sut Kaymagi",
       baslik: "Sut Kaymagi Uretimleri",
-      aciklama: "",
+      aciklama: "Secilen donemin sut kaymagi uretim kayitlari.",
       icerik: sutKaymagiTablosu,
     },
     {
@@ -853,12 +898,39 @@ export const yedegiHtmlIndir = (veri: YedekVerisi) => {
         font-size: 13px;
         font-weight: 700;
       }
+      .toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+      }
+      .period-picker {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 10px 14px;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .period-picker select {
+        border: none;
+        background: transparent;
+        color: var(--text);
+        font-size: 13px;
+        font-weight: 700;
+        outline: none;
+        cursor: pointer;
+      }
       .nav {
         display: flex;
         gap: 8px;
         overflow: auto;
         padding-bottom: 8px;
-        margin-bottom: 12px;
       }
       .nav button {
         white-space: nowrap;
@@ -886,6 +958,9 @@ export const yedegiHtmlIndir = (veri: YedekVerisi) => {
         box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
       }
       .section.hidden {
+        display: none;
+      }
+      .period-block.hidden {
         display: none;
       }
       .section-head {
@@ -960,14 +1035,20 @@ export const yedegiHtmlIndir = (veri: YedekVerisi) => {
         .page { padding: 14px 10px 28px; }
         .hero h1 { font-size: 24px; }
         .section { padding: 14px; }
+        .toolbar { align-items: stretch; }
+        .period-picker {
+          width: 100%;
+          justify-content: space-between;
+        }
         table { min-width: 620px; }
       }
       @media print {
         body { background: #fff; }
         .page { max-width: none; padding: 0; }
         .hero, .section { box-shadow: none; break-inside: avoid; }
-        .nav { display: none; }
+        .toolbar { display: none; }
         .section.hidden { display: block; }
+        .period-block.hidden { display: block; }
       }
     </style>
   </head>
@@ -975,22 +1056,36 @@ export const yedegiHtmlIndir = (veri: YedekVerisi) => {
     <main class="page">
       <header class="hero">
         <h1>SULTANKOY V3 RAPOR YEDEGI</h1>
-        <p>Bu dosya tek basina calisir. Telefon ve bilgisayarda internet gerektirmeden tarayicida acilabilir. Teknik geri yukleme icin JSON yedegi saklanmaya devam edilmelidir.</p>
+        <p>Bu dosya tek basina calisir. Telefon ve bilgisayarda internet gerektirmeden tarayicida acilabilir. Ustteki donem secicisinden ayi degistirip secilen donemin verilerini tek dosya icinde gorebilirsin.</p>
         <div class="meta">
           <span class="chip">Alinma: ${escapeHtml(veri.alindiTarih)}</span>
-          <span class="chip">Aktif Donem: ${escapeHtml(veri.aktifDonem)}</span>
+          <span class="chip" id="selected-period-chip">Secili Donem: ${escapeHtml(varsayilanDonem)}</span>
           <span class="chip">Kaynak: ${escapeHtml(veri.kaynak)}</span>
         </div>
       </header>
 
-      <nav class="nav">
-        ${htmlBolumler
-          .map(
-            (bolum, index) =>
-              `<button type="button" class="${index === 0 ? "active" : ""}" data-target="${escapeHtml(bolum.id)}">${escapeHtml(bolum.etiket)}</button>`,
-          )
-          .join("")}
-      </nav>
+      <div class="toolbar">
+        <label class="period-picker">
+          <span>Donem</span>
+          <select id="period-select">
+            ${secilebilirDonemler
+              .map(
+                (donem) =>
+                  `<option value="${escapeHtml(donem)}"${donem === varsayilanDonem ? " selected" : ""}>${escapeHtml(donem)}</option>`,
+              )
+              .join("")}
+          </select>
+        </label>
+
+        <nav class="nav">
+          ${htmlBolumler
+            .map(
+              (bolum, index) =>
+                `<button type="button" class="${index === 0 ? "active" : ""}" data-target="${escapeHtml(bolum.id)}">${escapeHtml(bolum.etiket)}</button>`,
+            )
+            .join("")}
+        </nav>
+      </div>
 
       ${htmlBolumler
         .map((bolum, index) =>
@@ -1009,6 +1104,9 @@ export const yedegiHtmlIndir = (veri: YedekVerisi) => {
       (function () {
         const buttons = Array.from(document.querySelectorAll('.nav button[data-target]'));
         const sections = Array.from(document.querySelectorAll('.section[data-section]'));
+        const periodSelect = document.getElementById('period-select');
+        const periodChip = document.getElementById('selected-period-chip');
+        const periodBlocks = Array.from(document.querySelectorAll('.period-block[data-period]'));
 
         const activate = (target) => {
           buttons.forEach((button) => {
@@ -1020,11 +1118,27 @@ export const yedegiHtmlIndir = (veri: YedekVerisi) => {
           window.scrollTo({ top: 0, behavior: 'smooth' });
         };
 
+        const setPeriod = (period) => {
+          periodBlocks.forEach((block) => {
+            block.classList.toggle('hidden', block.dataset.period !== period);
+          });
+          if (periodChip) {
+            periodChip.textContent = 'Secili Donem: ' + period;
+          }
+        };
+
         buttons.forEach((button) => {
           button.addEventListener('click', () => {
             if (button.dataset.target) activate(button.dataset.target);
           });
         });
+
+        if (periodSelect) {
+          periodSelect.addEventListener('change', function () {
+            setPeriod(this.value);
+          });
+          setPeriod(periodSelect.value);
+        }
       })();
     </script>
   </body>
