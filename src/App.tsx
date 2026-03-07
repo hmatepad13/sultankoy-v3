@@ -2356,14 +2356,20 @@ export default function App() {
               return (
                 <tr key={u.id}>
                   <td>{u.tarih.split("-").reverse().slice(0, 2).join(".")}</td>
-                  <td style={{ textAlign: "right", fontWeight: "bold", color: "#1d4ed8", cursor: "pointer" }} onClick={() => uretimMiniDetayAc(u, "giren", renk)} title="Giren detayını aç">
-                    {fSayi(uretimGirenToplamKg(u))}
+                  <td style={{ textAlign: "right" }}>
+                    <button type="button" onClick={() => uretimMiniDetayAc(u, "giren", renk)} title="Giren detayını aç" style={{ width: "100%", textAlign: "right", border: "none", background: "none", padding: 0, color: "#1d4ed8", fontWeight: "bold", cursor: "pointer", fontSize: "11px" }}>
+                      {fSayi(uretimGirenToplamKg(u))}
+                    </button>
                   </td>
-                  <td style={{ textAlign: "right", color: renk, fontWeight: "bold", cursor: "pointer" }} onClick={() => uretimMiniDetayAc(u, "cikan", renk)} title="Çıkan detayını aç">
-                    {fSayi(cikanAdet)}
+                  <td style={{ textAlign: "right" }}>
+                    <button type="button" onClick={() => uretimMiniDetayAc(u, "cikan", renk)} title="Çıkan detayını aç" style={{ width: "100%", textAlign: "right", border: "none", background: "none", padding: 0, color: renk, fontWeight: "bold", cursor: "pointer", fontSize: "11px" }}>
+                      {fSayi(cikanAdet)}
+                    </button>
                   </td>
-                  <td style={{ textAlign: "right", color: "#dc2626", cursor: "pointer" }} onClick={() => uretimMiniDetayAc(u, "maliyet", renk)} title="Maliyet detayını aç">
-                    {fSayi(u.toplam_maliyet)}
+                  <td style={{ textAlign: "right" }}>
+                    <button type="button" onClick={() => uretimMiniDetayAc(u, "maliyet", renk)} title="Maliyet detayını aç" style={{ width: "100%", textAlign: "right", border: "none", background: "none", padding: 0, color: "#dc2626", cursor: "pointer", fontSize: "11px" }}>
+                      {fSayi(u.toplam_maliyet)}
+                    </button>
                   </td>
                   <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold" }}>{fSayi(u.kar)}</td>
                   <td className="truncate-text-td" style={{ maxWidth: "68px" }} onClick={(e) => { e.stopPropagation(); setUretimDetayData(u); }} title={u.aciklama || "Detay için tıklayın"}>{uretimNotunuKisalt(u.aciklama, 8)}</td>
