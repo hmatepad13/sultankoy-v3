@@ -2050,9 +2050,9 @@ export default function App() {
          </div>
       </div>
 
-      <div style={{ display: "flex", gap: "8px", flexWrap: "nowrap", alignItems: "center", marginBottom: "10px" }}>
+      <div className="gider-ust-satir" style={{ display: "flex", gap: "8px", flexWrap: "nowrap", alignItems: "center", marginBottom: "10px" }}>
         <button onClick={() => { setGiderForm({ tarih: aktifDonemTarihi(), tur: "Genel Gider", aciklama: "", tutar: "" }); setEditingGiderId(null); setIsGiderModalOpen(true); }} className="btn-anim m-btn inline-mobile-btn" style={{ background: "#dc2626", margin: 0, width: "auto", minWidth: "136px", flex: "0 0 auto", fontSize: "13px", padding: "10px 12px" }}>➕ YENİ GİDER EKLE</button>
-        <div style={{ border: "1px solid #dc262633", background: "#dc262610", color: "#dc2626", borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", flex: "1 1 auto", minWidth: "110px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+        <div className="gider-ust-ozet" style={{ border: "1px solid #dc262633", background: "#dc262610", color: "#dc2626", borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", flex: "1 1 auto", minWidth: "110px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
           YAPILAN GİDERLER: {fSayi(fGTutarNormal)} ₺
         </div>
       </div>
@@ -3303,6 +3303,9 @@ export default function App() {
           .tbl th:first-child, .tbl td:first-child { padding-left: 4px !important; }
           .tbl th:last-child, .tbl td:last-child { padding-right: 4px !important; }
           .card, .m-btn { width: calc(100% - 8px) !important; margin-left: 4px !important; margin-right: 4px !important; box-sizing: border-box !important; }
+          .gider-ust-satir { width: calc(100% - 8px) !important; margin-left: 4px !important; margin-right: 4px !important; gap: 6px !important; }
+          .m-btn.inline-mobile-btn { width: auto !important; margin-left: 0 !important; margin-right: 0 !important; min-width: 118px !important; padding: 10px 8px !important; font-size: 12px !important; flex: 0 0 auto !important; }
+          .gider-ust-ozet { min-width: 0 !important; flex: 1 1 0 !important; font-size: 10px !important; padding: 4px 6px !important; }
           .cards-grid { width: calc(100% - 8px) !important; margin-left: 4px !important; margin-right: 4px !important; }
           .compact-totals { width: calc(100% - 4px) !important; margin-left: 2px !important; margin-right: 2px !important; gap: 4px !important; }
           .card { border-radius: 8px !important; padding: 12px !important; margin-bottom: 8px !important; }
