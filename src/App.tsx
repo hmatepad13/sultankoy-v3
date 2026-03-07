@@ -2248,18 +2248,15 @@ export default function App() {
     const toplamMaliyet = kayitlar.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.toplam_maliyet), 0);
 
     return (
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "6px", marginTop: "6px" }}>
-        <div style={{ border: `1px solid ${renk}33`, background: `${renk}10`, color: renk, borderRadius: "10px", padding: "6px 8px", textAlign: "center" }}>
-          <div style={{ fontSize: "9px", fontWeight: "bold", opacity: 0.82 }}>GİREN</div>
-          <div style={{ fontSize: "11px", fontWeight: "bold", marginTop: "2px" }}>{fSayi(toplamGiren)} KG</div>
+      <div style={{ display: "flex", gap: "6px", marginTop: "6px", flexWrap: "nowrap" }}>
+        <div style={{ flex: 1, border: `1px solid ${renk}33`, background: `${renk}10`, color: renk, borderRadius: "999px", padding: "5px 8px", textAlign: "center", fontSize: "10px", fontWeight: "bold", whiteSpace: "nowrap", minWidth: 0 }}>
+          GİREN {fSayi(toplamGiren)} KG
         </div>
-        <div style={{ border: "1px solid #2563eb33", background: "#2563eb10", color: "#2563eb", borderRadius: "10px", padding: "6px 8px", textAlign: "center" }}>
-          <div style={{ fontSize: "9px", fontWeight: "bold", opacity: 0.82 }}>ÇIKAN</div>
-          <div style={{ fontSize: "11px", fontWeight: "bold", marginTop: "2px" }}>{fSayi(toplamCikan)} KG</div>
+        <div style={{ flex: 1, border: "1px solid #2563eb33", background: "#2563eb10", color: "#2563eb", borderRadius: "999px", padding: "5px 8px", textAlign: "center", fontSize: "10px", fontWeight: "bold", whiteSpace: "nowrap", minWidth: 0 }}>
+          ÇIKAN {fSayi(toplamCikan)} KG
         </div>
-        <div style={{ border: "1px solid #dc262633", background: "#dc262610", color: "#dc2626", borderRadius: "10px", padding: "6px 8px", textAlign: "center" }}>
-          <div style={{ fontSize: "9px", fontWeight: "bold", opacity: 0.82 }}>MALİYET</div>
-          <div style={{ fontSize: "11px", fontWeight: "bold", marginTop: "2px" }}>{fSayi(toplamMaliyet)} ₺</div>
+        <div style={{ flex: 1, border: "1px solid #dc262633", background: "#dc262610", color: "#dc2626", borderRadius: "999px", padding: "5px 8px", textAlign: "center", fontSize: "10px", fontWeight: "bold", whiteSpace: "nowrap", minWidth: 0 }}>
+          MALİYET {fSayi(toplamMaliyet)} ₺
         </div>
       </div>
     );
