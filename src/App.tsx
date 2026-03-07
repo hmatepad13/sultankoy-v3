@@ -2262,7 +2262,10 @@ export default function App() {
     );
   };
 
-  const uretimMiniDetayAc = (kayit: Uretim, alan: "giren" | "cikan" | "maliyet", renk: string) => {
+  const uretimMiniDetayMesaji = (baslik: string, satirlar: Array<{ etiket: string; deger: string; vurgu?: boolean }>) =>
+    `${baslik}\n\n${satirlar.map((satir) => `${satir.etiket}: ${satir.deger}`).join("\n")}`;
+
+  const uretimMiniDetayAc = (kayit: Uretim, alan: "giren" | "cikan" | "maliyet") => {
     const tip = kayit.uretim_tipi || "yogurt";
 
     if (alan === "giren") {
@@ -2281,7 +2284,7 @@ export default function App() {
             { etiket: "Teremyağ", deger: `${fSayi(kayit.tereyag)} KG` },
             { etiket: "Katkı", deger: `${fSayi(kayit.katki_kg)} KG` },
           ];
-      setUretimMiniDetay({ baslik: "Giren Detayı", renk, satirlar });
+      window.alert(uretimMiniDetayMesaji("Giren Detayı", satirlar));
       return;
     }
 
@@ -2297,7 +2300,7 @@ export default function App() {
             { etiket: "5 KG", deger: `${fSayi(kayit.cikti_5kg)} Adet / ${fSayi(sayiDegeri(kayit.cikti_5kg) * 5)} KG` },
             { etiket: "Toplam", deger: `${fSayi(uretimCikanToplamAdet(kayit))} Adet / ${fSayi(uretimCikanToplamKg(kayit))} KG`, vurgu: true },
           ];
-      setUretimMiniDetay({ baslik: "Çıkan Detayı", renk, satirlar });
+      window.alert(uretimMiniDetayMesaji("Çıkan Detayı", satirlar));
       return;
     }
 
@@ -2316,7 +2319,7 @@ export default function App() {
           { etiket: "Teremyağ", deger: `${fSayi(kgSatirTutari(kayit.tereyag, kayit.tereyag_fiyat))} ₺` },
           { etiket: "Katkı", deger: `${fSayi(kgSatirTutari(kayit.katki_kg, kayit.katki_fiyat))} ₺` },
         ];
-    setUretimMiniDetay({ baslik: "Maliyet Detayı", renk, satirlar });
+    window.alert(uretimMiniDetayMesaji("Maliyet Detayı", satirlar));
   };
 
   const renderUretimTablosu = (
@@ -2357,17 +2360,17 @@ export default function App() {
                 <tr key={u.id}>
                   <td>{u.tarih.split("-").reverse().slice(0, 2).join(".")}</td>
                   <td style={{ textAlign: "right" }}>
-                    <button type="button" onClick={() => uretimMiniDetayAc(u, "giren", renk)} title="Giren detayını aç" style={{ width: "100%", textAlign: "right", border: "none", background: "none", padding: 0, color: "#1d4ed8", fontWeight: "bold", cursor: "pointer", fontSize: "11px" }}>
+                    <button type="button" onClick={() => uretimMiniDetayAc(u, "giren")} title="Giren detayını aç" style={{ width: "100%", textAlign: "right", border: "none", background: "none", padding: 0, color: "#1d4ed8", fontWeight: "bold", cursor: "pointer", fontSize: "11px" }}>
                       {fSayi(uretimGirenToplamKg(u))}
                     </button>
                   </td>
                   <td style={{ textAlign: "right" }}>
-                    <button type="button" onClick={() => uretimMiniDetayAc(u, "cikan", renk)} title="Çıkan detayını aç" style={{ width: "100%", textAlign: "right", border: "none", background: "none", padding: 0, color: renk, fontWeight: "bold", cursor: "pointer", fontSize: "11px" }}>
+                    <button type="button" onClick={() => uretimMiniDetayAc(u, "cikan")} title="Çıkan detayını aç" style={{ width: "100%", textAlign: "right", border: "none", background: "none", padding: 0, color: renk, fontWeight: "bold", cursor: "pointer", fontSize: "11px" }}>
                       {fSayi(cikanAdet)}
                     </button>
                   </td>
                   <td style={{ textAlign: "right" }}>
-                    <button type="button" onClick={() => uretimMiniDetayAc(u, "maliyet", renk)} title="Maliyet detayını aç" style={{ width: "100%", textAlign: "right", border: "none", background: "none", padding: 0, color: "#dc2626", cursor: "pointer", fontSize: "11px" }}>
+                    <button type="button" onClick={() => uretimMiniDetayAc(u, "maliyet")} title="Maliyet detayını aç" style={{ width: "100%", textAlign: "right", border: "none", background: "none", padding: 0, color: "#dc2626", cursor: "pointer", fontSize: "11px" }}>
                       {fSayi(u.toplam_maliyet)}
                     </button>
                   </td>
