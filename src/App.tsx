@@ -6,7 +6,6 @@ import {
   GIDER_TURLERI,
   TAB_TANIMLARI,
   TEMA_RENGI,
-  TOPLU_MUSTERILER,
 } from "./constants/app";
 import { yedegiExcelIndir, yedegiJsonIndir } from "./lib/backup";
 import { adminMi, kullaniciYetkileriniKaydet, kullaniciYetkileriniYukle, kullaniciYetkisiniBul } from "./lib/permissions";
@@ -736,21 +735,6 @@ export default function App() {
       const tabloAdi = activeAyarTab === 'musteriler' ? 'bayiler' : activeAyarTab === 'urunler' ? 'urunler' : 'ciftlikler';
       ayarIslem(tabloAdi, yeniAyarDeger, "ekle", null, setYeniAyarDeger);
   };
-
-  const handleTopluMusteriEkle = async () => {
-      const mevcutİsimler = bayiler.map(b => b.isim);
-      const eklenecekler = TOPLU_MUSTERILER.filter(m => !mevcutİsimler.includes(m)).map(isim => ({ isim }));
-      if(eklenecekler.length > 0) {
-          const { error } = await supabase.from("bayiler").insert(eklenecekler);
-          if(error) alert("Hata: " + error.message);
-          else {
-              alert(`${eklenecekler.length} müşteri başarıyla eklendi!`);
-              verileriGetir("ayar");
-          }
-      } else {
-          alert("Bu listedeki tüm müşteriler zaten ekli.");
-      }
-  }
 
   const sortData = (data: any[], sortConfig: any) => {
     if (!sortConfig.key) return data;
@@ -1582,6 +1566,7 @@ export default function App() {
     (analizFiltre.urunler.length === 0 || analizFiltre.urunler.includes(s.urun)) && 
     (!analizFiltre.baslangic || s.tarih >= analizFiltre.baslangic) && (!analizFiltre.bitis || s.tarih <= analizFiltre.bitis)
   ), analizSort), [periodSatisList, analizFiltre, analizSort]);
+  const tAnalizAdet = useMemo(() => fAnalizList.reduce((a: number, b: any) => a + Number(b.adet), 0), [fAnalizList]);
   const tAnalizKg = useMemo(() => fAnalizList.reduce((a: number, b: any) => a + Number(b.toplam_kg), 0), [fAnalizList]);
   const tAnalizTutar = useMemo(() => fAnalizList.reduce((a: number, b: any) => a + Number(b.tutar), 0), [fAnalizList]);
 
@@ -1877,11 +1862,17 @@ export default function App() {
 
   const renderSut = () => (
     <div className="tab-fade-in main-content-area">
-      <button onClick={() => { setSutForm({ tarih: aktifDonemTarihi(), ciftlik: "", kg: "", fiyat: "", aciklama: "" }); setEditingSutId(null); setIsSutModalOpen(true); }} className="btn-anim m-btn blue-btn">➕ YENİ SÜT GİRİŞİ</button>
-      {renderKompaktToplamlar([
-        { etiket: "SÜT", deger: `${fSayi(tSutKg)} KG`, renk: temaRengi },
-        { etiket: "T. TUTAR", deger: `${fSayiNoDec(tSutTl)} ₺`, renk: temaRengi },
-      ])}
+      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center", marginBottom: "10px" }}>
+        <button onClick={() => { setSutForm({ tarih: aktifDonemTarihi(), ciftlik: "", kg: "", fiyat: "", aciklama: "" }); setEditingSutId(null); setIsSutModalOpen(true); }} className="btn-anim m-btn blue-btn" style={{ margin: 0, minWidth: "160px", fontSize: "13px" }}>➕ YENİ SÜT GİRİŞİ</button>
+        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", flex: 1 }}>
+          <div style={{ border: `1px solid ${temaRengi}33`, background: `${temaRengi}10`, color: temaRengi, borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold" }}>
+            SÜT: {fSayi(tSutKg)} KG
+          </div>
+          <div style={{ border: `1px solid ${temaRengi}33`, background: `${temaRengi}10`, color: temaRengi, borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold" }}>
+            TUTAR: {fSayiNoDec(tSutTl)} ₺
+          </div>
+        </div>
+      </div>
       <div className="table-wrapper"><table className="tbl">
         <thead><tr>
           <Th label="TARİH" sortKey="tarih" currentSort={sutSort} setSort={setSutSort} filterType="sut_tarih" />
@@ -1939,14 +1930,33 @@ export default function App() {
          </div>
       </div>
 
-      {renderKompaktToplamlar([
-        { etiket: "TOPLAM SATIŞ", deger: `${fSayi(tFisToplam)} ₺`, renk: "#059669" },
-        { etiket: "TAHSİLAT", deger: `${fSayi(tFisTahsilatRaw)} ₺`, renk: "#2563eb" },
-        { etiket: "KULL. GİDERİ", deger: `${fSayiNoDec(tKullaniciGider)} ₺`, renk: "#64748b" },
-        { etiket: "KASAYA DEVİR", deger: `${fSayiNoDec(tKasayaDevir)} ₺`, renk: "#475569" },
-        { etiket: "NET TAHSİLAT", deger: `${fSayiNoDec(tNetTahsilat)} ₺`, renk: "#0f172a" },
-        { etiket: "AÇIK HESAP", deger: `${fSayi(tFisKalan)} ₺`, renk: "#dc2626" },
-      ])}
+      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "10px", alignItems: "stretch" }}>
+        <div style={{ flex: "1 1 110px", minWidth: "110px", border: "1px solid #05966933", background: "#05966910", color: "#059669", borderRadius: "14px", padding: "8px 10px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+          <span style={{ fontSize: "10px", fontWeight: "bold", opacity: 0.85 }}>SATIŞ</span>
+          <b style={{ fontSize: "16px", marginTop: "4px" }}>{fSayi(tFisToplam)} ₺</b>
+        </div>
+        <div style={{ flex: "2 1 220px", minWidth: "220px", border: "1px solid #2563eb33", background: "#2563eb10", color: "#2563eb", borderRadius: "14px", padding: "8px 10px", display: "flex", flexDirection: "column", gap: "6px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "8px" }}>
+            <span style={{ fontSize: "10px", fontWeight: "bold", opacity: 0.9 }}>TAHSİLAT</span>
+            <b style={{ fontSize: "16px" }}>{fSayi(tFisTahsilatRaw)} ₺</b>
+          </div>
+          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+            <div style={{ flex: "1 1 70px", minWidth: "70px", borderRadius: "999px", background: "#ffffffaa", padding: "4px 8px", color: "#64748b", fontSize: "10px", fontWeight: "bold" }}>
+              GİDER: {fSayiNoDec(tKullaniciGider)} ₺
+            </div>
+            <div style={{ flex: "1 1 76px", minWidth: "76px", borderRadius: "999px", background: "#ffffffaa", padding: "4px 8px", color: "#475569", fontSize: "10px", fontWeight: "bold" }}>
+              K. DEVİR: {fSayiNoDec(tKasayaDevir)} ₺
+            </div>
+            <div style={{ flex: "1 1 64px", minWidth: "64px", borderRadius: "999px", background: "#ffffffcc", padding: "4px 8px", color: "#0f172a", fontSize: "10px", fontWeight: "bold" }}>
+              NET: {fSayiNoDec(tNetTahsilat)} ₺
+            </div>
+          </div>
+        </div>
+        <div style={{ flex: "1 1 120px", minWidth: "120px", border: "1px solid #dc262633", background: "#dc262610", color: "#dc2626", borderRadius: "14px", padding: "8px 10px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+          <span style={{ fontSize: "10px", fontWeight: "bold", opacity: 0.85 }}>AÇIK HESAP</span>
+          <b style={{ fontSize: "16px", marginTop: "4px" }}>{fSayi(tFisKalan)} ₺</b>
+        </div>
+      </div>
 
       <div className="table-wrapper"><table className="tbl tbl-satis">
         <thead><tr>
@@ -1997,8 +2007,9 @@ export default function App() {
   const renderAnaliz = () => (
     <div className="tab-fade-in main-content-area">
       {renderKompaktToplamlar([
-        { etiket: "TOPLAM ADET/KG", deger: fSayi(tAnalizKg), renk: "#8b5cf6" },
-        { etiket: "TOPLAM TUTAR", deger: `${fSayi(tAnalizTutar)} ₺`, renk: "#8b5cf6" },
+        { etiket: "TOP ADET", deger: fSayi(tAnalizAdet), renk: "#8b5cf6" },
+        { etiket: "TOP KG", deger: fSayi(tAnalizKg), renk: "#8b5cf6" },
+        { etiket: "TOP TUTAR", deger: `${fSayi(tAnalizTutar)} ₺`, renk: "#8b5cf6" },
       ], { marginTop: "5px" })}
       <div className="table-wrapper"><table className="tbl tbl-analiz">
         <thead><tr>
@@ -2629,7 +2640,6 @@ export default function App() {
       yeniUrunFiyat={yeniUrunFiyat}
       setYeniUrunFiyat={setYeniUrunFiyat}
       handleAyarEkle={handleAyarEkle}
-      handleTopluMusteriEkle={handleTopluMusteriEkle}
       onSettingDelete={(tablo, id, isim) => {
         if (confirm(`Silinecek: ${isim}`)) ayarIslem(tablo, null, "sil", id);
       }}
@@ -2645,7 +2655,6 @@ export default function App() {
       yetkiKaynak={yetkiKaynak}
       yetkiUyari={yetkiUyari}
       onSavePermissions={handlePermissionSave}
-      topluMusteriSayisi={TOPLU_MUSTERILER.length}
     />
   );
 

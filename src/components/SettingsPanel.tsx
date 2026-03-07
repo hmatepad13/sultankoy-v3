@@ -24,7 +24,6 @@ interface SettingsPanelProps {
   yeniUrunFiyat: string;
   setYeniUrunFiyat: (value: string) => void;
   handleAyarEkle: () => void;
-  handleTopluMusteriEkle: () => void;
   onSettingDelete: (tablo: string, id: string, isim: string) => void;
   onOpenTrash: () => void;
   onExcelBackup: () => void;
@@ -38,7 +37,6 @@ interface SettingsPanelProps {
   yetkiKaynak: "supabase" | "local";
   yetkiUyari: string;
   onSavePermissions: (next: KullaniciSekmeYetkisi[]) => Promise<void> | void;
-  topluMusteriSayisi: number;
 }
 
 const kartStili = {
@@ -158,7 +156,6 @@ export function SettingsPanel({
   yeniUrunFiyat,
   setYeniUrunFiyat,
   handleAyarEkle,
-  handleTopluMusteriEkle,
   onSettingDelete,
   onOpenTrash,
   onExcelBackup,
@@ -172,7 +169,6 @@ export function SettingsPanel({
   yetkiKaynak,
   yetkiUyari,
   onSavePermissions,
-  topluMusteriSayisi,
 }: SettingsPanelProps) {
   const [hedefKullanici, setHedefKullanici] = useState("");
   const [taslakYetkiler, setTaslakYetkiler] = useState<SekmeYetkiMap | null>(null);
@@ -372,25 +368,6 @@ export function SettingsPanel({
                 <div style={{ textAlign: "center", color: "#94a3b8", marginTop: "20px", fontSize: "13px" }}>
                   Kayıt bulunamadı.
                 </div>
-              )}
-
-              {activeAyarTab === "musteriler" && (
-                <button
-                  onClick={handleTopluMusteriEkle}
-                  style={{
-                    background: "#8b5cf6",
-                    color: "#fff",
-                    padding: "10px",
-                    borderRadius: "8px",
-                    border: "none",
-                    cursor: "pointer",
-                    fontSize: "12px",
-                    fontWeight: "bold",
-                    marginTop: "15px",
-                  }}
-                >
-                  📥 {topluMusteriSayisi} Hazır Müşteriyi İçe Aktar
-                </button>
               )}
             </div>
           </>
