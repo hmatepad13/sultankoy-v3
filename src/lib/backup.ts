@@ -458,18 +458,15 @@ const htmlBolum = (id: string, baslik: string, icerik: string, aciklama = "") =>
     ${icerik}
   </section>`;
 
-export const jsonYedekDosyasiOlustur = (veri: YedekVerisi) => ({
-  dosyaAdi: `sultankoy-yedek-tum-donemler-${yedekDosyaTarihi(veri.alindiTarih)}.json`,
-  icerik: JSON.stringify(veri, null, 2),
-  mimeType: "application/json;charset=utf-8",
-});
-
 export const yedegiJsonIndir = (veri: YedekVerisi) => {
-  const dosya = jsonYedekDosyasiOlustur(veri);
-  dosyaIndir(dosya.icerik, dosya.dosyaAdi, dosya.mimeType);
+  dosyaIndir(
+    JSON.stringify(veri, null, 2),
+    `sultankoy-yedek-tum-donemler-${yedekDosyaTarihi(veri.alindiTarih)}.json`,
+    "application/json;charset=utf-8",
+  );
 };
 
-export const excelYedekDosyasiOlustur = (veri: YedekVerisi) => {
+export const yedegiExcelIndir = (veri: YedekVerisi) => {
   const workbook = XLSX.utils.book_new();
   const satisFisToplamBorcMap = satisFisToplamBorcMapOlustur(veri.satisFisList);
   const donemMusteriBorclari = donemBazliMusteriBorclariOlustur(veri);
@@ -725,19 +722,10 @@ export const excelYedekDosyasiOlustur = (veri: YedekVerisi) => {
     ]);
   });
 
-  return {
-    dosyaAdi: `sultankoy-yedek-tum-donemler-${yedekDosyaTarihi(veri.alindiTarih)}.xlsx`,
-    icerik: XLSX.write(workbook, { bookType: "xlsx", type: "array" }) as ArrayBuffer,
-    mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  };
+  XLSX.writeFile(workbook, `sultankoy-yedek-tum-donemler-${yedekDosyaTarihi(veri.alindiTarih)}.xlsx`);
 };
 
-export const yedegiExcelIndir = (veri: YedekVerisi) => {
-  const dosya = excelYedekDosyasiOlustur(veri);
-  dosyaIndir(new Blob([dosya.icerik], { type: dosya.mimeType }), dosya.dosyaAdi, dosya.mimeType);
-};
-
-export const htmlYedekDosyasiOlustur = (veri: YedekVerisi) => {
+export const yedegiHtmlIndir = (veri: YedekVerisi) => {
   const satisFisToplamBorcMap = satisFisToplamBorcMapOlustur(veri.satisFisList);
   const donemOzetleri = donemOzetiOlustur(veri);
   const secilebilirDonemler = Array.from(
@@ -1317,14 +1305,9 @@ export const htmlYedekDosyasiOlustur = (veri: YedekVerisi) => {
   </body>
 </html>`;
 
-  return {
-    dosyaAdi: `sultankoy-rapor-yedegi-${yedekDosyaTarihi(veri.alindiTarih)}.html`,
-    icerik: html,
-    mimeType: "text/html;charset=utf-8",
-  };
-};
-
-export const yedegiHtmlIndir = (veri: YedekVerisi) => {
-  const dosya = htmlYedekDosyasiOlustur(veri);
-  dosyaIndir(dosya.icerik, dosya.dosyaAdi, dosya.mimeType);
+  dosyaIndir(
+    html,
+    `sultankoy-rapor-yedegi-${yedekDosyaTarihi(veri.alindiTarih)}.html`,
+    "text/html;charset=utf-8",
+  );
 };
