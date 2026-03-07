@@ -1863,7 +1863,6 @@ export default function App() {
   const renderSut = () => (
     <div className="tab-fade-in main-content-area">
       <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center", marginBottom: "10px" }}>
-        <button onClick={() => { setSutForm({ tarih: aktifDonemTarihi(), ciftlik: "", kg: "", fiyat: "", aciklama: "" }); setEditingSutId(null); setIsSutModalOpen(true); }} className="btn-anim m-btn blue-btn" style={{ margin: 0, minWidth: "160px", fontSize: "13px" }}>➕ YENİ SÜT GİRİŞİ</button>
         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", flex: 1 }}>
           <div style={{ border: `1px solid ${temaRengi}33`, background: `${temaRengi}10`, color: temaRengi, borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold" }}>
             SÜT: {fSayi(tSutKg)} KG
@@ -1872,6 +1871,7 @@ export default function App() {
             TUTAR: {fSayiNoDec(tSutTl)} ₺
           </div>
         </div>
+        <button onClick={() => { setSutForm({ tarih: aktifDonemTarihi(), ciftlik: "", kg: "", fiyat: "", aciklama: "" }); setEditingSutId(null); setIsSutModalOpen(true); }} className="btn-anim m-btn blue-btn inline-mobile-btn" style={{ margin: 0, minWidth: "150px", width: "auto", fontSize: "13px", flex: "0 0 auto" }}>➕ YENİ SÜT GİRİŞİ</button>
       </div>
       <div className="table-wrapper"><table className="tbl">
         <thead><tr>
