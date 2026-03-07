@@ -390,7 +390,7 @@ const htmlTablo = (basliklar: string[], satirlar: Array<Record<string, unknown>>
 };
 
 const htmlBolum = (id: string, baslik: string, icerik: string, aciklama = "") => `
-  <section id="${escapeHtml(id)}" class="section">
+  <section id="${escapeHtml(id)}" class="section" data-section="${escapeHtml(id)}">
     <div class="section-head">
       <h2>${escapeHtml(baslik)}</h2>
       ${aciklama ? `<p>${escapeHtml(aciklama)}</p>` : ""}
@@ -713,6 +713,86 @@ export const yedegiHtmlIndir = (veri: YedekVerisi) => {
     ],
   );
 
+  const htmlBolumler = [
+    {
+      id: "ozet",
+      etiket: "Ozet",
+      baslik: "Aktif Donem Ozeti",
+      aciklama: "Uygulamada o anda gorulen ust toplamlar.",
+      icerik: aktifOzetKartlari,
+    },
+    {
+      id: "donemler",
+      etiket: "Donemler",
+      baslik: "Donem Ozetleri",
+      aciklama: "Tum donemlerin toplu gorunumu.",
+      icerik: donemOzetTablosu,
+    },
+    {
+      id: "musteriler",
+      etiket: "Musteri Borclari",
+      baslik: "Musteri Borclari",
+      aciklama: "Aktif donem ve tum donem bakiyeleri birlikte listelenir.",
+      icerik: aktifMusteriTablosu + donemMusteriTablosu,
+    },
+    {
+      id: "personel",
+      etiket: "Personel",
+      baslik: "Personel Ozetleri",
+      aciklama: "Tahsilat, gider, kasaya devir ve net bakiye takibi.",
+      icerik: aktifPersonelTablosu + donemPersonelTablosu,
+    },
+    {
+      id: "satis-fisleri",
+      etiket: "Satis Fisleri",
+      baslik: "Satis Fisleri",
+      aciklama: "Kullaniciya yakin fis listesi gorunumu.",
+      icerik: satisFisleriTablosu,
+    },
+    {
+      id: "satis-detay",
+      etiket: "Satis Detay",
+      baslik: "Satis Detaylari",
+      aciklama: "Urun bazli satis satirlari.",
+      icerik: satisDetayTablosu,
+    },
+    {
+      id: "sut",
+      etiket: "Sut",
+      baslik: "Sut Hareketleri",
+      aciklama: "",
+      icerik: sutTablosu,
+    },
+    {
+      id: "gider",
+      etiket: "Gider",
+      baslik: "Gider Hareketleri",
+      aciklama: "",
+      icerik: giderTablosu,
+    },
+    {
+      id: "yogurt",
+      etiket: "Yogurt Uretim",
+      baslik: "Yogurt Uretimleri",
+      aciklama: "",
+      icerik: yogurtTablosu,
+    },
+    {
+      id: "kaymak",
+      etiket: "Sut Kaymagi",
+      baslik: "Sut Kaymagi Uretimleri",
+      aciklama: "",
+      icerik: sutKaymagiTablosu,
+    },
+    {
+      id: "tanimlar",
+      etiket: "Tanimlar",
+      baslik: "Tanim Listeleri",
+      aciklama: "Musteriler, urunler, ciftlikler ve sekme yetkileri.",
+      icerik: tanimlarTablosu,
+    },
+  ];
+
   const html = `<!doctype html>
 <html lang="tr">
   <head>
@@ -780,8 +860,7 @@ export const yedegiHtmlIndir = (veri: YedekVerisi) => {
         padding-bottom: 8px;
         margin-bottom: 12px;
       }
-      .nav a {
-        text-decoration: none;
+      .nav button {
         white-space: nowrap;
         background: var(--card);
         color: var(--text);
@@ -790,6 +869,13 @@ export const yedegiHtmlIndir = (veri: YedekVerisi) => {
         padding: 10px 14px;
         font-size: 13px;
         font-weight: 700;
+        cursor: pointer;
+        transition: all 0.18s ease;
+      }
+      .nav button.active {
+        background: var(--brand);
+        color: #fff;
+        border-color: var(--brand);
       }
       .section {
         background: var(--card);
@@ -798,6 +884,9 @@ export const yedegiHtmlIndir = (veri: YedekVerisi) => {
         padding: 16px;
         margin-bottom: 14px;
         box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+      }
+      .section.hidden {
+        display: none;
       }
       .section-head {
         margin-bottom: 12px;
@@ -878,6 +967,7 @@ export const yedegiHtmlIndir = (veri: YedekVerisi) => {
         .page { max-width: none; padding: 0; }
         .hero, .section { box-shadow: none; break-inside: avoid; }
         .nav { display: none; }
+        .section.hidden { display: block; }
       }
     </style>
   </head>
@@ -894,33 +984,49 @@ export const yedegiHtmlIndir = (veri: YedekVerisi) => {
       </header>
 
       <nav class="nav">
-        <a href="#ozet">Ozet</a>
-        <a href="#donemler">Donemler</a>
-        <a href="#musteriler">Musteri Borclari</a>
-        <a href="#personel">Personel</a>
-        <a href="#satis-fisleri">Satis Fisleri</a>
-        <a href="#satis-detay">Satis Detay</a>
-        <a href="#sut">Sut</a>
-        <a href="#gider">Gider</a>
-        <a href="#yogurt">Yogurt Uretim</a>
-        <a href="#kaymak">Sut Kaymagi</a>
-        <a href="#tanimlar">Tanimlar</a>
+        ${htmlBolumler
+          .map(
+            (bolum, index) =>
+              `<button type="button" class="${index === 0 ? "active" : ""}" data-target="${escapeHtml(bolum.id)}">${escapeHtml(bolum.etiket)}</button>`,
+          )
+          .join("")}
       </nav>
 
-      ${htmlBolum("ozet", "Aktif Donem Ozeti", aktifOzetKartlari, "Uygulamada o anda gorulen ust toplamlar.")}
-      ${htmlBolum("donemler", "Donem Ozetleri", donemOzetTablosu, "Tum donemlerin toplu gorunumu.")}
-      ${htmlBolum("musteriler", "Musteri Borclari", aktifMusteriTablosu + donemMusteriTablosu, "Aktif donem ve tum donem bakiyeleri birlikte listelenir.")}
-      ${htmlBolum("personel", "Personel Ozetleri", aktifPersonelTablosu + donemPersonelTablosu, "Tahsilat, gider, kasaya devir ve net bakiye takibi.")}
-      ${htmlBolum("satis-fisleri", "Satis Fisleri", satisFisleriTablosu, "Kullaniciya yakin fis listesi gorunumu.")}
-      ${htmlBolum("satis-detay", "Satis Detaylari", satisDetayTablosu, "Urun bazli satis satirlari.")}
-      ${htmlBolum("sut", "Sut Hareketleri", sutTablosu)}
-      ${htmlBolum("gider", "Gider Hareketleri", giderTablosu)}
-      ${htmlBolum("yogurt", "Yogurt Uretimleri", yogurtTablosu)}
-      ${htmlBolum("kaymak", "Sut Kaymagi Uretimleri", sutKaymagiTablosu)}
-      ${htmlBolum("tanimlar", "Tanim Listeleri", tanimlarTablosu, "Musteriler, urunler, ciftlikler ve sekme yetkileri.")}
+      ${htmlBolumler
+        .map((bolum, index) =>
+          htmlBolum(
+            bolum.id,
+            bolum.baslik,
+            bolum.icerik,
+            bolum.aciklama,
+          ).replace('class="section"', `class="section${index === 0 ? "" : " hidden"}"`),
+        )
+        .join("")}
 
       <div class="footer">Sultankoy V3 HTML rapor yedegi • Tek dosya • Offline acilabilir</div>
     </main>
+    <script>
+      (function () {
+        const buttons = Array.from(document.querySelectorAll('.nav button[data-target]'));
+        const sections = Array.from(document.querySelectorAll('.section[data-section]'));
+
+        const activate = (target) => {
+          buttons.forEach((button) => {
+            button.classList.toggle('active', button.dataset.target === target);
+          });
+          sections.forEach((section) => {
+            section.classList.toggle('hidden', section.dataset.section !== target);
+          });
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+
+        buttons.forEach((button) => {
+          button.addEventListener('click', () => {
+            if (button.dataset.target) activate(button.dataset.target);
+          });
+        });
+      })();
+    </script>
   </body>
 </html>`;
 
