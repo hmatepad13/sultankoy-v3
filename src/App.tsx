@@ -368,6 +368,7 @@ export default function App() {
   const [username, setUsername] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [activeTab, setActiveTab] = useState<AppTabId>("satis");
+  const oturumAcilisSekmesiRef = useRef<string | null>(null);
 
   // DÖNEM YÖNETİMİ (Kalıcı)
   const [aktifDonem, setAktifDonem] = useState<string>(() => {
@@ -636,12 +637,27 @@ export default function App() {
 
   useEffect(() => {
     if (!gorunurSekmeler.some((tab) => tab.id === activeTab)) {
-      const ilkSekme = gorunurSekmeler[0]?.id;
-      if (ilkSekme) {
-        setActiveTab(ilkSekme);
+      const hedefSekme = gorunurSekmeler.some((tab) => tab.id === "satis") ? "satis" : gorunurSekmeler[0]?.id;
+      if (hedefSekme) {
+        setActiveTab(hedefSekme);
       }
     }
   }, [activeTab, gorunurSekmeler]);
+
+  useEffect(() => {
+    const kullaniciId = session?.user?.id || null;
+    if (!kullaniciId) {
+      oturumAcilisSekmesiRef.current = null;
+      return;
+    }
+    if (oturumAcilisSekmesiRef.current === kullaniciId) return;
+
+    const hedefSekme = gorunurSekmeler.some((tab) => tab.id === "satis") ? "satis" : gorunurSekmeler[0]?.id;
+    if (hedefSekme) {
+      setActiveTab(hedefSekme);
+      oturumAcilisSekmesiRef.current = kullaniciId;
+    }
+  }, [gorunurSekmeler, session?.user?.id]);
 
   const veritabaniHatasiMesaji = (tablo: string, hata: { message?: string } | null) => {
     const mesaj = hata?.message || "Bilinmeyen veritabanı hatası";
