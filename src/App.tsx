@@ -853,11 +853,11 @@ export default function App() {
       }
   };
 
-  const Th = ({ label, sortKey, currentSort, setSort, align="left", filterType = null, isAnaliz = false }: any) => (
-    <th style={{ textAlign: align }}>
+  const Th = ({ label, sortKey, currentSort, setSort, align="left", filterType = null, isAnaliz = false, hideSortIndicator = false, compact = false, cellStyle = {} }: any) => (
+    <th style={{ textAlign: align, ...cellStyle }}>
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', alignItems: align === 'right' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start' }}>
-        <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: align === 'center' ? 'center' : 'space-between', gap: '4px', cursor: 'pointer' }} onClick={() => handleSortClick(sortKey, currentSort, setSort)}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: align === 'right' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start', flex: align === 'center' ? '0 1 auto' : 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: align === 'center' ? 'center' : 'space-between', gap: compact ? '2px' : '4px', cursor: 'pointer' }} onClick={() => handleSortClick(sortKey, currentSort, setSort)}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: compact ? '2px' : '4px', justifyContent: align === 'right' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start', flex: align === 'center' ? '0 1 auto' : 1 }}>
             <span>{label}</span>
             {filterType && (
               <span onClick={(e) => { e.stopPropagation(); setActiveFilterModal(filterType); }} style={{ fontSize: '10px', padding: '2px', background: isAnaliz ? '#7c3aed' : '#e2e8f0', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -865,7 +865,7 @@ export default function App() {
               </span>
             )}
           </div>
-          <span style={{fontSize:'9px', color: isAnaliz ? '#d8b4fe' : '#94a3b8', paddingLeft: '2px', textAlign: 'right'}}>
+          <span style={{fontSize:'9px', color: isAnaliz ? '#d8b4fe' : '#94a3b8', paddingLeft: hideSortIndicator ? '0' : '2px', textAlign: 'right', visibility: hideSortIndicator ? 'hidden' : 'visible', width: hideSortIndicator ? '0' : 'auto', overflow: 'hidden'}}>
             {currentSort.key === sortKey ? (currentSort.direction === 'asc' ? '▲' : '▼') : ''}
           </span>
         </div>
@@ -2202,8 +2202,8 @@ export default function App() {
 
       <div className="table-wrapper"><table className="tbl tbl-satis" style={{ tableLayout: "fixed" }}>
         <thead><tr>
-          <Th label="TARİH" sortKey="tarih" currentSort={fisSort} setSort={setFisSort} filterType="fis_tarih" />
-          <Th label={satisFiltreTip === 'kasa_devir' ? "AÇIKLAMA" : "BAYİ"} sortKey={satisFiltreTip === 'kasa_devir' ? "aciklama" : "bayi"} currentSort={fisSort} setSort={setFisSort} filterType="fis_bayi" />
+          <Th label="TARİH" sortKey="tarih" currentSort={fisSort} setSort={setFisSort} filterType="fis_tarih" hideSortIndicator={true} compact={true} cellStyle={{ width: "68px" }} />
+          <Th label={satisFiltreTip === 'kasa_devir' ? "AÇIKLAMA" : "BAYİ"} sortKey={satisFiltreTip === 'kasa_devir' ? "aciklama" : "bayi"} currentSort={fisSort} setSort={setFisSort} filterType="fis_bayi" hideSortIndicator={true} compact={true} cellStyle={{ width: satisFiltreTip === 'kasa_devir' ? "136px" : "112px" }} />
           <Th label="TUTAR" sortKey="toplam_tutar" currentSort={fisSort} setSort={setFisSort} align="right" />
           <Th label="TAHS." sortKey="tahsilat" currentSort={fisSort} setSort={setFisSort} align="right" />
           <Th label="BORÇ" sortKey="kalan_bakiye" currentSort={fisSort} setSort={setFisSort} align="right" />
