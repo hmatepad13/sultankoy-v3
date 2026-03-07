@@ -285,6 +285,18 @@ const gorunenFisNoOlustur = (fis?: { id?: string | number; fis_no?: string | nul
   return "F-0000";
 };
 
+const dosyaAdiIcinTemizle = (deger?: string | null) =>
+  String(deger || "fis")
+    .toLocaleLowerCase("tr-TR")
+    .replace(/ğ/g, "g")
+    .replace(/ü/g, "u")
+    .replace(/ş/g, "s")
+    .replace(/ı/g, "i")
+    .replace(/ö/g, "o")
+    .replace(/ç/g, "c")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "fis";
+
 const uretimCikanToplamAdet = (kayit: Partial<Uretim>) => {
   const tip = kayit.uretim_tipi || "yogurt";
   if (tip === "sut_kaymagi") {
@@ -1398,8 +1410,18 @@ export default function App() {
     if (!fisGorselDosya) return fisGorselMevcutYol || null;
 
     const uzanti = fisGorselDosya.name.split(".").pop()?.toLowerCase() || "jpg";
-    const temizFisNo = fisNo.replace(/[^a-zA-Z0-9_-]/g, "_");
-    const dosyaYolu = `${temizFisNo}-${Date.now()}.${uzanti}`;
+    const bayiSlug = dosyaAdiIcinTemizle(fisUst.bayi || "baysiz");
+    const yuklemeTarihi = new Date();
+    const tarihParcasi = [
+      yuklemeTarihi.getFullYear(),
+      String(yuklemeTarihi.getMonth() + 1).padStart(2, "0"),
+      String(yuklemeTarihi.getDate()).padStart(2, "0"),
+      String(yuklemeTarihi.getHours()).padStart(2, "0"),
+      String(yuklemeTarihi.getMinutes()).padStart(2, "0"),
+      String(yuklemeTarihi.getSeconds()).padStart(2, "0"),
+    ].join("");
+    const guvenliEk = fisNo.replace(/[^a-zA-Z0-9]/g, "").slice(-6) || Math.random().toString(36).slice(2, 8).toUpperCase();
+    const dosyaYolu = `${bayiSlug}/${bayiSlug}-${tarihParcasi}-${guvenliEk}.${uzanti}`;
 
     const { error } = await supabase.storage.from("fis_gorselleri").upload(dosyaYolu, fisGorselDosya, {
       contentType: fisGorselDosya.type,
