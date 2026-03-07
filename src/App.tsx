@@ -2100,8 +2100,8 @@ export default function App() {
     fiyatField: keyof Uretim,
     renk = "#475569",
   ) => (
-    <div style={{ display: "grid", gridTemplateColumns: "minmax(88px,1fr) 70px 70px 78px", gap: "6px", alignItems: "center" }}>
-      <span style={{ fontSize: "11px", fontWeight: "bold", color: renk }}>{etiket}</span>
+    <div style={{ display: "grid", gridTemplateColumns: "minmax(70px,1fr) 52px 52px 58px", gap: "4px", alignItems: "center" }}>
+      <span style={{ fontSize: "10px", fontWeight: "bold", color: renk, lineHeight: 1.15 }}>{etiket}</span>
       <input
         placeholder="KG"
         type="number"
@@ -2109,7 +2109,7 @@ export default function App() {
         value={String(uretimForm[kgField] ?? "")}
         onChange={(e) => setUretimForm({ ...uretimForm, [kgField]: e.target.value })}
         className="m-inp small-inp"
-        style={{ textAlign: "right" }}
+        style={{ textAlign: "right", minWidth: 0 }}
       />
       <input
         placeholder="Fiyat"
@@ -2118,9 +2118,9 @@ export default function App() {
         value={String(uretimForm[fiyatField] ?? "")}
         onChange={(e) => setUretimForm({ ...uretimForm, [fiyatField]: e.target.value })}
         className="m-inp small-inp"
-        style={{ textAlign: "right" }}
+        style={{ textAlign: "right", minWidth: 0 }}
       />
-      <div style={{ textAlign: "right", fontWeight: "bold", fontSize: "12px", color: "#0f172a" }}>
+      <div style={{ textAlign: "right", fontWeight: "bold", fontSize: "10.5px", color: "#0f172a", minWidth: 0 }}>
         {fSayi(kgSatirTutari(uretimForm[kgField], uretimForm[fiyatField]))} ₺
       </div>
     </div>
@@ -2133,15 +2133,15 @@ export default function App() {
     fiyatField: keyof Uretim,
     renk = "#475569",
   ) => (
-    <div style={{ display: "grid", gridTemplateColumns: "minmax(88px,1fr) 58px 58px 70px 78px", gap: "6px", alignItems: "center" }}>
-      <span style={{ fontSize: "11px", fontWeight: "bold", color: renk }}>{etiket}</span>
+    <div style={{ display: "grid", gridTemplateColumns: "minmax(70px,1fr) 42px 42px 52px 58px", gap: "4px", alignItems: "center" }}>
+      <span style={{ fontSize: "10px", fontWeight: "bold", color: renk, lineHeight: 1.15 }}>{etiket}</span>
       <input
         placeholder="Adet"
         type="number"
         value={String(uretimForm[adetField] ?? "")}
         onChange={(e) => setUretimForm({ ...uretimForm, [adetField]: e.target.value })}
         className="m-inp small-inp"
-        style={{ textAlign: "right" }}
+        style={{ textAlign: "right", minWidth: 0 }}
       />
       <input
         placeholder="KG"
@@ -2150,7 +2150,7 @@ export default function App() {
         value={String(uretimForm[kgField] ?? "")}
         onChange={(e) => setUretimForm({ ...uretimForm, [kgField]: e.target.value })}
         className="m-inp small-inp"
-        style={{ textAlign: "right" }}
+        style={{ textAlign: "right", minWidth: 0 }}
       />
       <input
         placeholder="Fiyat"
@@ -2159,9 +2159,9 @@ export default function App() {
         value={String(uretimForm[fiyatField] ?? "")}
         onChange={(e) => setUretimForm({ ...uretimForm, [fiyatField]: e.target.value })}
         className="m-inp small-inp"
-        style={{ textAlign: "right" }}
+        style={{ textAlign: "right", minWidth: 0 }}
       />
-      <div style={{ textAlign: "right", fontWeight: "bold", fontSize: "12px", color: "#0f172a" }}>
+      <div style={{ textAlign: "right", fontWeight: "bold", fontSize: "10.5px", color: "#0f172a", minWidth: 0 }}>
         {fSayi(miktarSatirTutari(uretimForm[kgField], uretimForm[adetField], uretimForm[fiyatField]))} ₺
       </div>
     </div>
@@ -2173,15 +2173,15 @@ export default function App() {
     fiyatField: keyof Uretim,
     renk = "#475569",
   ) => (
-    <div style={{ display: "grid", gridTemplateColumns: "minmax(88px,1fr) 70px 70px 78px", gap: "6px", alignItems: "center" }}>
-      <span style={{ fontSize: "11px", fontWeight: "bold", color: renk }}>{etiket}</span>
+    <div style={{ display: "grid", gridTemplateColumns: "minmax(70px,1fr) 52px 52px 58px", gap: "4px", alignItems: "center" }}>
+      <span style={{ fontSize: "10px", fontWeight: "bold", color: renk, lineHeight: 1.15 }}>{etiket}</span>
       <input
         placeholder="Adet"
         type="number"
         value={String(uretimForm[adetField] ?? "")}
         onChange={(e) => setUretimForm({ ...uretimForm, [adetField]: e.target.value })}
         className="m-inp small-inp"
-        style={{ textAlign: "right" }}
+        style={{ textAlign: "right", minWidth: 0 }}
       />
       <input
         placeholder="Fiyat"
@@ -2190,9 +2190,9 @@ export default function App() {
         value={String(uretimForm[fiyatField] ?? "")}
         onChange={(e) => setUretimForm({ ...uretimForm, [fiyatField]: e.target.value })}
         className="m-inp small-inp"
-        style={{ textAlign: "right" }}
+        style={{ textAlign: "right", minWidth: 0 }}
       />
-      <div style={{ textAlign: "right", fontWeight: "bold", fontSize: "12px", color: "#0f172a" }}>
+      <div style={{ textAlign: "right", fontWeight: "bold", fontSize: "10.5px", color: "#0f172a", minWidth: 0 }}>
         {fSayi(sayiDegeri(uretimForm[adetField]) * sayiDegeri(uretimForm[fiyatField]))} ₺
       </div>
     </div>
@@ -2209,22 +2209,22 @@ export default function App() {
     const tutar = adetDegeri * sayiDegeri(uretimForm[fiyatField]);
 
     return (
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(88px,1fr) 58px 58px 70px 78px", gap: "6px", alignItems: "center" }}>
-        <span style={{ fontSize: "11px", fontWeight: "bold", color: "#7c3aed" }}>{etiket}</span>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(70px,1fr) 42px 42px 52px 58px", gap: "4px", alignItems: "center" }}>
+        <span style={{ fontSize: "10px", fontWeight: "bold", color: "#7c3aed", lineHeight: 1.15 }}>{etiket}</span>
         <input
           placeholder="Adet"
           type="number"
           value={String(uretimForm[adetField] ?? "")}
           onChange={(e) => setUretimForm({ ...uretimForm, [adetField]: e.target.value })}
           className="m-inp small-inp"
-          style={{ textAlign: "right", borderColor: "#ddd6fe" }}
+          style={{ textAlign: "right", borderColor: "#ddd6fe", minWidth: 0 }}
         />
         <input
           value={kgDegeri > 0 ? String(kgDegeri) : ""}
           readOnly
           placeholder="KG"
           className="m-inp small-inp"
-          style={{ textAlign: "right", background: "#f5f3ff", borderColor: "#ddd6fe" }}
+          style={{ textAlign: "right", background: "#f5f3ff", borderColor: "#ddd6fe", minWidth: 0 }}
         />
         <input
           placeholder="Fiyat"
@@ -2233,9 +2233,9 @@ export default function App() {
           value={String(uretimForm[fiyatField] ?? "")}
           onChange={(e) => setUretimForm({ ...uretimForm, [fiyatField]: e.target.value })}
           className="m-inp small-inp"
-          style={{ textAlign: "right", borderColor: "#ddd6fe" }}
+          style={{ textAlign: "right", borderColor: "#ddd6fe", minWidth: 0 }}
         />
-        <div style={{ textAlign: "right", fontWeight: "bold", fontSize: "12px", color: "#7c3aed" }}>
+        <div style={{ textAlign: "right", fontWeight: "bold", fontSize: "10.5px", color: "#7c3aed", minWidth: 0 }}>
           {fSayi(tutar)} ₺
         </div>
       </div>
@@ -2248,15 +2248,18 @@ export default function App() {
     const toplamMaliyet = kayitlar.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.toplam_maliyet), 0);
 
     return (
-      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "4px" }}>
-        <div style={{ border: `1px solid ${renk}33`, background: `${renk}10`, color: renk, borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold" }}>
-          GİREN: {fSayi(toplamGiren)} KG
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "6px", marginTop: "6px" }}>
+        <div style={{ border: `1px solid ${renk}33`, background: `${renk}10`, color: renk, borderRadius: "10px", padding: "6px 8px", textAlign: "center" }}>
+          <div style={{ fontSize: "9px", fontWeight: "bold", opacity: 0.82 }}>GİREN</div>
+          <div style={{ fontSize: "11px", fontWeight: "bold", marginTop: "2px" }}>{fSayi(toplamGiren)} KG</div>
         </div>
-        <div style={{ border: "1px solid #2563eb33", background: "#2563eb10", color: "#2563eb", borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold" }}>
-          ÇIKAN: {fSayi(toplamCikan)} KG
+        <div style={{ border: "1px solid #2563eb33", background: "#2563eb10", color: "#2563eb", borderRadius: "10px", padding: "6px 8px", textAlign: "center" }}>
+          <div style={{ fontSize: "9px", fontWeight: "bold", opacity: 0.82 }}>ÇIKAN</div>
+          <div style={{ fontSize: "11px", fontWeight: "bold", marginTop: "2px" }}>{fSayi(toplamCikan)} KG</div>
         </div>
-        <div style={{ border: "1px solid #dc262633", background: "#dc262610", color: "#dc2626", borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold" }}>
-          MALİYET: {fSayi(toplamMaliyet)} ₺
+        <div style={{ border: "1px solid #dc262633", background: "#dc262610", color: "#dc2626", borderRadius: "10px", padding: "6px 8px", textAlign: "center" }}>
+          <div style={{ fontSize: "9px", fontWeight: "bold", opacity: 0.82 }}>MALİYET</div>
+          <div style={{ fontSize: "11px", fontWeight: "bold", marginTop: "2px" }}>{fSayi(toplamMaliyet)} ₺</div>
         </div>
       </div>
     );
@@ -2333,15 +2336,15 @@ export default function App() {
     onYeniClick: () => void,
   ) => (
     <div style={{ marginTop: "12px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", gap: "8px", flexWrap: "wrap" }}>
-        <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px", gap: "8px", flexWrap: "nowrap" }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
           <h3 style={{ margin: 0, color: renk, fontSize: "14px" }}>{baslik}</h3>
-          {renderUretimToplamlari(kayitlar, renk)}
         </div>
-        <button onClick={onYeniClick} className="btn-anim m-btn" style={{ background: renk, margin: 0, minWidth: "160px", padding: "10px 14px", fontSize: "12px" }}>
+        <button onClick={onYeniClick} className="btn-anim m-btn" style={{ background: renk, margin: 0, minWidth: "146px", width: "auto", padding: "9px 10px", fontSize: "11px", whiteSpace: "nowrap", flex: "0 0 auto" }}>
           {butonMetni}
         </button>
       </div>
+      {renderUretimToplamlari(kayitlar, renk)}
 
       <div className="table-wrapper">
         <table className="tbl" style={{ borderTop: `3px solid ${renk}`, tableLayout: "fixed", fontSize: "11px" }}>
@@ -2401,7 +2404,7 @@ export default function App() {
   const renderUretimYeni = () => (
     <div className="tab-fade-in main-content-area">
       {renderUretimTablosu("Yoğurt Üretimleri", yogurtUretimListesi, "#8b5cf6", "➕ YENİ YOĞURT ÜRETİMİ", () => yeniUretimFormunuAc("yogurt"))}
-      {renderUretimTablosu("Süt Kaymağı Üretimleri", sutKaymagiUretimListesi, "#0f766e", "➕ YENİ SÜT KAYMAĞI", () => yeniUretimFormunuAc("sut_kaymagi"))}
+      {renderUretimTablosu("Süt Kaymağı Üretimleri", sutKaymagiUretimListesi, "#0f766e", "➕ YENİ SÜT KAYMAĞI ÜRETİMİ", () => yeniUretimFormunuAc("sut_kaymagi"))}
     </div>
   );
 
@@ -2426,11 +2429,11 @@ export default function App() {
           </div>
 
           <div style={{ border: "1px solid #e2e8f0", borderRadius: "8px", padding: "8px", background: "#f8fafc", display: "grid", gap: "6px" }}>
-            <div style={{ display: "grid", gridTemplateColumns: aktifUretimTipi === "sut_kaymagi" ? "minmax(88px,1fr) 58px 58px 70px 78px" : "minmax(88px,1fr) 70px 70px 78px", gap: "6px", fontSize: "10px", color: "#94a3b8", fontWeight: "bold" }}>
+            <div style={{ display: "grid", gridTemplateColumns: aktifUretimTipi === "sut_kaymagi" ? "minmax(70px,1fr) 42px 42px 52px 58px" : "minmax(70px,1fr) 52px 52px 58px", gap: "4px", fontSize: "9px", color: "#94a3b8", fontWeight: "bold" }}>
               <span>GİREN HAMMADDE</span>
               {aktifUretimTipi === "sut_kaymagi" ? <><span style={{ textAlign: "right" }}>ADET</span><span style={{ textAlign: "right" }}>KG</span></> : <span style={{ textAlign: "right" }}>KG</span>}
-              <span style={{ textAlign: "right" }}>FİYAT</span>
-              <span style={{ textAlign: "right" }}>TUTAR</span>
+              <span style={{ textAlign: "right" }}>FYT</span>
+              <span style={{ textAlign: "right" }}>TUT.</span>
             </div>
             {aktifUretimTipi === "sut_kaymagi" ? (
               <>
@@ -2453,11 +2456,11 @@ export default function App() {
 
           {aktifUretimTipi === "yogurt" && (
             <div style={{ border: "1px solid #e2e8f0", borderRadius: "8px", padding: "8px", background: "#f8fafc", display: "grid", gap: "6px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "minmax(88px,1fr) 70px 70px 78px", gap: "6px", fontSize: "10px", color: "#94a3b8", fontWeight: "bold" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(70px,1fr) 52px 52px 58px", gap: "4px", fontSize: "9px", color: "#94a3b8", fontWeight: "bold" }}>
                 <span>BOŞ KOVA</span>
                 <span style={{ textAlign: "right" }}>ADET</span>
-                <span style={{ textAlign: "right" }}>FİYAT</span>
-                <span style={{ textAlign: "right" }}>TUTAR</span>
+                <span style={{ textAlign: "right" }}>FYT</span>
+                <span style={{ textAlign: "right" }}>TUT.</span>
               </div>
               {renderAdetFiyatSatiri("3'lük Kova", "kova_3_adet", "kova_3_fiyat")}
               {renderAdetFiyatSatiri("5'lik Kova", "kova_5_adet", "kova_5_fiyat")}
@@ -2465,12 +2468,12 @@ export default function App() {
           )}
 
           <div style={{ border: "1px solid #c4b5fd", borderRadius: "8px", padding: "8px", background: "#f5f3ff", display: "grid", gap: "6px" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "minmax(88px,1fr) 58px 58px 70px 78px", gap: "6px", fontSize: "10px", color: "#8b5cf6", fontWeight: "bold" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "minmax(70px,1fr) 42px 42px 52px 58px", gap: "4px", fontSize: "9px", color: "#8b5cf6", fontWeight: "bold" }}>
               <span>ÇIKAN ÜRÜN</span>
               <span style={{ textAlign: "right" }}>ADET</span>
               <span style={{ textAlign: "right" }}>KG</span>
-              <span style={{ textAlign: "right" }}>FİYAT</span>
-              <span style={{ textAlign: "right" }}>TUTAR</span>
+              <span style={{ textAlign: "right" }}>FYT</span>
+              <span style={{ textAlign: "right" }}>TUT.</span>
             </div>
             {aktifUretimTipi === "sut_kaymagi" ? (
               <>
@@ -2488,11 +2491,28 @@ export default function App() {
           <div><input placeholder="Açıklama / Not..." value={uretimForm.aciklama} onChange={e => setUretimForm({ ...uretimForm, aciklama: e.target.value })} className="m-inp small-inp" style={{ width: "100%" }} /></div>
         </div>
         <div style={{ padding: "10px 12px", borderTop: "1px solid #e2e8f0", background: "#f8fafc", borderRadius: "0 0 12px 12px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px", fontSize: "12px" }}><span>Giren Toplam KG:</span><b>{fSayi(aktifUretimGirenKg)} KG</b></div>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px", fontSize: "12px" }}><span>Çıkan Toplam KG:</span><b>{fSayi(aktifUretimCikanKg)} KG</b></div>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px", fontSize: "12px", color: "#dc2626" }}><span>Hesaplanan Maliyet:</span><b>{fSayi(aktifUretimMaliyet)} ₺</b></div>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px", fontSize: "12px", color: "#2563eb" }}><span>Çıkan Ürün Değeri:</span><b>{fSayi(aktifUretimSatisToplami)} ₺</b></div>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px", fontSize: "13px", color: aktifUretimKar >= 0 ? "#059669" : "#dc2626", fontWeight: "bold" }}><span>Tahmini Kar:</span><b>{fSayi(aktifUretimKar)} ₺</b></div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "6px", marginBottom: "8px" }}>
+            <div style={{ borderRadius: "10px", background: "#ffffff", border: "1px solid #e2e8f0", padding: "7px 8px", textAlign: "center" }}>
+              <div style={{ fontSize: "9px", fontWeight: "bold", color: "#64748b" }}>GİREN TOPLAM KG</div>
+              <div style={{ fontSize: "12px", fontWeight: "bold", marginTop: "2px", color: "#0f172a" }}>{fSayi(aktifUretimGirenKg)} KG</div>
+            </div>
+            <div style={{ borderRadius: "10px", background: "#ffffff", border: "1px solid #e2e8f0", padding: "7px 8px", textAlign: "center" }}>
+              <div style={{ fontSize: "9px", fontWeight: "bold", color: "#64748b" }}>ÇIKAN TOPLAM KG</div>
+              <div style={{ fontSize: "12px", fontWeight: "bold", marginTop: "2px", color: "#2563eb" }}>{fSayi(aktifUretimCikanKg)} KG</div>
+            </div>
+            <div style={{ borderRadius: "10px", background: "#ffffff", border: "1px solid #fecaca", padding: "7px 8px", textAlign: "center" }}>
+              <div style={{ fontSize: "9px", fontWeight: "bold", color: "#64748b" }}>HESAPLANAN MALİYET</div>
+              <div style={{ fontSize: "12px", fontWeight: "bold", marginTop: "2px", color: "#dc2626" }}>{fSayi(aktifUretimMaliyet)} ₺</div>
+            </div>
+            <div style={{ borderRadius: "10px", background: "#ffffff", border: "1px solid #bfdbfe", padding: "7px 8px", textAlign: "center" }}>
+              <div style={{ fontSize: "9px", fontWeight: "bold", color: "#64748b" }}>ÇIKAN ÜRÜN DEĞERİ</div>
+              <div style={{ fontSize: "12px", fontWeight: "bold", marginTop: "2px", color: "#2563eb" }}>{fSayi(aktifUretimSatisToplami)} ₺</div>
+            </div>
+          </div>
+          <div style={{ borderRadius: "10px", background: aktifUretimKar >= 0 ? "#ecfdf5" : "#fef2f2", border: `1px solid ${aktifUretimKar >= 0 ? "#86efac" : "#fecaca"}`, padding: "8px 10px", textAlign: "center", marginBottom: "10px" }}>
+            <div style={{ fontSize: "10px", fontWeight: "bold", color: "#64748b" }}>TAHMİNİ KAR</div>
+            <div style={{ fontSize: "14px", fontWeight: "bold", marginTop: "2px", color: aktifUretimKar >= 0 ? "#059669" : "#dc2626" }}>{fSayi(aktifUretimKar)} ₺</div>
+          </div>
           <button onClick={handleUretimKaydet} className="p-btn btn-anim" style={{ background: aktifUretimTipi === "sut_kaymagi" ? "#0f766e" : "#8b5cf6", width: "100%", height: "40px", fontSize: "14px" }}>{editingUretimId ? "GÜNCELLE" : "KAYDET"}</button>
         </div>
       </div>
