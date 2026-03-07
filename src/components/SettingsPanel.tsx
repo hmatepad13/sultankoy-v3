@@ -418,7 +418,7 @@ export function SettingsPanel({
                         }}
                         title={aktif ? "Pasif yap" : "Aktif yap"}
                       >
-                        {aktif ? "Pasif" : "Aktif"}
+                        {aktif ? "Pasif Yap" : "Aktif Yap"}
                       </button>
                     ) : (
                       <button
