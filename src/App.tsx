@@ -3199,15 +3199,15 @@ export default function App() {
 
         {bayiSecimModal.hedef && (
           <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.55)", zIndex: 1420, display: "flex", alignItems: "center", justifyContent: "center", padding: "12px" }} onClick={bayiSecimModalKapat}>
-            <div style={{ width: "100%", maxWidth: "380px", maxHeight: "88vh", background: "#fff", borderRadius: "14px", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.2)" }} onClick={(e) => e.stopPropagation()}>
-              <div style={{ padding: "12px 14px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f8fafc" }}>
+            <div style={{ width: "100%", maxWidth: "330px", maxHeight: "74vh", background: "#fff", borderRadius: "14px", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.2)" }} onClick={(e) => e.stopPropagation()}>
+              <div style={{ padding: "10px 12px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f8fafc" }}>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: "15px", color: "#0f172a" }}>{bayiSecimModal.hedef === "fis" ? "Bayi Seç" : "Müşteri Seç"}</h3>
-                  <div style={{ fontSize: "11px", color: "#64748b", marginTop: "2px" }}>Mobilde de açılır listeden seçim yapabilirsiniz.</div>
+                  <h3 style={{ margin: 0, fontSize: "14px", color: "#0f172a" }}>{bayiSecimModal.hedef === "fis" ? "Bayi Seç" : "Müşteri Seç"}</h3>
+                  <div style={{ fontSize: "10px", color: "#64748b", marginTop: "2px" }}>Mobilde de açılır listeden seçim yapabilirsiniz.</div>
                 </div>
                 <button onClick={bayiSecimModalKapat} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#94a3b8", padding: 0 }}>✕</button>
               </div>
-              <div style={{ padding: "12px", display: "flex", flexDirection: "column", gap: "10px", minHeight: 0 }}>
+              <div style={{ padding: "10px", display: "flex", flexDirection: "column", gap: "8px", minHeight: 0 }}>
                 <input
                   autoFocus
                   placeholder="Ara..."
@@ -3216,7 +3216,7 @@ export default function App() {
                   className="m-inp"
                   style={{ width: "100%" }}
                 />
-                <div style={{ overflowY: "auto", display: "flex", flexDirection: "column", gap: "6px", paddingRight: "2px" }}>
+                <div style={{ overflowY: "auto", display: "flex", flexDirection: "column", gap: "5px", paddingRight: "2px" }}>
                   {filtrelenmisBayiler.map((bayi) => {
                     const seciliDeger = bayiSecimModal.hedef === "fis" ? fisUst.bayi : tahsilatForm.bayi;
                     const secili = seciliDeger === bayi.isim;
@@ -3228,13 +3228,14 @@ export default function App() {
                         style={{
                           width: "100%",
                           textAlign: "left",
-                          padding: "10px 12px",
-                          borderRadius: "10px",
+                          padding: "8px 10px",
+                          borderRadius: "9px",
                           border: `1px solid ${secili ? "#86efac" : "#cbd5e1"}`,
                           background: secili ? "#f0fdf4" : "#fff",
                           color: secili ? "#166534" : "#0f172a",
                           fontWeight: "bold",
                           cursor: "pointer",
+                          fontSize: "13px",
                         }}
                       >
                         {bayi.isim}
