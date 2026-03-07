@@ -1932,7 +1932,7 @@ export default function App() {
 
       <div style={{ display: "grid", gridTemplateColumns: "0.95fr 1.45fr 1fr", gap: "6px", marginBottom: "10px", alignItems: "stretch" }}>
         <div style={{ minWidth: 0, border: "1px solid #05966933", background: "#05966910", color: "#059669", borderRadius: "12px", padding: "6px 8px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-          <span style={{ fontSize: "9px", fontWeight: "bold", opacity: 0.85, whiteSpace: "nowrap" }}>SATIŞ</span>
+          <span style={{ fontSize: "9px", fontWeight: "bold", opacity: 0.85, whiteSpace: "nowrap" }}>TOPLAM SATIŞ</span>
           <b style={{ fontSize: "14px", marginTop: "2px", whiteSpace: "nowrap" }}>{fSayi(tFisToplam)} ₺</b>
         </div>
         <div style={{ minWidth: 0, border: "1px solid #2563eb33", background: "#2563eb10", color: "#2563eb", borderRadius: "12px", padding: "6px 8px", display: "flex", flexDirection: "column", gap: "4px", justifyContent: "center" }}>
@@ -1941,14 +1941,17 @@ export default function App() {
             <b style={{ fontSize: "14px", whiteSpace: "nowrap" }}>{fSayi(tFisTahsilatRaw)} ₺</b>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "4px" }}>
-            <div style={{ borderRadius: "999px", background: "#ffffffb8", padding: "3px 5px", color: "#64748b", fontSize: "8px", fontWeight: "bold", textAlign: "center", whiteSpace: "nowrap", overflow: "hidden" }}>
-              Gid {fSayiNoDec(tKullaniciGider)}
+            <div style={{ borderRadius: "999px", background: "#ffffffb8", padding: "3px 4px", color: "#64748b", fontWeight: "bold", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", lineHeight: 1.05 }}>
+              <span style={{ fontSize: "7px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>GİDER</span>
+              <span style={{ fontSize: "8px", whiteSpace: "nowrap" }}>{fSayiNoDec(tKullaniciGider)}</span>
             </div>
-            <div style={{ borderRadius: "999px", background: "#ffffffb8", padding: "3px 5px", color: "#475569", fontSize: "8px", fontWeight: "bold", textAlign: "center", whiteSpace: "nowrap", overflow: "hidden" }}>
-              K.Dev {fSayiNoDec(tKasayaDevir)}
+            <div style={{ borderRadius: "999px", background: "#ffffffb8", padding: "3px 4px", color: "#475569", fontWeight: "bold", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", lineHeight: 1.05 }}>
+              <span style={{ fontSize: "7px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>KASA DEVRİ</span>
+              <span style={{ fontSize: "8px", whiteSpace: "nowrap" }}>{fSayiNoDec(tKasayaDevir)}</span>
             </div>
-            <div style={{ borderRadius: "999px", background: "#ffffffd8", padding: "3px 5px", color: "#0f172a", fontSize: "8px", fontWeight: "bold", textAlign: "center", whiteSpace: "nowrap", overflow: "hidden" }}>
-              Net {fSayiNoDec(tNetTahsilat)}
+            <div style={{ borderRadius: "999px", background: "#ffffffd8", padding: "3px 4px", color: "#0f172a", fontWeight: "bold", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", lineHeight: 1.05 }}>
+              <span style={{ fontSize: "7px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>NET</span>
+              <span style={{ fontSize: "8px", whiteSpace: "nowrap" }}>{fSayiNoDec(tNetTahsilat)}</span>
             </div>
           </div>
         </div>
