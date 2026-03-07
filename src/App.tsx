@@ -18,6 +18,7 @@ import type {
   CopKutusu,
   FisDetayMap,
   Gider,
+  GiderTuru,
   KullaniciSekmeYetkisi,
   OzetKart,
   PersonelOzeti,
@@ -345,6 +346,7 @@ export default function App() {
   const [satisFisList, setSatisFisList] = useState<SatisFis[]>([]); 
   const [satisList, setSatisList] = useState<SatisGiris[]>([]); 
   const [giderList, setGiderList] = useState<Gider[]>([]);
+  const [giderTuruListesi, setGiderTuruListesi] = useState<GiderTuru[]>([]);
   const [uretimList, setUretimList] = useState<Uretim[]>([]);
   const [copKutusuList, setCopKutusuList] = useState<CopKutusu[]>([]);
   const [profilKullaniciListesi, setProfilKullaniciListesi] = useState<string[]>([]);
@@ -415,7 +417,10 @@ export default function App() {
   const [editingGiderId, setEditingGiderId] = useState<any>(null);
   const [giderForm, setGiderForm] = useState<Gider>({ tarih: aktifDonemTarihi(), tur: "Genel Gider", aciklama: "", tutar: "" });
   const [giderSort, setGiderSort] = useState<SortConfig>({ key: 'tarih', direction: 'desc' });
-  const giderTurleri = GIDER_TURLERI;
+  const giderTurleri = useMemo(
+    () => Array.from(new Set([...GIDER_TURLERI, ...giderTuruListesi.map((item) => item.isim)])),
+    [giderTuruListesi],
+  );
 
   // --- ÜRETİM STATE'LERİ ---
   const [isUretimModalOpen, setIsUretimModalOpen] = useState<boolean>(false);
@@ -604,14 +609,16 @@ export default function App() {
   async function verileriGetir(hedef: "hepsi" | "satis" | "sut" | "gider" | "uretim" | "ayar" | "cop" = "hepsi") {
     try {
       if (hedef === "hepsi" || hedef === "ayar") {
-        const [{ data: c }, { data: b }, { data: u }, { data: p }] = await Promise.all([
+        const [{ data: c }, { data: b }, { data: u }, { data: p }, { data: gt }] = await Promise.all([
           supabase.from("ciftlikler").select("*").order("isim"),
           supabase.from("bayiler").select("*").order("isim"),
           supabase.from("urunler").select("*").order("isim"),
           supabase.from("profiles").select("username").order("username"),
+          supabase.from("gider_turleri").select("*").order("isim"),
         ]);
         if (c) setTedarikciler(c);
         if (b) setBayiler(b);
+        if (gt) setGiderTuruListesi(gt);
         if (u) {
           setUrunler(u);
           setFisDetay(prev => {
@@ -838,8 +845,15 @@ export default function App() {
 
   const handleAyarEkle = () => {
       if (!yeniAyarDeger.trim()) return;
-      if (!["musteriler", "urunler", "ciftlikler"].includes(activeAyarTab)) return;
-      const tabloAdi = activeAyarTab === 'musteriler' ? 'bayiler' : activeAyarTab === 'urunler' ? 'urunler' : 'ciftlikler';
+      if (!["musteriler", "urunler", "ciftlikler", "gider_turleri"].includes(activeAyarTab)) return;
+      const tabloAdi =
+        activeAyarTab === 'musteriler'
+          ? 'bayiler'
+          : activeAyarTab === 'urunler'
+            ? 'urunler'
+            : activeAyarTab === 'ciftlikler'
+              ? 'ciftlikler'
+              : 'gider_turleri';
       ayarIslem(tabloAdi, yeniAyarDeger, "ekle", null, setYeniAyarDeger);
   };
 
@@ -2900,6 +2914,7 @@ export default function App() {
       bayiler={bayiler}
       urunler={urunler}
       tedarikciler={tedarikciler}
+      giderTuruListesi={giderTuruListesi}
       copKutusuList={copKutusuList}
       yeniAyarDeger={yeniAyarDeger}
       setYeniAyarDeger={setYeniAyarDeger}

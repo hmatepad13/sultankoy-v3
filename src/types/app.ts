@@ -4,6 +4,7 @@ export type ActiveAyarTab =
   | "musteriler"
   | "urunler"
   | "ciftlikler"
+  | "gider_turleri"
   | "cop_kutusu"
   | "yedekleme"
   | "yetkiler";
@@ -22,6 +23,11 @@ export interface Urun {
   id: string;
   isim: string;
   fiyat?: number | string;
+}
+
+export interface GiderTuru {
+  id: string;
+  isim: string;
 }
 
 export interface SutGiris {

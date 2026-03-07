@@ -7,6 +7,7 @@ import type {
   Bayi,
   Ciftlik,
   CopKutusu,
+  GiderTuru,
   KullaniciSekmeYetkisi,
   SekmeYetkiMap,
   Urun,
@@ -18,6 +19,7 @@ interface SettingsPanelProps {
   bayiler: Bayi[];
   urunler: Urun[];
   tedarikciler: Ciftlik[];
+  giderTuruListesi: GiderTuru[];
   copKutusuList: CopKutusu[];
   yeniAyarDeger: string;
   setYeniAyarDeger: (value: string) => void;
@@ -149,6 +151,7 @@ export function SettingsPanel({
   bayiler,
   urunler,
   tedarikciler,
+  giderTuruListesi,
   copKutusuList,
   yeniAyarDeger,
   setYeniAyarDeger,
@@ -179,13 +182,22 @@ export function SettingsPanel({
   const aktifAyarListesi = useMemo(() => {
     if (activeAyarTab === "musteriler") return bayiler;
     if (activeAyarTab === "urunler") return urunler;
-    return tedarikciler;
-  }, [activeAyarTab, bayiler, urunler, tedarikciler]);
+    if (activeAyarTab === "ciftlikler") return tedarikciler;
+    return giderTuruListesi;
+  }, [activeAyarTab, bayiler, giderTuruListesi, urunler, tedarikciler]);
 
   const aktifTabloAdi = useMemo(() => {
     if (activeAyarTab === "musteriler") return "bayiler";
     if (activeAyarTab === "urunler") return "urunler";
-    return "ciftlikler";
+    if (activeAyarTab === "ciftlikler") return "ciftlikler";
+    return "gider_turleri";
+  }, [activeAyarTab]);
+
+  const ayarPlaceholderi = useMemo(() => {
+    if (activeAyarTab === "musteriler") return "Yeni müşteri ismi...";
+    if (activeAyarTab === "urunler") return "Yeni ürün ismi...";
+    if (activeAyarTab === "ciftlikler") return "Yeni çiftlik ismi...";
+    return "Yeni gider türü...";
   }, [activeAyarTab]);
 
   useEffect(() => {
@@ -272,11 +284,11 @@ export function SettingsPanel({
       </div>
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "10px", overflow: "hidden" }}>
-        {(activeAyarTab === "musteriler" || activeAyarTab === "urunler" || activeAyarTab === "ciftlikler") && (
+        {(activeAyarTab === "musteriler" || activeAyarTab === "urunler" || activeAyarTab === "ciftlikler" || activeAyarTab === "gider_turleri") && (
           <>
             <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
               <input
-                placeholder={`Yeni ${activeAyarTab.slice(0, -3)} ismi...`}
+                placeholder={ayarPlaceholderi}
                 value={yeniAyarDeger}
                 onChange={(event) => setYeniAyarDeger(event.target.value)}
                 style={{
@@ -306,6 +318,12 @@ export function SettingsPanel({
                 Ekle
               </button>
             </div>
+
+            {activeAyarTab === "gider_turleri" && (
+              <div style={{ ...kartStili, padding: "10px 12px", fontSize: "12px", color: "#64748b" }}>
+                Buraya eklenen türler gider ekranındaki hazır listeye eklenir. Varsayılan gider türleri burada görünmez, sadece yeni eklediklerin listelenir.
+              </div>
+            )}
 
             <div style={{ display: "flex", flexDirection: "column", gap: "6px", overflowY: "auto", paddingRight: "4px" }}>
               {aktifAyarListesi.map((item) => (
