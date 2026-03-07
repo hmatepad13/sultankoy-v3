@@ -1946,7 +1946,7 @@ export default function App() {
               <span style={{ fontSize: "9px", whiteSpace: "nowrap" }}>{fSayiNoDec(tKullaniciGider)}</span>
             </div>
             <div style={{ borderRadius: "999px", background: "#ffffffb8", padding: "4px 6px", color: "#475569", fontWeight: "bold", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", lineHeight: 1.1 }}>
-              <span style={{ fontSize: "8px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>KASA DEVRİ</span>
+              <span style={{ fontSize: "8px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>KASAYA</span>
               <span style={{ fontSize: "9px", whiteSpace: "nowrap" }}>{fSayiNoDec(tKasayaDevir)}</span>
             </div>
             <div style={{ borderRadius: "999px", background: "#ffffffd8", padding: "4px 6px", color: "#0f172a", fontWeight: "bold", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", lineHeight: 1.1 }}>
@@ -1961,13 +1961,13 @@ export default function App() {
         </div>
       </div>
 
-      <div className="table-wrapper"><table className="tbl tbl-satis">
+      <div className="table-wrapper"><table className="tbl tbl-satis" style={{ tableLayout: "fixed" }}>
         <thead><tr>
           <Th label="TARİH" sortKey="tarih" currentSort={fisSort} setSort={setFisSort} filterType="fis_tarih" />
           <Th label={satisFiltreTip === 'kasa_devir' ? "AÇIKLAMA" : "BAYİ"} sortKey={satisFiltreTip === 'kasa_devir' ? "aciklama" : "bayi"} currentSort={fisSort} setSort={setFisSort} filterType="fis_bayi" />
           <Th label="TUTAR" sortKey="toplam_tutar" currentSort={fisSort} setSort={setFisSort} align="right" />
           <Th label="TAHS." sortKey="tahsilat" currentSort={fisSort} setSort={setFisSort} align="right" />
-          <Th label="TOP. BORÇ" sortKey="kalan_bakiye" currentSort={fisSort} setSort={setFisSort} align="right" />
+          <Th label="BORÇ" sortKey="kalan_bakiye" currentSort={fisSort} setSort={setFisSort} align="right" />
           <Th label="KİŞİ" sortKey="ekleyen" currentSort={fisSort} setSort={setFisSort} align="center" />
           <th></th>
         </tr></thead>
@@ -1977,7 +1977,7 @@ export default function App() {
           const duzenlenebilir = fisDuzenlenebilirMi(f);
           return (
           <tr key={f.id}>
-            <td>{f.tarih.split("-").reverse().slice(0, 2).join(".")}</td>
+            <td style={{ textAlign: "center" }}>{f.tarih.split("-").reverse().slice(0, 2).join(".")}</td>
             <td style={{ fontWeight: "bold", minWidth: "120px", color: f.toplam_tutar === 0 && f.odeme_turu !== 'KASAYA DEVİR' ? "#8b5cf6" : (f.bayi === "SİSTEM İŞLEMİ" ? "#475569" : "inherit") }} className="truncate-text-td">
                {fisGorunenBayi(f)}
             </td>
@@ -3269,7 +3269,15 @@ export default function App() {
         .table-wrapper { width: 100%; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; overflow-x: auto; box-sizing: border-box; }
         .tbl { width: 100%; border-collapse: collapse; table-layout: auto; min-width: 100%; }
         .tbl th { background: #f1f5f9; border-bottom: 1px solid #cbd5e1; color: #475569; font-weight: bold; font-size: 10px; padding: 3px 4px !important; white-space: nowrap; }
+        .tbl-satis { table-layout: fixed !important; }
         .tbl-satis th { background: #5b9bd5 !important; color: white !important; }
+        .tbl-satis th:nth-child(1), .tbl-satis td:nth-child(1) { width: 12%; text-align: center; }
+        .tbl-satis th:nth-child(2), .tbl-satis td:nth-child(2) { width: 30%; }
+        .tbl-satis th:nth-child(3), .tbl-satis td:nth-child(3) { width: 14%; }
+        .tbl-satis th:nth-child(4), .tbl-satis td:nth-child(4) { width: 14%; }
+        .tbl-satis th:nth-child(5), .tbl-satis td:nth-child(5) { width: 14%; }
+        .tbl-satis th:nth-child(6), .tbl-satis td:nth-child(6) { width: 10%; }
+        .tbl-satis th:nth-child(7), .tbl-satis td:nth-child(7) { width: 6%; }
         .tbl-analiz th { background: #8b5cf6 !important; color: white !important; }
         .tbl td { font-size: 11px; border-bottom: 1px solid #f1f5f9; padding: 3px 4px !important; white-space: nowrap; vertical-align: middle; }
         
@@ -3297,7 +3305,9 @@ export default function App() {
           .card { border-radius: 8px !important; padding: 12px !important; margin-bottom: 8px !important; }
           .summary-c { margin-left: 0 !important; margin-right: 0 !important; border-radius: 6px !important; width: 100% !important; }
           .c-kutu { border-radius: 4px !important; padding: 6px 2px !important; }
-          .truncate-text-td { max-width: 65px !important; }
+          .tbl-satis th:nth-child(2), .tbl-satis td:nth-child(2) { width: 28% !important; }
+          .tbl-satis th:nth-child(6), .tbl-satis td:nth-child(6) { width: 12% !important; }
+          .truncate-text-td { max-width: 72px !important; }
           .n-item { padding: 0; }
           .n-item span:first-child { font-size: 14px !important; }
           .n-item span:last-child { font-size: 8px !important; letter-spacing: -0.5px; }
