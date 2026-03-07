@@ -321,12 +321,6 @@ export function SettingsPanel({
               </button>
             </div>
 
-            {activeAyarTab === "gider_turleri" && (
-              <div style={{ ...kartStili, padding: "10px 12px", fontSize: "12px", color: "#64748b" }}>
-                Gider ekranındaki liste artık buradaki kayıtları kullanır. Mevcut türleri burada düzenleyebilir veya silebilirsin.
-              </div>
-            )}
-
             <div style={{ display: "flex", flexDirection: "column", gap: "6px", overflowY: "auto", paddingRight: "4px" }}>
               {aktifAyarListesi.map((item) => (
                 <div
