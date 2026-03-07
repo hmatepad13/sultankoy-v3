@@ -1940,18 +1940,18 @@ export default function App() {
             <span style={{ fontSize: "9px", fontWeight: "bold", opacity: 0.9, whiteSpace: "nowrap" }}>TAHSİLAT</span>
             <b style={{ fontSize: "14px", whiteSpace: "nowrap" }}>{fSayi(tFisTahsilatRaw)} ₺</b>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "4px" }}>
-            <div style={{ borderRadius: "999px", background: "#ffffffb8", padding: "3px 4px", color: "#64748b", fontWeight: "bold", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", lineHeight: 1.05 }}>
-              <span style={{ fontSize: "7px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>GİDER</span>
-              <span style={{ fontSize: "8px", whiteSpace: "nowrap" }}>{fSayiNoDec(tKullaniciGider)}</span>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "5px" }}>
+            <div style={{ borderRadius: "999px", background: "#ffffffb8", padding: "4px 6px", color: "#64748b", fontWeight: "bold", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", lineHeight: 1.1 }}>
+              <span style={{ fontSize: "8px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>GİDER</span>
+              <span style={{ fontSize: "9px", whiteSpace: "nowrap" }}>{fSayiNoDec(tKullaniciGider)}</span>
             </div>
-            <div style={{ borderRadius: "999px", background: "#ffffffb8", padding: "3px 4px", color: "#475569", fontWeight: "bold", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", lineHeight: 1.05 }}>
-              <span style={{ fontSize: "7px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>KASA DEVRİ</span>
-              <span style={{ fontSize: "8px", whiteSpace: "nowrap" }}>{fSayiNoDec(tKasayaDevir)}</span>
+            <div style={{ borderRadius: "999px", background: "#ffffffb8", padding: "4px 6px", color: "#475569", fontWeight: "bold", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", lineHeight: 1.1 }}>
+              <span style={{ fontSize: "8px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>KASA DEVRİ</span>
+              <span style={{ fontSize: "9px", whiteSpace: "nowrap" }}>{fSayiNoDec(tKasayaDevir)}</span>
             </div>
-            <div style={{ borderRadius: "999px", background: "#ffffffd8", padding: "3px 4px", color: "#0f172a", fontWeight: "bold", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", lineHeight: 1.05 }}>
-              <span style={{ fontSize: "7px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>NET</span>
-              <span style={{ fontSize: "8px", whiteSpace: "nowrap" }}>{fSayiNoDec(tNetTahsilat)}</span>
+            <div style={{ borderRadius: "999px", background: "#ffffffd8", padding: "4px 6px", color: "#0f172a", fontWeight: "bold", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", lineHeight: 1.1 }}>
+              <span style={{ fontSize: "8px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>NET</span>
+              <span style={{ fontSize: "9px", whiteSpace: "nowrap" }}>{fSayiNoDec(tNetTahsilat)}</span>
             </div>
           </div>
         </div>
