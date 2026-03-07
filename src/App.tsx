@@ -367,6 +367,7 @@ export default function App() {
   const [fisGorselMevcutYol, setFisGorselMevcutYol] = useState("");
   const [fisGorselOnizleme, setFisGorselOnizleme] = useState<{ url: string; baslik: string } | null>(null);
   const [gosterilenEkler, setGosterilenEkler] = useState({ tereyagi: false, yogurt_kaymagi: false, iade: false, bos_kova: false, urunler: [] as string[] });
+  const [isDigerUrunMenuOpen, setIsDigerUrunMenuOpen] = useState(false);
   const [sonFisData, setSonFisData] = useState<any>(null);
   const [bayiSecimModal, setBayiSecimModal] = useState<{ hedef: "fis" | "tahsilat" | null; arama: string }>({
     hedef: null,
@@ -1574,6 +1575,7 @@ export default function App() {
     setFisUst({ tarih: aktifDonemTarihi(), bayi: "", aciklama: "", odeme_turu: "PEŞİN", tahsilat: "", bos_kova: "", teslim_alan: "" });
     setFisGorselDosya(null);
     setFisGorselMevcutYol("");
+    setIsDigerUrunMenuOpen(false);
     setGosterilenEkler({ tereyagi: false, yogurt_kaymagi: false, iade: false, bos_kova: false, urunler: [] });
     const temizDetay: any = {};
     urunler.forEach(u => temizDetay[u.id] = { adet: "", kg: "", fiyat: u.fiyat || "" });
@@ -1589,6 +1591,7 @@ export default function App() {
       alert("Bu fişi sadece ekleyen kullanıcı veya admin düzenleyebilir.");
       return;
     }
+    setIsDigerUrunMenuOpen(false);
     setEditingFisId(fis.id); setEditingFisNo(fis.fis_no);
     setFisGorselDosya(null);
     setFisGorselMevcutYol(fis.fis_gorseli || "");
@@ -3047,7 +3050,7 @@ export default function App() {
             <div style={{ backgroundColor: "#fff", width: "95vw", maxWidth: "420px", maxHeight: "95vh", borderRadius: "8px", display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease-out", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }} onClick={(e) => e.stopPropagation()}>
               <div style={{ padding: "8px 12px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: editingFisId ? "#fef3c7" : "#f8fafc", borderRadius: "8px 8px 0 0" }}>
                 <h3 style={{ margin: "0", color: editingFisId ? "#b45309" : "#059669", fontSize: "15px" }}>{editingFisId ? "✏️ Fişi Düzenle" : "🧾 Yeni Satış Fişi"}</h3>
-                <button onClick={() => setIsFisModalOpen(false)} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#94a3b8", padding: 0, lineHeight: 1 }}>✕</button>
+                <button onClick={() => { setIsDigerUrunMenuOpen(false); setIsFisModalOpen(false); }} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#94a3b8", padding: 0, lineHeight: 1 }}>✕</button>
               </div>
               <div style={{ padding: "10px 12px", overflowY: "auto", flex: 1 }}>
                 <div style={{display: "flex", gap: "6px", marginBottom: "12px"}}>
@@ -3097,29 +3100,58 @@ export default function App() {
                     );
                   })}
                   
-                  <div style={{ display: "flex", gap: "6px", marginBottom: "4px", marginTop: "4px", flexWrap: "wrap" }}>
-                      <button onClick={() => setGosterilenEkler(p => ({...p, tereyagi: true}))} className="btn-anim" style={{ background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: "4px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", color: "#475569" }}>+ Tereyağı</button>
-                      <button onClick={() => setGosterilenEkler(p => ({...p, yogurt_kaymagi: true}))} className="btn-anim" style={{ background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: "4px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", color: "#475569" }}>+ Y. Kaymağı</button>
-                      {urunler
-                        .filter(u => {
+                  <div style={{ display: "flex", gap: "6px", marginBottom: "4px", marginTop: "4px", flexWrap: "wrap", position: "relative" }}>
+                      {(() => {
+                        const digerSecenekler = urunler.filter(u => {
                           const isimLower = u.isim.toLowerCase();
                           const isFixed = (isimLower.includes("3 kg") || isimLower.includes("5 kg") || (isimLower.includes("kayma") && !isimLower.includes("yoğurt")));
                           const isTereyagi = isimLower.includes("tereya");
                           const isYogurtKaymagi = isimLower.includes("yoğurt kayma");
                           const isFilled = (Number(fisDetay[u.id]?.adet) > 0 || Number(fisDetay[u.id]?.kg) > 0);
-                          const isEkstraUrun = !isFixed && !isTereyagi && !isYogurtKaymagi;
-                          return isEkstraUrun && !isFilled && !gosterilenEkler.urunler.includes(u.id);
-                        })
-                        .map(u => (
-                          <button
-                            key={u.id}
-                            onClick={() => setGosterilenEkler(p => ({ ...p, urunler: [...p.urunler, u.id] }))}
-                            className="btn-anim"
-                            style={{ background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: "4px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", color: "#475569" }}
-                          >
-                            + {u.isim}
-                          </button>
-                        ))}
+                          if (isFixed || isFilled) return false;
+                          if (isTereyagi) return !gosterilenEkler.tereyagi;
+                          if (isYogurtKaymagi) return !gosterilenEkler.yogurt_kaymagi;
+                          return !gosterilenEkler.urunler.includes(u.id);
+                        });
+
+                        return digerSecenekler.length > 0 ? (
+                          <div style={{ position: "relative" }}>
+                            <button
+                              onClick={() => setIsDigerUrunMenuOpen(p => !p)}
+                              className="btn-anim"
+                              style={{ background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: "4px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", color: "#475569" }}
+                            >
+                              + Diğer
+                            </button>
+                            {isDigerUrunMenuOpen && (
+                              <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, minWidth: "150px", maxWidth: "220px", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "8px", boxShadow: "0 12px 24px rgba(15, 23, 42, 0.16)", padding: "6px", zIndex: 5, display: "flex", flexDirection: "column", gap: "4px" }}>
+                                {digerSecenekler.map(u => {
+                                  const isimLower = u.isim.toLowerCase();
+                                  const isTereyagi = isimLower.includes("tereya");
+                                  const isYogurtKaymagi = isimLower.includes("yoğurt kayma");
+                                  return (
+                                    <button
+                                      key={u.id}
+                                      onClick={() => {
+                                        setGosterilenEkler(p => {
+                                          if (isTereyagi) return { ...p, tereyagi: true };
+                                          if (isYogurtKaymagi) return { ...p, yogurt_kaymagi: true };
+                                          return { ...p, urunler: [...p.urunler, u.id] };
+                                        });
+                                        setIsDigerUrunMenuOpen(false);
+                                      }}
+                                      className="btn-anim"
+                                      style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "6px", padding: "6px 8px", fontSize: "11px", fontWeight: "bold", color: "#334155", textAlign: "left" }}
+                                    >
+                                      {u.isim}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        ) : null;
+                      })()}
                       <button onClick={() => setGosterilenEkler(p => ({...p, iade: true}))} className="btn-anim" style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "4px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", color: "#dc2626" }}>+ İade</button>
                       <button onClick={() => setGosterilenEkler(p => ({...p, bos_kova: true}))} className="btn-anim" style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "4px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", color: "#dc2626" }}>+ Boş Kova</button>
                   </div>
