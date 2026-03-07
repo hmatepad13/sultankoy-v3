@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useEffectEvent, useMemo, useState, type ChangeEvent } from "react";
+import { useEffect, useEffectEvent, useMemo, useState, type ChangeEvent, type CSSProperties } from "react";
 import { LoginScreen } from "./components/LoginScreen";
 import { SettingsPanel } from "./components/SettingsPanel";
 import {
@@ -172,6 +172,40 @@ const uretimSatisToplami = (kayit: Partial<Uretim>) => {
     return sayiDegeri(kayit.cikti_2kg) * sayiDegeri(kayit.satis_2_fiyat) + sayiDegeri(kayit.cikti_3kg) * sayiDegeri(kayit.satis_3_fiyat);
   }
   return sayiDegeri(kayit.cikti_3kg) * sayiDegeri(kayit.satis_3_fiyat) + sayiDegeri(kayit.cikti_5kg) * sayiDegeri(kayit.satis_5_fiyat);
+};
+
+const satisFisleriniSirala = (kayitlar: Array<Partial<SatisFis>>) =>
+  [...kayitlar].sort((a, b) => {
+    const tarihFarki = String(a.tarih || "").localeCompare(String(b.tarih || ""));
+    if (tarihFarki !== 0) return tarihFarki;
+    const idA = Number(a.id);
+    const idB = Number(b.id);
+    if (!Number.isNaN(idA) && !Number.isNaN(idB) && idA !== idB) return idA - idB;
+    return String(a.id || "").localeCompare(String(b.id || ""));
+  });
+
+const satisBakiyeDurumuHesapla = (kayitlar: SatisFis[], sonDonem?: string) => {
+  const bakiyeler: Record<string, number> = {};
+  const map: Record<string, number> = {};
+
+  satisFisleriniSirala(kayitlar).forEach((fis) => {
+    const donem = String(fis.tarih || "").substring(0, 7);
+    const bayi = fis.bayi || "";
+    if (sonDonem && donem > sonDonem) return;
+    if (!bayi || bayi === "SİSTEM İŞLEMİ") return;
+
+    if (fis.odeme_turu === "DEVİR") {
+      bakiyeler[bayi] = Number(fis.kalan_bakiye || 0);
+    } else {
+      bakiyeler[bayi] = (bakiyeler[bayi] || 0) + Number(fis.kalan_bakiye || 0);
+    }
+
+    if (fis.id) {
+      map[String(fis.id)] = bakiyeler[bayi];
+    }
+  });
+
+  return { bakiyeler, map };
 };
 
 const bosUretimFormu = (
@@ -544,40 +578,15 @@ export default function App() {
 
   // Tüm Fişlerden Müşteri Borç Durumu Hesaplama
   const bayiBorclari = useMemo(() => {
-    const borclar: Record<string, number> = {};
-    satisFisList.forEach(f => {
-        if (f.bayi === "SİSTEM İŞLEMİ") return;
-        if(!borclar[f.bayi]) borclar[f.bayi] = 0;
-        borclar[f.bayi] += Number(f.kalan_bakiye);
-    });
-    return Object.keys(borclar)
-        .map(k => ({ isim: k, borc: borclar[k] }))
+    const { bakiyeler } = satisBakiyeDurumuHesapla(satisFisList, aktifDonem);
+    return Object.keys(bakiyeler)
+        .map(k => ({ isim: k, borc: bakiyeler[k] }))
         .filter(b => Math.abs(b.borc) > 0.01)
         .sort((a,b) => b.borc - a.borc);
-  }, [satisFisList]);
+  }, [aktifDonem, satisFisList]);
 
   const satisFisToplamBorcMap = useMemo(() => {
-    const borclar: Record<string, number> = {};
-    const map: Record<string, number> = {};
-
-    const siraliFisler = [...satisFisList].sort((a, b) => {
-      const tarihFarki = String(a.tarih || "").localeCompare(String(b.tarih || ""));
-      if (tarihFarki !== 0) return tarihFarki;
-      const idA = Number(a.id);
-      const idB = Number(b.id);
-      if (!Number.isNaN(idA) && !Number.isNaN(idB) && idA !== idB) return idA - idB;
-      return String(a.id || "").localeCompare(String(b.id || ""));
-    });
-
-    siraliFisler.forEach((fis) => {
-      if (fis.bayi === "SİSTEM İŞLEMİ") return;
-      borclar[fis.bayi] = (borclar[fis.bayi] || 0) + Number(fis.kalan_bakiye || 0);
-      if (fis.id) {
-        map[String(fis.id)] = borclar[fis.bayi];
-      }
-    });
-
-    return map;
+    return satisBakiyeDurumuHesapla(satisFisList).map;
   }, [satisFisList]);
 
   const handleDonemKapat = async () => {
@@ -637,6 +646,29 @@ export default function App() {
 
   const fSayi = (num: any) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 2 }).format(Number(num) || 0).replace(/,00$/, '');
   const fSayiNoDec = (num: any) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(Number(num) || 0);
+  const renderKompaktToplamlar = (
+    kartlar: Array<{ etiket: string; deger: string; renk: string }>,
+    style?: CSSProperties,
+  ) => (
+    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "10px", ...style }}>
+      {kartlar.map((kart) => (
+        <div
+          key={kart.etiket}
+          style={{
+            border: `1px solid ${kart.renk}33`,
+            background: `${kart.renk}10`,
+            color: kart.renk,
+            borderRadius: "999px",
+            padding: "4px 8px",
+            fontSize: "11px",
+            fontWeight: "bold",
+          }}
+        >
+          {kart.etiket}: {kart.deger}
+        </div>
+      ))}
+    </div>
+  );
 
   const renderNot = (not: any) => {
     if (!not) return "";
@@ -955,26 +987,38 @@ export default function App() {
     const yeniDetay = { ...fisDetay };
     
     urunler.forEach(u => {
-      const bayiSatislari = periodSatisList.filter(s => s.bayi === secilenBayi && s.urun === u.isim);
+      const bayiSatislari = satisList.filter(s => s.bayi === secilenBayi && s.urun === u.isim);
       let hafizaFiyat = u.fiyat || "";
       if (bayiSatislari.length > 0) {
-        const sonSatis = bayiSatislari.sort((a,b) => new Date(b.tarih).getTime() - new Date(a.tarih).getTime())[0];
+        const sonSatis = [...bayiSatislari].sort((a, b) => {
+          const tarihFarki = String(b.tarih || "").localeCompare(String(a.tarih || ""));
+          if (tarihFarki !== 0) return tarihFarki;
+          return Number(b.id || 0) - Number(a.id || 0);
+        })[0];
         hafizaFiyat = sonSatis.fiyat;
       }
       if (!editingFisId) yeniDetay[u.id] = { adet: fisDetay[u.id]?.adet || "", kg: fisDetay[u.id]?.kg || "", fiyat: String(hafizaFiyat) };
     });
 
-    const bayiIadeler = periodSatisList.filter(s => s.bayi === secilenBayi && s.urun === "İade");
+    const bayiIadeler = satisList.filter(s => s.bayi === secilenBayi && s.urun === "İade");
     let hafizaIadeFiyat = "15";
     if (bayiIadeler.length > 0) {
-        const sonIade = bayiIadeler.sort((a,b) => new Date(b.tarih).getTime() - new Date(a.tarih).getTime())[0];
+        const sonIade = [...bayiIadeler].sort((a, b) => {
+          const tarihFarki = String(b.tarih || "").localeCompare(String(a.tarih || ""));
+          if (tarihFarki !== 0) return tarihFarki;
+          return Number(b.id || 0) - Number(a.id || 0);
+        })[0];
         hafizaIadeFiyat = String(Math.abs(Number(sonIade.fiyat)));
     }
     
-    const bayiKovalar = periodSatisList.filter(s => s.bayi === secilenBayi && s.urun === "Boş Kova");
+    const bayiKovalar = satisList.filter(s => s.bayi === secilenBayi && s.urun === "Boş Kova");
     let hafizaKovaFiyat = "15";
     if (bayiKovalar.length > 0) {
-        const sonKova = bayiKovalar.sort((a,b) => new Date(b.tarih).getTime() - new Date(a.tarih).getTime())[0];
+        const sonKova = [...bayiKovalar].sort((a, b) => {
+          const tarihFarki = String(b.tarih || "").localeCompare(String(a.tarih || ""));
+          if (tarihFarki !== 0) return tarihFarki;
+          return Number(b.id || 0) - Number(a.id || 0);
+        })[0];
         hafizaKovaFiyat = String(Math.abs(Number(sonKova.fiyat)));
     }
 
@@ -1516,6 +1560,14 @@ export default function App() {
 
   const tGiderNormal = useMemo(() => periodGider.reduce((a: number, b: any) => a + Number(b.tutar), 0), [periodGider]);
   const tUretimMaliyet = useMemo(() => periodUretim.reduce((a: number, b: any) => a + Number(b.toplam_maliyet), 0), [periodUretim]);
+  const tSutOdemesi = useMemo(
+    () =>
+      periodGider
+        .filter((g) => String(g.tur || "").toLocaleLowerCase("tr-TR") === "süt ödemesi")
+        .reduce((toplam, g) => toplam + Number(g.tutar || 0), 0),
+    [periodGider],
+  );
+  const sutcuyeBorcumuz = useMemo(() => tSutTl - tSutOdemesi, [tSutOdemesi, tSutTl]);
   const aktifUretimTipi = uretimForm.uretim_tipi || "yogurt";
   const siraliUretimList = useMemo(() => sortData(periodUretim, uretimSort), [periodUretim, uretimSort]);
   const yogurtUretimListesi = useMemo(
@@ -1626,8 +1678,9 @@ export default function App() {
       { baslik: "Toplam Gider", deger: genelToplamGider },
       { baslik: "Tahsilat", deger: tFisTahsilatRaw },
       { baslik: "Bayi Açık Hesap", deger: bayiNetDurum },
+      { baslik: "Sütçüye Borcumuz", deger: sutcuyeBorcumuz },
     ],
-    [bayiNetDurum, genelToplamGider, tFisTahsilatRaw, tFisToplam],
+    [bayiNetDurum, genelToplamGider, sutcuyeBorcumuz, tFisTahsilatRaw, tFisToplam],
   );
 
   const yedekVerisi = useMemo<YedekVerisi>(
@@ -1726,19 +1779,20 @@ export default function App() {
 
   const renderOzet = () => (
     <div className="tab-fade-in main-content-area" style={{ display: "flex", flexDirection: "column" }}>
-      <div className="cards-grid">
-        <div className="card summary-c" style={{ borderLeft: `5px solid #059669` }}><small>Toplam Satış</small><h2 style={{ margin: "5px 0", color: "#059669", fontSize: "20px" }}>{fSayiNoDec(tFisToplam)} ₺</h2></div>
-        <div className="card summary-c" style={{ borderLeft: "5px solid #dc2626" }}><small>Toplam Gider</small><h2 style={{ margin: "5px 0", color: "#dc2626", fontSize: "20px" }}>{fSayiNoDec(genelToplamGider)} ₺</h2></div>
-        <div className="card summary-c" style={{ borderLeft: "5px solid #2563eb" }}><small>Tahsilat</small><h2 style={{ margin: "5px 0", color: "#2563eb", fontSize: "20px" }}>{fSayiNoDec(tFisTahsilatRaw)} ₺</h2></div>
-        <div className="card summary-c" style={{ borderLeft: "5px solid #f59e0b" }}><small>Bayi Açık Hesap</small><h2 style={{ margin: "5px 0", color: "#f59e0b", fontSize: "20px" }}>{fSayiNoDec(bayiNetDurum)} ₺</h2></div>
-      </div>
+      {renderKompaktToplamlar([
+        { etiket: "TOPLAM SATIŞ", deger: `${fSayiNoDec(tFisToplam)} ₺`, renk: "#059669" },
+        { etiket: "TOPLAM GİDER", deger: `${fSayiNoDec(genelToplamGider)} ₺`, renk: "#dc2626" },
+        { etiket: "TAHSİLAT", deger: `${fSayiNoDec(tFisTahsilatRaw)} ₺`, renk: "#2563eb" },
+        { etiket: "BAYİ AÇIK HESAP", deger: `${fSayiNoDec(bayiNetDurum)} ₺`, renk: "#f59e0b" },
+        { etiket: "SÜTÇÜYE BORCUMUZ", deger: `${fSayiNoDec(sutcuyeBorcumuz)} ₺`, renk: "#0f766e" },
+      ], { marginBottom: "4px" })}
       <div className="card" style={{marginTop: "5px", order: 2}}>
         <h4 style={{ margin: "0 0 10px", borderBottom: "1px solid #e2e8f0", paddingBottom: "5px" }}>Müşteri Borç Durumları</h4>
         <div style={{maxHeight: '300px', overflowY: 'auto', paddingRight: '5px'}}>
             {bayiBorclari.map((b, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f1f5f9' }}>
-                    <b className="truncate-text" style={{fontSize: "13px"}}>{b.isim}</b>
-                    <b style={{color: b.borc > 0 ? '#dc2626' : (b.borc < 0 ? '#059669' : '#64748b')}}>{fSayi(b.borc)} ₺</b>
+                    <b className="truncate-text" style={{fontSize: "12px"}}>{b.isim}</b>
+                    <b style={{fontSize: "12px", color: b.borc > 0 ? '#dc2626' : (b.borc < 0 ? '#059669' : '#64748b')}}>{fSayi(b.borc)} ₺</b>
                 </div>
             ))}
             {bayiBorclari.length === 0 && <div style={{color: '#94a3b8', fontSize: '12px'}}>Açık hesap bulunmuyor.</div>}
@@ -1786,10 +1840,10 @@ export default function App() {
   const renderSut = () => (
     <div className="tab-fade-in main-content-area">
       <button onClick={() => { setSutForm({ tarih: aktifDonemTarihi(), ciftlik: "", kg: "", fiyat: "", aciklama: "" }); setEditingSutId(null); setIsSutModalOpen(true); }} className="btn-anim m-btn blue-btn">➕ YENİ SÜT GİRİŞİ</button>
-      <div className="compact-totals">
-        <div className="c-kutu" style={{ borderLeftColor: temaRengi }}><span>SÜT</span><b style={{ color: temaRengi, fontSize: "16px" }}>{fSayi(tSutKg)} KG</b></div>
-        <div className="c-kutu" style={{ borderLeftColor: temaRengi }}><span>T. TUTAR</span><b style={{ color: temaRengi, fontSize: "16px" }}>{fSayiNoDec(tSutTl)} ₺</b></div>
-      </div>
+      {renderKompaktToplamlar([
+        { etiket: "SÜT", deger: `${fSayi(tSutKg)} KG`, renk: temaRengi },
+        { etiket: "T. TUTAR", deger: `${fSayiNoDec(tSutTl)} ₺`, renk: temaRengi },
+      ])}
       <div className="table-wrapper"><table className="tbl">
         <thead><tr>
           <Th label="TARİH" sortKey="tarih" currentSort={sutSort} setSort={setSutSort} filterType="sut_tarih" />
@@ -1847,19 +1901,14 @@ export default function App() {
          </div>
       </div>
 
-      <div className="compact-totals">
-        <div className="c-kutu" style={{ borderLeftColor: "#059669" }}><span>TOPLAM SATIŞ</span><b style={{ color: "#059669", fontSize: "16px" }}>{fSayi(tFisToplam)} ₺</b></div>
-        <div className="c-kutu" style={{ borderLeftColor: "#2563eb", position: 'relative', paddingBottom: '2px' }}>
-            <span>TAHSİLAT</span>
-            <b style={{ color: "#2563eb", fontSize: "16px", marginBottom: '4px' }}>{fSayi(tFisTahsilatRaw)} ₺</b>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#64748b', borderTop: '1px dashed #cbd5e1', paddingTop: '2px' }}>
-                <span title="Aktarılan">Akt: {fSayiNoDec(tKasayaDevir)}</span>
-                <span title="Gider">Gid: {fSayiNoDec(tKullaniciGider)}</span>
-                <span title="Net Tahsilat" style={{fontWeight:'bold', color:'#0f172a'}}>Net: {fSayiNoDec(tNetTahsilat)}</span>
-            </div>
-        </div>
-        <div className="c-kutu" style={{ borderLeftColor: "#dc2626" }}><span>AÇIK HESAP</span><b style={{ color: "#dc2626", fontSize: "16px" }}>{fSayi(tFisKalan)} ₺</b></div>
-      </div>
+      {renderKompaktToplamlar([
+        { etiket: "TOPLAM SATIŞ", deger: `${fSayi(tFisToplam)} ₺`, renk: "#059669" },
+        { etiket: "TAHSİLAT", deger: `${fSayi(tFisTahsilatRaw)} ₺`, renk: "#2563eb" },
+        { etiket: "KULL. GİDERİ", deger: `${fSayiNoDec(tKullaniciGider)} ₺`, renk: "#64748b" },
+        { etiket: "KASAYA DEVİR", deger: `${fSayiNoDec(tKasayaDevir)} ₺`, renk: "#475569" },
+        { etiket: "NET TAHSİLAT", deger: `${fSayiNoDec(tNetTahsilat)} ₺`, renk: "#0f172a" },
+        { etiket: "AÇIK HESAP", deger: `${fSayi(tFisKalan)} ₺`, renk: "#dc2626" },
+      ])}
 
       <div className="table-wrapper"><table className="tbl tbl-satis">
         <thead><tr>
@@ -1909,10 +1958,10 @@ export default function App() {
 
   const renderAnaliz = () => (
     <div className="tab-fade-in main-content-area">
-      <div className="compact-totals" style={{marginTop: "5px"}}>
-        <div className="c-kutu" style={{ borderLeftColor: "#8b5cf6" }}><span>TOPLAM ADET/KG</span><b style={{ color: "#8b5cf6", fontSize: "16px" }}>{fSayi(tAnalizKg)}</b></div>
-        <div className="c-kutu" style={{ borderLeftColor: "#8b5cf6" }}><span>TOPLAM TUTAR</span><b style={{ color: "#8b5cf6", fontSize: "16px" }}>{fSayi(tAnalizTutar)} ₺</b></div>
-      </div>
+      {renderKompaktToplamlar([
+        { etiket: "TOPLAM ADET/KG", deger: fSayi(tAnalizKg), renk: "#8b5cf6" },
+        { etiket: "TOPLAM TUTAR", deger: `${fSayi(tAnalizTutar)} ₺`, renk: "#8b5cf6" },
+      ], { marginTop: "5px" })}
       <div className="table-wrapper"><table className="tbl tbl-analiz">
         <thead><tr>
           <Th label="TARİH" sortKey="tarih" currentSort={analizSort} setSort={setAnalizSort} isAnaliz={true} filterType="analiz_tarih" />
@@ -1949,13 +1998,10 @@ export default function App() {
          </div>
       </div>
 
-      <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "10px" }}>
-        <button onClick={() => { setGiderForm({ tarih: aktifDonemTarihi(), tur: "Genel Gider", aciklama: "", tutar: "" }); setEditingGiderId(null); setIsGiderModalOpen(true); }} className="btn-anim m-btn" style={{background: "#dc2626", margin: 0, flex: 1, padding: "8px", fontSize: "13px", height: "36px"}}>➕ YENİ GİDER</button>
-        <div className="c-kutu" style={{ borderLeftColor: "#dc2626", flex: 1.2, margin: 0, padding: "4px 8px", height: "36px", display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-          <span style={{fontSize: "10px", margin: 0, color: "#64748b"}}>GÖSTERİLEN GİDER:</span>
-          <b style={{ color: "#dc2626", fontSize: "16px" }}>{fSayi(fGTutarNormal)} ₺</b>
-        </div>
-      </div>
+      <button onClick={() => { setGiderForm({ tarih: aktifDonemTarihi(), tur: "Genel Gider", aciklama: "", tutar: "" }); setEditingGiderId(null); setIsGiderModalOpen(true); }} className="btn-anim m-btn" style={{background: "#dc2626", margin: 0, fontSize: "13px"}}>➕ YENİ GİDER</button>
+      {renderKompaktToplamlar([
+        { etiket: "GÖSTERİLEN GİDER", deger: `${fSayi(fGTutarNormal)} ₺`, renk: "#dc2626" },
+      ], { marginTop: "10px" })}
       <div className="table-wrapper"><table className="tbl" style={{borderTop: "3px solid #fca5a5"}}>
         <thead><tr>
           <Th label="TARİH" sortKey="tarih" currentSort={giderSort} setSort={setGiderSort} />

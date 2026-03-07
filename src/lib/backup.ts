@@ -29,28 +29,50 @@ const fisAciklamasiniAyir = (aciklama?: string | null) => {
   return { teslimAlan, aciklama: temizAciklama };
 };
 
-const satisFisToplamBorcMapOlustur = (kayitlar: SatisFis[]) => {
+const satisFisleriniSirala = (kayitlar: SatisFis[]) =>
+  [...kayitlar].sort((a, b) => {
+    const tarihFarki = String(a.tarih || "").localeCompare(String(b.tarih || ""));
+    if (tarihFarki !== 0) return tarihFarki;
+
+    const idA = Number(a.id);
+    const idB = Number(b.id);
+    if (!Number.isNaN(idA) && !Number.isNaN(idB) && idA !== idB) return idA - idB;
+
+    return String(a.id || "").localeCompare(String(b.id || ""));
+  });
+
+const odemeTurunuNormalizeEt = (odemeTuru?: string | null) =>
+  String(odemeTuru || "").toLocaleUpperCase("tr-TR");
+
+const satisBakiyeDurumuHesapla = (kayitlar: SatisFis[], sonDonem?: string) => {
+  const bakiyeler: Record<string, number> = {};
   const map: Record<string, number> = {};
-  const borclar: Record<string, number> = {};
 
-  [...kayitlar]
-    .sort((a, b) => {
-      const tarihFarki = String(a.tarih || "").localeCompare(String(b.tarih || ""));
-      if (tarihFarki !== 0) return tarihFarki;
+  satisFisleriniSirala(kayitlar).forEach((fis) => {
+    const donem = donemGetir(fis.tarih);
+    const bayi = fis.bayi || "";
+    if (sonDonem && donem > sonDonem) return;
+    if (!bayi || bayi === "SİSTEM İŞLEMİ") return;
 
-      const idA = Number(a.id);
-      const idB = Number(b.id);
-      if (!Number.isNaN(idA) && !Number.isNaN(idB) && idA !== idB) return idA - idB;
+    const odemeTuru = odemeTurunuNormalizeEt(fis.odeme_turu);
+    const kalanBakiye = Number(fis.kalan_bakiye || 0);
 
-      return String(a.id || "").localeCompare(String(b.id || ""));
-    })
-    .forEach((fis) => {
-      if (!fis.id || fis.bayi === "SİSTEM İŞLEMİ") return;
-      borclar[fis.bayi] = (borclar[fis.bayi] || 0) + Number(fis.kalan_bakiye || 0);
-      map[String(fis.id)] = borclar[fis.bayi];
-    });
+    if (odemeTuru === "DEVİR" || odemeTuru === "DEVIR") {
+      bakiyeler[bayi] = kalanBakiye;
+    } else {
+      bakiyeler[bayi] = (bakiyeler[bayi] || 0) + kalanBakiye;
+    }
 
-  return map;
+    if (fis.id) {
+      map[String(fis.id)] = bakiyeler[bayi];
+    }
+  });
+
+  return { bakiyeler, map };
+};
+
+const satisFisToplamBorcMapOlustur = (kayitlar: SatisFis[]) => {
+  return satisBakiyeDurumuHesapla(kayitlar).map;
 };
 
 const donemOzetiOlustur = (veri: YedekVerisi) => {
@@ -72,23 +94,41 @@ const donemOzetiOlustur = (veri: YedekVerisi) => {
     .sort()
     .reverse()
     .map((donem) => {
+      const donemSutKayitlari = veri.sutList.filter((item) => donemGetir(item.tarih) === donem);
+      const donemSatisFisleri = veri.satisFisList.filter((item) => donemGetir(item.tarih) === donem);
+      const donemSatisSatirlari = veri.satisList.filter((item) => donemGetir(item.tarih) === donem);
+      const donemGiderleri = veri.giderList.filter((item) => donemGetir(item.tarih) === donem);
       const yogurtKayitlari = veri.uretimList.filter((item) => donemGetir(item.tarih) === donem && (item.uretim_tipi || "yogurt") === "yogurt");
       const sutKaymagiKayitlari = veri.uretimList.filter((item) => donemGetir(item.tarih) === donem && item.uretim_tipi === "sut_kaymagi");
+      const donemSonuBorclar = satisBakiyeDurumuHesapla(veri.satisFisList, donem).bakiyeler;
+      const donemSatisToplami = donemSatisFisleri
+        .filter((item) => {
+          const odemeTuru = odemeTurunuNormalizeEt(item.odeme_turu);
+          return odemeTuru !== "DEVİR" &&
+            odemeTuru !== "DEVIR" &&
+            odemeTuru !== "PERSONEL DEVİR" &&
+            odemeTuru !== "PERSONEL DEVIR" &&
+            odemeTuru !== "KASAYA DEVİR" &&
+            odemeTuru !== "KASAYA DEVIR";
+        })
+        .reduce((toplam, item) => toplam + Number(item.toplam_tutar || 0), 0);
+      const sutcuyeBorc = donemSutKayitlari.reduce((toplam, item) => toplam + Number(item.toplam_tl || 0), 0) -
+        donemGiderleri
+          .filter((item) => String(item.tur || "").toLocaleLowerCase("tr-TR") === "süt ödemesi")
+          .reduce((toplam, item) => toplam + Number(item.tutar || 0), 0);
 
       return {
         Donem: donem,
-        "Süt Girişi": veri.sutList.filter((item) => donemGetir(item.tarih) === donem).length,
-        "Satış Fişi": veri.satisFisList.filter((item) => donemGetir(item.tarih) === donem).length,
-        "Satış Satırı": veri.satisList.filter((item) => donemGetir(item.tarih) === donem).length,
-        Gider: veri.giderList.filter((item) => donemGetir(item.tarih) === donem).length,
+        "Süt Girişi": donemSutKayitlari.length,
+        "Satış Fişi": donemSatisFisleri.length,
+        "Satış Satırı": donemSatisSatirlari.length,
+        Gider: donemGiderleri.length,
         "Yoğurt Üretimi": yogurtKayitlari.length,
         "Süt Kaymağı Üretimi": sutKaymagiKayitlari.length,
-        "Toplam Satış": veri.satisFisList
-          .filter((item) => donemGetir(item.tarih) === donem)
-          .reduce((toplam, item) => toplam + Number(item.toplam_tutar || 0), 0),
-        "Toplam Gider": veri.giderList
-          .filter((item) => donemGetir(item.tarih) === donem)
-          .reduce((toplam, item) => toplam + Number(item.tutar || 0), 0),
+        "Toplam Satış": donemSatisToplami,
+        "Toplam Gider": donemGiderleri.reduce((toplam, item) => toplam + Number(item.tutar || 0), 0),
+        "Bayi Açık Hesap": Object.values(donemSonuBorclar).reduce((toplam, borc) => toplam + borc, 0),
+        "Sütçüye Borcumuz": sutcuyeBorc,
       };
     });
 };
