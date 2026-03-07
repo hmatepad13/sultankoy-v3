@@ -55,7 +55,7 @@ export function LoginScreen({
           border: "1px solid #cbd5e1",
         }}
       >
-        <h2 style={{ margin: "0 0 8px", color: "#0f172a", textAlign: "center" }}>Sultanköy V4</h2>
+        <h2 style={{ margin: "0 0 8px", color: "#0f172a", textAlign: "center" }}>Sultanköy V3</h2>
         <p style={{ margin: "0 0 24px", color: "#64748b", textAlign: "center", fontSize: "14px" }}>
           Yönetim Paneline Giriş Yapın
         </p>

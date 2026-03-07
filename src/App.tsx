@@ -261,11 +261,12 @@ export default function App() {
   const [yeniUrunFiyat, setYeniUrunFiyat] = useState("");
 
   const bugun = getLocalDateString();
+  const aktifDonemTarihi = (donem = aktifDonem) => (bugun.startsWith(donem) ? bugun : `${donem}-01`);
 
   // --- SÜT STATE'LERİ ---
   const [isSutModalOpen, setIsSutModalOpen] = useState<boolean>(false);
   const [editingSutId, setEditingSutId] = useState<any>(null);
-  const [sutForm, setSutForm] = useState<SutGiris>({ tarih: bugun, ciftlik: "", kg: "", fiyat: "", aciklama: "" });
+  const [sutForm, setSutForm] = useState<SutGiris>({ tarih: aktifDonemTarihi(), ciftlik: "", kg: "", fiyat: "", aciklama: "" });
   const [sutFiltre, setSutFiltre] = useState<{ ciftlikler: string[], baslangic: string, bitis: string }>({ ciftlikler: [], baslangic: "", bitis: "" });
   const [sutSort, setSutSort] = useState<SortConfig>({ key: 'tarih', direction: 'desc' });
 
@@ -275,11 +276,11 @@ export default function App() {
   
   const [isFisModalOpen, setIsFisModalOpen] = useState<boolean>(false);
   const [isTahsilatModalOpen, setIsTahsilatModalOpen] = useState<boolean>(false);
-  const [tahsilatForm, setTahsilatForm] = useState({ tarih: bugun, bayi: "", miktar: "", odeme_turu: "PEŞİN", aciklama: "" });
+  const [tahsilatForm, setTahsilatForm] = useState({ tarih: aktifDonemTarihi(), bayi: "", miktar: "", odeme_turu: "PEŞİN", aciklama: "" });
   
   const [editingFisId, setEditingFisId] = useState<string | null>(null);
   const [editingFisNo, setEditingFisNo] = useState<string | null>(null);
-  const [fisUst, setFisUst] = useState({ tarih: bugun, bayi: "", aciklama: "", odeme_turu: "PEŞİN", tahsilat: "", bos_kova: "", teslim_alan: "" });
+  const [fisUst, setFisUst] = useState({ tarih: aktifDonemTarihi(), bayi: "", aciklama: "", odeme_turu: "PEŞİN", tahsilat: "", bos_kova: "", teslim_alan: "" });
   const [fisDetay, setFisDetay] = useState<FisDetayMap>({});
   const [fisGorselDosya, setFisGorselDosya] = useState<File | null>(null);
   const [fisGorselMevcutYol, setFisGorselMevcutYol] = useState("");
@@ -302,7 +303,7 @@ export default function App() {
   const [giderFiltreKisi, setGiderFiltreKisi] = useState<"benim" | "tumu">("benim");
   const [isGiderModalOpen, setIsGiderModalOpen] = useState<boolean>(false);
   const [editingGiderId, setEditingGiderId] = useState<any>(null);
-  const [giderForm, setGiderForm] = useState<Gider>({ tarih: bugun, tur: "Genel Gider", aciklama: "", tutar: "" });
+  const [giderForm, setGiderForm] = useState<Gider>({ tarih: aktifDonemTarihi(), tur: "Genel Gider", aciklama: "", tutar: "" });
   const [giderSort, setGiderSort] = useState<SortConfig>({ key: 'tarih', direction: 'desc' });
   const giderTurleri = GIDER_TURLERI;
 
@@ -310,7 +311,7 @@ export default function App() {
   const [isUretimModalOpen, setIsUretimModalOpen] = useState<boolean>(false);
   const [uretimDetayData, setUretimDetayData] = useState<any>(null);
   const [editingUretimId, setEditingUretimId] = useState<any>(null);
-  const [uretimForm, setUretimForm] = useState<Uretim>(bosUretimFormu(bugun, "yogurt"));
+  const [uretimForm, setUretimForm] = useState<Uretim>(bosUretimFormu(aktifDonemTarihi(), "yogurt"));
   const [uretimSort, setUretimSort] = useState<SortConfig>({ key: 'tarih', direction: 'desc' });
 
   const [activeFilterModal, setActiveFilterModal] = useState<'sut_ciftlik' | 'fis_bayi' | 'analiz_bayi' | 'analiz_urun' | 'sut_tarih' | 'fis_tarih' | 'analiz_tarih' | null>(null);
@@ -642,6 +643,14 @@ export default function App() {
     return not.length <= 15 ? not : <span onClick={(e) => { e.stopPropagation(); setDetayNot(not); }} style={{ cursor: "pointer", borderBottom: "1px dashed #94a3b8", color: "#3b82f6" }}>{not.substring(0, 15)}...</span>;
   };
 
+  const fisGorunenBayi = (fis: SatisFis) => {
+    if (fis.bayi !== "SİSTEM İŞLEMİ") return fis.bayi;
+    if (fis.odeme_turu === "PERSONEL DEVİR") return "PERSONEL DEVİRİ";
+    if (fis.odeme_turu === "DEVİR") return "DÖNEM DEVİRİ";
+    if (fis.odeme_turu === "KASAYA DEVİR") return "KASAYA DEVİR";
+    return fis.odeme_turu || "SİSTEM İŞLEMİ";
+  };
+
   async function ayarIslem(tablo: string, isim: any, islemTip: string, id: any, resetFn?: any) {
     if (islemTip === "ekle") {
       if (!isim.trim()) return;
@@ -756,7 +765,7 @@ export default function App() {
     const p = { ...sutForm, kg: Number(sutForm.kg), fiyat: Number(sutForm.fiyat), toplam_tl: Number(sutForm.kg) * Number(sutForm.fiyat), ekleyen: aktifKullaniciEposta };
     const { error } = editingSutId ? await supabase.from("sut_giris").update(p).eq("id", editingSutId) : await supabase.from("sut_giris").insert(p);
     if (error) return alert("Hata: " + error.message);
-    setSutForm({ tarih: bugun, ciftlik: "", kg: "", fiyat: "", aciklama: "" }); 
+    setSutForm({ tarih: aktifDonemTarihi(), ciftlik: "", kg: "", fiyat: "", aciklama: "" }); 
     setEditingSutId(null); setIsSutModalOpen(false); verileriGetir("sut"); 
   }
 
@@ -769,7 +778,7 @@ export default function App() {
     const p = { ...giderForm, tutar: Number(giderForm.tutar), ekleyen: aktifKullaniciEposta };
     const { error } = editingGiderId ? await supabase.from("giderler").update(p).eq("id", editingGiderId) : await supabase.from("giderler").insert(p);
     if (error) return alert("Hata: " + error.message);
-    setGiderForm({ tarih: bugun, tur: "Genel Gider", aciklama: "", tutar: "" });
+    setGiderForm({ tarih: aktifDonemTarihi(), tur: "Genel Gider", aciklama: "", tutar: "" });
     setEditingGiderId(null); setIsGiderModalOpen(false); verileriGetir("gider");
   }
 
@@ -883,7 +892,7 @@ export default function App() {
     if (error) return alert("Hata: " + error.message);
 
     const sonrakiTip = uretimForm.uretim_tipi || "yogurt";
-    setUretimForm(bosUretimFormu(bugun, sonrakiTip, uretimSonFiyatlar[sonrakiTip]));
+    setUretimForm(bosUretimFormu(aktifDonemTarihi(), sonrakiTip, uretimSonFiyatlar[sonrakiTip]));
     setEditingUretimId(null); setIsUretimModalOpen(false); verileriGetir("uretim");
   }
 
@@ -910,7 +919,7 @@ export default function App() {
     const { error } = await supabase.from("satis_fisleri").insert(fData);
     if (error) return alert("Hata: " + veritabaniHatasiMesaji("satis_fisleri", error));
 
-    setTahsilatForm({ tarih: bugun, bayi: "", miktar: "", odeme_turu: "PEŞİN", aciklama: "" });
+    setTahsilatForm({ tarih: aktifDonemTarihi(), bayi: "", miktar: "", odeme_turu: "PEŞİN", aciklama: "" });
     setIsTahsilatModalOpen(false);
     verileriGetir("satis");
   }
@@ -1311,7 +1320,7 @@ export default function App() {
 
   const resetFisForm = () => {
     setEditingFisId(null); setEditingFisNo(null);
-    setFisUst({ tarih: bugun, bayi: "", aciklama: "", odeme_turu: "PEŞİN", tahsilat: "", bos_kova: "", teslim_alan: "" });
+    setFisUst({ tarih: aktifDonemTarihi(), bayi: "", aciklama: "", odeme_turu: "PEŞİN", tahsilat: "", bos_kova: "", teslim_alan: "" });
     setFisGorselDosya(null);
     setFisGorselMevcutYol("");
     setGosterilenEkler({ tereyagi: false, yogurt_kaymagi: false, iade: false, bos_kova: false });
@@ -1507,8 +1516,6 @@ export default function App() {
 
   const tGiderNormal = useMemo(() => periodGider.reduce((a: number, b: any) => a + Number(b.tutar), 0), [periodGider]);
   const tUretimMaliyet = useMemo(() => periodUretim.reduce((a: number, b: any) => a + Number(b.toplam_maliyet), 0), [periodUretim]);
-  const tUretimGirenKg = useMemo(() => periodUretim.reduce((a: number, b: any) => a + uretimGirenToplamKg(b), 0), [periodUretim]);
-  const tUretimCikanKg = useMemo(() => periodUretim.reduce((a: number, b: any) => a + uretimCikanToplamKg(b), 0), [periodUretim]);
   const aktifUretimTipi = uretimForm.uretim_tipi || "yogurt";
   const siraliUretimList = useMemo(() => sortData(periodUretim, uretimSort), [periodUretim, uretimSort]);
   const yogurtUretimListesi = useMemo(
@@ -1778,7 +1785,7 @@ export default function App() {
 
   const renderSut = () => (
     <div className="tab-fade-in main-content-area">
-      <button onClick={() => { setSutForm({ tarih: bugun, ciftlik: "", kg: "", fiyat: "", aciklama: "" }); setEditingSutId(null); setIsSutModalOpen(true); }} className="btn-anim m-btn blue-btn">➕ YENİ SÜT GİRİŞİ</button>
+      <button onClick={() => { setSutForm({ tarih: aktifDonemTarihi(), ciftlik: "", kg: "", fiyat: "", aciklama: "" }); setEditingSutId(null); setIsSutModalOpen(true); }} className="btn-anim m-btn blue-btn">➕ YENİ SÜT GİRİŞİ</button>
       <div className="compact-totals">
         <div className="c-kutu" style={{ borderLeftColor: temaRengi }}><span>SÜT</span><b style={{ color: temaRengi, fontSize: "16px" }}>{fSayi(tSutKg)} KG</b></div>
         <div className="c-kutu" style={{ borderLeftColor: temaRengi }}><span>T. TUTAR</span><b style={{ color: temaRengi, fontSize: "16px" }}>{fSayiNoDec(tSutTl)} ₺</b></div>
@@ -1823,7 +1830,7 @@ export default function App() {
     <div className="tab-fade-in main-content-area">
       <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', alignItems: 'center' }}>
          <button onClick={handleYeniFisAc} className="btn-anim m-btn green-btn" style={{ margin: 0, flex: 2, fontSize: '13px' }}>➕ YENİ SATIŞ FİŞİ</button>
-         <button onClick={() => { setTahsilatForm({ tarih: bugun, bayi: "", miktar: "", odeme_turu: "PEŞİN", aciklama: "" }); setIsTahsilatModalOpen(true); }} className="btn-anim m-btn blue-btn" style={{ margin: 0, flex: 1.2, fontSize: '13px', background: '#3b82f6' }}>💸 TAHSİLAT</button>
+         <button onClick={() => { setTahsilatForm({ tarih: aktifDonemTarihi(), bayi: "", miktar: "", odeme_turu: "PEŞİN", aciklama: "" }); setIsTahsilatModalOpen(true); }} className="btn-anim m-btn blue-btn" style={{ margin: 0, flex: 1.2, fontSize: '13px', background: '#3b82f6' }}>💸 TAHSİLAT</button>
          <button onClick={() => setDigerModalConfig({isOpen: true, type: 'kasa_devir'})} className="btn-anim m-btn" style={{ margin: 0, flex: 1, fontSize: '13px', background: '#64748b', padding: '12px 0' }}>🏦 KASA DEVİR</button>
       </div>
 
@@ -1872,7 +1879,7 @@ export default function App() {
           <tr key={f.id}>
             <td>{f.tarih.split("-").reverse().slice(0, 2).join(".")}</td>
             <td style={{ fontWeight: "bold", minWidth: "120px", color: f.toplam_tutar === 0 && f.odeme_turu !== 'KASAYA DEVİR' ? "#8b5cf6" : (f.bayi === "SİSTEM İŞLEMİ" ? "#475569" : "inherit") }} className="truncate-text-td">
-               {f.bayi === "SİSTEM İŞLEMİ" ? `${f.aciklama || f.odeme_turu}` : f.bayi}
+               {fisGorunenBayi(f)}
             </td>
             <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold" }}>{f.toplam_tutar === 0 ? "-" : fSayi(f.toplam_tutar)}</td>
             <td style={{ textAlign: "right", color: f.odeme_turu === 'KASAYA DEVİR' ? "#dc2626" : "#2563eb", fontWeight: "bold" }}>
@@ -1943,7 +1950,7 @@ export default function App() {
       </div>
 
       <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "10px" }}>
-        <button onClick={() => { setGiderForm({ tarih: bugun, tur: "Genel Gider", aciklama: "", tutar: "" }); setEditingGiderId(null); setIsGiderModalOpen(true); }} className="btn-anim m-btn" style={{background: "#dc2626", margin: 0, flex: 1, padding: "8px", fontSize: "13px", height: "36px"}}>➕ YENİ GİDER</button>
+        <button onClick={() => { setGiderForm({ tarih: aktifDonemTarihi(), tur: "Genel Gider", aciklama: "", tutar: "" }); setEditingGiderId(null); setIsGiderModalOpen(true); }} className="btn-anim m-btn" style={{background: "#dc2626", margin: 0, flex: 1, padding: "8px", fontSize: "13px", height: "36px"}}>➕ YENİ GİDER</button>
         <div className="c-kutu" style={{ borderLeftColor: "#dc2626", flex: 1.2, margin: 0, padding: "4px 8px", height: "36px", display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
           <span style={{fontSize: "10px", margin: 0, color: "#64748b"}}>GÖSTERİLEN GİDER:</span>
           <b style={{ color: "#dc2626", fontSize: "16px" }}>{fSayi(fGTutarNormal)} ₺</b>
@@ -1985,7 +1992,7 @@ export default function App() {
   );
 
   const yeniUretimFormunuAc = (tip: "yogurt" | "sut_kaymagi") => {
-    setUretimForm(bosUretimFormu(bugun, tip, uretimSonFiyatlar[tip]));
+    setUretimForm(bosUretimFormu(aktifDonemTarihi(), tip, uretimSonFiyatlar[tip]));
     setEditingUretimId(null);
     setIsUretimModalOpen(true);
   };
@@ -2144,29 +2151,41 @@ export default function App() {
     const toplamMaliyet = kayitlar.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.toplam_maliyet), 0);
 
     return (
-      <div className="compact-totals" style={{ marginBottom: "8px" }}>
-        <div className="c-kutu" style={{ borderLeftColor: renk }}><span>GİREN</span><b style={{ color: renk, fontSize: "16px" }}>{fSayi(toplamGiren)} KG</b></div>
-        <div className="c-kutu" style={{ borderLeftColor: "#2563eb" }}><span>ÇIKAN</span><b style={{ color: "#2563eb", fontSize: "16px" }}>{fSayi(toplamCikan)} KG</b></div>
-        <div className="c-kutu" style={{ borderLeftColor: "#dc2626" }}><span>MALİYET</span><b style={{ color: "#dc2626", fontSize: "16px" }}>{fSayi(toplamMaliyet)} ₺</b></div>
+      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "4px" }}>
+        <div style={{ border: `1px solid ${renk}33`, background: `${renk}10`, color: renk, borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold" }}>
+          GİREN: {fSayi(toplamGiren)} KG
+        </div>
+        <div style={{ border: "1px solid #2563eb33", background: "#2563eb10", color: "#2563eb", borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold" }}>
+          ÇIKAN: {fSayi(toplamCikan)} KG
+        </div>
+        <div style={{ border: "1px solid #dc262633", background: "#dc262610", color: "#dc2626", borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold" }}>
+          MALİYET: {fSayi(toplamMaliyet)} ₺
+        </div>
       </div>
     );
   };
 
   const renderUretimTablosu = (
     baslik: string,
-    aciklama: string,
     kayitlar: Uretim[],
     renk: string,
     tip: "yogurt" | "sut_kaymagi",
+    butonMetni: string,
+    onYeniClick: () => void,
   ) => (
     <div style={{ marginTop: "12px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", gap: "8px", flexWrap: "wrap" }}>
         <div>
           <h3 style={{ margin: 0, color: renk, fontSize: "14px" }}>{baslik}</h3>
-          <div style={{ fontSize: "11px", color: "#64748b", marginTop: "2px" }}>{aciklama}</div>
+          {renderUretimToplamlari(kayitlar, renk)}
         </div>
-        <div style={{ fontSize: "11px", color: renk, fontWeight: "bold", background: `${renk}15`, border: `1px solid ${renk}40`, borderRadius: "999px", padding: "4px 10px" }}>
-          {kayitlar.length} kayıt
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", justifyContent: "flex-end" }}>
+          <div style={{ fontSize: "11px", color: renk, fontWeight: "bold", background: `${renk}15`, border: `1px solid ${renk}40`, borderRadius: "999px", padding: "4px 10px" }}>
+            {kayitlar.length} kayıt
+          </div>
+          <button onClick={onYeniClick} className="btn-anim m-btn" style={{ background: renk, margin: 0, minWidth: "160px", padding: "10px 14px", fontSize: "12px" }}>
+            {butonMetni}
+          </button>
         </div>
       </div>
 
@@ -2225,21 +2244,8 @@ export default function App() {
 
   const renderUretimYeni = () => (
     <div className="tab-fade-in main-content-area">
-      <div className="compact-totals" style={{ marginBottom: "10px" }}>
-        <div className="c-kutu" style={{ borderLeftColor: "#8b5cf6" }}><span>GİREN TOPLAM KG</span><b style={{ color: "#8b5cf6", fontSize: "16px" }}>{fSayi(tUretimGirenKg)} KG</b></div>
-        <div className="c-kutu" style={{ borderLeftColor: "#2563eb" }}><span>ÇIKAN TOPLAM KG</span><b style={{ color: "#2563eb", fontSize: "16px" }}>{fSayi(tUretimCikanKg)} KG</b></div>
-        <div className="c-kutu" style={{ borderLeftColor: "#dc2626" }}><span>MALİYET TOPLAM TL</span><b style={{ color: "#dc2626", fontSize: "16px" }}>{fSayi(tUretimMaliyet)} ₺</b></div>
-      </div>
-
-      <div style={{ display: "flex", gap: "8px", marginBottom: "10px", flexWrap: "wrap" }}>
-        <button onClick={() => yeniUretimFormunuAc("yogurt")} className="btn-anim m-btn" style={{ background: "#8b5cf6", flex: 1, minWidth: "180px" }}>➕ YENİ YOĞURT ÜRETİM GİRİŞİ</button>
-        <button onClick={() => yeniUretimFormunuAc("sut_kaymagi")} className="btn-anim m-btn" style={{ background: "#0f766e", flex: 1, minWidth: "180px" }}>➕ YENİ SÜT KAYMAĞI ÜRETİM GİRİŞİ</button>
-      </div>
-
-      {renderUretimToplamlari(yogurtUretimListesi, "#8b5cf6")}
-      {renderUretimTablosu("Yoğurt Üretimleri", "Yoğurt üretim kayıtları üstte tutulur.", yogurtUretimListesi, "#8b5cf6", "yogurt")}
-      {renderUretimToplamlari(sutKaymagiUretimListesi, "#0f766e")}
-      {renderUretimTablosu("Süt Kaymağı Üretimleri", "Süt kaymağı kayıtları ayrı tabloda altta listelenir.", sutKaymagiUretimListesi, "#0f766e", "sut_kaymagi")}
+      {renderUretimTablosu("Yoğurt Üretimleri", yogurtUretimListesi, "#8b5cf6", "yogurt", "➕ YENİ YOĞURT ÜRETİMİ", () => yeniUretimFormunuAc("yogurt"))}
+      {renderUretimTablosu("Süt Kaymağı Üretimleri", sutKaymagiUretimListesi, "#0f766e", "sut_kaymagi", "➕ YENİ SÜT KAYMAĞI", () => yeniUretimFormunuAc("sut_kaymagi"))}
     </div>
   );
 
@@ -2507,7 +2513,7 @@ export default function App() {
   return (
     <div className="app-container" onClick={closeAllDropdowns}>
       <header className="header-style">
-        <b style={{ color: temaRengi, fontSize: "18px", marginLeft: "10px" }}>SULTANKÖY V4</b>
+        <b style={{ color: temaRengi, fontSize: "18px", marginLeft: "10px" }}>SULTANKÖY V3</b>
         <div style={{display: 'flex', gap: '10px', alignItems: 'center', marginRight: '10px'}}>
            <select 
               value={aktifDonem} 
@@ -3042,8 +3048,8 @@ export default function App() {
 
       <footer className="fixed-nav main-content-area">
         {gorunurSekmeler.map((item) => (
-          <button key={item.id} onClick={() => { setActiveTab(item.id); setEditingSutId(null); setIsSutModalOpen(false); setIsFisModalOpen(false); setIsTahsilatModalOpen(false); setIsGiderModalOpen(false); setIsUretimModalOpen(false); setOpenDropdown(null); }} className={`n-item btn-anim ${activeTab === item.id ? 'active' : ''}`} style={activeTab === item.id ? { color: item.id === 'analiz' ? '#8b5cf6' : item.id === 'gider' ? '#dc2626' : item.id === 'uretim' ? '#8b5cf6' : temaRengi, borderTopColor: item.id === 'analiz' ? '#8b5cf6' : item.id === 'gider' ? '#dc2626' : item.id === 'uretim' ? '#8b5cf6' : temaRengi } : {}}>
-            <span style={{ fontSize: item.id === "satis" ? "20px" : "16px", marginBottom: "2px", lineHeight: 1 }}>{item.ikon}</span><span style={{ fontSize: "9px", fontWeight: "bold" }}>{item.etiket}</span>
+          <button key={item.id} onClick={() => { setActiveTab(item.id); setEditingSutId(null); setIsSutModalOpen(false); setIsFisModalOpen(false); setIsTahsilatModalOpen(false); setIsGiderModalOpen(false); setIsUretimModalOpen(false); setOpenDropdown(null); }} className={`n-item btn-anim ${activeTab === item.id ? 'active' : ''}`} style={{ ...(activeTab === item.id ? { color: item.id === 'analiz' ? '#8b5cf6' : item.id === 'gider' ? '#dc2626' : item.id === 'uretim' ? '#8b5cf6' : temaRengi, borderTopColor: item.id === 'analiz' ? '#8b5cf6' : item.id === 'gider' ? '#dc2626' : item.id === 'uretim' ? '#8b5cf6' : temaRengi } : {}), ...(item.id === "satis" ? { paddingTop: "8px", paddingBottom: "8px" } : {}) }}>
+            <span style={{ fontSize: item.id === "satis" ? "24px" : "16px", marginBottom: "2px", lineHeight: 1 }}>{item.ikon}</span><span style={{ fontSize: item.id === "satis" ? "10px" : "9px", fontWeight: "bold" }}>{item.etiket}</span>
           </button>
         ))}
       </footer>
