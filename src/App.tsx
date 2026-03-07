@@ -2260,6 +2260,21 @@ export default function App() {
     setYetkiUyari(uyari || "");
   };
 
+  const handleEmptyTrash = async () => {
+    if (!isAdmin) return;
+    if (copKutusuList.length === 0) return;
+    if (!confirm(`Çöp kutusundaki ${copKutusuList.length} kayıt kalıcı olarak silinecek. Devam edilsin mi?`)) return;
+
+    const { error } = await supabase.from("cop_kutusu").delete().not("id", "is", null);
+    if (error) {
+      alert(`Çöp kutusu boşaltılamadı: ${error.message}`);
+      return;
+    }
+
+    setCopKutusuList([]);
+    alert("Çöp kutusu boşaltıldı.");
+  };
+
   const cikisYap = async (mesaj?: string) => {
     await yerelOturumuTemizle();
     setUsername(normalizeUsername(username || session?.user?.email || ""));
@@ -3147,6 +3162,7 @@ export default function App() {
         if (confirm(`Silinecek: ${isim}`)) ayarIslem(tablo, null, "sil", id);
       }}
       onOpenTrash={() => verileriGetir("cop")}
+      onEmptyTrash={handleEmptyTrash}
       onHtmlBackup={handleHtmlBackup}
       onExcelBackup={handleExcelBackup}
       onJsonBackup={handleJsonBackup}

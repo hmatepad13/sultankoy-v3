@@ -29,6 +29,7 @@ interface SettingsPanelProps {
   onSettingToggleActive: (tablo: string, id: string, aktif: boolean) => void;
   onSettingDelete: (tablo: string, id: string, isim: string) => void;
   onOpenTrash: () => void;
+  onEmptyTrash: () => Promise<void> | void;
   onExcelBackup: () => void;
   onJsonBackup: () => void;
   onHtmlBackup: () => void;
@@ -180,6 +181,7 @@ export function SettingsPanel({
   onSettingToggleActive,
   onSettingDelete,
   onOpenTrash,
+  onEmptyTrash,
   onExcelBackup,
   onJsonBackup,
   onHtmlBackup,
@@ -695,7 +697,27 @@ export function SettingsPanel({
 
         {activeAyarTab === "cop_kutusu" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "6px", overflowY: "auto", paddingRight: "4px" }}>
-            <h4 style={{ margin: "0 0 5px", fontSize: "13px", color: "#dc2626" }}>Son Silinen Kayıtlar</h4>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" }}>
+              <h4 style={{ margin: 0, fontSize: "13px", color: "#dc2626" }}>Son Silinen Kayıtlar</h4>
+              {isAdmin && (
+                <button
+                  onClick={() => void onEmptyTrash()}
+                  disabled={copKutusuList.length === 0}
+                  style={{
+                    background: copKutusuList.length === 0 ? "#e2e8f0" : "#dc2626",
+                    color: copKutusuList.length === 0 ? "#64748b" : "#fff",
+                    border: "none",
+                    borderRadius: "8px",
+                    padding: "7px 12px",
+                    fontWeight: "bold",
+                    cursor: copKutusuList.length === 0 ? "not-allowed" : "pointer",
+                    fontSize: "12px",
+                  }}
+                >
+                  Çöp Kutusunu Boşalt
+                </button>
+              )}
+            </div>
             {copKutusuList.map((kayit) => (
               (() => {
                 const ozet = copKutusuOzetiniGetir(kayit.tablo_adi, kayit.veri);
