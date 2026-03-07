@@ -366,7 +366,7 @@ export default function App() {
   const [fisGorselDosya, setFisGorselDosya] = useState<File | null>(null);
   const [fisGorselMevcutYol, setFisGorselMevcutYol] = useState("");
   const [fisGorselOnizleme, setFisGorselOnizleme] = useState<{ url: string; baslik: string } | null>(null);
-  const [gosterilenEkler, setGosterilenEkler] = useState({ tereyagi: false, yogurt_kaymagi: false, iade: false, bos_kova: false });
+  const [gosterilenEkler, setGosterilenEkler] = useState({ tereyagi: false, yogurt_kaymagi: false, iade: false, bos_kova: false, urunler: [] as string[] });
   const [sonFisData, setSonFisData] = useState<any>(null);
   const [bayiSecimModal, setBayiSecimModal] = useState<{ hedef: "fis" | "tahsilat" | null; arama: string }>({
     hedef: null,
@@ -1574,7 +1574,7 @@ export default function App() {
     setFisUst({ tarih: aktifDonemTarihi(), bayi: "", aciklama: "", odeme_turu: "PEŞİN", tahsilat: "", bos_kova: "", teslim_alan: "" });
     setFisGorselDosya(null);
     setFisGorselMevcutYol("");
-    setGosterilenEkler({ tereyagi: false, yogurt_kaymagi: false, iade: false, bos_kova: false });
+    setGosterilenEkler({ tereyagi: false, yogurt_kaymagi: false, iade: false, bos_kova: false, urunler: [] });
     const temizDetay: any = {};
     urunler.forEach(u => temizDetay[u.id] = { adet: "", kg: "", fiyat: u.fiyat || "" });
     temizDetay["v_iade"] = { adet: "", kg: "", fiyat: "" };
@@ -3064,8 +3064,10 @@ export default function App() {
                     const isTereyagi = isimLower.includes("tereya");
                     const isYogurtKaymagi = isimLower.includes("yoğurt kayma");
                     const isFilled = (Number(fisDetay[u.id]?.adet) > 0 || Number(fisDetay[u.id]?.kg) > 0);
+                    const isEkstraUrun = !isFixed && !isTereyagi && !isYogurtKaymagi;
+                    const ekstraUrunSecili = gosterilenEkler.urunler.includes(u.id);
 
-                    if (!isFixed && !isFilled && !(gosterilenEkler.tereyagi && isTereyagi) && !(gosterilenEkler.yogurt_kaymagi && isYogurtKaymagi)) return null;
+                    if (!isFixed && !isFilled && !(gosterilenEkler.tereyagi && isTereyagi) && !(gosterilenEkler.yogurt_kaymagi && isYogurtKaymagi) && !(isEkstraUrun && ekstraUrunSecili)) return null;
 
                     const handleAdetChange = (e: any) => {
                         const val = e.target.value;
@@ -3098,6 +3100,26 @@ export default function App() {
                   <div style={{ display: "flex", gap: "6px", marginBottom: "4px", marginTop: "4px", flexWrap: "wrap" }}>
                       <button onClick={() => setGosterilenEkler(p => ({...p, tereyagi: true}))} className="btn-anim" style={{ background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: "4px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", color: "#475569" }}>+ Tereyağı</button>
                       <button onClick={() => setGosterilenEkler(p => ({...p, yogurt_kaymagi: true}))} className="btn-anim" style={{ background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: "4px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", color: "#475569" }}>+ Y. Kaymağı</button>
+                      {urunler
+                        .filter(u => {
+                          const isimLower = u.isim.toLowerCase();
+                          const isFixed = (isimLower.includes("3 kg") || isimLower.includes("5 kg") || (isimLower.includes("kayma") && !isimLower.includes("yoğurt")));
+                          const isTereyagi = isimLower.includes("tereya");
+                          const isYogurtKaymagi = isimLower.includes("yoğurt kayma");
+                          const isFilled = (Number(fisDetay[u.id]?.adet) > 0 || Number(fisDetay[u.id]?.kg) > 0);
+                          const isEkstraUrun = !isFixed && !isTereyagi && !isYogurtKaymagi;
+                          return isEkstraUrun && !isFilled && !gosterilenEkler.urunler.includes(u.id);
+                        })
+                        .map(u => (
+                          <button
+                            key={u.id}
+                            onClick={() => setGosterilenEkler(p => ({ ...p, urunler: [...p.urunler, u.id] }))}
+                            className="btn-anim"
+                            style={{ background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: "4px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", color: "#475569" }}
+                          >
+                            + {u.isim}
+                          </button>
+                        ))}
                       <button onClick={() => setGosterilenEkler(p => ({...p, iade: true}))} className="btn-anim" style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "4px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", color: "#dc2626" }}>+ İade</button>
                       <button onClick={() => setGosterilenEkler(p => ({...p, bos_kova: true}))} className="btn-anim" style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "4px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", color: "#dc2626" }}>+ Boş Kova</button>
                   </div>
