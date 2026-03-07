@@ -21,8 +21,6 @@ interface SettingsPanelProps {
   copKutusuList: CopKutusu[];
   yeniAyarDeger: string;
   setYeniAyarDeger: (value: string) => void;
-  yeniUrunFiyat: string;
-  setYeniUrunFiyat: (value: string) => void;
   handleAyarEkle: () => void;
   onSettingDelete: (tablo: string, id: string, isim: string) => void;
   onOpenTrash: () => void;
@@ -154,8 +152,6 @@ export function SettingsPanel({
   copKutusuList,
   yeniAyarDeger,
   setYeniAyarDeger,
-  yeniUrunFiyat,
-  setYeniUrunFiyat,
   handleAyarEkle,
   onSettingDelete,
   onOpenTrash,
@@ -278,13 +274,13 @@ export function SettingsPanel({
       <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "10px", overflow: "hidden" }}>
         {(activeAyarTab === "musteriler" || activeAyarTab === "urunler" || activeAyarTab === "ciftlikler") && (
           <>
-            <div style={{ display: "flex", gap: "8px" }}>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
               <input
                 placeholder={`Yeni ${activeAyarTab.slice(0, -3)} ismi...`}
                 value={yeniAyarDeger}
                 onChange={(event) => setYeniAyarDeger(event.target.value)}
                 style={{
-                  flex: 1,
+                  flex: "1 1 180px",
                   padding: "8px 10px",
                   borderRadius: "8px",
                   border: "1px solid #cbd5e1",
@@ -292,22 +288,6 @@ export function SettingsPanel({
                   fontSize: "13px",
                 }}
               />
-              {activeAyarTab === "urunler" && (
-                <input
-                  placeholder="Fiyat"
-                  type="number"
-                  value={yeniUrunFiyat}
-                  onChange={(event) => setYeniUrunFiyat(event.target.value)}
-                  style={{
-                    width: "80px",
-                    padding: "8px",
-                    borderRadius: "8px",
-                    border: "1px solid #cbd5e1",
-                    outline: "none",
-                    fontSize: "13px",
-                  }}
-                />
-              )}
               <button
                 onClick={handleAyarEkle}
                 style={{
@@ -315,10 +295,12 @@ export function SettingsPanel({
                   color: "#fff",
                   border: "none",
                   borderRadius: "8px",
-                  padding: "0 15px",
+                  padding: "8px 15px",
                   fontWeight: "bold",
                   cursor: "pointer",
                   fontSize: "13px",
+                  whiteSpace: "nowrap",
+                  flex: "0 0 auto",
                 }}
               >
                 Ekle

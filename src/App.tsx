@@ -339,7 +339,6 @@ export default function App() {
   // YENİ AYARLAR STATE'İ (Çöp Kutusu Eklendi)
   const [activeAyarTab, setActiveAyarTab] = useState<ActiveAyarTab>("musteriler");
   const [yeniAyarDeger, setYeniAyarDeger] = useState("");
-  const [yeniUrunFiyat, setYeniUrunFiyat] = useState("");
 
   const bugun = getLocalDateString();
   const aktifDonemTarihi = (donem = aktifDonem) => (bugun.startsWith(donem) ? bugun : `${donem}-01`);
@@ -790,11 +789,9 @@ export default function App() {
     if (islemTip === "ekle") {
       if (!isim.trim()) return;
       const insertData: any = { isim };
-      if (tablo === "urunler" && yeniUrunFiyat) insertData.fiyat = Number(yeniUrunFiyat);
       const { error } = await supabase.from(tablo).insert(insertData);
       if (error) return alert(`Hata: ${error.message}`);
       if(resetFn) resetFn("");
-      if(tablo === "urunler") setYeniUrunFiyat(""); 
     } else if (islemTip === "sil") {
       await supabase.from(tablo).delete().eq("id", id);
     }
@@ -2844,8 +2841,6 @@ export default function App() {
       copKutusuList={copKutusuList}
       yeniAyarDeger={yeniAyarDeger}
       setYeniAyarDeger={setYeniAyarDeger}
-      yeniUrunFiyat={yeniUrunFiyat}
-      setYeniUrunFiyat={setYeniUrunFiyat}
       handleAyarEkle={handleAyarEkle}
       onSettingDelete={(tablo, id, isim) => {
         if (confirm(`Silinecek: ${isim}`)) ayarIslem(tablo, null, "sil", id);
@@ -3152,8 +3147,8 @@ export default function App() {
                           </div>
                         ) : null;
                       })()}
-                      <button onClick={() => setGosterilenEkler(p => ({...p, iade: true}))} className="btn-anim" style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "4px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", color: "#dc2626" }}>+ İade</button>
-                      <button onClick={() => setGosterilenEkler(p => ({...p, bos_kova: true}))} className="btn-anim" style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "4px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", color: "#dc2626" }}>+ Boş Kova</button>
+                      <button onClick={() => setGosterilenEkler(p => ({...p, iade: true}))} className="btn-anim" style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "6px", padding: "6px 8px", fontSize: "11px", fontWeight: "bold", color: "#dc2626", lineHeight: 1.2 }}>+ İade</button>
+                      <button onClick={() => setGosterilenEkler(p => ({...p, bos_kova: true}))} className="btn-anim" style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "6px", padding: "6px 8px", fontSize: "11px", fontWeight: "bold", color: "#dc2626", lineHeight: 1.2 }}>+ Boş Kova</button>
                   </div>
 
                   {(gosterilenEkler.iade || Number(fisDetay["v_iade"]?.adet) > 0 || Number(fisDetay["v_iade"]?.kg) > 0) && (
