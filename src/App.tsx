@@ -2280,8 +2280,6 @@ export default function App() {
             { etiket: "Süt Tozu", deger: `${fSayi(kayit.sut_tozu)} KG` },
             { etiket: "Teremyağ", deger: `${fSayi(kayit.tereyag)} KG` },
             { etiket: "Katkı", deger: `${fSayi(kayit.katki_kg)} KG` },
-            { etiket: "Su", deger: `${fSayi(kayit.su)} KG` },
-            { etiket: "Toplam", deger: `${fSayi(uretimGirenToplamKg(kayit))} KG`, vurgu: true },
           ];
       setUretimMiniDetay({ baslik: "Giren Detayı", renk, satirlar });
       return;
@@ -2295,9 +2293,9 @@ export default function App() {
             { etiket: "Toplam", deger: `${fSayi(uretimCikanToplamAdet(kayit))} Adet`, vurgu: true },
           ]
         : [
-            { etiket: "3 KG", deger: `${fSayi(kayit.cikti_3kg)} Adet` },
-            { etiket: "5 KG", deger: `${fSayi(kayit.cikti_5kg)} Adet` },
-            { etiket: "Toplam", deger: `${fSayi(uretimCikanToplamAdet(kayit))} Adet`, vurgu: true },
+            { etiket: "3 KG", deger: `${fSayi(kayit.cikti_3kg)} Adet / ${fSayi(sayiDegeri(kayit.cikti_3kg) * 3)} KG` },
+            { etiket: "5 KG", deger: `${fSayi(kayit.cikti_5kg)} Adet / ${fSayi(sayiDegeri(kayit.cikti_5kg) * 5)} KG` },
+            { etiket: "Toplam", deger: `${fSayi(uretimCikanToplamAdet(kayit))} Adet / ${fSayi(uretimCikanToplamKg(kayit))} KG`, vurgu: true },
           ];
       setUretimMiniDetay({ baslik: "Çıkan Detayı", renk, satirlar });
       return;
@@ -2317,10 +2315,6 @@ export default function App() {
           { etiket: "Süt Tozu", deger: `${fSayi(kgSatirTutari(kayit.sut_tozu, kayit.sut_tozu_fiyat))} ₺` },
           { etiket: "Teremyağ", deger: `${fSayi(kgSatirTutari(kayit.tereyag, kayit.tereyag_fiyat))} ₺` },
           { etiket: "Katkı", deger: `${fSayi(kgSatirTutari(kayit.katki_kg, kayit.katki_fiyat))} ₺` },
-          { etiket: "Su", deger: `${fSayi(kgSatirTutari(kayit.su, kayit.su_fiyat))} ₺` },
-          { etiket: "3'lük Kova", deger: `${fSayi(sayiDegeri(kayit.kova_3_adet) * sayiDegeri(kayit.kova_3_fiyat))} ₺` },
-          { etiket: "5'lik Kova", deger: `${fSayi(sayiDegeri(kayit.kova_5_adet) * sayiDegeri(kayit.kova_5_fiyat))} ₺` },
-          { etiket: "Toplam", deger: `${fSayi(kayit.toplam_maliyet)} ₺`, vurgu: true },
         ];
     setUretimMiniDetay({ baslik: "Maliyet Detayı", renk, satirlar });
   };
