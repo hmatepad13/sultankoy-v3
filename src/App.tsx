@@ -2186,12 +2186,12 @@ export default function App() {
               {personelOzetleri.map((p, i) => (
                 <tr key={i}>
                   <td style={{ fontWeight: "bold" }}>{p.isim}</td>
-                  <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold" }}>{fSayi(p.satis)} ₺</td>
-                  <td style={{ textAlign: "right", color: "#2563eb" }}>{fSayi(p.tahsilat)} ₺</td>
-                  <td style={{ textAlign: "right", color: "#dc2626" }}>{fSayi(p.gider)} ₺</td>
-                  <td style={{ textAlign: "right", color: "#0f766e" }}>{fSayi(p.kasayaDevir)} ₺</td>
-                  <td style={{ textAlign: "right", fontWeight: "bold", color: p.net >= 0 ? "#16a34a" : "#dc2626" }}>{fSayi(p.net)} ₺</td>
-                  <td style={{ textAlign: "right", fontWeight: "bold", color: p.acikBakiye >= 0 ? "#f59e0b" : "#059669" }}>{fSayi(p.acikBakiye)} ₺</td>
+                  <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold" }}>{fSayi(p.satis)}</td>
+                  <td style={{ textAlign: "right", color: "#2563eb" }}>{fSayi(p.tahsilat)}</td>
+                  <td style={{ textAlign: "right", color: "#dc2626" }}>{fSayi(p.gider)}</td>
+                  <td style={{ textAlign: "right", color: "#0f766e" }}>{fSayi(p.kasayaDevir)}</td>
+                  <td style={{ textAlign: "right", fontWeight: "bold", color: p.net >= 0 ? "#16a34a" : "#dc2626" }}>{fSayi(p.net)}</td>
+                  <td style={{ textAlign: "right", fontWeight: "bold", color: p.acikBakiye >= 0 ? "#f59e0b" : "#059669" }}>{fSayi(p.acikBakiye)}</td>
                 </tr>
               ))}
               {personelOzetleri.length === 0 && (
