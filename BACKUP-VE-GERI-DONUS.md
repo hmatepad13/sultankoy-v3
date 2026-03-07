@@ -1,6 +1,15 @@
 # Yedek ve Geri Donus
 
-Bu proje icin calisan durum yedegi uc sekilde alindi:
+## Guncel Stabil Surum
+
+Bu proje icin su anki calisan stabil durum su sekilde yedeklendi:
+
+- Kaynak arsivi: `backups/sultankoy-v3-kaynak-yedek-20260307-070604.zip`
+- Tam klasor arsivi: `backups/sultankoy-v3-tam-yedek-20260307-070604.zip`
+- Git etiketi: `backup-stabil-20260307-070604`
+- Canli adres: `https://sultankoy-v3.vercel.app/`
+
+## Onceki Yedekler
 
 - Kaynak arsivi: `backups/sultankoy-v3-canli-yedek-20260307-015254.zip`
 - Tam klasor arsivi: `backups/sultankoy-v3-tam-canli-yedek-20260307-015450.zip`
@@ -16,8 +25,8 @@ Notlar:
 
 1. Projeyi kapat.
 2. Mevcut klasoru istersen yeniden adlandir: `sultankoy-v3-bozuk`
-3. Mumkunse once `backups/sultankoy-v3-tam-canli-yedek-20260307-015450.zip` arsivini ayni konuma cikar.
-4. Tam arsiv yerine kaynak arsiv kullanirsan `backups/sultankoy-v3-canli-yedek-20260307-015254.zip` dosyasini ac ve sonrasinda `npm install` calistir.
+3. Mumkunse once `backups/sultankoy-v3-tam-yedek-20260307-070604.zip` arsivini ayni konuma cikar.
+4. Tam arsiv yerine kaynak arsiv kullanirsan `backups/sultankoy-v3-kaynak-yedek-20260307-070604.zip` dosyasini ac ve sonrasinda `npm install` calistir.
 5. `npm run build` ve `npm run dev` ile kontrol et.
 
 ## Git Etiketi ile Geri Donus
@@ -26,22 +35,25 @@ Calisan kodu yeni bir dalda acmak icin:
 
 ```powershell
 git fetch --tags
-git switch -c geri-donus-backup backup-canli-20260307-015215
+git switch -c geri-donus-backup backup-stabil-20260307-070604
 ```
 
 Mevcut dali dogrudan bu noktaya cekmek icin:
 
 ```powershell
 git fetch --tags
-git reset --hard backup-canli-20260307-015215
+git reset --hard backup-stabil-20260307-070604
 ```
 
-## Bu Yedekten Sonra Yapilan Bakimlar
+## Bu Stabil Surumde Not Edilen Durum
 
-- `.env` git takibinden cikarildi
-- `.env.example` eklendi
-- Yedeklerin repoya karismamasi icin `backups/` ignore edildi
-- Kullanimda olmayan kok dosyalar temizlendi
+- Vercel production yesil durumda
+- Supabase baglantisi calisiyor
+- Fis gorseli yukleme aktif
+- Yetki ekrani, yedekleme ve donem secimi calisiyor
+- Uretim ekraninda yogurt ve sut kaymagi ayrik tablolarla calisiyor
+- Uretim ust toplam kutulari tiklaninca kucuk popup aciliyor
+- Uretim not hucreleri pasif, detay sadece `3 nokta > goruntule` ile aciliyor
 
 ## Son Kontrol
 
