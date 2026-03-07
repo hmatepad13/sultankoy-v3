@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useEffectEvent, useMemo, useState, type ChangeEvent, type CSSProperties } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState, type ChangeEvent, type CSSProperties } from "react";
 import { LoginScreen } from "./components/LoginScreen";
 import { SettingsPanel } from "./components/SettingsPanel";
 import {
@@ -398,6 +398,7 @@ export default function App() {
   const [fisGorselOnizleme, setFisGorselOnizleme] = useState<{ url: string; baslik: string } | null>(null);
   const [gosterilenEkler, setGosterilenEkler] = useState({ tereyagi: false, yogurt_kaymagi: false, iade: false, bos_kova: false, urunler: [] as string[] });
   const [isDigerUrunMenuOpen, setIsDigerUrunMenuOpen] = useState(false);
+  const digerUrunMenuRef = useRef<HTMLDivElement | null>(null);
   const [sonFisData, setSonFisData] = useState<any>(null);
   const [bayiSecimModal, setBayiSecimModal] = useState<{ hedef: "fis" | "tahsilat" | null; arama: string }>({
     hedef: null,
@@ -442,6 +443,10 @@ export default function App() {
   const seciliBayiId = (bayiAdi?: string | null) => eslesenKayitIdBul(bayiler, bayiAdi);
   const seciliUrunId = (urunAdi?: string | null) => eslesenKayitIdBul(urunler, urunAdi);
   const seciliCiftlikId = (ciftlikAdi?: string | null) => eslesenKayitIdBul(tedarikciler, ciftlikAdi);
+  const kayitAktifMi = <T extends { aktif?: boolean | null }>(item: T) => item.aktif !== false;
+  const aktifBayiler = useMemo(() => bayiler.filter(kayitAktifMi), [bayiler]);
+  const aktifUrunler = useMemo(() => urunler.filter(kayitAktifMi), [urunler]);
+  const aktifTedarikciler = useMemo(() => tedarikciler.filter(kayitAktifMi), [tedarikciler]);
 
   const [activeFilterModal, setActiveFilterModal] = useState<'sut_ciftlik' | 'fis_bayi' | 'analiz_bayi' | 'analiz_urun' | 'sut_tarih' | 'fis_tarih' | 'analiz_tarih' | null>(null);
 
@@ -456,6 +461,24 @@ export default function App() {
   const bayiSecimModalKapat = () => {
     setBayiSecimModal({ hedef: null, arama: "" });
   };
+
+  useEffect(() => {
+    if (!isDigerUrunMenuOpen) return;
+
+    const handleDisTiklama = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node | null;
+      if (digerUrunMenuRef.current && target && !digerUrunMenuRef.current.contains(target)) {
+        setIsDigerUrunMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleDisTiklama);
+    document.addEventListener("touchstart", handleDisTiklama, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", handleDisTiklama);
+      document.removeEventListener("touchstart", handleDisTiklama);
+    };
+  }, [isDigerUrunMenuOpen]);
 
   const handleIdleLogout = useEffectEvent(() => {
     void cikisYap("10 dakika işlem yapılmadığı için güvenlik amacıyla oturum kapatıldı.");
@@ -835,13 +858,17 @@ export default function App() {
   async function ayarIslem(tablo: string, isim: any, islemTip: string, id: any, resetFn?: any) {
     if (islemTip === "ekle") {
       if (!isim.trim()) return;
-      const insertData: any = { isim };
+      const insertData: any = tablo === "gider_turleri" ? { isim } : { isim, aktif: true };
       const { error } = await supabase.from(tablo).insert(insertData);
       if (error) return alert(`Hata: ${error.message}`);
       if(resetFn) resetFn("");
     } else if (islemTip === "guncelle") {
       if (!isim?.trim() || !id) return;
       const { error } = await supabase.from(tablo).update({ isim }).eq("id", id);
+      if (error) return alert(`Hata: ${error.message}`);
+    } else if (islemTip === "durum") {
+      if (!id) return;
+      const { error } = await supabase.from(tablo).update({ aktif: Boolean(isim) }).eq("id", id);
       if (error) return alert(`Hata: ${error.message}`);
     } else if (islemTip === "sil") {
       await supabase.from(tablo).delete().eq("id", id);
@@ -1080,7 +1107,7 @@ export default function App() {
 
   async function handleTahsilatKaydet() {
     if (!tahsilatForm.bayi || !tahsilatForm.miktar) return alert("Bayi ve miktar alanları zorunludur!");
-    if (!bayiler.some(b => b.isim === tahsilatForm.bayi)) return alert("Lütfen listeden geçerli bir Bayi/Müşteri seçin! Kendiniz rastgele isim giremezsiniz.");
+    if (!aktifBayiler.some(b => b.isim === tahsilatForm.bayi)) return alert("Lütfen listeden geçerli bir Bayi/Müşteri seçin! Kendiniz rastgele isim giremezsiniz.");
 
     const tMiktar = Number(tahsilatForm.miktar);
     if (tMiktar <= 0) return alert("Geçerli bir tahsilat tutarı girin.");
@@ -1199,9 +1226,9 @@ export default function App() {
 
   const filtrelenmisBayiler = useMemo(() => {
     const arama = bayiSecimModal.arama.trim().toLocaleLowerCase("tr-TR");
-    if (!arama) return bayiler;
-    return bayiler.filter((bayi) => bayi.isim.toLocaleLowerCase("tr-TR").includes(arama));
-  }, [bayiSecimModal.arama, bayiler]);
+    if (!arama) return aktifBayiler;
+    return aktifBayiler.filter((bayi) => bayi.isim.toLocaleLowerCase("tr-TR").includes(arama));
+  }, [aktifBayiler, bayiSecimModal.arama]);
 
   const aktifBayi = fisUst.bayi;
   
@@ -1366,7 +1393,7 @@ export default function App() {
 
   async function handleTopluFisKaydet() {
     if (!fisUst.bayi) return alert("Lütfen bir Bayi/Market seçin!");
-    if (!bayiler.some(b => b.isim === fisUst.bayi)) return alert("Lütfen listeden geçerli bir Bayi/Market seçin! Kendiniz rastgele isim giremezsiniz.");
+    if (!aktifBayiler.some(b => b.isim === fisUst.bayi)) return alert("Lütfen listeden geçerli bir Bayi/Market seçin! Kendiniz rastgele isim giremezsiniz.");
     if (editingFisId && !fisDuzenlenebilirMi({ id: editingFisId, fis_no: editingFisNo || undefined })) {
       return alert("Bu fişi sadece ekleyen kullanıcı veya admin düzenleyebilir.");
     }
@@ -2931,6 +2958,9 @@ export default function App() {
           ayarIslem(tablo, yeniIsim.trim(), "guncelle", id);
         }
       }}
+      onSettingToggleActive={(tablo, id, aktif) => {
+        ayarIslem(tablo, !aktif, "durum", id);
+      }}
       onSettingDelete={(tablo, id, isim) => {
         if (confirm(`Silinecek: ${isim}`)) ayarIslem(tablo, null, "sil", id);
       }}
@@ -3153,7 +3183,9 @@ export default function App() {
                     const isFilled = (Number(fisDetay[u.id]?.adet) > 0 || Number(fisDetay[u.id]?.kg) > 0);
                     const isEkstraUrun = !isFixed && !isTereyagi && !isYogurtKaymagi;
                     const ekstraUrunSecili = gosterilenEkler.urunler.includes(u.id);
+                    const isAktif = u.aktif !== false;
 
+                    if (!isAktif && !isFilled) return null;
                     if (!isFixed && !isFilled && !(gosterilenEkler.tereyagi && isTereyagi) && !(gosterilenEkler.yogurt_kaymagi && isYogurtKaymagi) && !(isEkstraUrun && ekstraUrunSecili)) return null;
 
                     const handleAdetChange = (e: any) => {
@@ -3186,7 +3218,7 @@ export default function App() {
                   
                   <div style={{ display: "flex", gap: "6px", marginBottom: "4px", marginTop: "4px", flexWrap: "wrap", position: "relative" }}>
                       {(() => {
-                        const digerSecenekler = urunler.filter(u => {
+                        const digerSecenekler = aktifUrunler.filter(u => {
                           const isimLower = u.isim.toLowerCase();
                           const isFixed = (isimLower.includes("3 kg") || isimLower.includes("5 kg") || (isimLower.includes("kayma") && !isimLower.includes("yoğurt")));
                           const isTereyagi = isimLower.includes("tereya");
@@ -3199,13 +3231,13 @@ export default function App() {
                         });
 
                         return digerSecenekler.length > 0 ? (
-                          <div style={{ position: "relative" }}>
+                          <div ref={digerUrunMenuRef} style={{ position: "relative" }}>
                             <button
                               onClick={() => setIsDigerUrunMenuOpen(p => !p)}
                               className="btn-anim"
-                              style={{ background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: "4px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", color: "#475569" }}
+                              style={{ background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: "6px", padding: "6px 8px", fontSize: "11px", fontWeight: "bold", color: "#475569", height: "30px", display: "inline-flex", alignItems: "center" }}
                             >
-                              + Diğer
+                              + Diğer Ürünler
                             </button>
                             {isDigerUrunMenuOpen && (
                               <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, minWidth: "150px", maxWidth: "220px", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "8px", boxShadow: "0 12px 24px rgba(15, 23, 42, 0.16)", padding: "6px", zIndex: 5, display: "flex", flexDirection: "column", gap: "4px" }}>
@@ -3236,8 +3268,8 @@ export default function App() {
                           </div>
                         ) : null;
                       })()}
-                      <button onClick={() => setGosterilenEkler(p => ({...p, iade: true}))} className="btn-anim" style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "6px", padding: "6px 8px", fontSize: "11px", fontWeight: "bold", color: "#dc2626", lineHeight: 1.2 }}>+ İade</button>
-                      <button onClick={() => setGosterilenEkler(p => ({...p, bos_kova: true}))} className="btn-anim" style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "6px", padding: "6px 8px", fontSize: "11px", fontWeight: "bold", color: "#dc2626", lineHeight: 1.2 }}>+ Boş Kova</button>
+                      <button onClick={() => setGosterilenEkler(p => ({...p, iade: true}))} className="btn-anim" style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "6px", padding: "6px 8px", fontSize: "11px", fontWeight: "bold", color: "#dc2626", height: "30px", display: "inline-flex", alignItems: "center" }}>+ İade</button>
+                      <button onClick={() => setGosterilenEkler(p => ({...p, bos_kova: true}))} className="btn-anim" style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "6px", padding: "6px 8px", fontSize: "11px", fontWeight: "bold", color: "#dc2626", height: "30px", display: "inline-flex", alignItems: "center" }}>+ Boş Kova</button>
                   </div>
 
                   {(gosterilenEkler.iade || Number(fisDetay["v_iade"]?.adet) > 0 || Number(fisDetay["v_iade"]?.kg) > 0) && (
@@ -3454,8 +3486,8 @@ export default function App() {
                    <input type="date" value={sutForm.tarih} onChange={e => setSutForm({ ...sutForm, tarih: e.target.value })} className="m-inp date-click" style={{ flex: 1 }} />
                    <select value={sutForm.ciftlik} onChange={e => setSutForm({ ...sutForm, ciftlik: e.target.value })} className="m-inp" style={{ flex: 2, fontWeight: "bold" }}>
                      <option value="">Çiftlik Seç...</option>
-                     {tedarikciler.map(t => <option key={t.id} value={t.isim}>{t.isim}</option>)}
-                   </select>
+                     {aktifTedarikciler.map(t => <option key={t.id} value={t.isim}>{t.isim}</option>)}
+                    </select>
                 </div>
                 <div style={{ display: "flex", gap: "8px" }}>
                   <div style={{flex: 1}}><label style={{fontSize: "11px", color: "#64748b"}}>Miktar (KG)</label><input type="number" value={sutForm.kg} onChange={e => setSutForm({ ...sutForm, kg: e.target.value })} className="m-inp" style={{width: "100%", textAlign: "right"}} /></div>

@@ -12,17 +12,20 @@ export type ActiveAyarTab =
 export interface Ciftlik {
   id: string;
   isim: string;
+  aktif?: boolean | null;
 }
 
 export interface Bayi {
   id: string;
   isim: string;
+  aktif?: boolean | null;
 }
 
 export interface Urun {
   id: string;
   isim: string;
   fiyat?: number | string;
+  aktif?: boolean | null;
 }
 
 export interface GiderTuru {

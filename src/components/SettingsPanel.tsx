@@ -25,6 +25,7 @@ interface SettingsPanelProps {
   setYeniAyarDeger: (value: string) => void;
   handleAyarEkle: () => void;
   onSettingEdit: (tablo: string, id: string, isim: string) => void;
+  onSettingToggleActive: (tablo: string, id: string, aktif: boolean) => void;
   onSettingDelete: (tablo: string, id: string, isim: string) => void;
   onOpenTrash: () => void;
   onExcelBackup: () => void;
@@ -158,6 +159,7 @@ export function SettingsPanel({
   setYeniAyarDeger,
   handleAyarEkle,
   onSettingEdit,
+  onSettingToggleActive,
   onSettingDelete,
   onOpenTrash,
   onExcelBackup,
@@ -182,10 +184,21 @@ export function SettingsPanel({
   );
 
   const aktifAyarListesi = useMemo(() => {
-    if (activeAyarTab === "musteriler") return bayiler;
-    if (activeAyarTab === "urunler") return urunler;
-    if (activeAyarTab === "ciftlikler") return tedarikciler;
-    return giderTuruListesi;
+    const liste =
+      activeAyarTab === "musteriler"
+        ? bayiler
+        : activeAyarTab === "urunler"
+          ? urunler
+          : activeAyarTab === "ciftlikler"
+            ? tedarikciler
+            : giderTuruListesi;
+
+    return [...liste].sort((a, b) => {
+      const aAktif = "aktif" in a ? a.aktif !== false : true;
+      const bAktif = "aktif" in b ? b.aktif !== false : true;
+      if (aAktif !== bAktif) return aAktif ? -1 : 1;
+      return a.isim.localeCompare(b.isim, "tr");
+    });
   }, [activeAyarTab, bayiler, giderTuruListesi, urunler, tedarikciler]);
 
   const aktifTabloAdi = useMemo(() => {
@@ -323,6 +336,10 @@ export function SettingsPanel({
 
             <div style={{ display: "flex", flexDirection: "column", gap: "6px", overflowY: "auto", paddingRight: "4px" }}>
               {aktifAyarListesi.map((item) => (
+                (() => {
+                  const aktif = "aktif" in item ? item.aktif !== false : true;
+                  const pasifDestekli = activeAyarTab === "musteriler" || activeAyarTab === "urunler" || activeAyarTab === "ciftlikler";
+                  return (
                 <div
                   key={item.id}
                   style={{
@@ -330,17 +347,36 @@ export function SettingsPanel({
                     justifyContent: "space-between",
                     alignItems: "center",
                     padding: "6px 10px",
-                    background: "#fff",
-                    border: "1px solid #cbd5e1",
+                    background: aktif ? "#fff" : "#f8fafc",
+                    border: `1px solid ${aktif ? "#cbd5e1" : "#e2e8f0"}`,
                     borderRadius: "8px",
+                    opacity: aktif ? 1 : 0.82,
                   }}
                 >
-                  <span style={{ fontWeight: "bold", color: "#475569", fontSize: "12px" }}>
-                    {item.isim}
-                    {activeAyarTab === "urunler" && "fiyat" in item && item.fiyat
-                      ? ` (${fSayi((item as Urun).fiyat)} ₺)`
-                      : ""}
-                  </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", minWidth: 0 }}>
+                    <span style={{ fontWeight: "bold", color: "#475569", fontSize: "12px" }}>
+                      {item.isim}
+                      {activeAyarTab === "urunler" && "fiyat" in item && item.fiyat
+                        ? ` (${fSayi((item as Urun).fiyat)} ₺)`
+                        : ""}
+                    </span>
+                    {pasifDestekli && (
+                      <span
+                        style={{
+                          background: aktif ? "#ecfdf5" : "#fef2f2",
+                          color: aktif ? "#059669" : "#dc2626",
+                          border: `1px solid ${aktif ? "#a7f3d0" : "#fecaca"}`,
+                          borderRadius: "999px",
+                          padding: "1px 6px",
+                          fontSize: "10px",
+                          fontWeight: "bold",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {aktif ? "Aktif" : "Pasif"}
+                      </span>
+                    )}
+                  </div>
                   <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                     <button
                       onClick={() => onSettingEdit(aktifTabloAdi, item.id, item.isim)}
@@ -361,27 +397,54 @@ export function SettingsPanel({
                     >
                       ✎
                     </button>
-                    <button
-                      onClick={() => onSettingDelete(aktifTabloAdi, item.id, item.isim)}
-                      style={{
-                        background: "#fef2f2",
-                        border: "1px solid #fecaca",
-                        color: "#dc2626",
-                        borderRadius: "4px",
-                        width: "24px",
-                        height: "24px",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        cursor: "pointer",
-                        fontSize: "12px",
-                      }}
-                      title="Sil"
-                    >
-                      ✕
-                    </button>
+                    {pasifDestekli ? (
+                      <button
+                        onClick={() => onSettingToggleActive(aktifTabloAdi, item.id, aktif)}
+                        style={{
+                          background: aktif ? "#fef2f2" : "#ecfdf5",
+                          border: `1px solid ${aktif ? "#fecaca" : "#a7f3d0"}`,
+                          color: aktif ? "#dc2626" : "#059669",
+                          borderRadius: "6px",
+                          minWidth: "56px",
+                          height: "24px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          cursor: "pointer",
+                          fontSize: "11px",
+                          fontWeight: "bold",
+                          padding: "0 8px",
+                          whiteSpace: "nowrap",
+                        }}
+                        title={aktif ? "Pasif yap" : "Aktif yap"}
+                      >
+                        {aktif ? "Pasif" : "Aktif"}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => onSettingDelete(aktifTabloAdi, item.id, item.isim)}
+                        style={{
+                          background: "#fef2f2",
+                          border: "1px solid #fecaca",
+                          color: "#dc2626",
+                          borderRadius: "4px",
+                          width: "24px",
+                          height: "24px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          cursor: "pointer",
+                          fontSize: "12px",
+                        }}
+                        title="Sil"
+                      >
+                        ✕
+                      </button>
+                    )}
                   </div>
                 </div>
+                  );
+                })()
               ))}
 
               {aktifAyarListesi.length === 0 && (
