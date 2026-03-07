@@ -8,7 +8,7 @@ import type {
   Uretim,
   YedekVerisi,
 } from "../types/app";
-import { dosyaIndir, normalizeUsername } from "../utils/format";
+import { dosyaIndir, fSayi, normalizeUsername } from "../utils/format";
 
 const kayitYok = [{ Bilgi: "Kayit yok" }];
 const SISTEM_ISLEMI = "SİSTEM İŞLEMİ";
@@ -311,6 +311,67 @@ const copKutusuOzetleri = (veri: YedekVerisi) =>
     };
   });
 
+const escapeHtml = (deger: unknown) =>
+  String(deger ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+const hucreMetni = (deger: unknown) => {
+  if (typeof deger === "number") return fSayi(deger);
+  if (deger === null || deger === undefined || deger === "") return "-";
+  return String(deger);
+};
+
+const htmlKartlar = (kartlar: Array<{ baslik: string; deger: string }>) =>
+  `<div class="cards">${kartlar
+    .map(
+      (kart) => `
+      <article class="card">
+        <div class="card-label">${escapeHtml(kart.baslik)}</div>
+        <div class="card-value">${escapeHtml(kart.deger)}</div>
+      </article>`,
+    )
+    .join("")}</div>`;
+
+const htmlTablo = (basliklar: string[], satirlar: Array<Record<string, unknown>>) => {
+  const rows = satirlar.length > 0
+    ? satirlar
+    : [Object.fromEntries(basliklar.map((baslik) => [baslik, "-"]))];
+
+  return `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>${basliklar.map((baslik) => `<th>${escapeHtml(baslik)}</th>`).join("")}</tr>
+        </thead>
+        <tbody>
+          ${rows
+            .map(
+              (satir) => `
+                <tr>
+                  ${basliklar
+                    .map((baslik) => `<td>${escapeHtml(hucreMetni(satir[baslik]))}</td>`)
+                    .join("")}
+                </tr>`,
+            )
+            .join("")}
+        </tbody>
+      </table>
+    </div>`;
+};
+
+const htmlBolum = (id: string, baslik: string, icerik: string, aciklama = "") => `
+  <section id="${escapeHtml(id)}" class="section">
+    <div class="section-head">
+      <h2>${escapeHtml(baslik)}</h2>
+      ${aciklama ? `<p>${escapeHtml(aciklama)}</p>` : ""}
+    </div>
+    ${icerik}
+  </section>`;
+
 export const yedegiJsonIndir = (veri: YedekVerisi) => {
   dosyaIndir(
     JSON.stringify(veri, null, 2),
@@ -444,4 +505,402 @@ export const yedegiExcelIndir = (veri: YedekVerisi) => {
   sheetEkle(workbook, "Yetkiler", yetkiSayfasi);
 
   XLSX.writeFile(workbook, `sultankoy-yedek-tum-donemler-${yedekDosyaTarihi(veri.alindiTarih)}.xlsx`);
+};
+
+export const yedegiHtmlIndir = (veri: YedekVerisi) => {
+  const satisFisToplamBorcMap = satisFisToplamBorcMapOlustur(veri.satisFisList);
+  const donemOzetleri = donemOzetiOlustur(veri);
+  const donemMusteriBorclari = donemBazliMusteriBorclariOlustur(veri);
+  const donemPersonelOzetleri = donemBazliPersonelOzetleriOlustur(veri);
+  const donemOzetBasliklari = donemOzetleri.length > 0
+    ? Object.keys(donemOzetleri[0])
+    : [
+        "Donem",
+        "Sut Girisi",
+        "Satis Fisi",
+        "Satis Satiri",
+        "Gider",
+        "Yogurt Uretimi",
+        "Sut Kaymagi Uretimi",
+        "Toplam Satis",
+        "Toplam Gider",
+        "Bayi Acik Hesap",
+        "Sutcuye Borcumuz",
+      ];
+
+  const aktifOzetKartlari = htmlKartlar([
+    { baslik: "Aktif Donem", deger: veri.aktifDonem },
+    ...veri.ozetKartlari.map((item) => ({ baslik: item.baslik, deger: fSayi(item.deger) })),
+  ]);
+
+  const aktifMusteriTablosu = htmlTablo(
+    ["Musteri", "Borc"],
+    veri.bayiBorclari.map((item) => ({
+      Musteri: item.isim,
+      Borc: item.deger,
+    })),
+  );
+
+  const aktifPersonelTablosu = htmlTablo(
+    ["Personel", "Satis", "Tahsilat", "Gider", "Kasaya Devir", "Net", "Acik Bakiye"],
+    veri.personelOzetleri.map((item) => ({
+      Personel: item.isim,
+      Satis: item.satis,
+      Tahsilat: item.tahsilat,
+      Gider: item.gider,
+      "Kasaya Devir": item.kasayaDevir,
+      Net: item.net,
+      "Acik Bakiye": item.acikBakiye,
+    })),
+  );
+
+  const donemOzetTablosu = htmlTablo(donemOzetBasliklari, donemOzetleri as Array<Record<string, unknown>>);
+
+  const donemMusteriTablosu = htmlTablo(
+    ["Donem", "Musteri", "Borc"],
+    donemMusteriBorclari.map((item) => ({
+      Donem: item.Donem,
+      Musteri: item.Musteri,
+      Borc: item.Borc,
+    })),
+  );
+
+  const donemPersonelTablosu = htmlTablo(
+    ["Donem", "Personel", "Satis", "Tahsilat", "Gider", "Kasaya Devir", "Net", "Acik Bakiye"],
+    donemPersonelOzetleri.map((item) => ({
+      Donem: item.Donem,
+      Personel: item.Personel,
+      Satis: item.Satis,
+      Tahsilat: item.Tahsilat,
+      Gider: item.Gider,
+      "Kasaya Devir": item["Kasaya Devir"],
+      Net: item.Net,
+      "Acik Bakiye": item["Acik Bakiye"],
+    })),
+  );
+
+  const satisFisleriTablosu = htmlTablo(
+    ["Tarih", "Fis No", "Bayi", "Tutar", "Tahsilat", "Bu Fisten Kalan", "Toplam Borc", "Odeme Turu", "Teslim Alan", "Aciklama", "Kisi"],
+    veri.satisFisList.map((item) => {
+      const detay = fisAciklamasiniAyir(item.aciklama);
+      return {
+        Tarih: kisaTarih(item.tarih),
+        "Fis No": item.fis_no,
+        Bayi: item.bayi,
+        Tutar: Number(item.toplam_tutar || 0),
+        Tahsilat: Number(item.tahsilat || 0),
+        "Bu Fisten Kalan": Number(item.kalan_bakiye || 0),
+        "Toplam Borc": item.id ? satisFisToplamBorcMap[String(item.id)] ?? 0 : 0,
+        "Odeme Turu": item.odeme_turu,
+        "Teslim Alan": detay.teslimAlan,
+        Aciklama: detay.aciklama,
+        Kisi: kisiGetir(item.ekleyen),
+      };
+    }),
+  );
+
+  const satisDetayTablosu = htmlTablo(
+    ["Tarih", "Bayi", "Urun", "Adet", "KG", "Fiyat", "Tutar", "Kisi"],
+    veri.satisList.map((item) => ({
+      Tarih: kisaTarih(item.tarih),
+      Bayi: item.bayi,
+      Urun: item.urun,
+      Adet: Number(item.adet || 0),
+      KG: Number(item.toplam_kg || 0),
+      Fiyat: Number(item.fiyat || 0),
+      Tutar: Number(item.tutar || 0),
+      Kisi: kisiGetir(item.ekleyen),
+    })),
+  );
+
+  const sutTablosu = htmlTablo(
+    ["Tarih", "Ciftlik", "KG", "Fiyat", "Tutar", "Kisi", "Aciklama"],
+    veri.sutList.map((item) => ({
+      Tarih: kisaTarih(item.tarih),
+      Ciftlik: item.ciftlik,
+      KG: Number(item.kg || 0),
+      Fiyat: Number(item.fiyat || 0),
+      Tutar: Number(item.toplam_tl || 0),
+      Kisi: kisiGetir(item.ekleyen),
+      Aciklama: item.aciklama || "",
+    })),
+  );
+
+  const giderTablosu = htmlTablo(
+    ["Tarih", "Tur", "Tutar", "Kisi", "Aciklama"],
+    veri.giderList.map((item) => ({
+      Tarih: kisaTarih(item.tarih),
+      Tur: item.tur,
+      Tutar: Number(item.tutar || 0),
+      Kisi: kisiGetir(item.ekleyen),
+      Aciklama: item.aciklama || "",
+    })),
+  );
+
+  const yogurtTablosu = htmlTablo(
+    ["Tarih", "Giren KG", "Cikan KG", "3'lük", "5'lik", "Maliyet", "Kar", "Kisi", "Aciklama"],
+    veri.uretimList
+      .filter((item) => (item.uretim_tipi || "yogurt") === "yogurt")
+      .map((item) => ({
+        Tarih: kisaTarih(item.tarih),
+        "Giren KG": Number(item.toplam_kg || 0),
+        "Cikan KG": Number(item.cikan_toplam_kg || 0),
+        "3'lük": Number(item.cikti_3kg || 0),
+        "5'lik": Number(item.cikti_5kg || 0),
+        Maliyet: Number(item.toplam_maliyet || 0),
+        Kar: Number(item.kar || 0),
+        Kisi: kisiGetir(item.ekleyen),
+        Aciklama: item.aciklama || "",
+      })),
+  );
+
+  const sutKaymagiTablosu = htmlTablo(
+    ["Tarih", "Giren KG", "Cikan KG", "2'lik", "3'lük", "Maliyet", "Kar", "Kisi", "Aciklama"],
+    veri.uretimList
+      .filter((item) => item.uretim_tipi === "sut_kaymagi")
+      .map((item) => ({
+        Tarih: kisaTarih(item.tarih),
+        "Giren KG": Number(item.toplam_kg || 0),
+        "Cikan KG": Number(item.cikan_toplam_kg || 0),
+        "2'lik": Number(item.cikti_2kg || 0),
+        "3'lük": Number(item.cikti_3kg || 0),
+        Maliyet: Number(item.toplam_maliyet || 0),
+        Kar: Number(item.kar || 0),
+        Kisi: kisiGetir(item.ekleyen),
+        Aciklama: item.aciklama || "",
+      })),
+  );
+
+  const tanimlarTablosu = htmlTablo(
+    ["Tur", "Liste"],
+    [
+      { Tur: "Musteriler", Liste: veri.bayiler.map((item) => item.isim).join(", ") || "-" },
+      { Tur: "Urunler", Liste: veri.urunler.map((item) => item.isim).join(", ") || "-" },
+      { Tur: "Ciftlikler", Liste: veri.ciftlikler.map((item) => item.isim).join(", ") || "-" },
+      {
+        Tur: "Yetkiler",
+        Liste:
+          veri.tabYetkileri
+            .map((item) => `${kisiGetir(item.username)}: ${Object.entries(item.tabs || {}).filter(([, acik]) => Boolean(acik)).map(([sekme]) => sekme).join(", ")}`)
+            .join(" | ") || "-",
+      },
+    ],
+  );
+
+  const html = `<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sultankoy V3 Rapor Yedegi</title>
+    <style>
+      :root {
+        --bg: #eef3f8;
+        --card: #ffffff;
+        --text: #122033;
+        --muted: #5b6b80;
+        --line: #d7e1ec;
+        --brand: #2563eb;
+        --brand-soft: #dbeafe;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Arial, sans-serif;
+        background: linear-gradient(180deg, #f7fafc 0%, var(--bg) 100%);
+        color: var(--text);
+      }
+      .page {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px 14px 40px;
+      }
+      .hero {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        padding: 18px;
+        box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
+        margin-bottom: 16px;
+      }
+      .hero h1 {
+        margin: 0 0 8px;
+        font-size: 28px;
+        color: var(--brand);
+      }
+      .hero p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 14px;
+      }
+      .chip {
+        background: var(--brand-soft);
+        color: var(--brand);
+        padding: 8px 12px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .nav {
+        display: flex;
+        gap: 8px;
+        overflow: auto;
+        padding-bottom: 8px;
+        margin-bottom: 12px;
+      }
+      .nav a {
+        text-decoration: none;
+        white-space: nowrap;
+        background: var(--card);
+        color: var(--text);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 10px 14px;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .section {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 16px;
+        margin-bottom: 14px;
+        box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+      }
+      .section-head {
+        margin-bottom: 12px;
+      }
+      .section-head h2 {
+        margin: 0 0 6px;
+        font-size: 20px;
+      }
+      .section-head p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.5;
+        font-size: 13px;
+      }
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 10px;
+      }
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 12px;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+      }
+      .card-label {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+        margin-bottom: 6px;
+      }
+      .card-value {
+        font-size: 22px;
+        font-weight: 800;
+        color: var(--brand);
+      }
+      .table-wrap {
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 720px;
+      }
+      th, td {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        font-size: 13px;
+        vertical-align: top;
+      }
+      th {
+        background: #f8fafc;
+        color: #3b82f6;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+      }
+      tr:last-child td {
+        border-bottom: none;
+      }
+      .footer {
+        text-align: center;
+        color: var(--muted);
+        font-size: 12px;
+        padding-top: 10px;
+      }
+      @media (max-width: 720px) {
+        .page { padding: 14px 10px 28px; }
+        .hero h1 { font-size: 24px; }
+        .section { padding: 14px; }
+        table { min-width: 620px; }
+      }
+      @media print {
+        body { background: #fff; }
+        .page { max-width: none; padding: 0; }
+        .hero, .section { box-shadow: none; break-inside: avoid; }
+        .nav { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header class="hero">
+        <h1>SULTANKOY V3 RAPOR YEDEGI</h1>
+        <p>Bu dosya tek basina calisir. Telefon ve bilgisayarda internet gerektirmeden tarayicida acilabilir. Teknik geri yukleme icin JSON yedegi saklanmaya devam edilmelidir.</p>
+        <div class="meta">
+          <span class="chip">Alinma: ${escapeHtml(veri.alindiTarih)}</span>
+          <span class="chip">Aktif Donem: ${escapeHtml(veri.aktifDonem)}</span>
+          <span class="chip">Kaynak: ${escapeHtml(veri.kaynak)}</span>
+        </div>
+      </header>
+
+      <nav class="nav">
+        <a href="#ozet">Ozet</a>
+        <a href="#donemler">Donemler</a>
+        <a href="#musteriler">Musteri Borclari</a>
+        <a href="#personel">Personel</a>
+        <a href="#satis-fisleri">Satis Fisleri</a>
+        <a href="#satis-detay">Satis Detay</a>
+        <a href="#sut">Sut</a>
+        <a href="#gider">Gider</a>
+        <a href="#yogurt">Yogurt Uretim</a>
+        <a href="#kaymak">Sut Kaymagi</a>
+        <a href="#tanimlar">Tanimlar</a>
+      </nav>
+
+      ${htmlBolum("ozet", "Aktif Donem Ozeti", aktifOzetKartlari, "Uygulamada o anda gorulen ust toplamlar.")}
+      ${htmlBolum("donemler", "Donem Ozetleri", donemOzetTablosu, "Tum donemlerin toplu gorunumu.")}
+      ${htmlBolum("musteriler", "Musteri Borclari", aktifMusteriTablosu + donemMusteriTablosu, "Aktif donem ve tum donem bakiyeleri birlikte listelenir.")}
+      ${htmlBolum("personel", "Personel Ozetleri", aktifPersonelTablosu + donemPersonelTablosu, "Tahsilat, gider, kasaya devir ve net bakiye takibi.")}
+      ${htmlBolum("satis-fisleri", "Satis Fisleri", satisFisleriTablosu, "Kullaniciya yakin fis listesi gorunumu.")}
+      ${htmlBolum("satis-detay", "Satis Detaylari", satisDetayTablosu, "Urun bazli satis satirlari.")}
+      ${htmlBolum("sut", "Sut Hareketleri", sutTablosu)}
+      ${htmlBolum("gider", "Gider Hareketleri", giderTablosu)}
+      ${htmlBolum("yogurt", "Yogurt Uretimleri", yogurtTablosu)}
+      ${htmlBolum("kaymak", "Sut Kaymagi Uretimleri", sutKaymagiTablosu)}
+      ${htmlBolum("tanimlar", "Tanim Listeleri", tanimlarTablosu, "Musteriler, urunler, ciftlikler ve sekme yetkileri.")}
+
+      <div class="footer">Sultankoy V3 HTML rapor yedegi • Tek dosya • Offline acilabilir</div>
+    </main>
+  </body>
+</html>`;
+
+  dosyaIndir(
+    html,
+    `sultankoy-rapor-yedegi-${yedekDosyaTarihi(veri.alindiTarih)}.html`,
+    "text/html;charset=utf-8",
+  );
 };

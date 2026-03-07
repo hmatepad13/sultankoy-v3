@@ -28,6 +28,7 @@ interface SettingsPanelProps {
   onOpenTrash: () => void;
   onExcelBackup: () => void;
   onJsonBackup: () => void;
+  onHtmlBackup: () => void;
   isBackupLoading: boolean;
   isAdmin: boolean;
   mevcutKullanici: string;
@@ -160,6 +161,7 @@ export function SettingsPanel({
   onOpenTrash,
   onExcelBackup,
   onJsonBackup,
+  onHtmlBackup,
   isBackupLoading,
   isAdmin,
   mevcutKullanici,
@@ -382,6 +384,21 @@ export function SettingsPanel({
               </p>
             </div>
             <div style={{ ...kartStili, display: "grid", gap: "10px" }}>
+              <button
+                onClick={onHtmlBackup}
+                disabled={isBackupLoading}
+                style={{
+                  background: "#7c3aed",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "10px",
+                  padding: "12px 14px",
+                  fontWeight: "bold",
+                  cursor: isBackupLoading ? "wait" : "pointer",
+                }}
+              >
+                {isBackupLoading ? "Hazirlaniyor..." : "HTML Rapor Yedegi Indir"}
+              </button>
               <button
                 onClick={onExcelBackup}
                 disabled={isBackupLoading}

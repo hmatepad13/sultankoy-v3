@@ -7,7 +7,7 @@ import {
   TAB_TANIMLARI,
   TEMA_RENGI,
 } from "./constants/app";
-import { yedegiExcelIndir, yedegiJsonIndir } from "./lib/backup";
+import { yedegiExcelIndir, yedegiHtmlIndir, yedegiJsonIndir } from "./lib/backup";
 import { adminMi, kullaniciYetkileriniKaydet, kullaniciYetkileriniYukle, kullaniciYetkisiniBul } from "./lib/permissions";
 import { supabase } from "./lib/supabase";
 import type {
@@ -1990,6 +1990,15 @@ export default function App() {
     }
   };
 
+  const handleHtmlBackup = async () => {
+    setIsBackupLoading(true);
+    try {
+      yedegiHtmlIndir(yedekVerisi);
+    } finally {
+      setIsBackupLoading(false);
+    }
+  };
+
   const handlePermissionSave = async (next: KullaniciSekmeYetkisi[]) => {
     const { kayitlar, kaynak, uyari } = await kullaniciYetkileriniKaydet(next);
     setTabYetkileri(kayitlar);
@@ -2839,6 +2848,7 @@ export default function App() {
         if (confirm(`Silinecek: ${isim}`)) ayarIslem(tablo, null, "sil", id);
       }}
       onOpenTrash={() => verileriGetir("cop")}
+      onHtmlBackup={handleHtmlBackup}
       onExcelBackup={handleExcelBackup}
       onJsonBackup={handleJsonBackup}
       isBackupLoading={isBackupLoading}
