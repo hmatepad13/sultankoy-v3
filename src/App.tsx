@@ -2242,30 +2242,12 @@ export default function App() {
     );
   };
 
-  const renderUretimToplamlari = (kayitlar: Uretim[], renk: string) => {
-    const toplamGiren = kayitlar.reduce((toplam, kayit) => toplam + uretimGirenToplamKg(kayit), 0);
-    const toplamCikan = kayitlar.reduce((toplam, kayit) => toplam + uretimCikanToplamKg(kayit), 0);
-    const toplamMaliyet = kayitlar.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.toplam_maliyet), 0);
-
-    return (
-      <div style={{ display: "flex", gap: "6px", marginTop: "6px", flexWrap: "nowrap" }}>
-        <div style={{ flex: 1, border: `1px solid ${renk}33`, background: `${renk}10`, color: renk, borderRadius: "999px", padding: "5px 8px", textAlign: "center", fontSize: "10px", fontWeight: "bold", whiteSpace: "nowrap", minWidth: 0 }}>
-          GİREN {fSayi(toplamGiren)} KG
-        </div>
-        <div style={{ flex: 1, border: "1px solid #2563eb33", background: "#2563eb10", color: "#2563eb", borderRadius: "999px", padding: "5px 8px", textAlign: "center", fontSize: "10px", fontWeight: "bold", whiteSpace: "nowrap", minWidth: 0 }}>
-          ÇIKAN {fSayi(toplamCikan)} KG
-        </div>
-        <div style={{ flex: 1, border: "1px solid #dc262633", background: "#dc262610", color: "#dc2626", borderRadius: "999px", padding: "5px 8px", textAlign: "center", fontSize: "10px", fontWeight: "bold", whiteSpace: "nowrap", minWidth: 0 }}>
-          MALİYET {fSayi(toplamMaliyet)} ₺
-        </div>
-      </div>
-    );
-  };
-
-  const uretimMiniDetayMesaji = (baslik: string, satirlar: Array<{ etiket: string; deger: string; vurgu?: boolean }>) =>
-    `${baslik}\n\n${satirlar.map((satir) => `${satir.etiket}: ${satir.deger}`).join("\n")}`;
-
-  const uretimListeOzetiAc = (kayitlar: Uretim[], tip: "yogurt" | "sut_kaymagi", alan: "giren" | "cikan" | "maliyet") => {
+  const uretimToplamDetayiAc = (
+    kayitlar: Uretim[],
+    tip: "yogurt" | "sut_kaymagi",
+    alan: "giren" | "cikan" | "maliyet",
+    renk: string,
+  ) => {
     if (alan === "giren") {
       const satirlar = tip === "sut_kaymagi"
         ? [
@@ -2273,14 +2255,16 @@ export default function App() {
             { etiket: "Süt", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.cig_sut), 0))} KG` },
             { etiket: "Teremyağ", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.tereyag), 0))} KG` },
             { etiket: "Katkı", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.katki_kg), 0))} KG` },
+            { etiket: "Toplam", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + uretimGirenToplamKg(kayit), 0))} KG`, vurgu: true },
           ]
         : [
             { etiket: "Süt", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.cig_sut), 0))} KG` },
             { etiket: "Süt Tozu", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.sut_tozu), 0))} KG` },
             { etiket: "Teremyağ", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.tereyag), 0))} KG` },
             { etiket: "Katkı", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.katki_kg), 0))} KG` },
+            { etiket: "Toplam", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + uretimGirenToplamKg(kayit), 0))} KG`, vurgu: true },
           ];
-      window.alert(uretimMiniDetayMesaji("Giren Detayı", satirlar));
+      setUretimMiniDetay({ baslik: "Giren Detayı", renk, satirlar });
       return;
     }
 
@@ -2289,12 +2273,14 @@ export default function App() {
         ? [
             { etiket: "2 KG", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.cikti_2kg), 0))} Adet / ${fSayi(kayitlar.reduce((toplam, kayit) => toplam + adettenKg(kayit.cikti_2kg, 2), 0))} KG` },
             { etiket: "3 KG", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.cikti_3kg), 0))} Adet / ${fSayi(kayitlar.reduce((toplam, kayit) => toplam + adettenKg(kayit.cikti_3kg, 3), 0))} KG` },
+            { etiket: "Toplam", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + uretimCikanToplamAdet(kayit), 0))} Adet / ${fSayi(kayitlar.reduce((toplam, kayit) => toplam + uretimCikanToplamKg(kayit), 0))} KG`, vurgu: true },
           ]
         : [
             { etiket: "3 KG", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.cikti_3kg), 0))} Adet / ${fSayi(kayitlar.reduce((toplam, kayit) => toplam + adettenKg(kayit.cikti_3kg, 3), 0))} KG` },
             { etiket: "5 KG", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.cikti_5kg), 0))} Adet / ${fSayi(kayitlar.reduce((toplam, kayit) => toplam + adettenKg(kayit.cikti_5kg, 5), 0))} KG` },
+            { etiket: "Toplam", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + uretimCikanToplamAdet(kayit), 0))} Adet / ${fSayi(kayitlar.reduce((toplam, kayit) => toplam + uretimCikanToplamKg(kayit), 0))} KG`, vurgu: true },
           ];
-      window.alert(uretimMiniDetayMesaji("Çıkan Detayı", satirlar));
+      setUretimMiniDetay({ baslik: "Çıkan Detayı", renk, satirlar });
       return;
     }
 
@@ -2304,14 +2290,36 @@ export default function App() {
           { etiket: "Süt", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + kgSatirTutari(kayit.cig_sut, kayit.sut_fiyat), 0))} ₺` },
           { etiket: "Teremyağ", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + kgSatirTutari(kayit.tereyag, kayit.tereyag_fiyat), 0))} ₺` },
           { etiket: "Katkı", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + kgSatirTutari(kayit.katki_kg, kayit.katki_fiyat), 0))} ₺` },
+          { etiket: "Toplam", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.toplam_maliyet), 0))} ₺`, vurgu: true },
         ]
       : [
           { etiket: "Süt", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + kgSatirTutari(kayit.cig_sut, kayit.sut_fiyat), 0))} ₺` },
           { etiket: "Süt Tozu", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + kgSatirTutari(kayit.sut_tozu, kayit.sut_tozu_fiyat), 0))} ₺` },
           { etiket: "Teremyağ", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + kgSatirTutari(kayit.tereyag, kayit.tereyag_fiyat), 0))} ₺` },
           { etiket: "Katkı", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + kgSatirTutari(kayit.katki_kg, kayit.katki_fiyat), 0))} ₺` },
+          { etiket: "Toplam", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.toplam_maliyet), 0))} ₺`, vurgu: true },
         ];
-    window.alert(uretimMiniDetayMesaji("Maliyet Detayı", satirlar));
+    setUretimMiniDetay({ baslik: "Maliyet Detayı", renk, satirlar });
+  };
+
+  const renderUretimToplamlari = (kayitlar: Uretim[], renk: string, tip: "yogurt" | "sut_kaymagi") => {
+    const toplamGiren = kayitlar.reduce((toplam, kayit) => toplam + uretimGirenToplamKg(kayit), 0);
+    const toplamCikan = kayitlar.reduce((toplam, kayit) => toplam + uretimCikanToplamKg(kayit), 0);
+    const toplamMaliyet = kayitlar.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.toplam_maliyet), 0);
+
+    return (
+      <div style={{ display: "flex", gap: "6px", marginTop: "6px", flexWrap: "nowrap" }}>
+        <button type="button" onClick={() => uretimToplamDetayiAc(kayitlar, tip, "giren", renk)} style={{ flex: 1, border: `1px solid ${renk}33`, background: `${renk}10`, color: renk, borderRadius: "999px", padding: "5px 8px", textAlign: "center", fontSize: "10px", fontWeight: "bold", whiteSpace: "nowrap", minWidth: 0, cursor: "pointer" }}>
+          GİREN {fSayi(toplamGiren)} KG
+        </button>
+        <button type="button" onClick={() => uretimToplamDetayiAc(kayitlar, tip, "cikan", renk)} style={{ flex: 1, border: "1px solid #2563eb33", background: "#2563eb10", color: "#2563eb", borderRadius: "999px", padding: "5px 8px", textAlign: "center", fontSize: "10px", fontWeight: "bold", whiteSpace: "nowrap", minWidth: 0, cursor: "pointer" }}>
+          ÇIKAN {fSayi(toplamCikan)} KG
+        </button>
+        <button type="button" onClick={() => uretimToplamDetayiAc(kayitlar, tip, "maliyet", renk)} style={{ flex: 1, border: "1px solid #dc262633", background: "#dc262610", color: "#dc2626", borderRadius: "999px", padding: "5px 8px", textAlign: "center", fontSize: "10px", fontWeight: "bold", whiteSpace: "nowrap", minWidth: 0, cursor: "pointer" }}>
+          MALİYET {fSayi(toplamMaliyet)} ₺
+        </button>
+      </div>
+    );
   };
 
   const renderUretimTablosu = (
@@ -2331,27 +2339,15 @@ export default function App() {
           {butonMetni}
         </button>
       </div>
-      {renderUretimToplamlari(kayitlar, renk)}
+      {renderUretimToplamlari(kayitlar, renk, tip)}
 
       <div className="table-wrapper">
         <table className="tbl" style={{ borderTop: `3px solid ${renk}`, tableLayout: "fixed", fontSize: "11px" }}>
           <thead><tr>
             <Th label="TAR" sortKey="tarih" currentSort={uretimSort} setSort={setUretimSort} />
-            <th style={{ textAlign: "right" }}>
-              <button type="button" onClick={() => uretimListeOzetiAc(kayitlar, tip, "giren")} style={{ border: "none", background: "none", padding: 0, color: "#475569", fontWeight: "bold", cursor: "pointer", fontSize: "10px" }}>
-                GİR
-              </button>
-            </th>
-            <th style={{ textAlign: "right" }}>
-              <button type="button" onClick={() => uretimListeOzetiAc(kayitlar, tip, "cikan")} style={{ border: "none", background: "none", padding: 0, color: "#475569", fontWeight: "bold", cursor: "pointer", fontSize: "10px" }}>
-                ÇIK
-              </button>
-            </th>
-            <th style={{ textAlign: "right" }}>
-              <button type="button" onClick={() => uretimListeOzetiAc(kayitlar, tip, "maliyet")} style={{ border: "none", background: "none", padding: 0, color: "#475569", fontWeight: "bold", cursor: "pointer", fontSize: "10px" }}>
-                MAL
-              </button>
-            </th>
+            <th style={{ textAlign: "right" }}>GİR</th>
+            <th style={{ textAlign: "right" }}>ÇIK</th>
+            <th style={{ textAlign: "right" }}>MAL</th>
             <Th label="KÂR" sortKey="kar" currentSort={uretimSort} setSort={setUretimSort} align="right" />
             <Th label="NOT" sortKey="aciklama" currentSort={uretimSort} setSort={setUretimSort} />
             <th></th>
