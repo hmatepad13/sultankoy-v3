@@ -151,6 +151,7 @@ export interface OzetSatiri {
 
 export interface PersonelOzeti {
   isim: string;
+  satis: number;
   tahsilat: number;
   gider: number;
   kasayaDevir: number;

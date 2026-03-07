@@ -150,6 +150,7 @@ const ozetSatirlariniCevir = (kayitlar: OzetSatiri[]) =>
 const personelCevir = (kayitlar: PersonelOzeti[]) =>
   kayitlar.map((item) => ({
     Personel: item.isim,
+    Satis: item.satis,
     Tahsilat: item.tahsilat,
     Gider: item.gider,
     "Kasaya Devir": item.kasayaDevir,
