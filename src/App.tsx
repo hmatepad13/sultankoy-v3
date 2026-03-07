@@ -1930,31 +1930,31 @@ export default function App() {
          </div>
       </div>
 
-      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "10px", alignItems: "stretch" }}>
-        <div style={{ flex: "1 1 110px", minWidth: "110px", border: "1px solid #05966933", background: "#05966910", color: "#059669", borderRadius: "14px", padding: "8px 10px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-          <span style={{ fontSize: "10px", fontWeight: "bold", opacity: 0.85 }}>SATIŞ</span>
-          <b style={{ fontSize: "16px", marginTop: "4px" }}>{fSayi(tFisToplam)} ₺</b>
+      <div style={{ display: "grid", gridTemplateColumns: "0.95fr 1.45fr 1fr", gap: "6px", marginBottom: "10px", alignItems: "stretch" }}>
+        <div style={{ minWidth: 0, border: "1px solid #05966933", background: "#05966910", color: "#059669", borderRadius: "12px", padding: "6px 8px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+          <span style={{ fontSize: "9px", fontWeight: "bold", opacity: 0.85, whiteSpace: "nowrap" }}>SATIŞ</span>
+          <b style={{ fontSize: "14px", marginTop: "2px", whiteSpace: "nowrap" }}>{fSayi(tFisToplam)} ₺</b>
         </div>
-        <div style={{ flex: "2 1 220px", minWidth: "220px", border: "1px solid #2563eb33", background: "#2563eb10", color: "#2563eb", borderRadius: "14px", padding: "8px 10px", display: "flex", flexDirection: "column", gap: "6px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "8px" }}>
-            <span style={{ fontSize: "10px", fontWeight: "bold", opacity: 0.9 }}>TAHSİLAT</span>
-            <b style={{ fontSize: "16px" }}>{fSayi(tFisTahsilatRaw)} ₺</b>
+        <div style={{ minWidth: 0, border: "1px solid #2563eb33", background: "#2563eb10", color: "#2563eb", borderRadius: "12px", padding: "6px 8px", display: "flex", flexDirection: "column", gap: "4px", justifyContent: "center" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "6px" }}>
+            <span style={{ fontSize: "9px", fontWeight: "bold", opacity: 0.9, whiteSpace: "nowrap" }}>TAHSİLAT</span>
+            <b style={{ fontSize: "14px", whiteSpace: "nowrap" }}>{fSayi(tFisTahsilatRaw)} ₺</b>
           </div>
-          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-            <div style={{ flex: "1 1 70px", minWidth: "70px", borderRadius: "999px", background: "#ffffffaa", padding: "4px 8px", color: "#64748b", fontSize: "10px", fontWeight: "bold" }}>
-              GİDER: {fSayiNoDec(tKullaniciGider)} ₺
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "4px" }}>
+            <div style={{ borderRadius: "999px", background: "#ffffffb8", padding: "3px 5px", color: "#64748b", fontSize: "8px", fontWeight: "bold", textAlign: "center", whiteSpace: "nowrap", overflow: "hidden" }}>
+              Gid {fSayiNoDec(tKullaniciGider)}
             </div>
-            <div style={{ flex: "1 1 76px", minWidth: "76px", borderRadius: "999px", background: "#ffffffaa", padding: "4px 8px", color: "#475569", fontSize: "10px", fontWeight: "bold" }}>
-              K. DEVİR: {fSayiNoDec(tKasayaDevir)} ₺
+            <div style={{ borderRadius: "999px", background: "#ffffffb8", padding: "3px 5px", color: "#475569", fontSize: "8px", fontWeight: "bold", textAlign: "center", whiteSpace: "nowrap", overflow: "hidden" }}>
+              K.Dev {fSayiNoDec(tKasayaDevir)}
             </div>
-            <div style={{ flex: "1 1 64px", minWidth: "64px", borderRadius: "999px", background: "#ffffffcc", padding: "4px 8px", color: "#0f172a", fontSize: "10px", fontWeight: "bold" }}>
-              NET: {fSayiNoDec(tNetTahsilat)} ₺
+            <div style={{ borderRadius: "999px", background: "#ffffffd8", padding: "3px 5px", color: "#0f172a", fontSize: "8px", fontWeight: "bold", textAlign: "center", whiteSpace: "nowrap", overflow: "hidden" }}>
+              Net {fSayiNoDec(tNetTahsilat)}
             </div>
           </div>
         </div>
-        <div style={{ flex: "1 1 120px", minWidth: "120px", border: "1px solid #dc262633", background: "#dc262610", color: "#dc2626", borderRadius: "14px", padding: "8px 10px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-          <span style={{ fontSize: "10px", fontWeight: "bold", opacity: 0.85 }}>AÇIK HESAP</span>
-          <b style={{ fontSize: "16px", marginTop: "4px" }}>{fSayi(tFisKalan)} ₺</b>
+        <div style={{ minWidth: 0, border: "1px solid #dc262633", background: "#dc262610", color: "#dc2626", borderRadius: "12px", padding: "6px 8px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+          <span style={{ fontSize: "9px", fontWeight: "bold", opacity: 0.85, whiteSpace: "nowrap" }}>AÇIK HESAP</span>
+          <b style={{ fontSize: "14px", marginTop: "2px", whiteSpace: "nowrap" }}>{fSayi(tFisKalan)} ₺</b>
         </div>
       </div>
 
