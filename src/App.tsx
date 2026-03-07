@@ -3164,7 +3164,7 @@ export default function App() {
                     <span>Tarih | Fiş No:</span>
                     <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end", textAlign: "right", flexWrap: "wrap" }}>
                       <span>{sonFisData.tarih.split("-").reverse().join(".")}</span>
-                      <span style={{ color: "#94a3b8", fontWeight: 400 }}>{gorunenFisNoOlustur(sonFisData)}</span>
+                      <span style={{ color: "#334155", fontWeight: 400 }}>{gorunenFisNoOlustur(sonFisData)}</span>
                     </div>
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#000", marginBottom: "2px" }}><span>Sayın:</span><b style={{textAlign: "right"}}>{sonFisData.bayi}</b></div>
