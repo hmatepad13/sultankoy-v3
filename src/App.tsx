@@ -231,7 +231,21 @@ const giderTurunuNormalizeEt = (tur?: string | null) =>
     .replace(/ğ/g, "g")
     .replace(/ç/g, "c");
 
-const sutOdemesiMi = (tur?: string | null) => giderTurunuNormalizeEt(tur) === "sut odemesi";
+const sutOdemesiMi = (tur?: string | null) => giderTurunuNormalizeEt(tur).startsWith("sut odemesi");
+
+const sutOdemesiCiftlikIsminiBul = (tur: string | null | undefined, ciftlikAdlari: string[]) => {
+  const normalizeTur = giderTurunuNormalizeEt(tur);
+  if (!normalizeTur.startsWith("sut odemesi")) return null;
+
+  const adaylar = [...ciftlikAdlari].sort((a, b) => b.length - a.length);
+  for (const isim of adaylar) {
+    if (normalizeTur.includes(giderTurunuNormalizeEt(isim))) {
+      return isim;
+    }
+  }
+
+  return null;
+};
 
 const sutcuBorcunuHesapla = (sutKayitlari: SutGiris[], giderKayitlari: Gider[], sonDonem?: string) => {
   const toplamSutTutari = sutKayitlari.reduce((toplam, item) => {
@@ -429,6 +443,11 @@ export default function App() {
   const [isUretimModalOpen, setIsUretimModalOpen] = useState<boolean>(false);
   const [uretimDetayData, setUretimDetayData] = useState<any>(null);
   const [uretimMiniDetay, setUretimMiniDetay] = useState<null | {
+    baslik: string;
+    renk: string;
+    satirlar: Array<{ etiket: string; deger: string; vurgu?: boolean }>;
+  }>(null);
+  const [ozetMiniDetay, setOzetMiniDetay] = useState<null | {
     baslik: string;
     renk: string;
     satirlar: Array<{ etiket: string; deger: string; vurgu?: boolean }>;
@@ -818,13 +837,14 @@ export default function App() {
   const fSayi = (num: any) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 2 }).format(Number(num) || 0).replace(/,00$/, '');
   const fSayiNoDec = (num: any) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(Number(num) || 0);
   const renderKompaktToplamlar = (
-    kartlar: Array<{ etiket: string; deger: string; renk: string }>,
+    kartlar: Array<{ etiket: string; deger: string; renk: string; onClick?: () => void }>,
     style?: CSSProperties,
   ) => (
     <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "10px", ...style }}>
       {kartlar.map((kart) => (
         <div
           key={kart.etiket}
+          onClick={kart.onClick}
           style={{
             border: `1px solid ${kart.renk}33`,
             background: `${kart.renk}10`,
@@ -833,6 +853,8 @@ export default function App() {
             padding: "4px 8px",
             fontSize: "11px",
             fontWeight: "bold",
+            cursor: kart.onClick ? "pointer" : "default",
+            userSelect: "none",
           }}
         >
           {kart.etiket}: {kart.deger}
@@ -1925,6 +1947,64 @@ export default function App() {
   const tGiderNormal = useMemo(() => periodGider.reduce((a: number, b: any) => a + Number(b.tutar), 0), [periodGider]);
   const tUretimMaliyet = useMemo(() => periodUretim.reduce((a: number, b: any) => a + Number(b.toplam_maliyet), 0), [periodUretim]);
   const sutcuyeBorcumuz = useMemo(() => sutcuBorcunuHesapla(sutList, giderList, aktifDonem), [aktifDonem, giderList, sutList]);
+  const sutBorcDetaySatirlari = useMemo(() => {
+    const kayitMap = new Map<string, { alim: number; odeme: number }>();
+    const ciftlikAdlari = Array.from(
+      new Set([
+        ...tedarikciler.map((item) => item.isim).filter(Boolean),
+        ...sutList.map((item) => item.ciftlik).filter(Boolean),
+      ]),
+    );
+
+    const ensure = (isim: string) => {
+      if (!kayitMap.has(isim)) kayitMap.set(isim, { alim: 0, odeme: 0 });
+      return kayitMap.get(isim)!;
+    };
+
+    sutList.forEach((item) => {
+      const donem = String(item.tarih || "").substring(0, 7);
+      if (aktifDonem && donem > aktifDonem) return;
+      const isim = item.ciftlik || "Bilinmeyen Çiftlik";
+      ensure(isim).alim += Number(item.toplam_tl || 0);
+    });
+
+    giderList.forEach((item) => {
+      const donem = String(item.tarih || "").substring(0, 7);
+      if (aktifDonem && donem > aktifDonem) return;
+      if (!sutOdemesiMi(item.tur)) return;
+
+      const ciftlikIsmi = sutOdemesiCiftlikIsminiBul(item.tur, ciftlikAdlari) || "Eşleşmeyen Ödeme";
+      ensure(ciftlikIsmi).odeme += Number(item.tutar || 0);
+    });
+
+    const detaylar = Array.from(kayitMap.entries())
+      .map(([isim, degerler]) => ({
+        isim,
+        alim: degerler.alim,
+        odeme: degerler.odeme,
+        borc: degerler.alim - degerler.odeme,
+      }))
+      .filter((item) => Math.abs(item.alim) > 0.01 || Math.abs(item.odeme) > 0.01 || Math.abs(item.borc) > 0.01)
+      .sort((a, b) => a.isim.localeCompare(b.isim, "tr"));
+
+    if (detaylar.length === 0) {
+      return [{ etiket: "Kayıt", deger: "Detay bulunamadı" }];
+    }
+
+    const toplamAlim = detaylar.reduce((toplam, item) => toplam + item.alim, 0);
+    const toplamOdeme = detaylar.reduce((toplam, item) => toplam + item.odeme, 0);
+    const toplamBorc = detaylar.reduce((toplam, item) => toplam + item.borc, 0);
+
+    return [
+      ...detaylar.map((item) => ({
+        etiket: item.isim,
+        deger: `${fSayi(item.borc)} ₺`,
+      })),
+      { etiket: "Toplam Alım", deger: `${fSayi(toplamAlim)} ₺`, vurgu: true },
+      { etiket: "Toplam Ödeme", deger: `${fSayi(toplamOdeme)} ₺` },
+      { etiket: "Toplam Borç", deger: `${fSayi(toplamBorc)} ₺`, vurgu: true },
+    ];
+  }, [aktifDonem, giderList, sutList, tedarikciler]);
   const aktifUretimTipi = uretimForm.uretim_tipi || "yogurt";
   const siraliUretimList = useMemo(() => sortData(periodUretim, uretimSort), [periodUretim, uretimSort]);
   const yogurtUretimListesi = useMemo(
@@ -2153,7 +2233,16 @@ export default function App() {
         { etiket: "GİDER", deger: `${fSayiNoDec(genelToplamGider)} ₺`, renk: "#dc2626" },
         { etiket: "TAHSİLAT", deger: `${fSayiNoDec(tFisTahsilatRaw)} ₺`, renk: "#2563eb" },
         { etiket: "AÇIK HESAP", deger: `${fSayiNoDec(bayiNetDurum)} ₺`, renk: "#f59e0b" },
-        { etiket: "SÜT BORCU", deger: `${fSayiNoDec(sutcuyeBorcumuz)} ₺`, renk: "#0f766e" },
+        {
+          etiket: "SÜT BORCU",
+          deger: `${fSayiNoDec(sutcuyeBorcumuz)} ₺`,
+          renk: "#0f766e",
+          onClick: () => setOzetMiniDetay({
+            baslik: "Süt Borcu Detayı",
+            renk: "#0f766e",
+            satirlar: sutBorcDetaySatirlari,
+          }),
+        },
       ], { marginBottom: "4px" })}
       <div className="card" style={{marginTop: "5px", order: 2}}>
         <h4 style={{ margin: "0 0 10px", borderBottom: "1px solid #e2e8f0", paddingBottom: "5px" }}>Müşteri Borç Durumları</h4>
@@ -2940,6 +3029,29 @@ export default function App() {
     );
   };
 
+  const renderOzetMiniDetay = () => {
+    if (!ozetMiniDetay) return null;
+
+    return (
+      <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1320, padding: "14px" }} onClick={() => setOzetMiniDetay(null)}>
+        <div style={{ background: "#fff", borderRadius: "12px", width: "100%", maxWidth: "320px", padding: "14px", boxShadow: "0 20px 45px rgba(15, 23, 42, 0.2)" }} onClick={(e) => e.stopPropagation()}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+            <h4 style={{ margin: 0, color: ozetMiniDetay.renk, fontSize: "14px" }}>{ozetMiniDetay.baslik}</h4>
+            <button onClick={() => setOzetMiniDetay(null)} style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: "18px", padding: 0 }}>✕</button>
+          </div>
+          <div style={{ display: "grid", gap: "6px" }}>
+            {ozetMiniDetay.satirlar.map((satir) => (
+              <div key={`${ozetMiniDetay.baslik}-${satir.etiket}`} style={{ display: "flex", justifyContent: "space-between", gap: "12px", fontSize: satir.vurgu ? "12px" : "11px", fontWeight: satir.vurgu ? "bold" : "normal", color: satir.vurgu ? ozetMiniDetay.renk : "#334155", paddingTop: satir.vurgu ? "6px" : 0, borderTop: satir.vurgu ? "1px dashed #cbd5e1" : "none" }}>
+                <span>{satir.etiket}</span>
+                <span>{satir.deger}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderAyarlar = () => (
     <SettingsPanel
       activeAyarTab={activeAyarTab}
@@ -3069,6 +3181,7 @@ export default function App() {
 
         {uretimDetayData && renderUretimDetayYeni()}
         {uretimMiniDetay && renderUretimMiniDetay()}
+        {ozetMiniDetay && renderOzetMiniDetay()}
 
         {fisGorselOnizleme && (
           <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(15,23,42,0.86)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1450, padding: "12px" }} onClick={() => setFisGorselOnizleme(null)}>
