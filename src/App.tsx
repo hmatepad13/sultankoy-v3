@@ -2062,11 +2062,11 @@ export default function App() {
   const renderOzet = () => (
     <div className="tab-fade-in main-content-area" style={{ display: "flex", flexDirection: "column" }}>
       {renderKompaktToplamlar([
-        { etiket: "TOPLAM SATIŞ", deger: `${fSayiNoDec(tFisToplam)} ₺`, renk: "#059669" },
-        { etiket: "TOPLAM GİDER", deger: `${fSayiNoDec(genelToplamGider)} ₺`, renk: "#dc2626" },
+        { etiket: "SATIŞ", deger: `${fSayiNoDec(tFisToplam)} ₺`, renk: "#059669" },
+        { etiket: "GİDER", deger: `${fSayiNoDec(genelToplamGider)} ₺`, renk: "#dc2626" },
         { etiket: "TAHSİLAT", deger: `${fSayiNoDec(tFisTahsilatRaw)} ₺`, renk: "#2563eb" },
-        { etiket: "BAYİ AÇIK HESAP", deger: `${fSayiNoDec(bayiNetDurum)} ₺`, renk: "#f59e0b" },
-        { etiket: "SÜTÇÜYE BORCUMUZ", deger: `${fSayiNoDec(sutcuyeBorcumuz)} ₺`, renk: "#0f766e" },
+        { etiket: "AÇIK HESAP", deger: `${fSayiNoDec(bayiNetDurum)} ₺`, renk: "#f59e0b" },
+        { etiket: "SÜT BORCU", deger: `${fSayiNoDec(sutcuyeBorcumuz)} ₺`, renk: "#0f766e" },
       ], { marginBottom: "4px" })}
       <div className="card" style={{marginTop: "5px", order: 2}}>
         <h4 style={{ margin: "0 0 10px", borderBottom: "1px solid #e2e8f0", paddingBottom: "5px" }}>Müşteri Borç Durumları</h4>
