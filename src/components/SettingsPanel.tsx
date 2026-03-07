@@ -15,8 +15,6 @@ import type {
 interface SettingsPanelProps {
   activeAyarTab: ActiveAyarTab;
   setActiveAyarTab: (tab: ActiveAyarTab) => void;
-  fontSize: number;
-  setFontSize: (fontSize: number) => void;
   bayiler: Bayi[];
   urunler: Urun[];
   tedarikciler: Ciftlik[];
@@ -151,8 +149,6 @@ const copKutusuOzetiniGetir = (tabloAdi: string, veri: unknown) => {
 export function SettingsPanel({
   activeAyarTab,
   setActiveAyarTab,
-  fontSize,
-  setFontSize,
   bayiler,
   urunler,
   tedarikciler,
@@ -279,17 +275,6 @@ export function SettingsPanel({
           );
         })}
 
-        <div style={{ marginTop: "auto", paddingTop: "20px" }}>
-          <h4 style={{ margin: "0 0 5px", fontSize: "11px", color: "#64748b", textAlign: "center" }}>Yazı Boyutu</h4>
-          <input
-            type="range"
-            min="10"
-            max="18"
-            value={fontSize}
-            onChange={(event) => setFontSize(Number(event.target.value))}
-            style={{ width: "100%", cursor: "pointer" }}
-          />
-        </div>
       </div>
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "10px", overflow: "hidden" }}>
