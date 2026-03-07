@@ -24,6 +24,7 @@ interface SettingsPanelProps {
   yeniAyarDeger: string;
   setYeniAyarDeger: (value: string) => void;
   handleAyarEkle: () => void;
+  onSettingEdit: (tablo: string, id: string, isim: string) => void;
   onSettingDelete: (tablo: string, id: string, isim: string) => void;
   onOpenTrash: () => void;
   onExcelBackup: () => void;
@@ -156,6 +157,7 @@ export function SettingsPanel({
   yeniAyarDeger,
   setYeniAyarDeger,
   handleAyarEkle,
+  onSettingEdit,
   onSettingDelete,
   onOpenTrash,
   onExcelBackup,
@@ -321,7 +323,7 @@ export function SettingsPanel({
 
             {activeAyarTab === "gider_turleri" && (
               <div style={{ ...kartStili, padding: "10px 12px", fontSize: "12px", color: "#64748b" }}>
-                Buraya eklenen türler gider ekranındaki hazır listeye eklenir. Varsayılan gider türleri burada görünmez, sadece yeni eklediklerin listelenir.
+                Gider ekranındaki liste artık buradaki kayıtları kullanır. Mevcut türleri burada düzenleyebilir veya silebilirsin.
               </div>
             )}
 
@@ -345,24 +347,46 @@ export function SettingsPanel({
                       ? ` (${fSayi((item as Urun).fiyat)} ₺)`
                       : ""}
                   </span>
-                  <button
-                    onClick={() => onSettingDelete(aktifTabloAdi, item.id, item.isim)}
-                    style={{
-                      background: "#fef2f2",
-                      border: "1px solid #fecaca",
-                      color: "#dc2626",
-                      borderRadius: "4px",
-                      width: "24px",
-                      height: "24px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      cursor: "pointer",
-                      fontSize: "12px",
-                    }}
-                  >
-                    ✕
-                  </button>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <button
+                      onClick={() => onSettingEdit(aktifTabloAdi, item.id, item.isim)}
+                      style={{
+                        background: "#eff6ff",
+                        border: "1px solid #bfdbfe",
+                        color: "#2563eb",
+                        borderRadius: "4px",
+                        width: "24px",
+                        height: "24px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        fontSize: "12px",
+                      }}
+                      title="Düzenle"
+                    >
+                      ✎
+                    </button>
+                    <button
+                      onClick={() => onSettingDelete(aktifTabloAdi, item.id, item.isim)}
+                      style={{
+                        background: "#fef2f2",
+                        border: "1px solid #fecaca",
+                        color: "#dc2626",
+                        borderRadius: "4px",
+                        width: "24px",
+                        height: "24px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        fontSize: "12px",
+                      }}
+                      title="Sil"
+                    >
+                      ✕
+                    </button>
+                  </div>
                 </div>
               ))}
 

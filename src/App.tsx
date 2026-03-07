@@ -417,10 +417,12 @@ export default function App() {
   const [editingGiderId, setEditingGiderId] = useState<any>(null);
   const [giderForm, setGiderForm] = useState<Gider>({ tarih: aktifDonemTarihi(), tur: "Genel Gider", aciklama: "", tutar: "" });
   const [giderSort, setGiderSort] = useState<SortConfig>({ key: 'tarih', direction: 'desc' });
-  const giderTurleri = useMemo(
-    () => Array.from(new Set([...GIDER_TURLERI, ...giderTuruListesi.map((item) => item.isim)])),
-    [giderTuruListesi],
-  );
+  const giderTurleri = useMemo(() => {
+    const veritabaniTurleri = giderTuruListesi
+      .map((item) => item.isim)
+      .filter(Boolean);
+    return veritabaniTurleri.length > 0 ? veritabaniTurleri : [...GIDER_TURLERI];
+  }, [giderTuruListesi]);
 
   // --- ÜRETİM STATE'LERİ ---
   const [isUretimModalOpen, setIsUretimModalOpen] = useState<boolean>(false);
@@ -837,6 +839,10 @@ export default function App() {
       const { error } = await supabase.from(tablo).insert(insertData);
       if (error) return alert(`Hata: ${error.message}`);
       if(resetFn) resetFn("");
+    } else if (islemTip === "guncelle") {
+      if (!isim?.trim() || !id) return;
+      const { error } = await supabase.from(tablo).update({ isim }).eq("id", id);
+      if (error) return alert(`Hata: ${error.message}`);
     } else if (islemTip === "sil") {
       await supabase.from(tablo).delete().eq("id", id);
     }
@@ -2919,6 +2925,12 @@ export default function App() {
       yeniAyarDeger={yeniAyarDeger}
       setYeniAyarDeger={setYeniAyarDeger}
       handleAyarEkle={handleAyarEkle}
+      onSettingEdit={(tablo, id, isim) => {
+        const yeniIsim = prompt("Yeni isim", isim);
+        if (yeniIsim && yeniIsim.trim() && yeniIsim.trim() !== isim) {
+          ayarIslem(tablo, yeniIsim.trim(), "guncelle", id);
+        }
+      }}
       onSettingDelete={(tablo, id, isim) => {
         if (confirm(`Silinecek: ${isim}`)) ayarIslem(tablo, null, "sil", id);
       }}

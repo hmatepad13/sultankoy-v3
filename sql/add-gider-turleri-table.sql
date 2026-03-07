@@ -9,6 +9,29 @@ create table if not exists public.gider_turleri (
 create unique index if not exists gider_turleri_isim_unique_idx
 on public.gider_turleri (lower(btrim(isim)));
 
+insert into public.gider_turleri (isim)
+values
+  ('Araç Yakıt'),
+  ('Süt Ödemesi'),
+  ('Yemek'),
+  ('Sarf Malzeme'),
+  ('Genel Gider'),
+  ('Nakliye'),
+  ('Maaş'),
+  ('Araç Bakım'),
+  ('Elektrik Ödemesi'),
+  ('Süt Katkıları'),
+  ('Tamirat Tadilat'),
+  ('Katı Yakacak'),
+  ('Sermaye Girişi'),
+  ('Kar Paylaşımı'),
+  ('Kova Satışı'),
+  ('süt nakliye'),
+  ('yoğurt nakliye'),
+  ('tahsilat'),
+  ('banka kesintisi')
+on conflict do nothing;
+
 alter table public.gider_turleri enable row level security;
 
 grant select, insert, update, delete on public.gider_turleri to authenticated;
