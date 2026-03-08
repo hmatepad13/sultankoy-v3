@@ -2278,7 +2278,6 @@ export default function App() {
   const fGTutarNormal = useMemo(() => fGiderList.reduce((a: number, b: any) => a + Number(b.tutar), 0), [fGiderList]);
 
   const tGiderNormal = useMemo(() => periodGider.reduce((a: number, b: any) => a + Number(b.tutar), 0), [periodGider]);
-  const tUretimMaliyet = useMemo(() => periodUretim.reduce((a: number, b: any) => a + Number(b.toplam_maliyet), 0), [periodUretim]);
   const sutcuyeBorcumuz = useMemo(() => sutcuBorcunuHesapla(sutList, giderList, aktifDonem), [aktifDonem, giderList, sutList]);
   const sutBorcDetaySatirlari = useMemo(() => {
     const kayitMap = new Map<string, { isim: string; alim: number; odeme: number }>();
@@ -2363,7 +2362,6 @@ export default function App() {
   const aktifUretimKar = aktifUretimSatisToplami - aktifUretimMaliyet;
   const aktifUretimGirenKg = useMemo(() => uretimGirenToplamKg(uretimForm), [uretimForm]);
   const aktifUretimCikanKg = useMemo(() => uretimCikanToplamKg(uretimForm), [uretimForm]);
-  const genelToplamGider = tGiderNormal + tUretimMaliyet;
   const bayiNetDurum = bayiBorclari.reduce((a, b) => a + b.borc, 0);
   
   const personelOzetleri = useMemo(() => {
@@ -2460,12 +2458,12 @@ export default function App() {
   const ozetKartlari = useMemo<OzetKart[]>(
     () => [
       { baslik: "Satış", deger: tFisToplam },
-      { baslik: "Gider", deger: genelToplamGider },
+      { baslik: "Gider", deger: tGiderNormal },
       { baslik: "Tahsilat", deger: tFisTahsilatRaw },
       { baslik: "Açık Hesap", deger: bayiNetDurum },
       { baslik: "Süt Borcu", deger: sutcuyeBorcumuz },
     ],
-    [bayiNetDurum, genelToplamGider, sutcuyeBorcumuz, tFisTahsilatRaw, tFisToplam],
+    [bayiNetDurum, sutcuyeBorcumuz, tFisTahsilatRaw, tFisToplam, tGiderNormal],
   );
 
   const yedekVerisi = useMemo<YedekVerisi>(
@@ -2594,7 +2592,7 @@ export default function App() {
         { etiket: "AÇIK HESAP", deger: `${fSayiNoDec(bayiNetDurum)} ₺`, renk: "#f59e0b" },
       ], { marginBottom: "6px" }, "three")}
       {renderKompaktToplamlar([
-        { etiket: "GİDER", deger: `${fSayiNoDec(genelToplamGider)} ₺`, renk: "#dc2626" },
+        { etiket: "GİDER", deger: `${fSayiNoDec(tGiderNormal)} ₺`, renk: "#dc2626" },
         {
           etiket: "SÜT BORCU",
           deger: `${fSayiNoDec(sutcuyeBorcumuz)} ₺`,
