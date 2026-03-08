@@ -453,6 +453,8 @@ export default function App() {
 
   const [fisFiltre, setFisFiltre] = useState<{ bayiler: string[], baslangic: string, bitis: string }>({ bayiler: [], baslangic: "", bitis: "" });
   const [fisSort, setFisSort] = useState<SortConfig>({ key: 'tarih', direction: 'desc' });
+  const [ozetBorcFiltre, setOzetBorcFiltre] = useState<{ bayiler: string[] }>({ bayiler: [] });
+  const [ozetBorcSort, setOzetBorcSort] = useState<SortConfig>({ key: "isim", direction: "asc" });
 
   // --- ANALİZ STATE'LERİ ---
   const [analizFiltre, setAnalizFiltre] = useState<{bayiler: string[], urunler: string[], baslangic: string, bitis: string}>({ bayiler: [], urunler: [], baslangic: "", bitis: "" });
@@ -559,7 +561,7 @@ export default function App() {
     return { ...sonuc, labels };
   }, [satisFisBayiAdiGetir]);
 
-  const [activeFilterModal, setActiveFilterModal] = useState<'sut_ciftlik' | 'fis_bayi' | 'analiz_bayi' | 'analiz_urun' | 'sut_tarih' | 'fis_tarih' | 'analiz_tarih' | null>(null);
+  const [activeFilterModal, setActiveFilterModal] = useState<'sut_ciftlik' | 'fis_bayi' | 'ozet_bayi' | 'analiz_bayi' | 'analiz_urun' | 'sut_tarih' | 'fis_tarih' | 'analiz_tarih' | null>(null);
 
   const bayiSecimModalAc = (hedef: "fis" | "tahsilat") => {
     setBayiSecimModal({ hedef, arama: "" });
@@ -968,6 +970,27 @@ export default function App() {
         .filter((b) => Math.abs(b.borc) > 0.01)
         .sort((a, b) => b.borc - a.borc);
   }, [aktifDonem, hesaplaMusteriBakiyeleri, satisFisList]);
+
+  const ozetBorcFiltreSecenekleri = useMemo(
+    () => [...new Set(bayiBorclari.map((item) => item.isim))].sort((a, b) => a.localeCompare(b, "tr")),
+    [bayiBorclari],
+  );
+
+  const filtrelenmisBayiBorclari = useMemo(() => {
+    const filtreliListe = bayiBorclari.filter(
+      (item) => ozetBorcFiltre.bayiler.length === 0 || ozetBorcFiltre.bayiler.includes(item.isim),
+    );
+
+    return [...filtreliListe].sort((a, b) => {
+      if (ozetBorcSort.key === "borc") {
+        const fark = Number(a.borc) - Number(b.borc);
+        return ozetBorcSort.direction === "asc" ? fark : -fark;
+      }
+
+      const sonuc = a.isim.localeCompare(b.isim, "tr");
+      return ozetBorcSort.direction === "asc" ? sonuc : -sonuc;
+    });
+  }, [bayiBorclari, ozetBorcFiltre.bayiler, ozetBorcSort]);
 
   const satisFisToplamBorcMap = useMemo(() => {
     return hesaplaMusteriBakiyeleri(satisFisList).map;
@@ -2582,13 +2605,49 @@ export default function App() {
       <div className="card" style={{marginTop: "5px", order: 2}}>
         <h4 style={{ margin: "0 0 10px", borderBottom: "1px solid #e2e8f0", paddingBottom: "5px" }}>Müşteri Borç Durumları</h4>
         <div style={{maxHeight: '300px', overflowY: 'auto', paddingRight: '5px'}}>
-            {bayiBorclari.map((b, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f1f5f9' }}>
-                    <b className="truncate-text" style={{fontSize: "12px"}}>{b.isim}</b>
-                    <b style={{fontSize: "12px", color: b.borc > 0 ? '#dc2626' : (b.borc < 0 ? '#059669' : '#64748b')}}>{fSayi(b.borc)} ₺</b>
-                </div>
-            ))}
-            {bayiBorclari.length === 0 && <div style={{color: '#94a3b8', fontSize: '12px'}}>Açık hesap bulunmuyor.</div>}
+          <table className="tbl" style={{ tableLayout: "fixed" }}>
+            <thead>
+              <tr>
+                <Th
+                  label="Bayi"
+                  sortKey="isim"
+                  currentSort={ozetBorcSort}
+                  setSort={setOzetBorcSort}
+                  filterType="ozet_bayi"
+                  compact
+                />
+                <Th
+                  label="Tutar"
+                  sortKey="borc"
+                  currentSort={ozetBorcSort}
+                  setSort={setOzetBorcSort}
+                  align="right"
+                  compact
+                />
+              </tr>
+            </thead>
+            <tbody>
+              {filtrelenmisBayiBorclari.map((b, i) => (
+                <tr key={i}>
+                  <td>
+                    <b className="truncate-text" style={{ fontSize: "12px" }}>{b.isim}</b>
+                  </td>
+                  <td style={{ textAlign: "right" }}>
+                    <b style={{ fontSize: "12px", color: b.borc > 0 ? "#dc2626" : (b.borc < 0 ? "#059669" : "#64748b") }}>
+                      {fSayi(b.borc)} ₺
+                    </b>
+                  </td>
+                </tr>
+              ))}
+              {filtrelenmisBayiBorclari.length === 0 && (
+                <tr>
+                  <td colSpan={2} style={{ color: "#94a3b8", fontSize: "12px", textAlign: "center" }}>
+                    Açık hesap bulunmuyor.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
       <div className="card" style={{marginTop: "5px", order: 1}}>
@@ -3699,10 +3758,12 @@ export default function App() {
               )}
               <div style={{ maxHeight: "250px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "10px", padding: "4px 0" }}>
                 {activeFilterModal === 'sut_ciftlik' && tedarikciler.map(t => (<label key={t.id} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}><input type="checkbox" checked={sutFiltre.ciftlikler.includes(t.isim)} onChange={() => handleCheckboxToggle('ciftlikler', setSutFiltre, t.isim)} style={{width:"18px", height:"18px"}}/> {t.isim}</label>))}
-                {activeFilterModal.includes('_bayi') && bayiler.map(b => (<label key={b.id} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}><input type="checkbox" checked={activeFilterModal === 'fis_bayi' ? fisFiltre.bayiler.includes(b.isim) : analizFiltre.bayiler.includes(b.isim)} onChange={() => handleCheckboxToggle('bayiler', activeFilterModal === 'fis_bayi' ? setFisFiltre : setAnalizFiltre, b.isim)} style={{width:"18px", height:"18px"}}/> {b.isim}</label>))}
+                {activeFilterModal === 'fis_bayi' && bayiler.map(b => (<label key={b.id} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}><input type="checkbox" checked={fisFiltre.bayiler.includes(b.isim)} onChange={() => handleCheckboxToggle('bayiler', setFisFiltre, b.isim)} style={{width:"18px", height:"18px"}}/> {b.isim}</label>))}
+                {activeFilterModal === 'ozet_bayi' && ozetBorcFiltreSecenekleri.map(isim => (<label key={isim} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}><input type="checkbox" checked={ozetBorcFiltre.bayiler.includes(isim)} onChange={() => handleCheckboxToggle('bayiler', setOzetBorcFiltre, isim)} style={{width:"18px", height:"18px"}}/> {isim}</label>))}
+                {activeFilterModal === 'analiz_bayi' && bayiler.map(b => (<label key={b.id} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}><input type="checkbox" checked={analizFiltre.bayiler.includes(b.isim)} onChange={() => handleCheckboxToggle('bayiler', setAnalizFiltre, b.isim)} style={{width:"18px", height:"18px"}}/> {b.isim}</label>))}
                 {activeFilterModal === 'analiz_urun' && urunler.map(u => (<label key={u.id} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}><input type="checkbox" checked={analizFiltre.urunler.includes(u.isim)} onChange={() => handleCheckboxToggle('urunler', setAnalizFiltre, u.isim)} style={{width:"18px", height:"18px"}}/> {u.isim}</label>))}
               </div>
-              <div style={{display: "flex", gap: "8px", marginTop: "15px"}}><button onClick={() => { if(activeFilterModal === 'sut_ciftlik') setSutFiltre({...sutFiltre, ciftlikler: []}); if(activeFilterModal === 'fis_bayi') setFisFiltre({...fisFiltre, bayiler: []}); if(activeFilterModal === 'analiz_bayi') setAnalizFiltre({...analizFiltre, bayiler: []}); if(activeFilterModal === 'analiz_urun') setAnalizFiltre({...analizFiltre, urunler: []}); if(activeFilterModal.includes('_tarih')){ setSutFiltre({...sutFiltre, baslangic: '', bitis: ''}); setFisFiltre({...fisFiltre, baslangic: '', bitis: ''}); setAnalizFiltre({...analizFiltre, baslangic: '', bitis: ''}); } }} style={{flex: 1, padding: "10px", background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: "6px", fontWeight: "bold"}}>TEMİZLE</button><button onClick={() => setActiveFilterModal(null)} style={{flex: 1, padding: "10px", background: activeFilterModal.includes('analiz') ? '#8b5cf6' : temaRengi, color: "#fff", border: "none", borderRadius: "6px", fontWeight: "bold"}}>UYGULA</button></div>
+              <div style={{display: "flex", gap: "8px", marginTop: "15px"}}><button onClick={() => { if(activeFilterModal === 'sut_ciftlik') setSutFiltre({...sutFiltre, ciftlikler: []}); if(activeFilterModal === 'fis_bayi') setFisFiltre({...fisFiltre, bayiler: []}); if(activeFilterModal === 'ozet_bayi') setOzetBorcFiltre({ bayiler: [] }); if(activeFilterModal === 'analiz_bayi') setAnalizFiltre({...analizFiltre, bayiler: []}); if(activeFilterModal === 'analiz_urun') setAnalizFiltre({...analizFiltre, urunler: []}); if(activeFilterModal?.includes('_tarih')){ setSutFiltre({...sutFiltre, baslangic: '', bitis: ''}); setFisFiltre({...fisFiltre, baslangic: '', bitis: ''}); setAnalizFiltre({...analizFiltre, baslangic: '', bitis: ''}); } }} style={{flex: 1, padding: "10px", background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: "6px", fontWeight: "bold"}}>TEMİZLE</button><button onClick={() => setActiveFilterModal(null)} style={{flex: 1, padding: "10px", background: activeFilterModal.includes('analiz') ? '#8b5cf6' : temaRengi, color: "#fff", border: "none", borderRadius: "6px", fontWeight: "bold"}}>UYGULA</button></div>
             </div>
           </div>
         )}
