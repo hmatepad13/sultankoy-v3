@@ -2674,12 +2674,12 @@ export default function App() {
               {personelOzetleri.map((p, i) => (
                 <tr key={i}>
                   <td style={{ fontWeight: "bold" }}>{p.isim}</td>
-                  <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold" }}>{fSayi(p.satis)}</td>
-                  <td style={{ textAlign: "right", color: "#2563eb" }}>{fSayi(p.tahsilat)}</td>
-                  <td style={{ textAlign: "right", color: "#dc2626" }}>{fSayi(p.gider)}</td>
-                  <td style={{ textAlign: "right", color: "#0f766e" }}>{fSayi(p.kasayaDevir)}</td>
-                  <td style={{ textAlign: "right", fontWeight: "bold", color: p.net >= 0 ? "#16a34a" : "#dc2626" }}>{fSayi(p.net)}</td>
-                  <td style={{ textAlign: "right", fontWeight: "bold", color: p.acikBakiye >= 0 ? "#f59e0b" : "#059669" }}>{fSayi(p.acikBakiye)}</td>
+                  <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{fSayi(p.satis)}</td>
+                  <td style={{ textAlign: "right", color: "#2563eb", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{fSayi(p.tahsilat)}</td>
+                  <td style={{ textAlign: "right", color: "#dc2626", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{fSayi(p.gider)}</td>
+                  <td style={{ textAlign: "right", color: "#0f766e", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{fSayi(p.kasayaDevir)}</td>
+                  <td style={{ textAlign: "right", fontWeight: "bold", color: p.net >= 0 ? "#16a34a" : "#dc2626", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{fSayi(p.net)}</td>
+                  <td style={{ textAlign: "right", fontWeight: "bold", color: p.acikBakiye >= 0 ? "#f59e0b" : "#059669", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{fSayi(p.acikBakiye)}</td>
                 </tr>
               ))}
               {personelOzetleri.length === 0 && (
@@ -2769,12 +2769,12 @@ export default function App() {
       <div style={{ display: "grid", gridTemplateColumns: "0.95fr 1.45fr 1fr", gap: "6px", marginBottom: "10px", alignItems: "stretch" }}>
         <div style={{ minWidth: 0, border: "1px solid #05966933", background: "#05966910", color: "#059669", borderRadius: "12px", padding: "6px 8px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
           <span style={{ fontSize: "9px", fontWeight: "bold", opacity: 0.85, whiteSpace: "nowrap" }}>TOPLAM SATIŞ</span>
-          <b style={{ fontSize: "14px", marginTop: "2px", whiteSpace: "nowrap" }}>{fSayi(tFisToplam)} ₺</b>
+          <b style={{ fontSize: "14px", marginTop: "2px", whiteSpace: "normal", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{fSayi(tFisToplam)} ₺</b>
         </div>
         <div style={{ minWidth: 0, border: "1px solid #2563eb33", background: "#2563eb10", color: "#2563eb", borderRadius: "12px", padding: "6px 8px", display: "flex", flexDirection: "column", gap: "4px", justifyContent: "center" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "6px" }}>
             <span style={{ fontSize: "9px", fontWeight: "bold", opacity: 0.9, whiteSpace: "nowrap" }}>TAHSİLAT</span>
-            <b style={{ fontSize: "14px", whiteSpace: "nowrap" }}>{fSayi(tFisTahsilatRaw)} ₺</b>
+            <b style={{ fontSize: "14px", whiteSpace: "normal", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05, textAlign: "right" }}>{fSayi(tFisTahsilatRaw)} ₺</b>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "5px" }}>
             <div style={{ borderRadius: "999px", background: "#ffffffb8", padding: "4px 6px", color: "#64748b", fontWeight: "bold", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", lineHeight: 1.1 }}>
@@ -2793,7 +2793,7 @@ export default function App() {
         </div>
         <div style={{ minWidth: 0, border: "1px solid #dc262633", background: "#dc262610", color: "#dc2626", borderRadius: "12px", padding: "6px 8px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
           <span style={{ fontSize: "9px", fontWeight: "bold", opacity: 0.85, whiteSpace: "nowrap" }}>AÇIK HESAP</span>
-          <b style={{ fontSize: "14px", marginTop: "2px", whiteSpace: "nowrap" }}>{fSayi(tFisKalan)} ₺</b>
+          <b style={{ fontSize: "14px", marginTop: "2px", whiteSpace: "normal", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{fSayi(tFisKalan)} ₺</b>
         </div>
       </div>
 
@@ -4327,20 +4327,21 @@ export default function App() {
           .summary-c .c-kutu b { font-size: 11px !important; }
           .compact-totals.three .c-kutu { flex: 0 0 calc((100% - 8px) / 3) !important; width: calc((100% - 8px) / 3) !important; }
           .compact-totals.two .c-kutu { flex: 0 0 calc((100% - 4px) / 2) !important; width: calc((100% - 4px) / 2) !important; }
-          .tbl-satis th:nth-child(1), .tbl-satis td:nth-child(1) { width: 10% !important; }
-          .tbl-satis th:nth-child(2), .tbl-satis td:nth-child(2) { width: 28% !important; }
-          .tbl-satis th:nth-child(3), .tbl-satis td:nth-child(3) { width: 16% !important; font-size: 10px !important; }
-          .tbl-satis th:nth-child(4), .tbl-satis td:nth-child(4) { width: 14% !important; font-size: 10px !important; }
-          .tbl-satis th:nth-child(5), .tbl-satis td:nth-child(5) { width: 18% !important; font-size: 10px !important; }
-          .tbl-satis th:nth-child(6), .tbl-satis td:nth-child(6) { width: 9% !important; font-size: 10px !important; }
+          .tbl-satis th:nth-child(1), .tbl-satis td:nth-child(1) { width: 9% !important; }
+          .tbl-satis th:nth-child(2), .tbl-satis td:nth-child(2) { width: 31% !important; }
+          .tbl-satis th:nth-child(3), .tbl-satis td:nth-child(3) { width: 15% !important; font-size: 9px !important; }
+          .tbl-satis th:nth-child(4), .tbl-satis td:nth-child(4) { width: 14% !important; font-size: 9px !important; }
+          .tbl-satis th:nth-child(5), .tbl-satis td:nth-child(5) { width: 17% !important; font-size: 9px !important; }
+          .tbl-satis th:nth-child(6), .tbl-satis td:nth-child(6) { width: 8% !important; font-size: 9px !important; }
           .tbl-satis th:nth-child(7), .tbl-satis td:nth-child(7) { width: 5% !important; }
-          .tbl-personel th:nth-child(1), .tbl-personel td:nth-child(1) { width: 16% !important; }
+          .tbl-personel th:nth-child(1), .tbl-personel td:nth-child(1) { width: 13% !important; }
           .tbl-personel th:nth-child(2), .tbl-personel td:nth-child(2),
           .tbl-personel th:nth-child(3), .tbl-personel td:nth-child(3),
           .tbl-personel th:nth-child(4), .tbl-personel td:nth-child(4),
           .tbl-personel th:nth-child(5), .tbl-personel td:nth-child(5),
           .tbl-personel th:nth-child(6), .tbl-personel td:nth-child(6),
-          .tbl-personel th:nth-child(7), .tbl-personel td:nth-child(7) { width: 14% !important; font-size: 10px !important; }
+          .tbl-personel th:nth-child(7), .tbl-personel td:nth-child(7) { width: 14.5% !important; font-size: 9px !important; }
+          .tbl-personel td { line-height: 1.05 !important; font-variant-numeric: tabular-nums; }
           .truncate-text-td { max-width: 72px !important; }
           .fixed-nav { min-height: 62px !important; padding: 5px 4px calc(5px + env(safe-area-inset-bottom, 0px)) !important; gap: 4px !important; }
           .n-item { padding: 3px 2px !important; min-height: 46px !important; border-radius: 12px !important; gap: 1px !important; }
