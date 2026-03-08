@@ -2658,7 +2658,7 @@ export default function App() {
       </div>
       <div className="card" style={{marginTop: "5px", order: 1}}>
         <h4 style={{ margin: "0 0 10px", borderBottom: "1px solid #e2e8f0", paddingBottom: "5px" }}>Personel Özetleri</h4>
-        <div style={{maxHeight: '300px', overflowY: 'auto', paddingRight: '5px'}}>
+        <div style={{maxHeight: '300px', overflowY: 'auto', paddingRight: '0'}}>
           <table className="tbl tbl-personel" style={{ fontSize: "11px", tableLayout: "fixed" }}>
             <thead>
               <tr>
@@ -2801,7 +2801,7 @@ export default function App() {
       <div className="table-wrapper"><table className="tbl tbl-satis" style={{ tableLayout: "fixed" }}>
         <thead><tr>
           <Th label="TAR." sortKey="tarih" currentSort={fisSort} setSort={setFisSort} filterType="fis_tarih" hideSortIndicator={true} compact={true} cellStyle={{ width: "68px" }} />
-          <Th label={satisFiltreTip === 'kasa_devir' ? "AÇIKLAMA" : "BAYİ"} sortKey={satisFiltreTip === 'kasa_devir' ? "aciklama" : "bayi"} currentSort={fisSort} setSort={setFisSort} filterType="fis_bayi" hideSortIndicator={true} compact={true} cellStyle={{ width: satisFiltreTip === 'kasa_devir' ? "136px" : "112px", paddingLeft: "14px" }} />
+          <Th label={satisFiltreTip === 'kasa_devir' ? "AÇIKLAMA" : "BAYİ"} sortKey={satisFiltreTip === 'kasa_devir' ? "aciklama" : "bayi"} currentSort={fisSort} setSort={setFisSort} filterType="fis_bayi" hideSortIndicator={true} compact={true} cellStyle={{ width: satisFiltreTip === 'kasa_devir' ? "136px" : "112px", paddingLeft: "18px" }} />
           <Th label="TUTAR" sortKey="toplam_tutar" currentSort={fisSort} setSort={setFisSort} align="right" />
           <Th label="TAHS." sortKey="tahsilat" currentSort={fisSort} setSort={setFisSort} align="right" />
           <Th label="BORÇ" sortKey="kalan_bakiye" currentSort={fisSort} setSort={setFisSort} align="right" />
@@ -3141,9 +3141,11 @@ export default function App() {
         <div style={{ minWidth: 0, flex: 1 }}>
           <h3 style={{ margin: 0, color: renk, fontSize: "14px" }}>{baslik}</h3>
         </div>
-        <button onClick={onYeniClick} className="btn-anim m-btn inline-mobile-btn" style={{ background: renk, margin: 0, minWidth: "118px", width: "auto", padding: "8px 8px", fontSize: "10px", whiteSpace: "nowrap", flex: "0 0 auto" }}>
-          {butonMetni}
-        </button>
+        {uretimAksiyonYetkiliMi && (
+          <button onClick={onYeniClick} className="btn-anim m-btn inline-mobile-btn" style={{ background: renk, margin: 0, minWidth: "118px", width: "auto", padding: "8px 8px", fontSize: "10px", whiteSpace: "nowrap", flex: "0 0 auto" }}>
+            {butonMetni}
+          </button>
+        )}
       </div>
       {renderUretimToplamlari(kayitlar, renk, tip)}
 
@@ -4290,8 +4292,8 @@ export default function App() {
           .summary-c .c-kutu b { font-size: 13px !important; }
           .compact-totals.three .c-kutu { flex: 0 0 calc((100% - 8px) / 3) !important; width: calc((100% - 8px) / 3) !important; }
           .compact-totals.two .c-kutu { flex: 0 0 calc((100% - 4px) / 2) !important; width: calc((100% - 4px) / 2) !important; }
-          .tbl-satis th:nth-child(1), .tbl-satis td:nth-child(1) { width: 9% !important; }
-          .tbl-satis th:nth-child(2), .tbl-satis td:nth-child(2) { width: 31% !important; }
+          .tbl-satis th:nth-child(1), .tbl-satis td:nth-child(1) { width: 8% !important; }
+          .tbl-satis th:nth-child(2), .tbl-satis td:nth-child(2) { width: 33% !important; }
           .tbl-satis th:nth-child(3), .tbl-satis td:nth-child(3) { width: 15% !important; font-size: 10px !important; }
           .tbl-satis th:nth-child(4), .tbl-satis td:nth-child(4) { width: 14% !important; font-size: 10px !important; }
           .tbl-satis th:nth-child(5), .tbl-satis td:nth-child(5) { width: 17% !important; font-size: 10px !important; }
@@ -4309,13 +4311,13 @@ export default function App() {
           .tbl-uretim th:nth-child(7), .tbl-uretim td:nth-child(7) { width: 14% !important; font-size: 9px !important; }
           .tbl-uretim th:nth-child(8), .tbl-uretim td:nth-child(8) { width: 15% !important; }
           .tbl-uretim th:nth-child(9), .tbl-uretim td:nth-child(9) { width: 5% !important; }
-          .tbl-personel th:nth-child(1), .tbl-personel td:nth-child(1) { width: 13% !important; }
+          .tbl-personel th:nth-child(1), .tbl-personel td:nth-child(1) { width: 12% !important; }
           .tbl-personel th:nth-child(2), .tbl-personel td:nth-child(2),
           .tbl-personel th:nth-child(3), .tbl-personel td:nth-child(3),
           .tbl-personel th:nth-child(4), .tbl-personel td:nth-child(4),
           .tbl-personel th:nth-child(5), .tbl-personel td:nth-child(5),
           .tbl-personel th:nth-child(6), .tbl-personel td:nth-child(6),
-          .tbl-personel th:nth-child(7), .tbl-personel td:nth-child(7) { width: 14.5% !important; font-size: 9px !important; }
+          .tbl-personel th:nth-child(7), .tbl-personel td:nth-child(7) { width: calc((100% - 12%) / 6) !important; font-size: 10px !important; }
           .tbl-personel td { line-height: 1.05 !important; font-variant-numeric: tabular-nums; }
           .truncate-text-td { max-width: 72px !important; }
           .fixed-nav { min-height: 62px !important; padding: 5px 4px calc(5px + env(safe-area-inset-bottom, 0px)) !important; gap: 4px !important; }
