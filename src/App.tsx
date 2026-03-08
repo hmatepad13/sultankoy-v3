@@ -3496,9 +3496,9 @@ export default function App() {
     aktif
       ? {
           color: renk,
-          background: `${renk}14`,
-          borderColor: `${renk}33`,
-          boxShadow: `0 10px 20px -16px ${renk}`,
+          background: `${renk}26`,
+          borderColor: `${renk}55`,
+          boxShadow: `0 12px 20px -16px ${renk}`,
         }
       : undefined;
 
@@ -4068,17 +4068,17 @@ export default function App() {
           const aktif = activeTab === item.id;
           const renk = sekmeRengiGetir(item.id);
           return (
-            <button
-              key={item.id}
-              onClick={() => sekmeSec(item.id)}
-              className={`n-item btn-anim ${aktif ? "active" : ""}`}
-              style={sekmeButonStili(renk, aktif)}
-            >
-              <span style={{ fontSize: item.id === "satis" ? "24px" : "17px", marginBottom: "2px", lineHeight: 1 }}>{item.ikon}</span>
-              <span style={{ fontSize: item.id === "satis" ? "10px" : "9px", fontWeight: "bold" }}>{item.etiket}</span>
-            </button>
-          );
-        })}
+              <button
+                key={item.id}
+                onClick={() => sekmeSec(item.id)}
+                className={`n-item btn-anim ${aktif ? "active" : ""}`}
+                style={sekmeButonStili(renk, aktif)}
+              >
+                <span style={{ fontSize: item.id === "satis" ? "25px" : "18px", marginBottom: "1px", lineHeight: 1 }}>{item.ikon}</span>
+                <span style={{ fontSize: item.id === "satis" ? "11px" : "10px", fontWeight: "bold", lineHeight: 1 }}>{item.etiket}</span>
+              </button>
+            );
+          })}
 
         {altMenuDigerSekmeleri.length > 0 && (
           <div style={{ position: "relative", display: "flex", flex: 1 }}>
@@ -4087,8 +4087,8 @@ export default function App() {
               className={`n-item btn-anim ${isBottomMenuOpen || altMenuGizliSekmeAktif ? "active" : ""}`}
               style={sekmeButonStili(sekmeRengiGetir("menu"), isBottomMenuOpen || altMenuGizliSekmeAktif)}
             >
-              <span style={{ fontSize: "18px", marginBottom: "2px", lineHeight: 1 }}>☰</span>
-              <span style={{ fontSize: "9px", fontWeight: "bold" }}>MENÜ</span>
+              <span style={{ fontSize: "19px", marginBottom: "1px", lineHeight: 1 }}>☰</span>
+              <span style={{ fontSize: "10px", fontWeight: "bold", lineHeight: 1 }}>MENÜ</span>
             </button>
 
             {isBottomMenuOpen && (
@@ -4201,8 +4201,8 @@ export default function App() {
         .truncate-text-td { max-width: 75px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: bottom; }
 
         .fixed-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 1000px; min-height: 64px; background: rgba(255,255,255,0.98); border-top: 1px solid #cbd5e1; display: flex; z-index: 100; padding: 6px 6px calc(6px + env(safe-area-inset-bottom, 0px)); gap: 6px; align-items: stretch; backdrop-filter: blur(8px); }
-        .n-item { flex: 1; border: 1px solid transparent; background: #f8fafc; color: #94a3b8; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; border-radius: 14px; padding: 6px 4px; min-height: 48px; }
-        .n-item.active { background: #eff6ff; }
+        .n-item { flex: 1; border: 1px solid transparent; background: #f1f5f9; color: #64748b; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; border-radius: 14px; padding: 4px 4px; min-height: 48px; gap: 2px; }
+        .n-item.active { background: #dbeafe; }
         .btn-anim { transition: transform 0.1s; } .btn-anim:active { transform: scale(0.95); }
 
         @media (max-width: 600px) {
@@ -4225,10 +4225,10 @@ export default function App() {
           .tbl-satis th:nth-child(2), .tbl-satis td:nth-child(2) { width: 28% !important; }
           .tbl-satis th:nth-child(6), .tbl-satis td:nth-child(6) { width: 12% !important; }
           .truncate-text-td { max-width: 72px !important; }
-          .fixed-nav { min-height: 62px !important; padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px)) !important; gap: 4px !important; }
-          .n-item { padding: 4px 2px; min-height: 46px; border-radius: 12px; }
-          .n-item span:first-child { font-size: 14px !important; }
-          .n-item span:last-child { font-size: 8px !important; letter-spacing: -0.5px; }
+          .fixed-nav { min-height: 62px !important; padding: 5px 4px calc(5px + env(safe-area-inset-bottom, 0px)) !important; gap: 4px !important; }
+          .n-item { padding: 3px 2px !important; min-height: 46px !important; border-radius: 12px !important; gap: 1px !important; }
+          .n-item span:first-child { font-size: 18px !important; }
+          .n-item span:last-child { font-size: 10px !important; letter-spacing: -0.2px; }
         }
 
         @media print {
