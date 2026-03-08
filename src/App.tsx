@@ -73,7 +73,10 @@ const uretimMetaAlanlari = [
   "paket_3_adet",
   "paket_3_fiyat",
   "cikti_2kg",
+  "cikti_2kg_kg",
   "satis_2_fiyat",
+  "cikti_3kg_kg",
+  "cikti_5kg_kg",
   "cikan_toplam_kg",
 ] as const;
 
@@ -130,7 +133,10 @@ const uretimKaydiniNormalizeEt = (kayit: Partial<Uretim>) => {
     paket_3_adet: sayiVeyaBos(meta.paket_3_adet),
     paket_3_fiyat: sayiVeyaBos(meta.paket_3_fiyat),
     cikti_2kg: sayiVeyaBos(meta.cikti_2kg),
+    cikti_2kg_kg: sayiVeyaBos(meta.cikti_2kg_kg),
     satis_2_fiyat: sayiVeyaBos(meta.satis_2_fiyat),
+    cikti_3kg_kg: sayiVeyaBos(meta.cikti_3kg_kg),
+    cikti_5kg_kg: sayiVeyaBos(meta.cikti_5kg_kg),
     cikan_toplam_kg: sayiDegeri(meta.cikan_toplam_kg) || sayiDegeri(kayit.cikan_toplam_kg),
     aciklama: not,
   } as Uretim;
@@ -154,9 +160,9 @@ const uretimGirenToplamKg = (kayit: Partial<Uretim>) => {
 const uretimCikanToplamKg = (kayit: Partial<Uretim>) => {
   const tip = kayit.uretim_tipi || "yogurt";
   if (tip === "sut_kaymagi") {
-    return adettenKg(kayit.cikti_2kg, 2) + adettenKg(kayit.cikti_3kg, 3);
+    return (sayiDegeri(kayit.cikti_2kg_kg) || adettenKg(kayit.cikti_2kg, 2)) + (sayiDegeri(kayit.cikti_3kg_kg) || adettenKg(kayit.cikti_3kg, 3));
   }
-  return adettenKg(kayit.cikti_3kg, 3) + adettenKg(kayit.cikti_5kg, 5);
+  return (sayiDegeri(kayit.cikti_3kg_kg) || adettenKg(kayit.cikti_3kg, 3)) + (sayiDegeri(kayit.cikti_5kg_kg) || adettenKg(kayit.cikti_5kg, 5));
 };
 
 const uretimMaliyetToplami = (kayit: Partial<Uretim>) => {
@@ -367,10 +373,13 @@ const bosUretimFormu = (
   kova_5_adet: "",
   kova_5_fiyat: fiyatlar?.kova5 || "",
   cikti_2kg: "",
+  cikti_2kg_kg: "",
   satis_2_fiyat: fiyatlar?.satis2 || "",
   cikti_3kg: "",
+  cikti_3kg_kg: "",
   satis_3_fiyat: fiyatlar?.satis3 || "",
   cikti_5kg: "",
+  cikti_5kg_kg: "",
   satis_5_fiyat: fiyatlar?.satis5 || "",
   toplam_kg: 0,
   cikan_toplam_kg: 0,
@@ -1376,44 +1385,47 @@ export default function App() {
       if (tarihFarki !== 0) return tarihFarki;
       return sayiDegeri(b.id) - sayiDegeri(a.id);
     });
-    const sonYogurt = sirali.find((item) => (item.uretim_tipi || "yogurt") === "yogurt");
-    const sonKaymak = sirali.find((item) => item.uretim_tipi === "sut_kaymagi");
+    const yogurtKayitlari = sirali.filter((item) => (item.uretim_tipi || "yogurt") === "yogurt");
+    const kaymakKayitlari = sirali.filter((item) => item.uretim_tipi === "sut_kaymagi");
+    const sonDoluFiyat = (liste: Uretim[], alan: keyof Uretim) =>
+      liste.find((item) => sayiDegeri(item[alan]) > 0)?.[alan] || "";
 
     return {
-      sut: sonYogurt?.sut_fiyat || "",
-      toz: sonYogurt?.sut_tozu_fiyat || "",
-      yag: sonYogurt?.tereyag_fiyat || "",
-      katki: sonYogurt?.katki_fiyat || "",
-      su: sonYogurt?.su_fiyat || "",
-      kova3: sonYogurt?.kova_3_fiyat || "",
-      kova5: sonYogurt?.kova_5_fiyat || "",
-      satis2: sonKaymak?.satis_2_fiyat || "",
-      satis3: sonYogurt?.satis_3_fiyat || "",
-      satis5: sonYogurt?.satis_5_fiyat || "",
-      krema: sonKaymak?.krema_fiyat || "",
-      diger: sonKaymak?.diger_fiyat || "",
+      sut: sonDoluFiyat(yogurtKayitlari, "sut_fiyat"),
+      toz: sonDoluFiyat(yogurtKayitlari, "sut_tozu_fiyat"),
+      yag: sonDoluFiyat(yogurtKayitlari, "tereyag_fiyat"),
+      katki: sonDoluFiyat(yogurtKayitlari, "katki_fiyat"),
+      su: sonDoluFiyat(yogurtKayitlari, "su_fiyat"),
+      kova3: sonDoluFiyat(yogurtKayitlari, "kova_3_fiyat"),
+      kova5: sonDoluFiyat(yogurtKayitlari, "kova_5_fiyat"),
+      satis2: sonDoluFiyat(kaymakKayitlari, "satis_2_fiyat"),
+      satis3: sonDoluFiyat(yogurtKayitlari, "satis_3_fiyat"),
+      satis5: sonDoluFiyat(yogurtKayitlari, "satis_5_fiyat"),
+      krema: sonDoluFiyat(kaymakKayitlari, "krema_fiyat"),
+      diger: sonDoluFiyat(kaymakKayitlari, "diger_fiyat"),
       yogurt: {
-        sut: sonYogurt?.sut_fiyat || "",
-        toz: sonYogurt?.sut_tozu_fiyat || "",
-        yag: sonYogurt?.tereyag_fiyat || "",
-        katki: sonYogurt?.katki_fiyat || "",
-        su: sonYogurt?.su_fiyat || "",
-        kova3: sonYogurt?.kova_3_fiyat || "",
-        kova5: sonYogurt?.kova_5_fiyat || "",
-        satis3: sonYogurt?.satis_3_fiyat || "",
-        satis5: sonYogurt?.satis_5_fiyat || "",
+        sut: sonDoluFiyat(yogurtKayitlari, "sut_fiyat"),
+        toz: sonDoluFiyat(yogurtKayitlari, "sut_tozu_fiyat"),
+        yag: sonDoluFiyat(yogurtKayitlari, "tereyag_fiyat"),
+        katki: sonDoluFiyat(yogurtKayitlari, "katki_fiyat"),
+        su: sonDoluFiyat(yogurtKayitlari, "su_fiyat"),
+        kova3: sonDoluFiyat(yogurtKayitlari, "kova_3_fiyat"),
+        kova5: sonDoluFiyat(yogurtKayitlari, "kova_5_fiyat"),
+        satis3: sonDoluFiyat(yogurtKayitlari, "satis_3_fiyat"),
+        satis5: sonDoluFiyat(yogurtKayitlari, "satis_5_fiyat"),
       },
       sut_kaymagi: {
-        sut: sonKaymak?.sut_fiyat || "",
-        yag: sonKaymak?.tereyag_fiyat || "",
-        katki: sonKaymak?.katki_fiyat || "",
-        krema: sonKaymak?.krema_fiyat || "",
-      diger: sonKaymak?.diger_fiyat || "",
-      paket2: sonKaymak?.paket_2_fiyat || "",
-      paket3: sonKaymak?.paket_3_fiyat || "",
-      satis2: sonKaymak?.satis_2_fiyat || "",
-      satis3: sonKaymak?.satis_3_fiyat || "",
-    },
+        sut: sonDoluFiyat(kaymakKayitlari, "sut_fiyat"),
+        yag: sonDoluFiyat(kaymakKayitlari, "tereyag_fiyat"),
+        katki: sonDoluFiyat(kaymakKayitlari, "katki_fiyat"),
+        su: sonDoluFiyat(kaymakKayitlari, "su_fiyat"),
+        krema: sonDoluFiyat(kaymakKayitlari, "krema_fiyat"),
+        diger: sonDoluFiyat(kaymakKayitlari, "diger_fiyat"),
+        paket2: sonDoluFiyat(kaymakKayitlari, "paket_2_fiyat"),
+        paket3: sonDoluFiyat(kaymakKayitlari, "paket_3_fiyat"),
+        satis2: sonDoluFiyat(kaymakKayitlari, "satis_2_fiyat"),
+        satis3: sonDoluFiyat(kaymakKayitlari, "satis_3_fiyat"),
+      },
     };
   }, [uretimList]);
 
@@ -1464,7 +1476,10 @@ export default function App() {
         paket_3_adet: sayiVeyaBos(uretimForm.paket_3_adet),
         paket_3_fiyat: sayiVeyaBos(uretimForm.paket_3_fiyat),
         cikti_2kg: sayiVeyaBos(uretimForm.cikti_2kg),
+        cikti_2kg_kg: sayiVeyaBos(uretimForm.cikti_2kg_kg),
         satis_2_fiyat: sayiVeyaBos(uretimForm.satis_2_fiyat),
+        cikti_3kg_kg: sayiVeyaBos(uretimForm.cikti_3kg_kg),
+        cikti_5kg_kg: sayiVeyaBos(uretimForm.cikti_5kg_kg),
         cikan_toplam_kg: cikanToplamKg,
       }),
       ekleyen: aktifKullaniciEposta,
@@ -3120,6 +3135,8 @@ export default function App() {
     fiyatField: keyof Uretim,
     renk = "#475569",
     mirrorField?: keyof Uretim,
+    mirrorKgField?: keyof Uretim,
+    mirrorKgMultiplier?: number,
   ) => (
     <div style={{ display: "grid", gridTemplateColumns: "minmax(70px,1fr) 52px 52px 58px", gap: "4px", alignItems: "center" }}>
       <span style={{ fontSize: "10px", fontWeight: "bold", color: renk, lineHeight: 1.15 }}>{etiket}</span>
@@ -3131,6 +3148,9 @@ export default function App() {
           const yeniDeger = e.target.value;
           const sonrakiForm = { ...uretimForm, [adetField]: yeniDeger } as Uretim;
           if (mirrorField) sonrakiForm[mirrorField] = yeniDeger as never;
+          if (mirrorKgField && mirrorKgMultiplier) {
+            sonrakiForm[mirrorKgField] = (yeniDeger === "" ? "" : String(sayiDegeri(yeniDeger) * mirrorKgMultiplier)) as never;
+          }
           setUretimForm(sonrakiForm);
         }}
         className="m-inp small-inp"
@@ -3154,11 +3174,13 @@ export default function App() {
   const renderPaketCiktiSatiri = (
     etiket: string,
     adetField: keyof Uretim,
+    kgField: keyof Uretim,
     fiyatField: keyof Uretim,
     birimKg: number,
   ) => {
     const adetDegeri = sayiDegeri(uretimForm[adetField]);
-    const kgDegeri = adetDegeri * birimKg;
+    const kgDegeri = sayiDegeri(uretimForm[kgField]) || (adetDegeri * birimKg);
+    const gorunenKg = String(uretimForm[kgField] ?? "") || (kgDegeri > 0 ? String(kgDegeri) : "");
     const tutar = adetDegeri * sayiDegeri(uretimForm[fiyatField]);
 
     return (
@@ -3173,9 +3195,11 @@ export default function App() {
           style={{ textAlign: "right", borderColor: "#ddd6fe", minWidth: 0 }}
         />
         <input
-          value={kgDegeri > 0 ? String(kgDegeri) : ""}
-          readOnly
+          value={gorunenKg}
           placeholder="KG"
+          type="number"
+          step="0.01"
+          onChange={(e) => setUretimForm({ ...uretimForm, [kgField]: e.target.value })}
           className="m-inp small-inp"
           style={{ textAlign: "right", background: "#f5f3ff", borderColor: "#ddd6fe", minWidth: 0 }}
         />
@@ -3208,6 +3232,8 @@ export default function App() {
             { etiket: "Süt", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.cig_sut), 0))} KG` },
             { etiket: "Teremyağ", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.tereyag), 0))} KG` },
             { etiket: "Katkı", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.katki_kg), 0))} KG` },
+            { etiket: "Şeker", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.diger_kg), 0))} KG` },
+            { etiket: "Su", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.su), 0))} KG` },
             { etiket: "Toplam", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + uretimGirenToplamKg(kayit), 0))} KG`, vurgu: true },
           ]
         : [
@@ -3224,13 +3250,13 @@ export default function App() {
     if (alan === "cikan") {
       const satirlar = tip === "sut_kaymagi"
         ? [
-            { etiket: "2 KG", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.cikti_2kg), 0))} Adet / ${fSayi(kayitlar.reduce((toplam, kayit) => toplam + adettenKg(kayit.cikti_2kg, 2), 0))} KG` },
-            { etiket: "3 KG", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.cikti_3kg), 0))} Adet / ${fSayi(kayitlar.reduce((toplam, kayit) => toplam + adettenKg(kayit.cikti_3kg, 3), 0))} KG` },
+            { etiket: "2 KG", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.cikti_2kg), 0))} Adet / ${fSayi(kayitlar.reduce((toplam, kayit) => toplam + (sayiDegeri(kayit.cikti_2kg_kg) || adettenKg(kayit.cikti_2kg, 2)), 0))} KG` },
+            { etiket: "3 KG", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.cikti_3kg), 0))} Adet / ${fSayi(kayitlar.reduce((toplam, kayit) => toplam + (sayiDegeri(kayit.cikti_3kg_kg) || adettenKg(kayit.cikti_3kg, 3)), 0))} KG` },
             { etiket: "Toplam", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + uretimCikanToplamAdet(kayit), 0))} Adet / ${fSayi(kayitlar.reduce((toplam, kayit) => toplam + uretimCikanToplamKg(kayit), 0))} KG`, vurgu: true },
           ]
         : [
-            { etiket: "3 KG", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.cikti_3kg), 0))} Adet / ${fSayi(kayitlar.reduce((toplam, kayit) => toplam + adettenKg(kayit.cikti_3kg, 3), 0))} KG` },
-            { etiket: "5 KG", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.cikti_5kg), 0))} Adet / ${fSayi(kayitlar.reduce((toplam, kayit) => toplam + adettenKg(kayit.cikti_5kg, 5), 0))} KG` },
+            { etiket: "3 KG", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.cikti_3kg), 0))} Adet / ${fSayi(kayitlar.reduce((toplam, kayit) => toplam + (sayiDegeri(kayit.cikti_3kg_kg) || adettenKg(kayit.cikti_3kg, 3)), 0))} KG` },
+            { etiket: "5 KG", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.cikti_5kg), 0))} Adet / ${fSayi(kayitlar.reduce((toplam, kayit) => toplam + (sayiDegeri(kayit.cikti_5kg_kg) || adettenKg(kayit.cikti_5kg, 5)), 0))} KG` },
             { etiket: "Toplam", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + uretimCikanToplamAdet(kayit), 0))} Adet / ${fSayi(kayitlar.reduce((toplam, kayit) => toplam + uretimCikanToplamKg(kayit), 0))} KG`, vurgu: true },
           ];
       setUretimMiniDetay({ baslik: "Çıkan Detayı", renk, satirlar });
@@ -3243,6 +3269,8 @@ export default function App() {
           { etiket: "Süt", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + kgSatirTutari(kayit.cig_sut, kayit.sut_fiyat), 0))} ₺` },
           { etiket: "Teremyağ", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + kgSatirTutari(kayit.tereyag, kayit.tereyag_fiyat), 0))} ₺` },
           { etiket: "Katkı", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + kgSatirTutari(kayit.katki_kg, kayit.katki_fiyat), 0))} ₺` },
+          { etiket: "Şeker", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + miktarSatirTutari(kayit.diger_kg, kayit.diger_adet, kayit.diger_fiyat), 0))} ₺` },
+          { etiket: "Su", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + kgSatirTutari(kayit.su, kayit.su_fiyat), 0))} ₺` },
           { etiket: "Toplam", deger: `${fSayi(kayitlar.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.toplam_maliyet), 0))} ₺`, vurgu: true },
         ]
       : [
@@ -3396,8 +3424,9 @@ export default function App() {
                 {renderKgSatiri("Teremyağ", "tereyag", "tereyag_fiyat", "#0f766e")}
                 {renderKgSatiri("Katkı", "katki_kg", "katki_fiyat", "#0f766e")}
                 {renderKgSatiri("Şeker", "diger_kg", "diger_fiyat", "#0f766e")}
-                {renderAdetFiyatSatiri("2 KG Boş Paket", "paket_2_adet", "paket_2_fiyat", "#0f766e")}
-                {renderAdetFiyatSatiri("3 KG Boş Paket", "paket_3_adet", "paket_3_fiyat", "#0f766e")}
+                {renderKgSatiri("Su", "su", "su_fiyat", "#0f766e")}
+                {renderAdetFiyatSatiri("2 KG Boş Paket", "paket_2_adet", "paket_2_fiyat", "#0f766e", "cikti_2kg", "cikti_2kg_kg", 2)}
+                {renderAdetFiyatSatiri("3 KG Boş Paket", "paket_3_adet", "paket_3_fiyat", "#0f766e", "cikti_3kg", "cikti_3kg_kg", 3)}
               </>
             ) : (
               <>
@@ -3406,8 +3435,8 @@ export default function App() {
                 {renderKgSatiri("Teremyağ", "tereyag", "tereyag_fiyat")}
                 {renderKgSatiri("Katkı", "katki_kg", "katki_fiyat")}
                 {renderKgSatiri("Su", "su", "su_fiyat")}
-                {renderAdetFiyatSatiri("3'lük Boş Kova", "kova_3_adet", "kova_3_fiyat", "#475569", "cikti_3kg")}
-                {renderAdetFiyatSatiri("5'lik Boş Kova", "kova_5_adet", "kova_5_fiyat", "#475569", "cikti_5kg")}
+                {renderAdetFiyatSatiri("3'lük Boş Kova", "kova_3_adet", "kova_3_fiyat", "#475569", "cikti_3kg", "cikti_3kg_kg", 3)}
+                {renderAdetFiyatSatiri("5'lik Boş Kova", "kova_5_adet", "kova_5_fiyat", "#475569", "cikti_5kg", "cikti_5kg_kg", 5)}
               </>
             )}
             <div style={{ display: "grid", gridTemplateColumns: "minmax(70px,1fr) 52px 52px 58px", gap: "4px", alignItems: "end", borderTop: "1px dashed #cbd5e1", paddingTop: "6px" }}>
@@ -3428,13 +3457,13 @@ export default function App() {
             </div>
             {aktifUretimTipi === "sut_kaymagi" ? (
               <>
-                {renderPaketCiktiSatiri("2 KG Kaymak", "cikti_2kg", "satis_2_fiyat", 2)}
-                {renderPaketCiktiSatiri("3 KG Kaymak", "cikti_3kg", "satis_3_fiyat", 3)}
+                {renderPaketCiktiSatiri("2 KG Kaymak", "cikti_2kg", "cikti_2kg_kg", "satis_2_fiyat", 2)}
+                {renderPaketCiktiSatiri("3 KG Kaymak", "cikti_3kg", "cikti_3kg_kg", "satis_3_fiyat", 3)}
               </>
             ) : (
               <>
-                {renderPaketCiktiSatiri("3 KG Yoğurt", "cikti_3kg", "satis_3_fiyat", 3)}
-                {renderPaketCiktiSatiri("5 KG Yoğurt", "cikti_5kg", "satis_5_fiyat", 5)}
+                {renderPaketCiktiSatiri("3 KG Yoğurt", "cikti_3kg", "cikti_3kg_kg", "satis_3_fiyat", 3)}
+                {renderPaketCiktiSatiri("5 KG Yoğurt", "cikti_5kg", "cikti_5kg_kg", "satis_5_fiyat", 5)}
               </>
             )}
             <div style={{ display: "grid", gridTemplateColumns: "minmax(70px,1fr) 42px 42px 52px 58px", gap: "4px", alignItems: "end", borderTop: "1px dashed #cbd5e1", paddingTop: "6px" }}>
@@ -3480,6 +3509,7 @@ export default function App() {
                   <div style={{display: "flex", justifyContent: "space-between", fontSize: "11px", padding: "3px 0"}}><span>Teremyağ ({fSayi(detay.tereyag)} kg x {fSayi(detay.tereyag_fiyat)})</span><b>{fSayi(kgSatirTutari(detay.tereyag, detay.tereyag_fiyat))} ₺</b></div>
                   <div style={{display: "flex", justifyContent: "space-between", fontSize: "11px", padding: "3px 0"}}><span>Katkı ({fSayi(detay.katki_kg)} kg x {fSayi(detay.katki_fiyat)})</span><b>{fSayi(kgSatirTutari(detay.katki_kg, detay.katki_fiyat))} ₺</b></div>
                   <div style={{display: "flex", justifyContent: "space-between", fontSize: "11px", padding: "3px 0"}}><span>Şeker ({fSayi(detay.diger_kg)} kg x {fSayi(detay.diger_fiyat)})</span><b>{fSayi(miktarSatirTutari(detay.diger_kg, detay.diger_adet, detay.diger_fiyat))} ₺</b></div>
+                  <div style={{display: "flex", justifyContent: "space-between", fontSize: "11px", padding: "3px 0"}}><span>Su ({fSayi(detay.su)} kg x {fSayi(detay.su_fiyat)})</span><b>{fSayi(kgSatirTutari(detay.su, detay.su_fiyat))} ₺</b></div>
                   <div style={{display: "flex", justifyContent: "space-between", fontSize: "11px", padding: "3px 0"}}><span>2 KG Boş Paket ({fSayi(detay.paket_2_adet)} adet x {fSayi(detay.paket_2_fiyat)})</span><b>{fSayi(sayiDegeri(detay.paket_2_adet) * sayiDegeri(detay.paket_2_fiyat))} ₺</b></div>
                   <div style={{display: "flex", justifyContent: "space-between", fontSize: "11px", padding: "3px 0"}}><span>3 KG Boş Paket ({fSayi(detay.paket_3_adet)} adet x {fSayi(detay.paket_3_fiyat)})</span><b>{fSayi(sayiDegeri(detay.paket_3_adet) * sayiDegeri(detay.paket_3_fiyat))} ₺</b></div>
                 </>
@@ -3499,13 +3529,13 @@ export default function App() {
               <h4 style={{fontSize: "12px", margin: "0 0 5px", color: "#475569", borderBottom: "1px solid #e2e8f0"}}>Çıkan Ürünler</h4>
               {tip === "sut_kaymagi" ? (
                 <>
-                  <div style={{display: "flex", justifyContent: "space-between", fontSize: "11px", padding: "3px 0"}}><span>2 KG Kaymak ({fSayi(detay.cikti_2kg)} adet)</span><b>{fSayi(sayiDegeri(detay.cikti_2kg) * sayiDegeri(detay.satis_2_fiyat))} ₺</b></div>
-                  <div style={{display: "flex", justifyContent: "space-between", fontSize: "11px", padding: "3px 0"}}><span>3 KG Kaymak ({fSayi(detay.cikti_3kg)} adet)</span><b>{fSayi(sayiDegeri(detay.cikti_3kg) * sayiDegeri(detay.satis_3_fiyat))} ₺</b></div>
+                  <div style={{display: "flex", justifyContent: "space-between", fontSize: "11px", padding: "3px 0"}}><span>2 KG Kaymak ({fSayi(detay.cikti_2kg)} adet / {fSayi(sayiDegeri(detay.cikti_2kg_kg) || adettenKg(detay.cikti_2kg, 2))} kg)</span><b>{fSayi(sayiDegeri(detay.cikti_2kg) * sayiDegeri(detay.satis_2_fiyat))} ₺</b></div>
+                  <div style={{display: "flex", justifyContent: "space-between", fontSize: "11px", padding: "3px 0"}}><span>3 KG Kaymak ({fSayi(detay.cikti_3kg)} adet / {fSayi(sayiDegeri(detay.cikti_3kg_kg) || adettenKg(detay.cikti_3kg, 3))} kg)</span><b>{fSayi(sayiDegeri(detay.cikti_3kg) * sayiDegeri(detay.satis_3_fiyat))} ₺</b></div>
                 </>
               ) : (
                 <>
-                  <div style={{display: "flex", justifyContent: "space-between", fontSize: "11px", padding: "3px 0"}}><span>3 KG Yoğurt ({fSayi(detay.cikti_3kg)} adet)</span><b>{fSayi(sayiDegeri(detay.cikti_3kg) * sayiDegeri(detay.satis_3_fiyat))} ₺</b></div>
-                  <div style={{display: "flex", justifyContent: "space-between", fontSize: "11px", padding: "3px 0"}}><span>5 KG Yoğurt ({fSayi(detay.cikti_5kg)} adet)</span><b>{fSayi(sayiDegeri(detay.cikti_5kg) * sayiDegeri(detay.satis_5_fiyat))} ₺</b></div>
+                  <div style={{display: "flex", justifyContent: "space-between", fontSize: "11px", padding: "3px 0"}}><span>3 KG Yoğurt ({fSayi(detay.cikti_3kg)} adet / {fSayi(sayiDegeri(detay.cikti_3kg_kg) || adettenKg(detay.cikti_3kg, 3))} kg)</span><b>{fSayi(sayiDegeri(detay.cikti_3kg) * sayiDegeri(detay.satis_3_fiyat))} ₺</b></div>
+                  <div style={{display: "flex", justifyContent: "space-between", fontSize: "11px", padding: "3px 0"}}><span>5 KG Yoğurt ({fSayi(detay.cikti_5kg)} adet / {fSayi(sayiDegeri(detay.cikti_5kg_kg) || adettenKg(detay.cikti_5kg, 5))} kg)</span><b>{fSayi(sayiDegeri(detay.cikti_5kg) * sayiDegeri(detay.satis_5_fiyat))} ₺</b></div>
                 </>
               )}
             </div>

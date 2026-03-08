@@ -116,10 +116,13 @@ export interface Uretim {
   kova_5_adet: number | string;
   kova_5_fiyat: number | string;
   cikti_2kg?: number | string;
+  cikti_2kg_kg?: number | string;
   satis_2_fiyat?: number | string;
   cikti_3kg: number | string;
+  cikti_3kg_kg?: number | string;
   satis_3_fiyat: number | string;
   cikti_5kg: number | string;
+  cikti_5kg_kg?: number | string;
   satis_5_fiyat: number | string;
   toplam_kg?: number;
   cikan_toplam_kg?: number;
