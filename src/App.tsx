@@ -568,6 +568,34 @@ export default function App() {
     (kayit?: Partial<SutGiris> | null) => (kayit?.ciftlik_id ? `id:${kayit.ciftlik_id}` : `isim:${masterKayitIsminiNormalizeEt(kayit?.ciftlik)}`),
     [masterKayitIsminiNormalizeEt],
   );
+  const sutSonFiyatHaritasi = useMemo(() => {
+    const map = new Map<string, string>();
+    const siraliKayitlar = [...sutList].sort((a, b) => {
+      const tarihFarki = String(b.tarih || "").localeCompare(String(a.tarih || ""));
+      if (tarihFarki !== 0) return tarihFarki;
+      const createdAtFarki = String((b as any).created_at || "").localeCompare(String((a as any).created_at || ""));
+      if (createdAtFarki !== 0) return createdAtFarki;
+      return sayiDegeri((b as any).id) - sayiDegeri((a as any).id);
+    });
+
+    siraliKayitlar.forEach((kayit) => {
+      const key = sutCiftlikAnahtariGetir(kayit);
+      if (!key || map.has(key)) return;
+      const fiyat = sayiDegeri(kayit.fiyat);
+      if (fiyat > 0) map.set(key, String(kayit.fiyat));
+    });
+
+    return map;
+  }, [sutCiftlikAnahtariGetir, sutList]);
+  const sonSutFiyatiniGetir = useCallback(
+    (ciftlikAdi?: string | null) => {
+      if (!ciftlikAdi) return "";
+      const ciftlikId = seciliCiftlikId(ciftlikAdi);
+      const key = ciftlikId ? `id:${ciftlikId}` : `isim:${masterKayitIsminiNormalizeEt(ciftlikAdi)}`;
+      return sutSonFiyatHaritasi.get(key) || "";
+    },
+    [masterKayitIsminiNormalizeEt, seciliCiftlikId, sutSonFiyatHaritasi],
+  );
 
   const hesaplaMusteriBakiyeleri = useCallback((kayitlar: SatisFis[], sonDonem?: string) => {
     const resolveEdilmisKayitlar = kayitlar.map((fis) => ({
@@ -1313,6 +1341,21 @@ export default function App() {
     setSutForm({ tarih: aktifDonemTarihi(), ciftlik: "", kg: "", fiyat: "", aciklama: "" }); 
     setEditingSutId(null); setIsSutModalOpen(false); verileriGetir("sut"); 
   }
+
+  const handleSutCiftlikSecimi = (secilenCiftlik: string) => {
+    const hafizaFiyati = sonSutFiyatiniGetir(secilenCiftlik);
+    setSutForm((prev) => ({
+      ...prev,
+      ciftlik: secilenCiftlik,
+      fiyat: hafizaFiyati || prev.fiyat || "",
+    }));
+  };
+
+  const handleYeniSutModalAc = () => {
+    setSutForm({ tarih: aktifDonemTarihi(), ciftlik: "", kg: "", fiyat: "", aciklama: "" });
+    setEditingSutId(null);
+    setIsSutModalOpen(true);
+  };
 
   async function handleGiderKaydet() {
     if (!giderForm.tarih || !giderForm.tur || !giderForm.tutar) return alert("Tarih, Tür ve Tutar zorunludur!");
@@ -2814,7 +2857,7 @@ export default function App() {
             TUTAR: {fSayiNoDec(tSutTl)} ₺
           </div>
         </div>
-        <button onClick={() => { setSutForm({ tarih: aktifDonemTarihi(), ciftlik: "", kg: "", fiyat: "", aciklama: "" }); setEditingSutId(null); setIsSutModalOpen(true); }} className="btn-anim m-btn blue-btn inline-mobile-btn" style={{ margin: 0, minWidth: "150px", width: "auto", fontSize: "13px", flex: "0 0 auto" }}>➕ YENİ SÜT GİRİŞİ</button>
+        <button onClick={handleYeniSutModalAc} className="btn-anim m-btn blue-btn inline-mobile-btn" style={{ margin: 0, minWidth: "150px", width: "auto", fontSize: "13px", flex: "0 0 auto" }}>➕ YENİ SÜT GİRİŞİ</button>
       </div>
       <div className="table-wrapper"><table className="tbl">
         <thead><tr>
@@ -4207,7 +4250,7 @@ export default function App() {
               <div style={{ padding: "15px", display: "flex", flexDirection: "column", gap: "10px" }}>
                 <div style={{ display: "flex", gap: "8px" }}>
                    <input type="date" value={sutForm.tarih} onChange={e => setSutForm({ ...sutForm, tarih: e.target.value })} className="m-inp date-click" style={{ flex: 1 }} />
-                   <select value={sutForm.ciftlik} onChange={e => setSutForm({ ...sutForm, ciftlik: e.target.value })} className="m-inp" style={{ flex: 2, fontWeight: "bold" }}>
+                   <select value={sutForm.ciftlik} onChange={e => handleSutCiftlikSecimi(e.target.value)} className="m-inp" style={{ flex: 2, fontWeight: "bold" }}>
                      <option value="">Çiftlik Seç...</option>
                      {aktifTedarikciler.map(t => <option key={t.id} value={t.isim}>{t.isim}</option>)}
                     </select>
