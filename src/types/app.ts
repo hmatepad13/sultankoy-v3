@@ -1,6 +1,7 @@
 export type AppTabId = "ozet" | "sut" | "uretim" | "satis" | "gider" | "analiz" | "ayarlar";
 
 export type ActiveAyarTab =
+  | "hesap"
   | "musteriler"
   | "urunler"
   | "ciftlikler"
@@ -8,7 +9,18 @@ export type ActiveAyarTab =
   | "cop_kutusu"
   | "depolama"
   | "yedekleme"
-  | "yetkiler";
+  | "yetkiler"
+  | "kullanici_yonetimi";
+
+export interface AdminKullanici {
+  id: string;
+  email: string;
+  username: string;
+  displayName?: string;
+  role?: string;
+  createdAt?: string | null;
+  lastSignInAt?: string | null;
+}
 
 export interface Ciftlik {
   id: string;

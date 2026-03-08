@@ -3,6 +3,7 @@ import { AYAR_TAB_TANIMLARI, VARSAYILAN_SEKME_YETKILERI } from "../constants/app
 import { fSayi, normalizeUsername } from "../utils/format";
 import type {
   ActiveAyarTab,
+  AdminKullanici,
   AppTabId,
   Bayi,
   Ciftlik,
@@ -17,6 +18,7 @@ import type {
 interface SettingsPanelProps {
   activeAyarTab: ActiveAyarTab;
   setActiveAyarTab: (tab: ActiveAyarTab) => void;
+  aktifKullaniciEposta: string;
   bayiler: Bayi[];
   urunler: Urun[];
   tedarikciler: Ciftlik[];
@@ -40,11 +42,18 @@ interface SettingsPanelProps {
   onLoadDepolama: (force?: boolean) => void;
   isAdmin: boolean;
   mevcutKullanici: string;
+  adminKullanicilar: AdminKullanici[];
+  isAdminKullaniciLoading: boolean;
+  adminKullaniciHata: string;
   kullaniciListesi: string[];
   tabYetkileri: KullaniciSekmeYetkisi[];
   sekmeSecenekleri: Array<{ id: AppTabId; etiket: string }>;
   yetkiKaynak: "supabase" | "local";
   yetkiUyari: string;
+  onChangeOwnPassword: (newPassword: string) => Promise<{ ok: boolean; message: string }>;
+  onLoadAdminUsers: (force?: boolean) => Promise<void> | void;
+  onCreateAdminUser: (payload: { email: string; password: string; displayName: string }) => Promise<{ ok: boolean; message: string }>;
+  onResetAdminUserPassword: (payload: { userId: string; newPassword: string }) => Promise<{ ok: boolean; message: string }>;
   onSavePermissions: (next: KullaniciSekmeYetkisi[]) => Promise<void> | void;
 }
 
@@ -169,6 +178,7 @@ const copKutusuOzetiniGetir = (tabloAdi: string, veri: unknown) => {
 export function SettingsPanel({
   activeAyarTab,
   setActiveAyarTab,
+  aktifKullaniciEposta,
   bayiler,
   urunler,
   tedarikciler,
@@ -192,18 +202,35 @@ export function SettingsPanel({
   onLoadDepolama,
   isAdmin,
   mevcutKullanici,
+  adminKullanicilar,
+  isAdminKullaniciLoading,
+  adminKullaniciHata,
   kullaniciListesi,
   tabYetkileri,
   sekmeSecenekleri,
   yetkiKaynak,
   yetkiUyari,
+  onChangeOwnPassword,
+  onLoadAdminUsers,
+  onCreateAdminUser,
+  onResetAdminUserPassword,
   onSavePermissions,
 }: SettingsPanelProps) {
   const [hedefKullanici, setHedefKullanici] = useState("");
   const [taslakYetkiler, setTaslakYetkiler] = useState<SekmeYetkiMap | null>(null);
+  const [sifreForm, setSifreForm] = useState({ yeni: "", tekrar: "" });
+  const [sifreMesaji, setSifreMesaji] = useState<{ tip: "success" | "error"; metin: string } | null>(null);
+  const [isSifreKayitLoading, setIsSifreKayitLoading] = useState(false);
+  const [yeniKullaniciForm, setYeniKullaniciForm] = useState({ displayName: "", email: "", password: "" });
+  const [sifreSifirlamaForm, setSifreSifirlamaForm] = useState({ userId: "", newPassword: "" });
+  const [adminMesaji, setAdminMesaji] = useState<{ tip: "success" | "error"; metin: string } | null>(null);
 
   const gosterilecekAyarTablari = useMemo(
-    () => AYAR_TAB_TANIMLARI.filter((item) => (item.id === "yetkiler" ? isAdmin : true)),
+    () =>
+      AYAR_TAB_TANIMLARI.filter((item) => {
+        if (item.id === "yetkiler" || item.id === "kullanici_yonetimi") return isAdmin;
+        return true;
+      }),
     [isAdmin],
   );
 
@@ -240,10 +267,87 @@ export function SettingsPanel({
   }, [activeAyarTab]);
 
   useEffect(() => {
-    if (!isAdmin && activeAyarTab === "yetkiler") {
-      setActiveAyarTab("musteriler");
+    if (!isAdmin && (activeAyarTab === "yetkiler" || activeAyarTab === "kullanici_yonetimi")) {
+      setActiveAyarTab("hesap");
     }
   }, [activeAyarTab, isAdmin, setActiveAyarTab]);
+
+  useEffect(() => {
+    if (isAdmin && activeAyarTab === "kullanici_yonetimi") {
+      void onLoadAdminUsers();
+    }
+  }, [activeAyarTab, isAdmin, onLoadAdminUsers]);
+
+  const handleSifreDegistir = async () => {
+    const yeniSifre = sifreForm.yeni.trim();
+    if (!yeniSifre) {
+      setSifreMesaji({ tip: "error", metin: "Yeni şifre boş bırakılamaz." });
+      return;
+    }
+    if (yeniSifre.length < 6) {
+      setSifreMesaji({ tip: "error", metin: "Şifre en az 6 karakter olmalıdır." });
+      return;
+    }
+    if (yeniSifre !== sifreForm.tekrar) {
+      setSifreMesaji({ tip: "error", metin: "Şifre tekrar alanı eşleşmiyor." });
+      return;
+    }
+
+    setIsSifreKayitLoading(true);
+    const sonuc = await onChangeOwnPassword(yeniSifre);
+    setSifreMesaji({ tip: sonuc.ok ? "success" : "error", metin: sonuc.message });
+    if (sonuc.ok) {
+      setSifreForm({ yeni: "", tekrar: "" });
+    }
+    setIsSifreKayitLoading(false);
+  };
+
+  const handleAdminKullaniciOlustur = async () => {
+    const email = yeniKullaniciForm.email.trim().toLowerCase();
+    const password = yeniKullaniciForm.password.trim();
+    if (!email || !password) {
+      setAdminMesaji({ tip: "error", metin: "E-posta ve şifre zorunludur." });
+      return;
+    }
+    if (password.length < 6) {
+      setAdminMesaji({ tip: "error", metin: "Şifre en az 6 karakter olmalıdır." });
+      return;
+    }
+    const sonuc = await onCreateAdminUser({
+      email,
+      password,
+      displayName: yeniKullaniciForm.displayName.trim(),
+    });
+    setAdminMesaji({ tip: sonuc.ok ? "success" : "error", metin: sonuc.message });
+    if (sonuc.ok) {
+      setYeniKullaniciForm({ displayName: "", email: "", password: "" });
+    }
+  };
+
+  const handleAdminSifreGuncelle = async () => {
+    if (!sifreSifirlamaForm.userId || !sifreSifirlamaForm.newPassword.trim()) {
+      setAdminMesaji({ tip: "error", metin: "Kullanıcı ve yeni şifre alanı zorunludur." });
+      return;
+    }
+    if (sifreSifirlamaForm.newPassword.trim().length < 6) {
+      setAdminMesaji({ tip: "error", metin: "Yeni şifre en az 6 karakter olmalıdır." });
+      return;
+    }
+
+    const sonuc = await onResetAdminUserPassword({
+      userId: sifreSifirlamaForm.userId,
+      newPassword: sifreSifirlamaForm.newPassword.trim(),
+    });
+    setAdminMesaji({ tip: sonuc.ok ? "success" : "error", metin: sonuc.message });
+    if (sonuc.ok) {
+      setSifreSifirlamaForm((prev) => ({ ...prev, newPassword: "" }));
+    }
+  };
+
+  const seciliAdminKullanici = useMemo(
+    () => adminKullanicilar.find((item) => item.id === sifreSifirlamaForm.userId) || null,
+    [adminKullanicilar, sifreSifirlamaForm.userId],
+  );
 
   const hedefKullaniciSec = (value: string) => {
     setHedefKullanici(value);
@@ -323,6 +427,249 @@ export function SettingsPanel({
       </div>
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "10px", overflow: "hidden" }}>
+        {activeAyarTab === "hesap" && (
+          <div style={{ display: "grid", gap: "12px", overflowY: "auto" }}>
+            <div style={kartStili}>
+              <h3 style={{ margin: "0 0 8px", fontSize: "15px", color: "#0f172a" }}>Şifre Değiştir</h3>
+              <p style={{ margin: "0 0 8px", color: "#64748b", fontSize: "13px", lineHeight: 1.5 }}>
+                Oturumdaki kullanıcı: <b>{aktifKullaniciEposta || mevcutKullanici || "-"}</b>
+              </p>
+              <p style={{ margin: 0, color: "#64748b", fontSize: "12px", lineHeight: 1.5 }}>
+                Buradan sadece kendi hesabınızın şifresini değiştirebilirsiniz.
+              </p>
+            </div>
+
+            {sifreMesaji && (
+              <div
+                style={{
+                  ...kartStili,
+                  background: sifreMesaji.tip === "success" ? "#ecfdf5" : "#fef2f2",
+                  borderColor: sifreMesaji.tip === "success" ? "#86efac" : "#fecaca",
+                  color: sifreMesaji.tip === "success" ? "#166534" : "#b91c1c",
+                  fontSize: "12px",
+                }}
+              >
+                {sifreMesaji.metin}
+              </div>
+            )}
+
+            <div style={{ ...kartStili, display: "grid", gap: "10px", maxWidth: "420px" }}>
+              <input
+                type="password"
+                placeholder="Yeni şifre"
+                value={sifreForm.yeni}
+                onChange={(event) => setSifreForm((prev) => ({ ...prev, yeni: event.target.value }))}
+                style={{ padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", outline: "none", fontSize: "13px" }}
+              />
+              <input
+                type="password"
+                placeholder="Yeni şifre tekrar"
+                value={sifreForm.tekrar}
+                onChange={(event) => setSifreForm((prev) => ({ ...prev, tekrar: event.target.value }))}
+                style={{ padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", outline: "none", fontSize: "13px" }}
+              />
+              <button
+                onClick={() => void handleSifreDegistir()}
+                disabled={isSifreKayitLoading}
+                style={{
+                  background: "#2563eb",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "8px",
+                  padding: "10px 14px",
+                  fontWeight: "bold",
+                  cursor: isSifreKayitLoading ? "wait" : "pointer",
+                  fontSize: "13px",
+                }}
+              >
+                {isSifreKayitLoading ? "Kaydediliyor..." : "Şifreyi Değiştir"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {activeAyarTab === "kullanici_yonetimi" && isAdmin && (
+          <div style={{ display: "grid", gap: "12px", overflowY: "auto" }}>
+            <div style={kartStili}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                <div>
+                  <h3 style={{ margin: "0 0 6px", fontSize: "15px", color: "#0f172a" }}>Kullanıcı Yönetimi</h3>
+                  <p style={{ margin: 0, color: "#64748b", fontSize: "12px", lineHeight: 1.5 }}>
+                    Yeni kullanıcı ekleme ve mevcut kullanıcı şifresi değiştirme işlemleri güvenli backend üzerinden yapılır.
+                  </p>
+                </div>
+                <button
+                  onClick={() => void onLoadAdminUsers(true)}
+                  disabled={isAdminKullaniciLoading}
+                  style={{
+                    background: "#0f766e",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "8px",
+                    padding: "8px 12px",
+                    fontWeight: "bold",
+                    cursor: isAdminKullaniciLoading ? "wait" : "pointer",
+                    fontSize: "12px",
+                  }}
+                >
+                  {isAdminKullaniciLoading ? "Yükleniyor..." : "Listeyi Yenile"}
+                </button>
+              </div>
+            </div>
+
+            {adminMesaji && (
+              <div
+                style={{
+                  ...kartStili,
+                  background: adminMesaji.tip === "success" ? "#ecfdf5" : "#fef2f2",
+                  borderColor: adminMesaji.tip === "success" ? "#86efac" : "#fecaca",
+                  color: adminMesaji.tip === "success" ? "#166534" : "#b91c1c",
+                  fontSize: "12px",
+                }}
+              >
+                {adminMesaji.metin}
+              </div>
+            )}
+
+            {adminKullaniciHata && (
+              <div
+                style={{
+                  ...kartStili,
+                  background: "#fff7ed",
+                  borderColor: "#fdba74",
+                  color: "#9a3412",
+                  fontSize: "12px",
+                }}
+              >
+                {adminKullaniciHata}
+              </div>
+            )}
+
+            <div style={{ display: "grid", gap: "12px", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
+              <div style={{ ...kartStili, display: "grid", gap: "10px" }}>
+                <h4 style={{ margin: 0, fontSize: "14px", color: "#0f172a" }}>Yeni Kullanıcı Ekle</h4>
+                <input
+                  placeholder="Ad soyad (opsiyonel)"
+                  value={yeniKullaniciForm.displayName}
+                  onChange={(event) => setYeniKullaniciForm((prev) => ({ ...prev, displayName: event.target.value }))}
+                  style={{ padding: "9px 11px", borderRadius: "8px", border: "1px solid #cbd5e1", outline: "none", fontSize: "13px" }}
+                />
+                <input
+                  placeholder="E-posta"
+                  value={yeniKullaniciForm.email}
+                  onChange={(event) => setYeniKullaniciForm((prev) => ({ ...prev, email: event.target.value }))}
+                  style={{ padding: "9px 11px", borderRadius: "8px", border: "1px solid #cbd5e1", outline: "none", fontSize: "13px" }}
+                />
+                <input
+                  type="password"
+                  placeholder="Geçici şifre"
+                  value={yeniKullaniciForm.password}
+                  onChange={(event) => setYeniKullaniciForm((prev) => ({ ...prev, password: event.target.value }))}
+                  style={{ padding: "9px 11px", borderRadius: "8px", border: "1px solid #cbd5e1", outline: "none", fontSize: "13px" }}
+                />
+                <button
+                  onClick={() => void handleAdminKullaniciOlustur()}
+                  disabled={isAdminKullaniciLoading}
+                  style={{
+                    background: "#2563eb",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "8px",
+                    padding: "10px 14px",
+                    fontWeight: "bold",
+                    cursor: isAdminKullaniciLoading ? "wait" : "pointer",
+                    fontSize: "13px",
+                  }}
+                >
+                  Kullanıcı Ekle
+                </button>
+              </div>
+
+              <div style={{ ...kartStili, display: "grid", gap: "10px" }}>
+                <h4 style={{ margin: 0, fontSize: "14px", color: "#0f172a" }}>Kullanıcı Şifresi Değiştir</h4>
+                <select
+                  value={sifreSifirlamaForm.userId}
+                  onChange={(event) => setSifreSifirlamaForm((prev) => ({ ...prev, userId: event.target.value }))}
+                  style={{ padding: "9px 11px", borderRadius: "8px", border: "1px solid #cbd5e1", outline: "none", fontSize: "13px", background: "#fff" }}
+                >
+                  <option value="">Kullanıcı seçin</option>
+                  {adminKullanicilar.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.email}
+                    </option>
+                  ))}
+                </select>
+                {seciliAdminKullanici && (
+                  <div style={{ fontSize: "12px", color: "#64748b" }}>
+                    <div><b>Kullanıcı:</b> {seciliAdminKullanici.email}</div>
+                    {seciliAdminKullanici.role && <div><b>Rol:</b> {seciliAdminKullanici.role}</div>}
+                  </div>
+                )}
+                <input
+                  type="password"
+                  placeholder="Yeni şifre"
+                  value={sifreSifirlamaForm.newPassword}
+                  onChange={(event) => setSifreSifirlamaForm((prev) => ({ ...prev, newPassword: event.target.value }))}
+                  style={{ padding: "9px 11px", borderRadius: "8px", border: "1px solid #cbd5e1", outline: "none", fontSize: "13px" }}
+                />
+                <button
+                  onClick={() => void handleAdminSifreGuncelle()}
+                  disabled={isAdminKullaniciLoading}
+                  style={{
+                    background: "#0f766e",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "8px",
+                    padding: "10px 14px",
+                    fontWeight: "bold",
+                    cursor: isAdminKullaniciLoading ? "wait" : "pointer",
+                    fontSize: "13px",
+                  }}
+                >
+                  Şifreyi Güncelle
+                </button>
+              </div>
+            </div>
+
+            <div style={{ ...kartStili, display: "grid", gap: "8px" }}>
+              <h4 style={{ margin: 0, fontSize: "14px", color: "#0f172a" }}>Mevcut Kullanıcılar</h4>
+              <div style={{ display: "grid", gap: "8px" }}>
+                {adminKullanicilar.map((item) => (
+                  <div
+                    key={item.id}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: "10px",
+                      padding: "9px 10px",
+                      borderRadius: "8px",
+                      border: "1px solid #e2e8f0",
+                      background: "#f8fafc",
+                      fontSize: "12px",
+                    }}
+                  >
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: "bold", color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis" }}>{item.email}</div>
+                      <div style={{ color: "#64748b" }}>
+                        {(item.displayName || item.username || "-")}{item.role ? ` • ${item.role}` : ""}
+                      </div>
+                    </div>
+                    <div style={{ color: "#94a3b8", whiteSpace: "nowrap" }}>
+                      {item.createdAt ? new Date(item.createdAt).toLocaleDateString("tr-TR") : "-"}
+                    </div>
+                  </div>
+                ))}
+                {adminKullanicilar.length === 0 && (
+                  <div style={{ textAlign: "center", color: "#94a3b8", fontSize: "12px" }}>
+                    {isAdminKullaniciLoading ? "Kullanıcılar yükleniyor..." : "Henüz kullanıcı bulunamadı."}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {(activeAyarTab === "musteriler" || activeAyarTab === "urunler" || activeAyarTab === "ciftlikler" || activeAyarTab === "gider_turleri") && (
           <>
             <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>

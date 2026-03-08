@@ -12,6 +12,7 @@ import { adminMi, kullaniciYetkileriniKaydet, kullaniciYetkileriniYukle, kullani
 import { supabase } from "./lib/supabase";
 import type {
   ActiveAyarTab,
+  AdminKullanici,
   AppTabId,
   Bayi,
   Ciftlik,
@@ -406,6 +407,9 @@ export default function App() {
   const [depolamaHata, setDepolamaHata] = useState("");
   const [veriYuklemeHata, setVeriYuklemeHata] = useState("");
   const [authHata, setAuthHata] = useState("");
+  const [adminKullanicilar, setAdminKullanicilar] = useState<AdminKullanici[]>([]);
+  const [isAdminKullaniciLoading, setIsAdminKullaniciLoading] = useState(false);
+  const [adminKullaniciHata, setAdminKullaniciHata] = useState("");
   
   // AÇILIR MENÜLER
   const [openDropdown, setOpenDropdown] = useState<{type: string, id: string} | null>(null);
@@ -888,6 +892,19 @@ export default function App() {
     );
   };
 
+  const edgeFunctionBulunamadiMi = (hata: { message?: string; name?: string } | null | undefined, fonksiyonAdi: string) => {
+    const mesaj = String(hata?.message || "").toLowerCase();
+    const isim = String(hata?.name || "").toLowerCase();
+    return (
+      mesaj.includes("edge function") ||
+      mesaj.includes("failed to send a request") ||
+      mesaj.includes("non-2xx status code") ||
+      mesaj.includes("404") ||
+      mesaj.includes(fonksiyonAdi.toLowerCase()) ||
+      isim.includes("functions")
+    );
+  };
+
   const kolonBulunamadiMi = (
     hata: { message?: string } | null | undefined,
     tabloAdi: string,
@@ -942,7 +959,106 @@ export default function App() {
     await supabase.auth.signOut({ scope: "local" });
     setSession(null);
     setPassword("");
+    setAdminKullanicilar([]);
+    setAdminKullaniciHata("");
   };
+
+  const adminKullaniciFonksiyonunuCagir = useCallback(
+    async <T,>(payload: Record<string, unknown>) => {
+      const { data, error } = await supabase.functions.invoke("user-admin", { body: payload });
+
+      if (error) {
+        if (edgeFunctionBulunamadiMi(error, "user-admin")) {
+          throw new Error("Kullanıcı yönetimi Edge Function henüz deploy edilmemiş. Supabase Edge Function adımını tamamlaman gerekiyor.");
+        }
+        throw new Error(error.message || "Kullanıcı yönetimi çağrısı başarısız oldu.");
+      }
+
+      const sonuc = (data || {}) as { ok?: boolean; message?: string };
+      if (sonuc.ok === false) {
+        throw new Error(sonuc.message || "Kullanıcı yönetimi işlemi başarısız oldu.");
+      }
+
+      return data as T;
+    },
+    [],
+  );
+
+  const handleOwnPasswordChange = useCallback(
+    async (newPassword: string) => {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) {
+        return { ok: false, message: error.message || "Şifre güncellenemedi." };
+      }
+      return { ok: true, message: "Şifreniz başarıyla güncellendi." };
+    },
+    [],
+  );
+
+  const handleAdminUsersLoad = useCallback(
+    async (force = false) => {
+      if (!isAdmin) return;
+      if (!force && adminKullanicilar.length > 0) return;
+
+      setIsAdminKullaniciLoading(true);
+      setAdminKullaniciHata("");
+
+      try {
+        const data = await adminKullaniciFonksiyonunuCagir<{ users: AdminKullanici[] }>({ action: "list-users" });
+        setAdminKullanicilar(Array.isArray(data.users) ? data.users : []);
+      } catch (error: any) {
+        setAdminKullaniciHata(error?.message || "Kullanıcı listesi alınamadı.");
+      } finally {
+        setIsAdminKullaniciLoading(false);
+      }
+    },
+    [adminKullanicilar.length, adminKullaniciFonksiyonunuCagir, isAdmin],
+  );
+
+  const handleAdminCreateUser = useCallback(
+    async (payload: { email: string; password: string; displayName: string }) => {
+      try {
+        setIsAdminKullaniciLoading(true);
+        setAdminKullaniciHata("");
+        const data = await adminKullaniciFonksiyonunuCagir<{ message?: string }>({
+          action: "create-user",
+          email: payload.email,
+          password: payload.password,
+          displayName: payload.displayName,
+        });
+        await handleAdminUsersLoad(true);
+        await verileriGetir("ayar");
+        return { ok: true, message: data?.message || "Kullanıcı oluşturuldu." };
+      } catch (error: any) {
+        setAdminKullaniciHata(error?.message || "Kullanıcı oluşturulamadı.");
+        return { ok: false, message: error?.message || "Kullanıcı oluşturulamadı." };
+      } finally {
+        setIsAdminKullaniciLoading(false);
+      }
+    },
+    [adminKullaniciFonksiyonunuCagir, handleAdminUsersLoad],
+  );
+
+  const handleAdminResetUserPassword = useCallback(
+    async (payload: { userId: string; newPassword: string }) => {
+      try {
+        setIsAdminKullaniciLoading(true);
+        setAdminKullaniciHata("");
+        const data = await adminKullaniciFonksiyonunuCagir<{ message?: string }>({
+          action: "set-password",
+          userId: payload.userId,
+          password: payload.newPassword,
+        });
+        return { ok: true, message: data?.message || "Kullanıcı şifresi güncellendi." };
+      } catch (error: any) {
+        setAdminKullaniciHata(error?.message || "Kullanıcı şifresi güncellenemedi.");
+        return { ok: false, message: error?.message || "Kullanıcı şifresi güncellenemedi." };
+      } finally {
+        setIsAdminKullaniciLoading(false);
+      }
+    },
+    [adminKullaniciFonksiyonunuCagir],
+  );
 
   async function coptKutusunaAt(tablo: string, veri: any) {
       const { error } = await supabase
@@ -3880,6 +3996,7 @@ export default function App() {
           void depolamaDurumunuGetir();
         }
       }}
+      aktifKullaniciEposta={aktifKullaniciEposta}
       bayiler={bayiler}
       urunler={urunler}
       tedarikciler={tedarikciler}
@@ -3912,11 +4029,18 @@ export default function App() {
       onLoadDepolama={depolamaDurumunuGetir}
       isAdmin={isAdmin}
       mevcutKullanici={mevcutKullanici}
+      adminKullanicilar={adminKullanicilar}
+      isAdminKullaniciLoading={isAdminKullaniciLoading}
+      adminKullaniciHata={adminKullaniciHata}
       kullaniciListesi={kullaniciListesi}
       tabYetkileri={tabYetkileri}
       sekmeSecenekleri={sekmeSecenekleri}
       yetkiKaynak={yetkiKaynak}
       yetkiUyari={yetkiUyari}
+      onChangeOwnPassword={handleOwnPasswordChange}
+      onLoadAdminUsers={handleAdminUsersLoad}
+      onCreateAdminUser={handleAdminCreateUser}
+      onResetAdminUserPassword={handleAdminResetUserPassword}
       onSavePermissions={handlePermissionSave}
     />
   );
