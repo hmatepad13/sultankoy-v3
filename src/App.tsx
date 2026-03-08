@@ -4081,7 +4081,7 @@ export default function App() {
           })}
 
         {altMenuDigerSekmeleri.length > 0 && (
-          <div style={{ position: "relative", display: "flex", flex: 1 }}>
+          <div style={{ position: "relative", display: "flex", flex: 1, order: -1 }}>
             <button
               onClick={() => setIsBottomMenuOpen((prev) => !prev)}
               className={`n-item btn-anim ${isBottomMenuOpen || altMenuGizliSekmeAktif ? "active" : ""}`}
