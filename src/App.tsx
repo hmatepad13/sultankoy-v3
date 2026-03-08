@@ -4382,15 +4382,16 @@ export default function App() {
                   {urunler.map(u => {
                     const isimLower = u.isim.toLowerCase();
                     const isFixed = (isimLower.includes("3 kg") || isimLower.includes("5 kg") || (isimLower.includes("kayma") && !isimLower.includes("yoğurt")));
+                    const isVarsayilanUrun = isFixed && (isimLower.includes("3 kg") || isimLower.includes("5 kg"));
                     const isTereyagi = isimLower.includes("tereya");
                     const isYogurtKaymagi = isimLower.includes("yoğurt kayma");
                     const isFilled = (Number(fisDetay[u.id]?.adet) > 0 || Number(fisDetay[u.id]?.kg) > 0);
-                    const isEkstraUrun = !isFixed && !isTereyagi && !isYogurtKaymagi;
+                    const isEkstraUrun = !isVarsayilanUrun && !isTereyagi && !isYogurtKaymagi;
                     const ekstraUrunSecili = gosterilenEkler.urunler.includes(u.id);
                     const isAktif = u.aktif !== false;
 
                     if (!isAktif && !isFilled) return null;
-                    if (!isFixed && !isFilled && !(gosterilenEkler.tereyagi && isTereyagi) && !(gosterilenEkler.yogurt_kaymagi && isYogurtKaymagi) && !(isEkstraUrun && ekstraUrunSecili)) return null;
+                    if (!isVarsayilanUrun && !isFilled && !(gosterilenEkler.tereyagi && isTereyagi) && !(gosterilenEkler.yogurt_kaymagi && isYogurtKaymagi) && !(isEkstraUrun && ekstraUrunSecili)) return null;
 
                     const handleAdetChange = (e: any) => {
                         const val = e.target.value;
@@ -4425,10 +4426,11 @@ export default function App() {
                         const digerSecenekler = aktifUrunler.filter(u => {
                           const isimLower = u.isim.toLowerCase();
                           const isFixed = (isimLower.includes("3 kg") || isimLower.includes("5 kg") || (isimLower.includes("kayma") && !isimLower.includes("yoğurt")));
+                          const isVarsayilanUrun = isFixed && (isimLower.includes("3 kg") || isimLower.includes("5 kg"));
                           const isTereyagi = isimLower.includes("tereya");
                           const isYogurtKaymagi = isimLower.includes("yoğurt kayma");
                           const isFilled = (Number(fisDetay[u.id]?.adet) > 0 || Number(fisDetay[u.id]?.kg) > 0);
-                          if (isFixed || isFilled) return false;
+                          if (isVarsayilanUrun || isFilled) return false;
                           if (isTereyagi) return !gosterilenEkler.tereyagi;
                           if (isYogurtKaymagi) return !gosterilenEkler.yogurt_kaymagi;
                           return !gosterilenEkler.urunler.includes(u.id);
