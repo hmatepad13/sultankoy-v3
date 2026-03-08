@@ -2297,19 +2297,11 @@ export default function App() {
       return [{ etiket: "Kayıt", deger: "Detay bulunamadı" }];
     }
 
-    const toplamAlim = detaylar.reduce((toplam, item) => toplam + item.alim, 0);
-    const toplamOdeme = detaylar.reduce((toplam, item) => toplam + item.odeme, 0);
-    const toplamBorc = detaylar.reduce((toplam, item) => toplam + item.borc, 0);
-
-    return [
-      ...detaylar.map((item) => ({
-        etiket: item.isim,
-        deger: `${fSayi(item.borc)} ₺`,
-      })),
-      { etiket: "Toplam Alım", deger: `${fSayi(toplamAlim)} ₺`, vurgu: true },
-      { etiket: "Toplam Ödeme", deger: `${fSayi(toplamOdeme)} ₺` },
-      { etiket: "Toplam Borç", deger: `${fSayi(toplamBorc)} ₺`, vurgu: true },
-    ];
+    return detaylar.map((item) => ({
+      etiket: `${item.isim} Net Borç`,
+      deger: `${fSayi(item.borc)} ₺`,
+      vurgu: true,
+    }));
   }, [aktifDonem, giderList, sutCiftlikAdiGetir, sutCiftlikAnahtariGetir, sutList, tedarikciler]);
   const aktifUretimTipi = uretimForm.uretim_tipi || "yogurt";
   const siraliUretimList = useMemo(() => sortData(periodUretim, uretimSort), [periodUretim, uretimSort]);
