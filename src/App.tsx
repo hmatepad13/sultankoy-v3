@@ -532,6 +532,7 @@ export default function App() {
   const [giderFiltreKisi, setGiderFiltreKisi] = useState<"benim" | "tumu">("benim");
   const [isGiderModalOpen, setIsGiderModalOpen] = useState<boolean>(false);
   const [editingGiderId, setEditingGiderId] = useState<any>(null);
+  const [giderModalMode, setGiderModalMode] = useState<"create" | "edit" | "view">("create");
   const [giderForm, setGiderForm] = useState<Gider>({ tarih: aktifDonemTarihi(), tur: "Genel Gider", aciklama: "", tutar: "" });
   const [giderGorselDosya, setGiderGorselDosya] = useState<File | null>(null);
   const [giderGorselMevcutYol, setGiderGorselMevcutYol] = useState("");
@@ -1649,6 +1650,56 @@ export default function App() {
     setIsSutModalOpen(true);
   };
 
+  const resetGiderFormu = () => {
+    setGiderForm({ tarih: aktifDonemTarihi(), tur: "Genel Gider", aciklama: "", tutar: "" });
+    setGiderGorselDosya(null);
+    setGiderGorselMevcutYol("");
+    setEditingGiderId(null);
+    setGiderModalMode("create");
+  };
+
+  const handleGiderModalKapat = () => {
+    setIsGiderModalOpen(false);
+    resetGiderFormu();
+  };
+
+  const handleYeniGiderModalAc = () => {
+    resetGiderFormu();
+    setIsGiderModalOpen(true);
+  };
+
+  const handleGiderGoruntule = (gider: Gider) => {
+    setEditingGiderId(gider.id || null);
+    setGiderForm({
+      tarih: gider.tarih,
+      tur: gider.tur,
+      aciklama: gider.aciklama || "",
+      tutar: gider.tutar,
+      ekleyen: gider.ekleyen,
+      gorsel: gider.gorsel,
+    });
+    setGiderGorselDosya(null);
+    setGiderGorselMevcutYol(gider.gorsel || "");
+    setGiderModalMode("view");
+    setIsGiderModalOpen(true);
+  };
+
+  const handleGiderDuzenle = (gider: Gider) => {
+    setEditingGiderId(gider.id || null);
+    setGiderForm({
+      tarih: gider.tarih,
+      tur: gider.tur,
+      aciklama: gider.aciklama || "",
+      tutar: gider.tutar,
+      ekleyen: gider.ekleyen,
+      gorsel: gider.gorsel,
+    });
+    setGiderGorselDosya(null);
+    setGiderGorselMevcutYol(gider.gorsel || "");
+    setGiderModalMode("edit");
+    setIsGiderModalOpen(true);
+  };
+
   async function handleGiderKaydet() {
     if (!giderForm.tarih || !giderForm.tur || !giderForm.tutar) return alert("Tarih, Tür ve Tutar zorunludur!");
     const duzenlenenKayit = giderList.find((item) => item.id === editingGiderId);
@@ -1706,11 +1757,7 @@ export default function App() {
       await fisGorseliniSil(oncekiGorsel);
     }
 
-    setGiderForm({ tarih: aktifDonemTarihi(), tur: "Genel Gider", aciklama: "", tutar: "" });
-    setGiderGorselDosya(null);
-    setGiderGorselMevcutYol("");
-    setEditingGiderId(null);
-    setIsGiderModalOpen(false);
+    handleGiderModalKapat();
     verileriGetir("gider");
   }
 
@@ -3543,7 +3590,7 @@ export default function App() {
           <button onClick={() => setGiderFiltreKisi('benim')} style={{ flex: 1, padding: '8px 10px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', background: giderFiltreKisi==='benim'?'#dc2626':'transparent', color: giderFiltreKisi==='benim'?'#fff':'#475569' }}>Benim</button>
           <button onClick={() => setGiderFiltreKisi('tumu')} style={{ flex: 1, padding: '8px 10px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', background: giderFiltreKisi==='tumu'?'#dc2626':'transparent', color: giderFiltreKisi==='tumu'?'#fff':'#475569' }}>Tümü</button>
         </div>
-        <button onClick={() => { setGiderForm({ tarih: aktifDonemTarihi(), tur: "Genel Gider", aciklama: "", tutar: "" }); setGiderGorselDosya(null); setGiderGorselMevcutYol(""); setEditingGiderId(null); setIsGiderModalOpen(true); }} className="btn-anim m-btn inline-mobile-btn" style={{ background: "#dc2626", margin: 0, width: "auto", minWidth: "136px", flex: "0 0 auto", fontSize: "13px", padding: "10px 12px" }}>➕ YENİ GİDER EKLE</button>
+        <button onClick={handleYeniGiderModalAc} className="btn-anim m-btn inline-mobile-btn" style={{ background: "#dc2626", margin: 0, width: "auto", minWidth: "136px", flex: "0 0 auto", fontSize: "13px", padding: "10px 12px" }}>➕ YENİ GİDER EKLE</button>
         <div className="gider-ust-ozet" style={{ border: "1px solid #dc262633", background: "#dc262610", color: "#dc2626", borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", flex: "1 1 auto", minWidth: "110px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
           GİDERLER: {fSayi(fGTutarNormal)} ₺
         </div>
@@ -3570,9 +3617,10 @@ export default function App() {
             <td className="actions-cell" style={{position: 'relative'}}>
                <button onClick={(e) => { e.stopPropagation(); setOpenDropdown({ type: 'gider', id: g.id as string }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', padding: '0 8px', color: '#64748b' }}>⋮</button>
                {openDropdown?.type === 'gider' && openDropdown.id === g.id && (
-                  <div className="dropdown-menu">
+                    <div className="dropdown-menu">
+                     <button title="Detay Gör" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); handleGiderGoruntule(g); }}>🔍</button>
                      {g.gorsel && <button title="Fotoğrafı Gör" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); handleGiderGorselGoster(g); }}>📷</button>}
-                     {duzenlenebilir && <button title="Düzenle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); setEditingGiderId(g.id); setGiderForm(g as any); setGiderGorselDosya(null); setGiderGorselMevcutYol(g.gorsel || ""); setIsGiderModalOpen(true); }}>✏️</button>}
+                     {duzenlenebilir && <button title="Düzenle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); handleGiderDuzenle(g); }}>✏️</button>}
                      {silinebilir && <button title="Sil" className="dropdown-item-icon" style={{ color: '#dc2626' }} onClick={async () => { setOpenDropdown(null); await handleKayitSil("giderler", g, "gider"); }}>🗑️</button>}
                   </div>
                )}
@@ -4926,41 +4974,53 @@ export default function App() {
         {isGiderModalOpen && (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1200, padding: "10px" }}>
             <div style={{ backgroundColor: "#fff", width: "95vw", maxWidth: "350px", borderRadius: "12px", display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease-out", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }} onClick={(e) => e.stopPropagation()}>
-              <div style={{ padding: "12px 15px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: editingGiderId ? "#fef2f2" : "#f8fafc", borderRadius: "12px 12px 0 0" }}>
-                <h3 style={{ margin: "0", color: "#dc2626", fontSize: "15px" }}>{editingGiderId ? "✏️ Gider Düzenle" : "💸 Yeni Gider"}</h3>
-                <button onClick={() => setIsGiderModalOpen(false)} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#94a3b8", padding: 0 }}>✕</button>
+              <div style={{ padding: "12px 15px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: giderModalMode === "view" ? "#eff6ff" : editingGiderId ? "#fef2f2" : "#f8fafc", borderRadius: "12px 12px 0 0" }}>
+                <h3 style={{ margin: "0", color: giderModalMode === "view" ? "#2563eb" : "#dc2626", fontSize: "15px" }}>
+                  {giderModalMode === "view" ? "🔍 Gider Detayı" : editingGiderId ? "✏️ Gider Düzenle" : "💸 Yeni Gider"}
+                </h3>
+                <button onClick={handleGiderModalKapat} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#94a3b8", padding: 0 }}>✕</button>
               </div>
               <div style={{ padding: "15px", display: "flex", flexDirection: "column", gap: "10px" }}>
                 <div style={{ display: "flex", gap: "8px" }}>
-                   <input type="date" value={giderForm.tarih} onChange={e => setGiderForm({ ...giderForm, tarih: e.target.value })} className="m-inp date-click" style={{ flex: 1 }} />
-                   <select value={giderForm.tur} onChange={e => setGiderForm({ ...giderForm, tur: e.target.value })} className="m-inp" style={{ flex: 2, fontWeight: "bold" }}>
+                   <input type="date" value={giderForm.tarih} onChange={e => setGiderForm({ ...giderForm, tarih: e.target.value })} disabled={giderModalMode === "view"} className="m-inp date-click" style={{ flex: 1, background: giderModalMode === "view" ? "#f8fafc" : undefined }} />
+                   <select value={giderForm.tur} onChange={e => setGiderForm({ ...giderForm, tur: e.target.value })} disabled={giderModalMode === "view"} className="m-inp" style={{ flex: 2, fontWeight: "bold", background: giderModalMode === "view" ? "#f8fafc" : undefined }}>
                      {giderTurleri.map(t => <option key={t} value={t}>{t}</option>)}
                    </select>
                 </div>
                 <div>
                   <label style={{fontSize: "11px", color: "#64748b"}}>Tutar (₺)</label>
                   <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                    <input type="number" step="0.01" value={giderForm.tutar} onChange={e => setGiderForm({ ...giderForm, tutar: e.target.value })} className="m-inp" style={{flex: 1, width: "100%", textAlign: "right", color: "#dc2626", fontWeight: "bold"}} />
+                    <input type="number" step="0.01" value={giderForm.tutar} onChange={e => setGiderForm({ ...giderForm, tutar: e.target.value })} disabled={giderModalMode === "view"} className="m-inp" style={{flex: 1, width: "100%", textAlign: "right", color: "#dc2626", fontWeight: "bold", background: giderModalMode === "view" ? "#f8fafc" : undefined}} />
+                    {giderModalMode !== "view" ? (
                     <label className="btn-anim" style={{ background: "#e2e8f0", border: "1px solid #cbd5e1", borderRadius: "6px", padding: "8px 10px", fontSize: "11px", fontWeight: "bold", color: "#334155", cursor: "pointer", flex: "0 0 auto", whiteSpace: "nowrap" }}>
                       <input type="file" accept="image/*" onChange={handleGiderGorselSec} style={{ display: "none" }} />
                       {giderGorselDosyaAdi ? "Fotoğrafı Değiştir" : "Fotoğraf Yükle"}
                     </label>
+                    ) : giderGorselMevcutYol ? (
+                    <button type="button" onClick={() => handleGiderGorselGoster(giderForm)} className="btn-anim" style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "6px", padding: "8px 10px", fontSize: "11px", fontWeight: "bold", color: "#2563eb", cursor: "pointer", flex: "0 0 auto", whiteSpace: "nowrap" }}>
+                      Fotoğrafı Gör
+                    </button>
+                    ) : null}
                   </div>
                   {giderGorselDosyaAdi && (
                     <div style={{ display: "flex", gap: "8px", alignItems: "center", marginTop: "6px", flexWrap: "wrap" }}>
                       <span style={{ fontSize: "11px", color: "#64748b", maxWidth: "180px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                         {giderGorselDosyaAdi}
                       </span>
-                      <button type="button" onClick={handleGiderGorselTemizle} className="btn-anim" style={{ background: "transparent", border: "1px solid #fecaca", color: "#dc2626", borderRadius: "6px", padding: "6px 8px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}>
+                      {giderModalMode !== "view" && <button type="button" onClick={handleGiderGorselTemizle} className="btn-anim" style={{ background: "transparent", border: "1px solid #fecaca", color: "#dc2626", borderRadius: "6px", padding: "6px 8px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}>
                         Temizle
-                      </button>
+                      </button>}
                     </div>
                   )}
                 </div>
-                <div><label style={{fontSize: "11px", color: "#64748b"}}>Açıklama / Not</label><input placeholder="Opsiyonel..." value={giderForm.aciklama} onChange={e => setGiderForm({ ...giderForm, aciklama: e.target.value })} className="m-inp" style={{width: "100%"}} /></div>
+                <div><label style={{fontSize: "11px", color: "#64748b"}}>Açıklama / Not</label><input placeholder="Opsiyonel..." value={giderForm.aciklama} onChange={e => setGiderForm({ ...giderForm, aciklama: e.target.value })} disabled={giderModalMode === "view"} className="m-inp" style={{width: "100%", background: giderModalMode === "view" ? "#f8fafc" : undefined}} /></div>
               </div>
               <div style={{ padding: "12px 15px", borderTop: "1px solid #e2e8f0", background: "#f8fafc", borderRadius: "0 0 12px 12px" }}>
-                <button onClick={handleGiderKaydet} className="p-btn btn-anim" style={{ background: "#dc2626", width: "100%", height: "45px", fontSize: "15px" }}>{editingGiderId ? "GÜNCELLE" : "KAYDET"}</button>
+                {giderModalMode === "view" ? (
+                  <button onClick={handleGiderModalKapat} className="p-btn btn-anim" style={{ background: "#475569", width: "100%", height: "45px", fontSize: "15px" }}>KAPAT</button>
+                ) : (
+                  <button onClick={handleGiderKaydet} className="p-btn btn-anim" style={{ background: "#dc2626", width: "100%", height: "45px", fontSize: "15px" }}>{editingGiderId ? "GÜNCELLE" : "KAYDET"}</button>
+                )}
               </div>
             </div>
           </div>
