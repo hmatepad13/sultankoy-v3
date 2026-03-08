@@ -39,6 +39,7 @@ export interface Urun {
   isim: string;
   fiyat?: number | string;
   aktif?: boolean | null;
+  sabit?: boolean | null;
 }
 
 export interface GiderTuru {

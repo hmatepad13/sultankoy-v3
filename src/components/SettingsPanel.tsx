@@ -26,9 +26,12 @@ interface SettingsPanelProps {
   copKutusuList: CopKutusu[];
   yeniAyarDeger: string;
   setYeniAyarDeger: (value: string) => void;
+  yeniUrunSabitle: boolean;
+  setYeniUrunSabitle: (value: boolean) => void;
   handleAyarEkle: () => void;
   onSettingEdit: (tablo: string, id: string, isim: string) => void;
   onSettingToggleActive: (tablo: string, id: string, aktif: boolean) => void;
+  onSettingTogglePinned: (id: string, sabit: boolean) => void;
   onSettingDelete: (tablo: string, id: string, isim: string) => void;
   onOpenTrash: () => void;
   onEmptyTrash: () => Promise<void> | void;
@@ -186,9 +189,12 @@ export function SettingsPanel({
   copKutusuList,
   yeniAyarDeger,
   setYeniAyarDeger,
+  yeniUrunSabitle,
+  setYeniUrunSabitle,
   handleAyarEkle,
   onSettingEdit,
   onSettingToggleActive,
+  onSettingTogglePinned,
   onSettingDelete,
   onOpenTrash,
   onEmptyTrash,
@@ -686,6 +692,26 @@ export function SettingsPanel({
                   fontSize: "13px",
                 }}
               />
+              {activeAyarTab === "urunler" && (
+                <button
+                  onClick={() => setYeniUrunSabitle(!yeniUrunSabitle)}
+                  style={{
+                    background: yeniUrunSabitle ? "#ecfdf5" : "#f8fafc",
+                    color: yeniUrunSabitle ? "#047857" : "#475569",
+                    border: `1px solid ${yeniUrunSabitle ? "#86efac" : "#cbd5e1"}`,
+                    borderRadius: "8px",
+                    padding: "8px 12px",
+                    fontWeight: "bold",
+                    cursor: "pointer",
+                    fontSize: "12px",
+                    whiteSpace: "nowrap",
+                    flex: "0 0 auto",
+                  }}
+                  title="Yeni ürün satış fişinde sabit ürün olarak görünsün mü?"
+                >
+                  {yeniUrunSabitle ? "Sabitlenecek" : "Sabitle"}
+                </button>
+              )}
               <button
                 onClick={handleAyarEkle}
                 style={{
@@ -731,6 +757,22 @@ export function SettingsPanel({
                         ? ` (${fSayi((item as Urun).fiyat)} ₺)`
                         : ""}
                     </span>
+                    {activeAyarTab === "urunler" && (
+                      <span
+                        style={{
+                          background: (item as Urun).sabit ? "#eff6ff" : "#f8fafc",
+                          color: (item as Urun).sabit ? "#2563eb" : "#64748b",
+                          border: `1px solid ${(item as Urun).sabit ? "#bfdbfe" : "#e2e8f0"}`,
+                          borderRadius: "999px",
+                          padding: "1px 6px",
+                          fontSize: "10px",
+                          fontWeight: "bold",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {(item as Urun).sabit ? "Sabit" : "Normal"}
+                      </span>
+                    )}
                     {pasifDestekli && (
                       <span
                         style={{
@@ -748,7 +790,31 @@ export function SettingsPanel({
                       </span>
                     )}
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", justifyContent: "flex-end" }}>
+                    {activeAyarTab === "urunler" && (
+                      <button
+                        onClick={() => onSettingTogglePinned(item.id, Boolean((item as Urun).sabit))}
+                        style={{
+                          background: (item as Urun).sabit ? "#eff6ff" : "#f8fafc",
+                          border: `1px solid ${(item as Urun).sabit ? "#bfdbfe" : "#cbd5e1"}`,
+                          color: (item as Urun).sabit ? "#2563eb" : "#475569",
+                          borderRadius: "6px",
+                          minWidth: "64px",
+                          height: "24px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          cursor: "pointer",
+                          fontSize: "11px",
+                          fontWeight: "bold",
+                          padding: "0 8px",
+                          whiteSpace: "nowrap",
+                        }}
+                        title={(item as Urun).sabit ? "Sabit ürünü kaldır" : "Ürünü sabitle"}
+                      >
+                        {(item as Urun).sabit ? "Sabitten Çık" : "Sabitle"}
+                      </button>
+                    )}
                     <button
                       onClick={() => onSettingEdit(aktifTabloAdi, item.id, item.isim)}
                       style={{

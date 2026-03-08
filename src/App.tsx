@@ -426,6 +426,7 @@ export default function App() {
   // YENİ AYARLAR STATE'İ (Çöp Kutusu Eklendi)
   const [activeAyarTab, setActiveAyarTab] = useState<ActiveAyarTab>("musteriler");
   const [yeniAyarDeger, setYeniAyarDeger] = useState("");
+  const [yeniUrunSabitle, setYeniUrunSabitle] = useState(false);
 
   const bugun = getLocalDateString();
   const aktifDonemTarihi = (donem = aktifDonem) => (bugun.startsWith(donem) ? bugun : `${donem}-01`);
@@ -1453,10 +1454,16 @@ export default function App() {
       if (tablo === "gider_turleri" && ayarKayitAdiVarMi("gider_turleri", isim)) {
         return alert("Aynı isimde gider türü zaten var.");
       }
-      const insertData: any = tablo === "gider_turleri" ? { isim } : { isim, aktif: true };
+      const insertData: any =
+        tablo === "gider_turleri"
+          ? { isim }
+          : tablo === "urunler"
+            ? { isim, aktif: true, sabit: yeniUrunSabitle }
+            : { isim, aktif: true };
       const { error } = await supabase.from(tablo).insert(insertData);
       if (error) return alert(`Hata: ${error.message}`);
       if(resetFn) resetFn("");
+      if (tablo === "urunler") setYeniUrunSabitle(false);
     } else if (islemTip === "guncelle") {
       if (!isim?.trim() || !id) return;
       if (ayarKayitAdiVarMi(tablo as "bayiler" | "urunler" | "ciftlikler" | "gider_turleri", isim, id)) {
@@ -1467,6 +1474,10 @@ export default function App() {
     } else if (islemTip === "durum") {
       if (!id) return;
       const { error } = await supabase.from(tablo).update({ aktif: Boolean(isim) }).eq("id", id);
+      if (error) return alert(`Hata: ${error.message}`);
+    } else if (islemTip === "sabit") {
+      if (!id) return;
+      const { error } = await supabase.from(tablo).update({ sabit: Boolean(isim) }).eq("id", id);
       if (error) return alert(`Hata: ${error.message}`);
     } else if (islemTip === "sil") {
       await supabase.from(tablo).delete().eq("id", id);
@@ -4005,7 +4016,8 @@ export default function App() {
 
   const fisUrunDurumunuGetir = (u: Urun) => {
     const isimLower = u.isim.toLowerCase();
-    const isVarsayilanUrun = isimLower.includes("3 kg yoğurt") || isimLower.includes("5 kg yoğurt");
+    const isSistemSabitUrun = isimLower.includes("3 kg yoğurt") || isimLower.includes("5 kg yoğurt") || isimLower.includes("süt kayma");
+    const isVarsayilanUrun = isSistemSabitUrun || u.sabit === true;
     const isSutKaymagi = isimLower.includes("süt kayma");
     const isTereyagi = isimLower.includes("tereya");
     const isYogurtKaymagi = isimLower.includes("yoğurt kayma");
@@ -4095,6 +4107,8 @@ export default function App() {
       copKutusuList={copKutusuList}
       yeniAyarDeger={yeniAyarDeger}
       setYeniAyarDeger={setYeniAyarDeger}
+      yeniUrunSabitle={yeniUrunSabitle}
+      setYeniUrunSabitle={setYeniUrunSabitle}
       handleAyarEkle={handleAyarEkle}
       onSettingEdit={(tablo, id, isim) => {
         const yeniIsim = prompt("Yeni isim", isim);
@@ -4104,6 +4118,9 @@ export default function App() {
       }}
       onSettingToggleActive={(tablo, id, aktif) => {
         ayarIslem(tablo, !aktif, "durum", id);
+      }}
+      onSettingTogglePinned={(id, sabit) => {
+        ayarIslem("urunler", !sabit, "sabit", id);
       }}
       onSettingDelete={(tablo, id, isim) => {
         if (confirm(`Silinecek: ${isim}`)) ayarIslem(tablo, null, "sil", id);
@@ -4465,9 +4482,12 @@ export default function App() {
                         if (isim.includes("3 kg yoğurt")) return 1;
                         if (isim.includes("5 kg yoğurt")) return 2;
                         if (isim.includes("süt kayma")) return 3;
+                        if (urun.sabit) return 4;
                         return 99;
                       };
-                      return getSira(a) - getSira(b);
+                      const siraFarki = getSira(a) - getSira(b);
+                      if (siraFarki !== 0) return siraFarki;
+                      return a.isim.localeCompare(b.isim, "tr");
                     })
                     .map((u) => fisDetaySatiriniRenderEt(u))}
 
@@ -4487,7 +4507,7 @@ export default function App() {
                           const isTereyagi = isimLower.includes("tereya");
                           const isYogurtKaymagi = isimLower.includes("yoğurt kayma");
                           const isFilled = (Number(fisDetay[u.id]?.adet) > 0 || Number(fisDetay[u.id]?.kg) > 0);
-                          if (isVarsayilanUrun || isSutKaymagi || isFilled) return false;
+                          if (isVarsayilanUrun || isSutKaymagi || u.sabit || isFilled) return false;
                           if (isTereyagi) return !gosterilenEkler.tereyagi;
                           if (isYogurtKaymagi) return !gosterilenEkler.yogurt_kaymagi;
                           return !gosterilenEkler.urunler.includes(u.id);
