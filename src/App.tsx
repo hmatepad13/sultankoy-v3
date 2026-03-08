@@ -4489,26 +4489,26 @@ export default function App() {
                   <div style={{ fontSize: "13px", color: "#475569", marginTop: "4px" }}>{musteriEkstreData.musteri}</div>
                   <div style={{ fontSize: "11px", color: "#64748b", marginTop: "2px" }}>{donemMetni(musteriEkstreData.donem)}</div>
                 </div>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px", tableLayout: "fixed" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "10px", tableLayout: "fixed" }}>
                   <colgroup>
+                    <col style={{ width: "16%" }} />
+                    <col style={{ width: "15%" }} />
+                    <col style={{ width: "25%" }} />
+                    <col style={{ width: "14%" }} />
                     <col style={{ width: "14%" }} />
                     <col style={{ width: "16%" }} />
-                    <col style={{ width: "28%" }} />
-                    <col style={{ width: "14%" }} />
-                    <col style={{ width: "14%" }} />
-                    <col style={{ width: "14%" }} />
                   </colgroup>
                   <thead>
                     <tr>
-                      <th style={{ textAlign: "left", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>Tarih</th>
-                      <th style={{ textAlign: "left", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>Fiş No</th>
-                      <th style={{ textAlign: "left", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>
+                      <th style={{ textAlign: "left", padding: "5px 3px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold", fontSize: "9px", whiteSpace: "nowrap" }}>Tarih</th>
+                      <th style={{ textAlign: "left", padding: "5px 3px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold", fontSize: "9px", whiteSpace: "nowrap" }}>Fiş No</th>
+                      <th style={{ textAlign: "left", padding: "5px 3px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold", fontSize: "9px" }}>
                         <div>Ürün</div>
                         <div style={{ fontSize: "9px", fontWeight: "normal", color: "#94a3b8", marginTop: "1px" }}>(adet/tutar)</div>
                       </th>
-                      <th style={{ textAlign: "right", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>Tutar</th>
-                      <th style={{ textAlign: "right", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>Tahsilat</th>
-                      <th style={{ textAlign: "right", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>Fişten Kalan Borç</th>
+                      <th style={{ textAlign: "right", padding: "5px 3px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold", fontSize: "9px", whiteSpace: "nowrap" }}>Tutar</th>
+                      <th style={{ textAlign: "right", padding: "5px 3px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold", fontSize: "9px", whiteSpace: "nowrap" }}>Tahsilat</th>
+                      <th style={{ textAlign: "right", padding: "5px 3px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold", fontSize: "9px" }}>Fişten Kalan Borç</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -4516,9 +4516,9 @@ export default function App() {
                       <>
                         {musteriEkstreData.hareketler.map((hareket, index) => (
                           <tr key={`${hareket.fisNo}-${index}`}>
-                            <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9" }}>{hareket.tarih.split("-").reverse().join(".")}</td>
-                            <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9", fontSize: "10px", color: "#64748b", whiteSpace: "nowrap" }}>{hareket.fisNo}</td>
-                            <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9", lineHeight: 1.25 }}>
+                            <td style={{ padding: "6px 3px", borderBottom: "1px solid #f1f5f9", fontSize: "9px", whiteSpace: "nowrap" }}>{hareket.tarih.split("-").reverse().join(".")}</td>
+                            <td style={{ padding: "6px 3px", borderBottom: "1px solid #f1f5f9", fontSize: "9px", color: "#64748b", whiteSpace: "nowrap" }}>{hareket.fisNo}</td>
+                            <td style={{ padding: "6px 3px", borderBottom: "1px solid #f1f5f9", lineHeight: 1.25 }}>
                               {hareket.urunSatirlari.length > 0 ? (
                                 hareket.urunSatirlari.map((urun, urunIndex) => (
                                   <div key={`${hareket.fisNo}-${urun.isim}-${urunIndex}`} style={{ marginBottom: urunIndex === hareket.urunSatirlari.length - 1 ? 0 : "3px" }}>
@@ -4534,16 +4534,16 @@ export default function App() {
                                 <span style={{ color: "#94a3b8" }}>-</span>
                               )}
                             </td>
-                            <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9", textAlign: "right", color: hareket.tutar > 0 ? "#059669" : "#94a3b8", fontSize: "10px", whiteSpace: "nowrap" }}>{hareket.tutar > 0 ? `${fSayi(hareket.tutar)} ₺` : "-"}</td>
-                            <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9", textAlign: "right", color: hareket.tahsilat > 0 ? "#2563eb" : "#94a3b8", fontSize: "10px", whiteSpace: "nowrap" }}>{hareket.tahsilat > 0 ? `${fSayi(hareket.tahsilat)} ₺` : "-"}</td>
-                            <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9", textAlign: "right", color: hareket.fistenKalanBorc > 0 ? "#dc2626" : "#059669", fontWeight: "bold", fontSize: "10px", whiteSpace: "nowrap" }}>{fSayi(hareket.fistenKalanBorc)} ₺</td>
+                            <td style={{ padding: "6px 3px", borderBottom: "1px solid #f1f5f9", textAlign: "right", color: hareket.tutar > 0 ? "#059669" : "#94a3b8", fontSize: "9px", whiteSpace: "nowrap" }}>{hareket.tutar > 0 ? `${fSayi(hareket.tutar)} ₺` : "-"}</td>
+                            <td style={{ padding: "6px 3px", borderBottom: "1px solid #f1f5f9", textAlign: "right", color: hareket.tahsilat > 0 ? "#2563eb" : "#94a3b8", fontSize: "9px", whiteSpace: "nowrap" }}>{hareket.tahsilat > 0 ? `${fSayi(hareket.tahsilat)} ₺` : "-"}</td>
+                            <td style={{ padding: "6px 3px", borderBottom: "1px solid #f1f5f9", textAlign: "right", color: hareket.fistenKalanBorc > 0 ? "#dc2626" : "#059669", fontWeight: "bold", fontSize: "9px", whiteSpace: "nowrap" }}>{fSayi(hareket.fistenKalanBorc)} ₺</td>
                           </tr>
                         ))}
                         <tr>
-                          <td colSpan={3} style={{ padding: "7px 4px 0", fontSize: "10px", color: "#64748b", fontWeight: "bold" }}>Toplam</td>
-                          <td style={{ padding: "7px 4px 0", textAlign: "right", fontSize: "10px", color: "#059669", fontWeight: "bold", whiteSpace: "nowrap" }}>{fSayi(musteriEkstreToplamlari.tutar)} ₺</td>
-                          <td style={{ padding: "7px 4px 0", textAlign: "right", fontSize: "10px", color: "#2563eb", fontWeight: "bold", whiteSpace: "nowrap" }}>{fSayi(musteriEkstreToplamlari.tahsilat)} ₺</td>
-                          <td style={{ padding: "7px 4px 0", textAlign: "right", fontSize: "10px", color: musteriEkstreToplamlari.fistenKalanBorc > 0 ? "#dc2626" : "#059669", fontWeight: "bold", whiteSpace: "nowrap" }}>{fSayi(musteriEkstreToplamlari.fistenKalanBorc)} ₺</td>
+                          <td colSpan={3} style={{ padding: "7px 3px 0", fontSize: "9px", color: "#64748b", fontWeight: "bold" }}>Toplam</td>
+                          <td style={{ padding: "7px 3px 0", textAlign: "right", fontSize: "9px", color: "#059669", fontWeight: "bold", whiteSpace: "nowrap" }}>{fSayi(musteriEkstreToplamlari.tutar)} ₺</td>
+                          <td style={{ padding: "7px 3px 0", textAlign: "right", fontSize: "9px", color: "#2563eb", fontWeight: "bold", whiteSpace: "nowrap" }}>{fSayi(musteriEkstreToplamlari.tahsilat)} ₺</td>
+                          <td style={{ padding: "7px 3px 0", textAlign: "right", fontSize: "9px", color: musteriEkstreToplamlari.fistenKalanBorc > 0 ? "#dc2626" : "#059669", fontWeight: "bold", whiteSpace: "nowrap" }}>{fSayi(musteriEkstreToplamlari.fistenKalanBorc)} ₺</td>
                         </tr>
                       </>
                     ) : (
