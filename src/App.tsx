@@ -205,30 +205,6 @@ const satisFisleriniSirala = (kayitlar: Array<Partial<SatisFis>>) =>
     return String(a.id || "").localeCompare(String(b.id || ""));
   });
 
-const satisBakiyeDurumuHesapla = (kayitlar: SatisFis[], sonDonem?: string) => {
-  const bakiyeler: Record<string, number> = {};
-  const map: Record<string, number> = {};
-
-  satisFisleriniSirala(kayitlar).forEach((fis) => {
-    const donem = String(fis.tarih || "").substring(0, 7);
-    const bayi = fis.bayi || "";
-    if (sonDonem && donem > sonDonem) return;
-    if (!bayi || bayi === "SİSTEM İŞLEMİ") return;
-
-    if (fisDonemDevirMi(fis)) {
-      bakiyeler[bayi] = Number(fis.kalan_bakiye || 0);
-    } else {
-      bakiyeler[bayi] = (bakiyeler[bayi] || 0) + Number(fis.kalan_bakiye || 0);
-    }
-
-    if (fis.id) {
-      map[String(fis.id)] = bakiyeler[bayi];
-    }
-  });
-
-  return { bakiyeler, map };
-};
-
 const odemeTurunuNormalizeEt = (odemeTuru?: string | null) =>
   String(odemeTuru || "").toLocaleUpperCase("tr-TR");
 
@@ -479,18 +455,13 @@ export default function App() {
   const [musteriEkstreData, setMusteriEkstreData] = useState<null | {
     musteri: string;
     donem: string;
-    donemBasi: number;
-    toplamSatis: number;
-    toplamTahsilat: number;
-    donemSonu: number;
     hareketler: Array<{
       tarih: string;
       fisNo: string;
-      islem: string;
-      aciklama: string;
-      borc: number;
+      urunler: string;
+      tutar: number;
       tahsilat: number;
-      bakiye: number;
+      fistenKalanBorc: number;
     }>;
   }>(null);
   const [bayiSecimModal, setBayiSecimModal] = useState<{ hedef: "fis" | "tahsilat" | null; arama: string }>({
@@ -626,17 +597,32 @@ export default function App() {
   );
 
   const hesaplaMusteriBakiyeleri = useCallback((kayitlar: SatisFis[], sonDonem?: string) => {
-    const resolveEdilmisKayitlar = kayitlar.map((fis) => ({
-      ...fis,
-      bayi: satisFisBayiAdiGetir(fis),
-    }));
-    const sonuc = satisBakiyeDurumuHesapla(resolveEdilmisKayitlar, sonDonem);
-    const labels = Object.keys(sonuc.bakiyeler).reduce<Record<string, string>>((acc, key) => {
-      acc[key] = key;
-      return acc;
-    }, {});
-    return { ...sonuc, labels };
-  }, [satisFisBayiAdiGetir]);
+    const bakiyeler: Record<string, number> = {};
+    const labels: Record<string, string> = {};
+    const map: Record<string, number> = {};
+
+    satisFisleriniSirala(kayitlar).forEach((fis) => {
+      const donem = String(fis.tarih || "").substring(0, 7);
+      if (sonDonem && donem > sonDonem) return;
+
+      const bayiAdi = satisFisBayiAdiGetir(fis);
+      const bayiAnahtar = satisFisBayiAnahtariGetir(fis);
+      if (!bayiAdi || bayiAdi === "SİSTEM İŞLEMİ") return;
+
+      labels[bayiAnahtar] = bayiAdi;
+      if (fisDonemDevirMi(fis)) {
+        bakiyeler[bayiAnahtar] = Number(fis.kalan_bakiye || 0);
+      } else {
+        bakiyeler[bayiAnahtar] = (bakiyeler[bayiAnahtar] || 0) + Number(fis.kalan_bakiye || 0);
+      }
+
+      if (fis.id) {
+        map[String(fis.id)] = bakiyeler[bayiAnahtar];
+      }
+    });
+
+    return { bakiyeler, labels, map };
+  }, [satisFisBayiAdiGetir, satisFisBayiAnahtariGetir]);
 
   const [activeFilterModal, setActiveFilterModal] = useState<'sut_ciftlik' | 'fis_bayi' | 'ozet_bayi' | 'analiz_bayi' | 'analiz_urun' | 'sut_tarih' | 'fis_tarih' | 'analiz_tarih' | null>(null);
 
@@ -1085,7 +1071,6 @@ export default function App() {
   }, [bayiBorclari, ozetBorcFiltre.bayiler, ozetBorcSort]);
 
   const musteriEkstreHesapla = useCallback((bayiAnahtar: string, musteriAdi: string) => {
-    const donemBaslangici = `${aktifDonem}-01`;
     const ilgiliFisler = [...satisFisList]
       .filter((fis) => {
         if (satisFisBayiAnahtariGetir(fis) !== bayiAnahtar) return false;
@@ -1100,68 +1085,31 @@ export default function App() {
         return sayiDegeri((a as any).id) - sayiDegeri((b as any).id);
       });
 
-    let donemBasi = 0;
-    let birikimliBakiye = 0;
-
-    ilgiliFisler.forEach((fis) => {
-      if (!fis.tarih || fis.tarih >= donemBaslangici) return;
-      if (fisDonemDevirMi(fis)) {
-        birikimliBakiye = Number(fis.kalan_bakiye || 0);
-      } else {
-        birikimliBakiye += Number(fis.kalan_bakiye || 0);
-      }
-    });
-
-    donemBasi = birikimliBakiye;
-
-    const donemFisleri = ilgiliFisler.filter((fis) => String(fis.tarih || "").startsWith(aktifDonem));
-    const donemDevirFis = donemFisleri.find((fis) => fisDonemDevirMi(fis));
-    if (donemDevirFis) {
-      donemBasi = Number(donemDevirFis.kalan_bakiye || 0);
-      birikimliBakiye = donemBasi;
-    }
-
-    const hareketler = donemFisleri
+    const hareketler = ilgiliFisler
+      .filter((fis) => String(fis.tarih || "").startsWith(aktifDonem))
       .filter((fis) => !fisDevirMi(fis))
       .map((fis) => {
-        const borc = Number(fis.toplam_tutar || 0);
-        const tahsilat = Number(fis.tahsilat || 0);
-        birikimliBakiye += Number(fis.kalan_bakiye || 0);
-        const aciklama = String(fis.aciklama || "")
-          .replace(/\[Ödeme: .*?\]\s*-\s*/gi, "")
-          .replace(/\[Ödeme: .*?\]/gi, "")
-          .replace(/\[Odeme: .*?\]\s*-\s*/gi, "")
-          .replace(/\[Odeme: .*?\]/gi, "")
-          .replace(/\[Teslim Alan: .*?\]\s*-\s*/gi, "")
-          .replace(/\[Teslim Alan: .*?\]/gi, "")
-          .replace(/\[Sadece Tahsilat\]\s*-\s*/gi, "")
-          .replace(/\[Sadece Tahsilat\]/gi, "")
-          .trim();
-        const islem = borc > 0 ? "Satis" : "Tahsilat";
+        const urunler = satisList
+          .filter((satir) => satir.fis_no === fis.fis_no)
+          .map((satir) => satisSatiriUrunAdiGetir(satir))
+          .filter(Boolean);
+        const benzersizUrunler = [...new Set(urunler)];
         return {
           tarih: fis.tarih,
           fisNo: gorunenFisNoOlustur(fis),
-          islem,
-          aciklama: aciklama || (islem === "Tahsilat" ? "Tahsilat Islemi" : "-"),
-          borc,
-          tahsilat,
-          bakiye: birikimliBakiye,
+          urunler: benzersizUrunler.length > 0 ? benzersizUrunler.join(" / ") : "-",
+          tutar: Number(fis.toplam_tutar || 0),
+          tahsilat: Number(fis.tahsilat || 0),
+          fistenKalanBorc: Number(fis.kalan_bakiye || 0),
         };
       });
-
-    const toplamSatis = hareketler.reduce((toplam, hareket) => toplam + hareket.borc, 0);
-    const toplamTahsilat = hareketler.reduce((toplam, hareket) => toplam + hareket.tahsilat, 0);
 
     return {
       musteri: musteriAdi,
       donem: aktifDonem,
-      donemBasi,
-      toplamSatis,
-      toplamTahsilat,
-      donemSonu: birikimliBakiye,
       hareketler,
     };
-  }, [aktifDonem, satisFisBayiAdiGetir, satisFisBayiAnahtariGetir, satisFisList]);
+  }, [aktifDonem, satisFisBayiAdiGetir, satisFisBayiAnahtariGetir, satisList, satisSatiriUrunAdiGetir, satisFisList]);
 
   const handleMusteriEkstreAc = useCallback((bayiAnahtar: string, musteriAdi: string) => {
     setMusteriEkstreData(musteriEkstreHesapla(bayiAnahtar, musteriAdi));
@@ -4512,28 +4460,15 @@ export default function App() {
                   <div style={{ fontSize: "13px", color: "#475569", marginTop: "4px" }}>{musteriEkstreData.musteri}</div>
                   <div style={{ fontSize: "11px", color: "#64748b", marginTop: "2px" }}>{donemMetni(musteriEkstreData.donem)}</div>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "12px" }}>
-                  {[
-                    { etiket: "Dönem Başı", deger: musteriEkstreData.donemBasi, renk: "#64748b" },
-                    { etiket: "Toplam Satış", deger: musteriEkstreData.toplamSatis, renk: "#059669" },
-                    { etiket: "Toplam Tahsilat", deger: musteriEkstreData.toplamTahsilat, renk: "#2563eb" },
-                    { etiket: "Dönem Sonu", deger: musteriEkstreData.donemSonu, renk: musteriEkstreData.donemSonu > 0 ? "#dc2626" : "#059669" },
-                  ].map((item) => (
-                    <div key={item.etiket} style={{ border: "1px solid #e2e8f0", borderRadius: "10px", padding: "8px", background: "#f8fafc" }}>
-                      <div style={{ fontSize: "10px", color: "#64748b", fontWeight: "bold" }}>{item.etiket}</div>
-                      <div style={{ fontSize: "14px", fontWeight: "bold", color: item.renk, marginTop: "2px" }}>{fSayi(item.deger)} ₺</div>
-                    </div>
-                  ))}
-                </div>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px" }}>
                   <thead>
                     <tr>
                       <th style={{ textAlign: "left", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>Tarih</th>
                       <th style={{ textAlign: "left", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>Fiş No</th>
-                      <th style={{ textAlign: "left", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>İşlem</th>
-                      <th style={{ textAlign: "right", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>Borç</th>
+                      <th style={{ textAlign: "left", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>Ürün</th>
+                      <th style={{ textAlign: "right", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>Tutar</th>
                       <th style={{ textAlign: "right", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>Tahsilat</th>
-                      <th style={{ textAlign: "right", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>Bakiye</th>
+                      <th style={{ textAlign: "right", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>Fişten Kalan Borç</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -4542,10 +4477,10 @@ export default function App() {
                         <tr key={`${hareket.fisNo}-${index}`}>
                           <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9" }}>{hareket.tarih.split("-").reverse().join(".")}</td>
                           <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9" }}>{hareket.fisNo}</td>
-                          <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9", fontWeight: "bold" }}>{hareket.islem}</td>
-                          <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9", textAlign: "right", color: hareket.borc > 0 ? "#059669" : "#94a3b8" }}>{hareket.borc > 0 ? `${fSayi(hareket.borc)} ₺` : "-"}</td>
+                          <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9" }}>{hareket.urunler}</td>
+                          <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9", textAlign: "right", color: hareket.tutar > 0 ? "#059669" : "#94a3b8" }}>{hareket.tutar > 0 ? `${fSayi(hareket.tutar)} ₺` : "-"}</td>
                           <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9", textAlign: "right", color: hareket.tahsilat > 0 ? "#2563eb" : "#94a3b8" }}>{hareket.tahsilat > 0 ? `${fSayi(hareket.tahsilat)} ₺` : "-"}</td>
-                          <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9", textAlign: "right", color: hareket.bakiye > 0 ? "#dc2626" : "#059669", fontWeight: "bold" }}>{fSayi(hareket.bakiye)} ₺</td>
+                          <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9", textAlign: "right", color: hareket.fistenKalanBorc > 0 ? "#dc2626" : "#059669", fontWeight: "bold" }}>{fSayi(hareket.fistenKalanBorc)} ₺</td>
                         </tr>
                       ))
                     ) : (
