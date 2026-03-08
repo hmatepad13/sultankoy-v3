@@ -2588,9 +2588,11 @@ export default function App() {
     <div className="tab-fade-in main-content-area" style={{ display: "flex", flexDirection: "column" }}>
       {renderKompaktToplamlar([
         { etiket: "SATIŞ", deger: `${fSayiNoDec(tFisToplam)} ₺`, renk: "#059669" },
-        { etiket: "GİDER", deger: `${fSayiNoDec(genelToplamGider)} ₺`, renk: "#dc2626" },
         { etiket: "TAHSİLAT", deger: `${fSayiNoDec(tFisTahsilatRaw)} ₺`, renk: "#2563eb" },
         { etiket: "AÇIK HESAP", deger: `${fSayiNoDec(bayiNetDurum)} ₺`, renk: "#f59e0b" },
+      ], { marginBottom: "6px" })}
+      {renderKompaktToplamlar([
+        { etiket: "GİDER", deger: `${fSayiNoDec(genelToplamGider)} ₺`, renk: "#dc2626" },
         {
           etiket: "SÜT BORCU",
           deger: `${fSayiNoDec(sutcuyeBorcumuz)} ₺`,
