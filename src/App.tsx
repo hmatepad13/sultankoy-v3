@@ -3693,8 +3693,37 @@ export default function App() {
         )}
 
         {bayiSecimModal.hedef && (
-          <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.55)", zIndex: 1420, display: "flex", alignItems: "center", justifyContent: "center", padding: "12px" }} onClick={bayiSecimModalKapat}>
-            <div style={{ width: "100%", maxWidth: "330px", maxHeight: "74vh", background: "#fff", borderRadius: "14px", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.2)" }} onClick={(e) => e.stopPropagation()}>
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              backgroundColor: "rgba(0,0,0,0.55)",
+              zIndex: 1420,
+              display: "flex",
+              alignItems: "flex-start",
+              justifyContent: "center",
+              paddingTop: "max(12px, env(safe-area-inset-top))",
+              paddingLeft: "12px",
+              paddingRight: "12px",
+              paddingBottom: "12px",
+            }}
+            onClick={bayiSecimModalKapat}
+          >
+            <div
+              style={{
+                width: "100%",
+                maxWidth: "330px",
+                maxHeight: "min(74vh, calc(100dvh - 24px))",
+                background: "#fff",
+                borderRadius: "14px",
+                display: "flex",
+                flexDirection: "column",
+                overflow: "hidden",
+                boxShadow: "0 20px 25px -5px rgba(0,0,0,0.2)",
+                marginTop: "6px",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
               <div style={{ padding: "10px 12px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f8fafc" }}>
                 <div>
                   <h3 style={{ margin: 0, fontSize: "14px", color: "#0f172a" }}>{bayiSecimModal.hedef === "fis" ? "Bayi Seç" : "Müşteri Seç"}</h3>
@@ -3702,16 +3731,18 @@ export default function App() {
                 </div>
                 <button onClick={bayiSecimModalKapat} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#94a3b8", padding: 0 }}>✕</button>
               </div>
-              <div style={{ padding: "10px", display: "flex", flexDirection: "column", gap: "8px", minHeight: 0 }}>
-                <input
-                  autoFocus
-                  placeholder="Ara..."
-                  value={bayiSecimModal.arama}
-                  onChange={(e) => setBayiSecimModal((prev) => ({ ...prev, arama: e.target.value }))}
-                  className="m-inp"
-                  style={{ width: "100%" }}
-                />
-                <div style={{ overflowY: "auto", display: "flex", flexDirection: "column", gap: "5px", paddingRight: "2px" }}>
+              <div style={{ padding: "10px", display: "flex", flexDirection: "column", gap: "8px", minHeight: 0, flex: 1 }}>
+                <div style={{ position: "sticky", top: 0, zIndex: 1, background: "#fff", paddingBottom: "2px" }}>
+                  <input
+                    autoFocus
+                    placeholder="Ara..."
+                    value={bayiSecimModal.arama}
+                    onChange={(e) => setBayiSecimModal((prev) => ({ ...prev, arama: e.target.value }))}
+                    className="m-inp"
+                    style={{ width: "100%" }}
+                  />
+                </div>
+                <div style={{ overflowY: "auto", display: "flex", flexDirection: "column", gap: "5px", paddingRight: "2px", minHeight: 0, flex: 1 }}>
                   {filtrelenmisBayiler.map((bayi) => {
                     const seciliDeger = bayiSecimModal.hedef === "fis" ? fisUst.bayi : tahsilatForm.bayi;
                     const secili = seciliDeger === bayi.isim;
