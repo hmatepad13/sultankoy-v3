@@ -896,12 +896,11 @@ export default function App() {
     const mesaj = String(hata?.message || "").toLowerCase();
     const isim = String(hata?.name || "").toLowerCase();
     return (
-      mesaj.includes("edge function") ||
+      (mesaj.includes("edge function") && !mesaj.includes("401")) ||
       mesaj.includes("failed to send a request") ||
-      mesaj.includes("non-2xx status code") ||
       mesaj.includes("404") ||
-      mesaj.includes(fonksiyonAdi.toLowerCase()) ||
-      isim.includes("functions")
+      mesaj.includes(`function ${fonksiyonAdi.toLowerCase()} not found`) ||
+      isim.includes("functionshttperror")
     );
   };
 
@@ -976,6 +975,7 @@ export default function App() {
       const { data, error } = await supabase.functions.invoke("user-admin", {
         body: payload,
         headers: {
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY || "",
           Authorization: `Bearer ${currentSession.access_token}`,
         },
       });
