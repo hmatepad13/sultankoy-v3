@@ -4085,15 +4085,15 @@ export default function App() {
                   position: "absolute",
                   right: 0,
                   bottom: "calc(100% + 8px)",
-                  width: "min(260px, calc(100vw - 16px))",
+                  width: "min(210px, calc(100vw - 16px))",
                   background: "#fff",
                   border: "1px solid #cbd5e1",
                   borderRadius: "16px",
                   boxShadow: "0 20px 30px -18px rgba(15, 23, 42, 0.35)",
                   padding: "8px",
-                  display: "grid",
-                  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                  gap: "8px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "6px",
                   zIndex: 130,
                 }}
               >
@@ -4110,19 +4110,19 @@ export default function App() {
                         borderRadius: "12px",
                         background: aktif ? `${renk}14` : "#f8fafc",
                         color: aktif ? renk : "#475569",
-                        minHeight: "58px",
+                        minHeight: "48px",
                         display: "flex",
-                        flexDirection: "column",
+                        flexDirection: "row",
                         alignItems: "center",
-                        justifyContent: "center",
-                        gap: "4px",
+                        justifyContent: "flex-start",
+                        gap: "8px",
                         cursor: "pointer",
                         fontWeight: "bold",
-                        padding: "8px 6px",
+                        padding: "8px 10px",
                       }}
                     >
-                      <span style={{ fontSize: "18px", lineHeight: 1 }}>{item.ikon}</span>
-                      <span style={{ fontSize: "10px" }}>{item.etiket}</span>
+                      <span style={{ fontSize: "16px", lineHeight: 1, width: "20px", textAlign: "center", flexShrink: 0 }}>{item.ikon}</span>
+                      <span style={{ fontSize: "11px", textAlign: "left" }}>{item.etiket}</span>
                     </button>
                   );
                 })}
