@@ -121,10 +121,15 @@ export interface Uretim {
   diger_adet?: number | string;
   diger_kg?: number | string;
   diger_fiyat?: number | string;
+  paket_02_adet?: number | string;
+  paket_02_fiyat?: number | string;
   paket_2_adet?: number | string;
   paket_2_fiyat?: number | string;
   paket_3_adet?: number | string;
   paket_3_fiyat?: number | string;
+  cikti_02kg?: number | string;
+  cikti_02kg_kg?: number | string;
+  satis_02_fiyat?: number | string;
   kova_3_adet: number | string;
   kova_3_fiyat: number | string;
   kova_5_adet: number | string;
