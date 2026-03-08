@@ -2967,6 +2967,7 @@ export default function App() {
     adetField: keyof Uretim,
     fiyatField: keyof Uretim,
     renk = "#475569",
+    mirrorField?: keyof Uretim,
   ) => (
     <div style={{ display: "grid", gridTemplateColumns: "minmax(70px,1fr) 52px 52px 58px", gap: "4px", alignItems: "center" }}>
       <span style={{ fontSize: "10px", fontWeight: "bold", color: renk, lineHeight: 1.15 }}>{etiket}</span>
@@ -2974,7 +2975,12 @@ export default function App() {
         placeholder="Adet"
         type="number"
         value={String(uretimForm[adetField] ?? "")}
-        onChange={(e) => setUretimForm({ ...uretimForm, [adetField]: e.target.value })}
+        onChange={(e) => {
+          const yeniDeger = e.target.value;
+          const sonrakiForm = { ...uretimForm, [adetField]: yeniDeger } as Uretim;
+          if (mirrorField) sonrakiForm[mirrorField] = yeniDeger as never;
+          setUretimForm(sonrakiForm);
+        }}
         className="m-inp small-inp"
         style={{ textAlign: "right", minWidth: 0 }}
       />
@@ -3124,7 +3130,11 @@ export default function App() {
     butonMetni: string,
     onYeniClick: () => void,
     tip: "yogurt" | "sut_kaymagi",
-  ) => (
+  ) => {
+    const ilkPaketBaslik = tip === "sut_kaymagi" ? "2KG" : "3L";
+    const ikinciPaketBaslik = tip === "sut_kaymagi" ? "3KG" : "5L";
+
+    return (
     <div style={{ marginTop: "12px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px", gap: "8px", flexWrap: "nowrap" }}>
         <div style={{ minWidth: 0, flex: 1 }}>
@@ -3140,23 +3150,29 @@ export default function App() {
         <table className="tbl" style={{ borderTop: `3px solid ${renk}`, tableLayout: "fixed", fontSize: "11px" }}>
           <thead><tr>
             <Th label="TAR" sortKey="tarih" currentSort={uretimSort} setSort={setUretimSort} />
-            <th style={{ textAlign: "right" }}>GİR</th>
-            <th style={{ textAlign: "right" }}>ÇIK</th>
-            <th style={{ textAlign: "right" }}>MAL</th>
+            <th style={{ textAlign: "right", width: "13%" }}>GİR</th>
+            <th style={{ textAlign: "right", width: "10%" }}>{ilkPaketBaslik}</th>
+            <th style={{ textAlign: "right", width: "10%" }}>{ikinciPaketBaslik}</th>
+            <th style={{ textAlign: "right", width: "12%" }}>ÇIK</th>
+            <th style={{ textAlign: "right", width: "16%" }}>MALİYET</th>
             <Th label="KÂR" sortKey="kar" currentSort={uretimSort} setSort={setUretimSort} align="right" />
             <Th label="NOT" sortKey="aciklama" currentSort={uretimSort} setSort={setUretimSort} />
-            <th></th>
+            <th style={{ width: "5%" }}></th>
           </tr></thead>
           <tbody>
             {kayitlar.length > 0 ? kayitlar.map((u) => {
-              const cikanAdet = uretimCikanToplamAdet(u);
+              const ilkPaketAdet = tip === "sut_kaymagi" ? sayiDegeri(u.cikti_2kg) : sayiDegeri(u.cikti_3kg);
+              const ikinciPaketAdet = tip === "sut_kaymagi" ? sayiDegeri(u.cikti_3kg) : sayiDegeri(u.cikti_5kg);
+              const cikanKg = uretimCikanToplamKg(u);
               const silinebilir = kaydiSilebilirMi(u.ekleyen);
               const duzenlenebilir = kaydiDuzenleyebilirMi(u.ekleyen);
               return (
                 <tr key={u.id}>
                   <td>{u.tarih.split("-").reverse().slice(0, 2).join(".")}</td>
                   <td style={{ textAlign: "right", fontWeight: "bold", color: "#1d4ed8" }}>{fSayi(uretimGirenToplamKg(u))}</td>
-                  <td style={{ textAlign: "right", color: renk, fontWeight: "bold" }}>{fSayi(cikanAdet)}</td>
+                  <td style={{ textAlign: "right", color: renk, fontWeight: "bold" }}>{fSayi(ilkPaketAdet)}</td>
+                  <td style={{ textAlign: "right", color: renk, fontWeight: "bold" }}>{fSayi(ikinciPaketAdet)}</td>
+                  <td style={{ textAlign: "right", color: renk, fontWeight: "bold" }}>{fSayi(cikanKg)}</td>
                   <td style={{ textAlign: "right", color: "#dc2626" }}>{fSayi(u.toplam_maliyet)}</td>
                   <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold" }}>{fSayi(u.kar)}</td>
                   <td className="truncate-text-td" style={{ maxWidth: "68px" }} title={u.aciklama || "-"}>
@@ -3186,6 +3202,7 @@ export default function App() {
       </div>
     </div>
   );
+  };
 
   const renderUretimYeni = () => (
     <div className="tab-fade-in main-content-area">
@@ -3231,8 +3248,8 @@ export default function App() {
                 {renderKgSatiri("Teremyağ", "tereyag", "tereyag_fiyat")}
                 {renderKgSatiri("Katkı", "katki_kg", "katki_fiyat")}
                 {renderKgSatiri("Su", "su", "su_fiyat")}
-                {renderAdetFiyatSatiri("3'lük Boş Kova", "kova_3_adet", "kova_3_fiyat")}
-                {renderAdetFiyatSatiri("5'lik Boş Kova", "kova_5_adet", "kova_5_fiyat")}
+                {renderAdetFiyatSatiri("3'lük Boş Kova", "kova_3_adet", "kova_3_fiyat", "#475569", "cikti_3kg")}
+                {renderAdetFiyatSatiri("5'lik Boş Kova", "kova_5_adet", "kova_5_fiyat", "#475569", "cikti_5kg")}
               </>
             )}
             <div style={{ display: "grid", gridTemplateColumns: "minmax(70px,1fr) 52px 52px 58px", gap: "4px", alignItems: "end", borderTop: "1px dashed #cbd5e1", paddingTop: "6px" }}>
