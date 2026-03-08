@@ -4003,6 +4003,66 @@ export default function App() {
     );
   };
 
+  const fisUrunDurumunuGetir = (u: Urun) => {
+    const isimLower = u.isim.toLowerCase();
+    const isVarsayilanUrun = isimLower.includes("3 kg yoğurt") || isimLower.includes("5 kg yoğurt");
+    const isTereyagi = isimLower.includes("tereya");
+    const isYogurtKaymagi = isimLower.includes("yoğurt kayma");
+    const isFilled = Number(fisDetay[u.id]?.adet) > 0 || Number(fisDetay[u.id]?.kg) > 0;
+    const isEkstraUrun = !isVarsayilanUrun && !isTereyagi && !isYogurtKaymagi;
+    const ekstraUrunSecili = gosterilenEkler.urunler.includes(u.id);
+    const isAktif = u.aktif !== false;
+    const goster =
+      (isAktif || isFilled) &&
+      (isVarsayilanUrun ||
+        isFilled ||
+        (gosterilenEkler.tereyagi && isTereyagi) ||
+        (gosterilenEkler.yogurt_kaymagi && isYogurtKaymagi) ||
+        (isEkstraUrun && ekstraUrunSecili));
+
+    return {
+      isVarsayilanUrun,
+      isTereyagi,
+      isYogurtKaymagi,
+      isEkstraUrun,
+      isFilled,
+      goster,
+    };
+  };
+
+  const fisDetaySatiriniRenderEt = (u: Urun) => {
+    const { goster, isFilled } = fisUrunDurumunuGetir(u);
+
+    if (!goster) return null;
+
+    const handleAdetChange = (e: ChangeEvent<HTMLInputElement>) => {
+      const val = e.target.value;
+      let newKg = fisDetay[u.id]?.kg || "";
+      const match = u.isim.match(/(\d+(?:\.\d+)?)/);
+      if (match && match[1]) {
+        const multiplier = Number(match[1]);
+        if (val !== "") newKg = String(Number(val) * multiplier);
+        else newKg = "";
+      }
+      setFisDetay({ ...fisDetay, [u.id]: { ...fisDetay[u.id], adet: val, kg: newKg } });
+    };
+
+    const canliIsKova = u.isim.match(/([345])\s*kg/i);
+    const canliMiktar = canliIsKova ? Number(fisDetay[u.id]?.adet || 0) : (Number(fisDetay[u.id]?.kg) > 0 ? Number(fisDetay[u.id]?.kg) : Number(fisDetay[u.id]?.adet || 0));
+    const canliSatirTutar = canliMiktar * Number(fisDetay[u.id]?.fiyat || 0);
+
+    return (
+      <div key={u.id} style={{ display: "flex", gap: "4px", alignItems: "center", padding: "4px 6px", background: isFilled ? (editingFisId ? "#fef3c7" : "#ecfdf5") : "#f8fafc", borderRadius: "4px", border: isFilled ? (editingFisId ? "1px solid #fde68a" : "1px solid #a7f3d0") : "1px solid #e2e8f0" }}>
+        <div style={{ flex: 1, minWidth: "85px", fontWeight: "bold", fontSize: "12px", color: isFilled ? (editingFisId ? "#b45309" : "#065f46") : "#475569", whiteSpace: "normal", lineHeight: "1.2" }}>{u.isim}</div>
+        <input placeholder="Adet" type="number" value={fisDetay[u.id]?.adet || ""} onChange={handleAdetChange} className="m-inp" style={{ flex: "0 0 45px", width: "45px", padding: "4px 2px", textAlign: "center", background: isFilled ? "#fff" : "", fontSize: "12px", height: "24px" }} />
+        <input placeholder="KG" type="number" step="0.01" value={fisDetay[u.id]?.kg || ""} onChange={(e) => setFisDetay({ ...fisDetay, [u.id]: { ...fisDetay[u.id], kg: e.target.value } })} className="m-inp" style={{ flex: "0 0 50px", width: "50px", padding: "4px 2px", textAlign: "center", background: isFilled ? "#fff" : "", fontSize: "12px", height: "24px" }} />
+        <div style={{ fontSize: "12px", color: "#94a3b8", width: "8px", textAlign: "center" }}>x</div>
+        <input placeholder="Fiyat" type="number" step="0.01" value={fisDetay[u.id]?.fiyat || ""} onChange={(e) => setFisDetay({ ...fisDetay, [u.id]: { ...fisDetay[u.id], fiyat: e.target.value } })} className="m-inp" style={{ flex: "0 0 60px", width: "60px", padding: "4px 2px", textAlign: "right", background: isFilled ? "#fff" : "", fontSize: "12px", height: "24px" }} />
+        <div style={{ width: "55px", textAlign: "right", fontWeight: "bold", fontSize: "12px", color: canliSatirTutar > 0 ? "#059669" : "#94a3b8" }}>{canliSatirTutar > 0 ? fSayi(canliSatirTutar) : "-"}</div>
+      </div>
+    );
+  };
+
   const renderAyarlar = () => (
     <SettingsPanel
       activeAyarTab={activeAyarTab}
@@ -4379,46 +4439,12 @@ export default function App() {
                   </button>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px' }}>
-                  {urunler.map(u => {
-                    const isimLower = u.isim.toLowerCase();
-                    const isVarsayilanUrun = isimLower.includes("3 kg yoğurt") || isimLower.includes("5 kg yoğurt");
-                    const isTereyagi = isimLower.includes("tereya");
-                    const isYogurtKaymagi = isimLower.includes("yoğurt kayma");
-                    const isFilled = (Number(fisDetay[u.id]?.adet) > 0 || Number(fisDetay[u.id]?.kg) > 0);
-                    const isEkstraUrun = !isVarsayilanUrun && !isTereyagi && !isYogurtKaymagi;
-                    const ekstraUrunSecili = gosterilenEkler.urunler.includes(u.id);
-                    const isAktif = u.aktif !== false;
-
-                    if (!isAktif && !isFilled) return null;
-                    if (!isVarsayilanUrun && !isFilled && !(gosterilenEkler.tereyagi && isTereyagi) && !(gosterilenEkler.yogurt_kaymagi && isYogurtKaymagi) && !(isEkstraUrun && ekstraUrunSecili)) return null;
-
-                    const handleAdetChange = (e: any) => {
-                        const val = e.target.value;
-                        let newKg = fisDetay[u.id]?.kg || "";
-                        const match = u.isim.match(/(\d+(?:\.\d+)?)/);
-                        if (match && match[1]) {
-                            const multiplier = Number(match[1]);
-                            if (val !== "") newKg = String(Number(val) * multiplier);
-                            else newKg = "";
-                        }
-                        setFisDetay({...fisDetay, [u.id]: {...fisDetay[u.id], adet: val, kg: newKg}});
-                    };
-                    
-                    const canliIsKova = u.isim.match(/([345])\s*kg/i);
-                    const canliMiktar = canliIsKova ? Number(fisDetay[u.id]?.adet || 0) : (Number(fisDetay[u.id]?.kg) > 0 ? Number(fisDetay[u.id]?.kg) : Number(fisDetay[u.id]?.adet || 0));
-                    const canliSatirTutar = canliMiktar * Number(fisDetay[u.id]?.fiyat || 0);
-
-                    return (
-                      <div key={u.id} style={{ display: 'flex', gap: '4px', alignItems: 'center', padding: '4px 6px', background: isFilled ? (editingFisId ? '#fef3c7' : '#ecfdf5') : '#f8fafc', borderRadius: '4px', border: isFilled ? (editingFisId ? '1px solid #fde68a' : '1px solid #a7f3d0') : '1px solid #e2e8f0' }}>
-                        <div style={{ flex: 1, minWidth: "85px", fontWeight: 'bold', fontSize: "12px", color: isFilled ? (editingFisId ? "#b45309" : "#065f46") : "#475569", whiteSpace: "normal", lineHeight: "1.2" }}>{u.isim}</div>
-                        <input placeholder="Adet" type="number" value={fisDetay[u.id]?.adet || ""} onChange={handleAdetChange} className="m-inp" style={{flex: "0 0 45px", width: "45px", padding: "4px 2px", textAlign: "center", background: isFilled ? "#fff" : "", fontSize: "12px", height:"24px"}} />
-                        <input placeholder="KG" type="number" step="0.01" value={fisDetay[u.id]?.kg || ""} onChange={e => setFisDetay({...fisDetay, [u.id]: {...fisDetay[u.id], kg: e.target.value}})} className="m-inp" style={{flex: "0 0 50px", width: "50px", padding: "4px 2px", textAlign: "center", background: isFilled ? "#fff" : "", fontSize: "12px", height:"24px"}} />
-                        <div style={{fontSize:"12px", color:"#94a3b8", width:"8px", textAlign:"center"}}>{"x"}</div>
-                        <input placeholder="Fiyat" type="number" step="0.01" value={fisDetay[u.id]?.fiyat || ""} onChange={e => setFisDetay({...fisDetay, [u.id]: {...fisDetay[u.id], fiyat: e.target.value}})} className="m-inp" style={{flex: "0 0 60px", width: "60px", padding: "4px 2px", textAlign: "right", background: isFilled ? "#fff" : "", fontSize: "12px", height:"24px"}} />
-                        <div style={{width: "55px", textAlign: "right", fontWeight: "bold", fontSize: "12px", color: canliSatirTutar > 0 ? "#059669" : "#94a3b8"}}>{canliSatirTutar > 0 ? fSayi(canliSatirTutar) : "-"}</div>
-                      </div>
-                    );
-                  })}
+                  {urunler
+                    .filter((u) => {
+                      const durum = fisUrunDurumunuGetir(u);
+                      return durum.goster && durum.isVarsayilanUrun;
+                    })
+                    .map((u) => fisDetaySatiriniRenderEt(u))}
                   
                   <div style={{ display: "flex", gap: "6px", marginBottom: "4px", marginTop: "4px", flexWrap: "wrap", position: "relative" }}>
                       {(() => {
@@ -4497,6 +4523,13 @@ export default function App() {
                       <div style={{width: "55px", textAlign: "right", fontWeight: "bold", fontSize: "12px", color: "#dc2626"}}>{fSayi((Number(fisDetay["v_bos_kova"]?.kg) > 0 ? Number(fisDetay["v_bos_kova"]?.kg) : Number(fisDetay["v_bos_kova"]?.adet||0)) * Number(fisDetay["v_bos_kova"]?.fiyat||0))}</div>
                     </div>
                   )}
+
+                  {urunler
+                    .filter((u) => {
+                      const durum = fisUrunDurumunuGetir(u);
+                      return durum.goster && !durum.isVarsayilanUrun;
+                    })
+                    .map((u) => fisDetaySatiriniRenderEt(u))}
 
                 </div>
                 <div style={{display: "flex", gap: "6px"}}>
