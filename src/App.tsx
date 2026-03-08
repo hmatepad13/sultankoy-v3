@@ -446,6 +446,9 @@ export default function App() {
   const [isDigerUrunMenuOpen, setIsDigerUrunMenuOpen] = useState(false);
   const digerUrunMenuRef = useRef<HTMLDivElement | null>(null);
   const [sonFisData, setSonFisData] = useState<any>(null);
+  const [isMobilDarEkran, setIsMobilDarEkran] = useState<boolean>(() =>
+    typeof window !== "undefined" ? window.innerWidth <= 600 : false,
+  );
   const [bayiSecimModal, setBayiSecimModal] = useState<{ hedef: "fis" | "tahsilat" | null; arama: string }>({
     hedef: null,
     arama: "",
@@ -612,6 +615,13 @@ export default function App() {
       document.removeEventListener("touchstart", handleDisTiklama);
     };
   }, [isDigerUrunMenuOpen]);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobilDarEkran(window.innerWidth <= 600);
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   useEffect(() => {
     if (!openDropdown) return;
@@ -1091,6 +1101,16 @@ export default function App() {
 
   const fSayi = (num: any) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 2 }).format(Number(num) || 0).replace(/,00$/, '');
   const fSayiNoDec = (num: any) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(Number(num) || 0);
+  const fKisaMobilSayi = (num: any) => {
+    const value = Number(num) || 0;
+    const abs = Math.abs(value);
+    const sign = value < 0 ? "-" : "";
+    if (abs >= 1_000_000) return `${sign}${new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 2 }).format(abs / 1_000_000)} Mn`;
+    if (abs >= 1_000) return `${sign}${new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 1 }).format(abs / 1_000)} B`;
+    return `${sign}${fSayiNoDec(abs)}`;
+  };
+  const fMobilUyumluSayi = (num: any) => (isMobilDarEkran ? fKisaMobilSayi(num) : fSayi(num));
+  const fMobilUyumluTutar = (num: any) => (isMobilDarEkran ? fKisaMobilSayi(num) : `${fSayiNoDec(num)} ₺`);
   const renderKompaktToplamlar = (
     kartlar: Array<{ etiket: string; deger: string; renk: string; onClick?: () => void }>,
     style?: CSSProperties,
@@ -1112,6 +1132,9 @@ export default function App() {
             fontWeight: "bold",
             cursor: kart.onClick ? "pointer" : "default",
             userSelect: "none",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
           }}
         >
           {kart.etiket}: {kart.deger}
@@ -2587,15 +2610,15 @@ export default function App() {
   const renderOzet = () => (
     <div className="tab-fade-in main-content-area" style={{ display: "flex", flexDirection: "column" }}>
       {renderKompaktToplamlar([
-        { etiket: "SATIŞ", deger: `${fSayiNoDec(tFisToplam)} ₺`, renk: "#059669" },
-        { etiket: "TAHSİLAT", deger: `${fSayiNoDec(tFisTahsilatRaw)} ₺`, renk: "#2563eb" },
-        { etiket: "AÇIK HESAP", deger: `${fSayiNoDec(bayiNetDurum)} ₺`, renk: "#f59e0b" },
+        { etiket: "SATIŞ", deger: fMobilUyumluTutar(tFisToplam), renk: "#059669" },
+        { etiket: "TAHSİLAT", deger: fMobilUyumluTutar(tFisTahsilatRaw), renk: "#2563eb" },
+        { etiket: "AÇIK HESAP", deger: fMobilUyumluTutar(bayiNetDurum), renk: "#f59e0b" },
       ], { marginBottom: "6px" }, "three")}
       {renderKompaktToplamlar([
-        { etiket: "GİDER", deger: `${fSayiNoDec(tGiderNormal)} ₺`, renk: "#dc2626" },
+        { etiket: "GİDER", deger: fMobilUyumluTutar(tGiderNormal), renk: "#dc2626" },
         {
           etiket: "SÜT BORCU",
-          deger: `${fSayiNoDec(sutcuyeBorcumuz)} ₺`,
+          deger: fMobilUyumluTutar(sutcuyeBorcumuz),
           renk: "#0f766e",
           onClick: () => setOzetMiniDetay({
             baslik: "Süt Borcu Detayı",
@@ -2636,7 +2659,7 @@ export default function App() {
                   </td>
                   <td style={{ textAlign: "right" }}>
                     <b style={{ fontSize: "12px", color: b.borc > 0 ? "#dc2626" : (b.borc < 0 ? "#059669" : "#64748b") }}>
-                      {fSayi(b.borc)} ₺
+                      {isMobilDarEkran ? fKisaMobilSayi(b.borc) : `${fSayi(b.borc)} ₺`}
                     </b>
                   </td>
                 </tr>
@@ -2671,12 +2694,12 @@ export default function App() {
               {personelOzetleri.map((p, i) => (
                 <tr key={i}>
                   <td style={{ fontWeight: "bold" }}>{p.isim}</td>
-                  <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold" }}>{fSayi(p.satis)}</td>
-                  <td style={{ textAlign: "right", color: "#2563eb" }}>{fSayi(p.tahsilat)}</td>
-                  <td style={{ textAlign: "right", color: "#dc2626" }}>{fSayi(p.gider)}</td>
-                  <td style={{ textAlign: "right", color: "#0f766e" }}>{fSayi(p.kasayaDevir)}</td>
-                  <td style={{ textAlign: "right", fontWeight: "bold", color: p.net >= 0 ? "#16a34a" : "#dc2626" }}>{fSayi(p.net)}</td>
-                  <td style={{ textAlign: "right", fontWeight: "bold", color: p.acikBakiye >= 0 ? "#f59e0b" : "#059669" }}>{fSayi(p.acikBakiye)}</td>
+                  <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold" }}>{fMobilUyumluSayi(p.satis)}</td>
+                  <td style={{ textAlign: "right", color: "#2563eb" }}>{fMobilUyumluSayi(p.tahsilat)}</td>
+                  <td style={{ textAlign: "right", color: "#dc2626" }}>{fMobilUyumluSayi(p.gider)}</td>
+                  <td style={{ textAlign: "right", color: "#0f766e" }}>{fMobilUyumluSayi(p.kasayaDevir)}</td>
+                  <td style={{ textAlign: "right", fontWeight: "bold", color: p.net >= 0 ? "#16a34a" : "#dc2626" }}>{fMobilUyumluSayi(p.net)}</td>
+                  <td style={{ textAlign: "right", fontWeight: "bold", color: p.acikBakiye >= 0 ? "#f59e0b" : "#059669" }}>{fMobilUyumluSayi(p.acikBakiye)}</td>
                 </tr>
               ))}
               {personelOzetleri.length === 0 && (
@@ -2766,31 +2789,31 @@ export default function App() {
       <div style={{ display: "grid", gridTemplateColumns: "0.95fr 1.45fr 1fr", gap: "6px", marginBottom: "10px", alignItems: "stretch" }}>
         <div style={{ minWidth: 0, border: "1px solid #05966933", background: "#05966910", color: "#059669", borderRadius: "12px", padding: "6px 8px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
           <span style={{ fontSize: "9px", fontWeight: "bold", opacity: 0.85, whiteSpace: "nowrap" }}>TOPLAM SATIŞ</span>
-          <b style={{ fontSize: "14px", marginTop: "2px", whiteSpace: "nowrap" }}>{fSayi(tFisToplam)} ₺</b>
+          <b style={{ fontSize: "14px", marginTop: "2px", whiteSpace: "nowrap" }}>{fMobilUyumluTutar(tFisToplam)}</b>
         </div>
         <div style={{ minWidth: 0, border: "1px solid #2563eb33", background: "#2563eb10", color: "#2563eb", borderRadius: "12px", padding: "6px 8px", display: "flex", flexDirection: "column", gap: "4px", justifyContent: "center" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "6px" }}>
             <span style={{ fontSize: "9px", fontWeight: "bold", opacity: 0.9, whiteSpace: "nowrap" }}>TAHSİLAT</span>
-            <b style={{ fontSize: "14px", whiteSpace: "nowrap" }}>{fSayi(tFisTahsilatRaw)} ₺</b>
+            <b style={{ fontSize: "14px", whiteSpace: "nowrap" }}>{fMobilUyumluTutar(tFisTahsilatRaw)}</b>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "5px" }}>
             <div style={{ borderRadius: "999px", background: "#ffffffb8", padding: "4px 6px", color: "#64748b", fontWeight: "bold", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", lineHeight: 1.1 }}>
               <span style={{ fontSize: "8px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>GİDER</span>
-              <span style={{ fontSize: "9px", whiteSpace: "nowrap" }}>{fSayiNoDec(tKullaniciGider)}</span>
+              <span style={{ fontSize: "9px", whiteSpace: "nowrap" }}>{fMobilUyumluSayi(tKullaniciGider)}</span>
             </div>
             <div style={{ borderRadius: "999px", background: "#ffffffb8", padding: "4px 6px", color: "#475569", fontWeight: "bold", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", lineHeight: 1.1 }}>
               <span style={{ fontSize: "8px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>KASAYA</span>
-              <span style={{ fontSize: "9px", whiteSpace: "nowrap" }}>{fSayiNoDec(tKasayaDevir)}</span>
+              <span style={{ fontSize: "9px", whiteSpace: "nowrap" }}>{fMobilUyumluSayi(tKasayaDevir)}</span>
             </div>
             <div style={{ borderRadius: "999px", background: "#ffffffd8", padding: "4px 6px", color: "#0f172a", fontWeight: "bold", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", lineHeight: 1.1 }}>
               <span style={{ fontSize: "8px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>NET</span>
-              <span style={{ fontSize: "9px", whiteSpace: "nowrap" }}>{fSayiNoDec(tNetTahsilat)}</span>
+              <span style={{ fontSize: "9px", whiteSpace: "nowrap" }}>{fMobilUyumluSayi(tNetTahsilat)}</span>
             </div>
           </div>
         </div>
         <div style={{ minWidth: 0, border: "1px solid #dc262633", background: "#dc262610", color: "#dc2626", borderRadius: "12px", padding: "6px 8px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
           <span style={{ fontSize: "9px", fontWeight: "bold", opacity: 0.85, whiteSpace: "nowrap" }}>AÇIK HESAP</span>
-          <b style={{ fontSize: "14px", marginTop: "2px", whiteSpace: "nowrap" }}>{fSayi(tFisKalan)} ₺</b>
+          <b style={{ fontSize: "14px", marginTop: "2px", whiteSpace: "nowrap" }}>{fMobilUyumluTutar(tFisKalan)}</b>
         </div>
       </div>
 
@@ -2814,12 +2837,12 @@ export default function App() {
             <td style={{ fontWeight: "bold", minWidth: 0, maxWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: f.toplam_tutar === 0 && f.odeme_turu !== 'KASAYA DEVİR' ? "#8b5cf6" : (sistemIslemiMi(satisFisBayiAdiGetir(f)) ? "#475569" : "inherit") }}>
                {fisGorunenBayi(f)}
             </td>
-            <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold" }}>{f.toplam_tutar === 0 ? "-" : fSayi(f.toplam_tutar)}</td>
+            <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold" }}>{f.toplam_tutar === 0 ? "-" : fMobilUyumluSayi(f.toplam_tutar)}</td>
             <td style={{ textAlign: "right", color: f.odeme_turu === 'KASAYA DEVİR' ? "#dc2626" : "#2563eb", fontWeight: "bold" }}>
-               {f.odeme_turu === 'KASAYA DEVİR' && f.tahsilat > 0 ? "-" : ""}{fSayi(f.tahsilat)}
+               {f.odeme_turu === 'KASAYA DEVİR' && f.tahsilat > 0 ? "-" : ""}{fMobilUyumluSayi(f.tahsilat)}
             </td>
             <td style={{ textAlign: "right", color: satirToplamBorc > 0 ? "#dc2626" : (satirToplamBorc < 0 ? "#059669" : "#64748b"), fontWeight: "bold" }} title="Bu fiş sonundaki toplam borç">
-                {sistemIslemiMi(satisFisBayiAdiGetir(f)) ? "-" : (satirToplamBorc === 0 ? "-" : fSayi(satirToplamBorc))}
+                {sistemIslemiMi(satisFisBayiAdiGetir(f)) ? "-" : (satirToplamBorc === 0 ? "-" : fMobilUyumluSayi(satirToplamBorc))}
             </td>
             <td style={{ textAlign: "center", color: "#64748b" }}>{f.ekleyen ? f.ekleyen.split('@')[0] : "-"}</td>
             <td className="actions-cell" style={{position: 'relative'}}>
