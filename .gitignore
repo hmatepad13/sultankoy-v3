@@ -12,6 +12,7 @@ dist
 dist-ssr
 backups/
 .env
+supabase/.temp/
 *.local
 
 # Editor directories and files

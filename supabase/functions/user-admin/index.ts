@@ -42,11 +42,10 @@ Deno.serve(async (req) => {
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const authHeader = req.headers.get("Authorization");
 
-  if (!supabaseUrl || !supabaseAnonKey || !serviceRoleKey) {
+  if (!supabaseUrl || !serviceRoleKey) {
     return json({ ok: false, message: "Supabase ortam değişkenleri eksik." });
   }
 
@@ -54,19 +53,20 @@ Deno.serve(async (req) => {
     return json({ ok: false, message: "Yetkilendirme başlığı eksik." });
   }
 
-  const callerClient = createClient(supabaseUrl, supabaseAnonKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-    global: { headers: { Authorization: authHeader } },
-  });
-
   const adminClient = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
+  const accessToken = authHeader.replace(/^Bearer\s+/i, "").trim();
+
+  if (!accessToken) {
+    return json({ ok: false, message: "Yetkilendirme başlığı geçersiz." });
+  }
+
   const {
     data: { user: callerUser },
     error: callerError,
-  } = await callerClient.auth.getUser();
+  } = await adminClient.auth.getUser(accessToken);
 
   if (callerError || !callerUser) {
     return json({ ok: false, message: "Oturum doğrulanamadı." });
