@@ -368,7 +368,9 @@ export default function App() {
   const [username, setUsername] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [activeTab, setActiveTab] = useState<AppTabId>("satis");
+  const [isBottomMenuOpen, setIsBottomMenuOpen] = useState(false);
   const oturumAcilisSekmesiRef = useRef<string | null>(null);
+  const bottomMenuRef = useRef<HTMLElement | null>(null);
 
   // DÖNEM YÖNETİMİ (Kalıcı)
   const [aktifDonem, setAktifDonem] = useState<string>(() => {
@@ -731,6 +733,21 @@ export default function App() {
     () => TAB_TANIMLARI.filter((tab) => mevcutSekmeYetkileri[tab.id]),
     [mevcutSekmeYetkileri],
   );
+  const altMenuAnaSekmeleri = useMemo(
+    () =>
+      (["ozet", "satis", "gider"] as AppTabId[])
+        .map((id) => gorunurSekmeler.find((tab) => tab.id === id))
+        .filter(Boolean) as Array<{ id: AppTabId; ikon: string; etiket: string }>,
+    [gorunurSekmeler],
+  );
+  const altMenuDigerSekmeleri = useMemo(
+    () => gorunurSekmeler.filter((tab) => !["ozet", "satis", "gider"].includes(tab.id)),
+    [gorunurSekmeler],
+  );
+  const altMenuGizliSekmeAktif = useMemo(
+    () => altMenuDigerSekmeleri.some((tab) => tab.id === activeTab),
+    [activeTab, altMenuDigerSekmeleri],
+  );
 
   useEffect(() => {
     if (!gorunurSekmeler.some((tab) => tab.id === activeTab)) {
@@ -755,6 +772,29 @@ export default function App() {
       oturumAcilisSekmesiRef.current = kullaniciId;
     }
   }, [gorunurSekmeler, session?.user?.id]);
+
+  useEffect(() => {
+    setIsBottomMenuOpen(false);
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (!isBottomMenuOpen) return;
+
+    const handleBottomMenuDisTiklama = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node | null;
+      if (bottomMenuRef.current && target && !bottomMenuRef.current.contains(target)) {
+        setIsBottomMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleBottomMenuDisTiklama);
+    document.addEventListener("touchstart", handleBottomMenuDisTiklama, { passive: true });
+
+    return () => {
+      document.removeEventListener("mousedown", handleBottomMenuDisTiklama);
+      document.removeEventListener("touchstart", handleBottomMenuDisTiklama);
+    };
+  }, [isBottomMenuOpen]);
 
   const veritabaniHatasiMesaji = (tablo: string, hata: { message?: string } | null) => {
     const mesaj = hata?.message || "Bilinmeyen veritabanı hatası";
@@ -3418,6 +3458,38 @@ export default function App() {
     );
   }
   
+  const sekmeRengiGetir = (tabId: AppTabId | "menu") => {
+    if (tabId === "satis") return "#059669";
+    if (tabId === "gider") return "#dc2626";
+    if (tabId === "analiz" || tabId === "uretim") return "#8b5cf6";
+    if (tabId === "sut") return "#0f766e";
+    if (tabId === "ayarlar") return "#64748b";
+    if (tabId === "menu") return "#334155";
+    return temaRengi;
+  };
+
+  const sekmeSec = (tabId: AppTabId) => {
+    setActiveTab(tabId);
+    setEditingSutId(null);
+    setIsSutModalOpen(false);
+    setIsFisModalOpen(false);
+    setIsTahsilatModalOpen(false);
+    setIsGiderModalOpen(false);
+    setIsUretimModalOpen(false);
+    setOpenDropdown(null);
+    setIsBottomMenuOpen(false);
+  };
+
+  const sekmeButonStili = (renk: string, aktif: boolean) =>
+    aktif
+      ? {
+          color: renk,
+          background: `${renk}14`,
+          borderColor: `${renk}33`,
+          boxShadow: `0 10px 20px -16px ${renk}`,
+        }
+      : undefined;
+
   return (
     <div className="app-container">
       <header className="header-style">
@@ -3979,12 +4051,85 @@ export default function App() {
         )}
       </main>
 
-      <footer className="fixed-nav main-content-area">
-        {gorunurSekmeler.map((item) => (
-          <button key={item.id} onClick={() => { setActiveTab(item.id); setEditingSutId(null); setIsSutModalOpen(false); setIsFisModalOpen(false); setIsTahsilatModalOpen(false); setIsGiderModalOpen(false); setIsUretimModalOpen(false); setOpenDropdown(null); }} className={`n-item btn-anim ${activeTab === item.id ? 'active' : ''}`} style={{ ...(activeTab === item.id ? { color: item.id === 'analiz' ? '#8b5cf6' : item.id === 'gider' ? '#dc2626' : item.id === 'uretim' ? '#8b5cf6' : temaRengi, borderTopColor: item.id === 'analiz' ? '#8b5cf6' : item.id === 'gider' ? '#dc2626' : item.id === 'uretim' ? '#8b5cf6' : temaRengi } : {}), ...(item.id === "satis" ? { paddingTop: "8px", paddingBottom: "8px" } : {}) }}>
-            <span style={{ fontSize: item.id === "satis" ? "24px" : "16px", marginBottom: "2px", lineHeight: 1 }}>{item.ikon}</span><span style={{ fontSize: item.id === "satis" ? "10px" : "9px", fontWeight: "bold" }}>{item.etiket}</span>
-          </button>
-        ))}
+      <footer ref={bottomMenuRef} className="fixed-nav main-content-area">
+        {altMenuAnaSekmeleri.map((item) => {
+          const aktif = activeTab === item.id;
+          const renk = sekmeRengiGetir(item.id);
+          return (
+            <button
+              key={item.id}
+              onClick={() => sekmeSec(item.id)}
+              className={`n-item btn-anim ${aktif ? "active" : ""}`}
+              style={sekmeButonStili(renk, aktif)}
+            >
+              <span style={{ fontSize: item.id === "satis" ? "24px" : "17px", marginBottom: "2px", lineHeight: 1 }}>{item.ikon}</span>
+              <span style={{ fontSize: item.id === "satis" ? "10px" : "9px", fontWeight: "bold" }}>{item.etiket}</span>
+            </button>
+          );
+        })}
+
+        {altMenuDigerSekmeleri.length > 0 && (
+          <div style={{ position: "relative", display: "flex", flex: 1 }}>
+            <button
+              onClick={() => setIsBottomMenuOpen((prev) => !prev)}
+              className={`n-item btn-anim ${isBottomMenuOpen || altMenuGizliSekmeAktif ? "active" : ""}`}
+              style={sekmeButonStili(sekmeRengiGetir("menu"), isBottomMenuOpen || altMenuGizliSekmeAktif)}
+            >
+              <span style={{ fontSize: "18px", marginBottom: "2px", lineHeight: 1 }}>☰</span>
+              <span style={{ fontSize: "9px", fontWeight: "bold" }}>MENÜ</span>
+            </button>
+
+            {isBottomMenuOpen && (
+              <div
+                style={{
+                  position: "absolute",
+                  right: 0,
+                  bottom: "calc(100% + 8px)",
+                  width: "min(260px, calc(100vw - 16px))",
+                  background: "#fff",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "16px",
+                  boxShadow: "0 20px 30px -18px rgba(15, 23, 42, 0.35)",
+                  padding: "8px",
+                  display: "grid",
+                  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                  gap: "8px",
+                  zIndex: 130,
+                }}
+              >
+                {altMenuDigerSekmeleri.map((item) => {
+                  const aktif = activeTab === item.id;
+                  const renk = sekmeRengiGetir(item.id);
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => sekmeSec(item.id)}
+                      className="btn-anim"
+                      style={{
+                        border: `1px solid ${aktif ? `${renk}33` : "#e2e8f0"}`,
+                        borderRadius: "12px",
+                        background: aktif ? `${renk}14` : "#f8fafc",
+                        color: aktif ? renk : "#475569",
+                        minHeight: "58px",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "4px",
+                        cursor: "pointer",
+                        fontWeight: "bold",
+                        padding: "8px 6px",
+                      }}
+                    >
+                      <span style={{ fontSize: "18px", lineHeight: 1 }}>{item.ikon}</span>
+                      <span style={{ fontSize: "10px" }}>{item.etiket}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </footer>
 
       <style>{`
@@ -4043,9 +4188,9 @@ export default function App() {
 
         .truncate-text-td { max-width: 75px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: bottom; }
 
-        .fixed-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 1000px; height: 60px; background: #fff; border-top: 1px solid #cbd5e1; display: flex; z-index: 100; padding: 0 4px; }
-        .n-item { flex: 1; border: none; background: none; color: #94a3b8; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; border-top: 3px solid transparent; padding: 0 2px; }
-        .n-item.active { background: #f8fafc; }
+        .fixed-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 1000px; min-height: 64px; background: rgba(255,255,255,0.98); border-top: 1px solid #cbd5e1; display: flex; z-index: 100; padding: 6px 6px calc(6px + env(safe-area-inset-bottom, 0px)); gap: 6px; align-items: stretch; backdrop-filter: blur(8px); }
+        .n-item { flex: 1; border: 1px solid transparent; background: #f8fafc; color: #94a3b8; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; border-radius: 14px; padding: 6px 4px; min-height: 48px; }
+        .n-item.active { background: #eff6ff; }
         .btn-anim { transition: transform 0.1s; } .btn-anim:active { transform: scale(0.95); }
 
         @media (max-width: 600px) {
@@ -4068,7 +4213,8 @@ export default function App() {
           .tbl-satis th:nth-child(2), .tbl-satis td:nth-child(2) { width: 28% !important; }
           .tbl-satis th:nth-child(6), .tbl-satis td:nth-child(6) { width: 12% !important; }
           .truncate-text-td { max-width: 72px !important; }
-          .n-item { padding: 0; }
+          .fixed-nav { min-height: 62px !important; padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px)) !important; gap: 4px !important; }
+          .n-item { padding: 4px 2px; min-height: 46px; border-radius: 12px; }
           .n-item span:first-child { font-size: 14px !important; }
           .n-item span:last-child { font-size: 8px !important; letter-spacing: -0.5px; }
         }
