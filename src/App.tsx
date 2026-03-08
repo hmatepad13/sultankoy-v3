@@ -488,11 +488,14 @@ export default function App() {
   const [uretimForm, setUretimForm] = useState<Uretim>(bosUretimFormu(aktifDonemTarihi(), "yogurt"));
   const [uretimSort, setUretimSort] = useState<SortConfig>({ key: 'tarih', direction: 'desc' });
 
-  const masterKayitIsminiNormalizeEt = (deger?: string | null) =>
-    String(deger || "")
-      .trim()
-      .replace(/\s+/g, " ")
-      .toLocaleLowerCase("tr-TR");
+  const masterKayitIsminiNormalizeEt = useCallback(
+    (deger?: string | null) =>
+      String(deger || "")
+        .trim()
+        .replace(/\s+/g, " ")
+        .toLocaleLowerCase("tr-TR"),
+    [],
+  );
   const sistemIslemiMi = (deger?: string | null) => (deger || "") === "SİSTEM İŞLEMİ";
 
   const eslesenKayitIdBul = <T extends { id: string; isim: string }>(liste: T[], isim?: string | null) =>
@@ -528,19 +531,19 @@ export default function App() {
   );
   const satisFisBayiAnahtariGetir = useCallback(
     (fis?: Partial<SatisFis> | null) => (fis?.bayi_id ? `id:${fis.bayi_id}` : `isim:${masterKayitIsminiNormalizeEt(fis?.bayi)}`),
-    [],
+    [masterKayitIsminiNormalizeEt],
   );
   const satisSatiriBayiAnahtariGetir = useCallback(
     (satir?: Partial<SatisGiris> | null) => (satir?.bayi_id ? `id:${satir.bayi_id}` : `isim:${masterKayitIsminiNormalizeEt(satir?.bayi)}`),
-    [],
+    [masterKayitIsminiNormalizeEt],
   );
   const satisSatiriUrunAnahtariGetir = useCallback(
     (satir?: Partial<SatisGiris> | null) => (satir?.urun_id ? `id:${satir.urun_id}` : `isim:${masterKayitIsminiNormalizeEt(satir?.urun)}`),
-    [],
+    [masterKayitIsminiNormalizeEt],
   );
   const sutCiftlikAnahtariGetir = useCallback(
     (kayit?: Partial<SutGiris> | null) => (kayit?.ciftlik_id ? `id:${kayit.ciftlik_id}` : `isim:${masterKayitIsminiNormalizeEt(kayit?.ciftlik)}`),
-    [],
+    [masterKayitIsminiNormalizeEt],
   );
 
   const hesaplaMusteriBakiyeleri = useCallback((kayitlar: SatisFis[], sonDonem?: string) => {
@@ -1519,7 +1522,7 @@ export default function App() {
   const aktifBayiId = useMemo(() => seciliBayiId(aktifBayi), [aktifBayi, seciliBayiId]);
   const aktifBayiAnahtari = useMemo(
     () => (aktifBayiId ? `id:${aktifBayiId}` : `isim:${masterKayitIsminiNormalizeEt(aktifBayi)}`),
-    [aktifBayi, aktifBayiId],
+    [aktifBayi, aktifBayiId, masterKayitIsminiNormalizeEt],
   );
   
   const eskiBorc = useMemo(() => {
@@ -2254,17 +2257,33 @@ export default function App() {
   const sutcuyeBorcumuz = useMemo(() => sutcuBorcunuHesapla(sutList, giderList, aktifDonem), [aktifDonem, giderList, sutList]);
   const sutBorcDetaySatirlari = useMemo(() => {
     const kayitMap = new Map<string, { isim: string; alim: number; odeme: number }>();
-    const ciftlikAdlari = Array.from(
-      new Set([
-        ...tedarikciler.map((item) => item.isim).filter(Boolean),
-        ...sutList.map((item) => sutCiftlikAdiGetir(item)).filter(Boolean),
-      ]),
-    );
+    const isimdenAnahtarMap = new Map<string, { key: string; isim: string }>();
+    const ciftlikKayitlari = [
+      ...tedarikciler
+        .filter((item) => item?.isim)
+        .map((item) => ({
+          isim: item.isim,
+          key: item.id ? `id:${item.id}` : `isim:${masterKayitIsminiNormalizeEt(item.isim)}`,
+        })),
+      ...sutList
+        .map((item) => ({
+          isim: sutCiftlikAdiGetir(item),
+          key: sutCiftlikAnahtariGetir(item),
+        }))
+        .filter((item) => item.isim),
+    ];
+    const ciftlikAdlari = Array.from(new Set(ciftlikKayitlari.map((item) => item.isim).filter(Boolean)));
 
     const ensure = (key: string, isim: string) => {
       if (!kayitMap.has(key)) kayitMap.set(key, { isim, alim: 0, odeme: 0 });
       return kayitMap.get(key)!;
     };
+
+    ciftlikKayitlari.forEach((item) => {
+      const normalized = masterKayitIsminiNormalizeEt(item.isim);
+      if (!normalized || isimdenAnahtarMap.has(normalized)) return;
+      isimdenAnahtarMap.set(normalized, { key: item.key, isim: item.isim });
+    });
 
     sutList.forEach((item) => {
       const donem = String(item.tarih || "").substring(0, 7);
@@ -2278,9 +2297,10 @@ export default function App() {
       const donem = String(item.tarih || "").substring(0, 7);
       if (aktifDonem && donem > aktifDonem) return;
       if (!sutOdemesiMi(item.tur)) return;
-
       const ciftlikIsmi = sutOdemesiCiftlikIsminiBul(item.tur, ciftlikAdlari) || "Eşleşmeyen Ödeme";
-      ensure(`isim:${masterKayitIsminiNormalizeEt(ciftlikIsmi)}`, ciftlikIsmi).odeme += Number(item.tutar || 0);
+      const normalized = masterKayitIsminiNormalizeEt(ciftlikIsmi);
+      const eslesenKayit = isimdenAnahtarMap.get(normalized);
+      ensure(eslesenKayit?.key || `isim:${normalized}`, eslesenKayit?.isim || ciftlikIsmi).odeme += Number(item.tutar || 0);
     });
 
     const detaylar = Array.from(kayitMap.entries())
@@ -2298,11 +2318,11 @@ export default function App() {
     }
 
     return detaylar.map((item) => ({
-      etiket: `${item.isim} Net Borç`,
-      deger: `${fSayi(item.borc)} ₺`,
+      etiket: item.isim,
+      deger: `${fSayi(item.borc)} TL`,
       vurgu: true,
     }));
-  }, [aktifDonem, giderList, sutCiftlikAdiGetir, sutCiftlikAnahtariGetir, sutList, tedarikciler]);
+  }, [aktifDonem, giderList, masterKayitIsminiNormalizeEt, sutCiftlikAdiGetir, sutCiftlikAnahtariGetir, sutList, tedarikciler]);
   const aktifUretimTipi = uretimForm.uretim_tipi || "yogurt";
   const siraliUretimList = useMemo(() => sortData(periodUretim, uretimSort), [periodUretim, uretimSort]);
   const yogurtUretimListesi = useMemo(
