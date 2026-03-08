@@ -965,11 +965,27 @@ export default function App() {
 
   const adminKullaniciFonksiyonunuCagir = useCallback(
     async <T,>(payload: Record<string, unknown>) => {
-      const { data, error } = await supabase.functions.invoke("user-admin", { body: payload });
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
+
+      if (!currentSession?.access_token) {
+        throw new Error("Kullanıcı yönetimi için oturum doğrulanamadı. Lütfen çıkış yapıp tekrar giriş yap.");
+      }
+
+      const { data, error } = await supabase.functions.invoke("user-admin", {
+        body: payload,
+        headers: {
+          Authorization: `Bearer ${currentSession.access_token}`,
+        },
+      });
 
       if (error) {
         if (edgeFunctionBulunamadiMi(error, "user-admin")) {
           throw new Error("Kullanıcı yönetimi Edge Function henüz deploy edilmemiş. Supabase Edge Function adımını tamamlaman gerekiyor.");
+        }
+        if (String(error.message || "").includes("401")) {
+          throw new Error("Kullanıcı yönetimi yetkilendirmesi başarısız oldu. Çıkış yapıp tekrar giriş yapmanı öneririm.");
         }
         throw new Error(error.message || "Kullanıcı yönetimi çağrısı başarısız oldu.");
       }
