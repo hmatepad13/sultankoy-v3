@@ -4489,7 +4489,15 @@ export default function App() {
                   <div style={{ fontSize: "13px", color: "#475569", marginTop: "4px" }}>{musteriEkstreData.musteri}</div>
                   <div style={{ fontSize: "11px", color: "#64748b", marginTop: "2px" }}>{donemMetni(musteriEkstreData.donem)}</div>
                 </div>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px", tableLayout: "fixed" }}>
+                  <colgroup>
+                    <col style={{ width: "14%" }} />
+                    <col style={{ width: "16%" }} />
+                    <col style={{ width: "28%" }} />
+                    <col style={{ width: "14%" }} />
+                    <col style={{ width: "14%" }} />
+                    <col style={{ width: "14%" }} />
+                  </colgroup>
                   <thead>
                     <tr>
                       <th style={{ textAlign: "left", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>Tarih</th>
@@ -4523,16 +4531,16 @@ export default function App() {
                                 <span style={{ color: "#94a3b8" }}>-</span>
                               )}
                             </td>
-                            <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9", textAlign: "right", color: hareket.tutar > 0 ? "#059669" : "#94a3b8" }}>{hareket.tutar > 0 ? `${fSayi(hareket.tutar)} ₺` : "-"}</td>
-                            <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9", textAlign: "right", color: hareket.tahsilat > 0 ? "#2563eb" : "#94a3b8" }}>{hareket.tahsilat > 0 ? `${fSayi(hareket.tahsilat)} ₺` : "-"}</td>
-                            <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9", textAlign: "right", color: hareket.fistenKalanBorc > 0 ? "#dc2626" : "#059669", fontWeight: "bold" }}>{fSayi(hareket.fistenKalanBorc)} ₺</td>
+                            <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9", textAlign: "right", color: hareket.tutar > 0 ? "#059669" : "#94a3b8", fontSize: "10px", whiteSpace: "nowrap" }}>{hareket.tutar > 0 ? `${fSayi(hareket.tutar)} ₺` : "-"}</td>
+                            <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9", textAlign: "right", color: hareket.tahsilat > 0 ? "#2563eb" : "#94a3b8", fontSize: "10px", whiteSpace: "nowrap" }}>{hareket.tahsilat > 0 ? `${fSayi(hareket.tahsilat)} ₺` : "-"}</td>
+                            <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9", textAlign: "right", color: hareket.fistenKalanBorc > 0 ? "#dc2626" : "#059669", fontWeight: "bold", fontSize: "10px", whiteSpace: "nowrap" }}>{fSayi(hareket.fistenKalanBorc)} ₺</td>
                           </tr>
                         ))}
                         <tr>
                           <td colSpan={3} style={{ padding: "7px 4px 0", fontSize: "10px", color: "#64748b", fontWeight: "bold" }}>Toplam</td>
-                          <td style={{ padding: "7px 4px 0", textAlign: "right", fontSize: "10px", color: "#059669", fontWeight: "bold" }}>{fSayi(musteriEkstreToplamlari.tutar)} ₺</td>
-                          <td style={{ padding: "7px 4px 0", textAlign: "right", fontSize: "10px", color: "#2563eb", fontWeight: "bold" }}>{fSayi(musteriEkstreToplamlari.tahsilat)} ₺</td>
-                          <td style={{ padding: "7px 4px 0", textAlign: "right", fontSize: "10px", color: musteriEkstreToplamlari.fistenKalanBorc > 0 ? "#dc2626" : "#059669", fontWeight: "bold" }}>{fSayi(musteriEkstreToplamlari.fistenKalanBorc)} ₺</td>
+                          <td style={{ padding: "7px 4px 0", textAlign: "right", fontSize: "10px", color: "#059669", fontWeight: "bold", whiteSpace: "nowrap" }}>{fSayi(musteriEkstreToplamlari.tutar)} ₺</td>
+                          <td style={{ padding: "7px 4px 0", textAlign: "right", fontSize: "10px", color: "#2563eb", fontWeight: "bold", whiteSpace: "nowrap" }}>{fSayi(musteriEkstreToplamlari.tahsilat)} ₺</td>
+                          <td style={{ padding: "7px 4px 0", textAlign: "right", fontSize: "10px", color: musteriEkstreToplamlari.fistenKalanBorc > 0 ? "#dc2626" : "#059669", fontWeight: "bold", whiteSpace: "nowrap" }}>{fSayi(musteriEkstreToplamlari.fistenKalanBorc)} ₺</td>
                         </tr>
                       </>
                     ) : (
