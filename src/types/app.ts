@@ -107,6 +107,10 @@ export interface Uretim {
   diger_adet?: number | string;
   diger_kg?: number | string;
   diger_fiyat?: number | string;
+  paket_2_adet?: number | string;
+  paket_2_fiyat?: number | string;
+  paket_3_adet?: number | string;
+  paket_3_fiyat?: number | string;
   kova_3_adet: number | string;
   kova_3_fiyat: number | string;
   kova_5_adet: number | string;

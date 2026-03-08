@@ -68,6 +68,10 @@ const uretimMetaAlanlari = [
   "diger_adet",
   "diger_kg",
   "diger_fiyat",
+  "paket_2_adet",
+  "paket_2_fiyat",
+  "paket_3_adet",
+  "paket_3_fiyat",
   "cikti_2kg",
   "satis_2_fiyat",
   "cikan_toplam_kg",
@@ -121,6 +125,10 @@ const uretimKaydiniNormalizeEt = (kayit: Partial<Uretim>) => {
     diger_adet: sayiVeyaBos(meta.diger_adet),
     diger_kg: sayiVeyaBos(meta.diger_kg),
     diger_fiyat: sayiVeyaBos(meta.diger_fiyat),
+    paket_2_adet: sayiVeyaBos(meta.paket_2_adet),
+    paket_2_fiyat: sayiVeyaBos(meta.paket_2_fiyat),
+    paket_3_adet: sayiVeyaBos(meta.paket_3_adet),
+    paket_3_fiyat: sayiVeyaBos(meta.paket_3_fiyat),
     cikti_2kg: sayiVeyaBos(meta.cikti_2kg),
     satis_2_fiyat: sayiVeyaBos(meta.satis_2_fiyat),
     cikan_toplam_kg: sayiDegeri(meta.cikan_toplam_kg) || sayiDegeri(kayit.cikan_toplam_kg),
@@ -160,7 +168,11 @@ const uretimMaliyetToplami = (kayit: Partial<Uretim>) => {
     kgSatirTutari(kayit.su, kayit.su_fiyat);
 
   if (tip === "sut_kaymagi") {
-    return ortakMaliyet + kgSatirTutari(kayit.krema, kayit.krema_fiyat) + miktarSatirTutari(kayit.diger_kg, kayit.diger_adet, kayit.diger_fiyat);
+    return ortakMaliyet +
+      kgSatirTutari(kayit.krema, kayit.krema_fiyat) +
+      miktarSatirTutari(kayit.diger_kg, kayit.diger_adet, kayit.diger_fiyat) +
+      sayiDegeri(kayit.paket_2_adet) * sayiDegeri(kayit.paket_2_fiyat) +
+      sayiDegeri(kayit.paket_3_adet) * sayiDegeri(kayit.paket_3_fiyat);
   }
 
   return ortakMaliyet +
@@ -346,6 +358,10 @@ const bosUretimFormu = (
   diger_adet: "",
   diger_kg: "",
   diger_fiyat: fiyatlar?.diger || "",
+  paket_2_adet: "",
+  paket_2_fiyat: fiyatlar?.paket2 || "",
+  paket_3_adet: "",
+  paket_3_fiyat: fiyatlar?.paket3 || "",
   kova_3_adet: "",
   kova_3_fiyat: fiyatlar?.kova3 || "",
   kova_5_adet: "",
@@ -1372,6 +1388,10 @@ export default function App() {
         diger_adet: sayiVeyaBos(uretimForm.diger_adet),
         diger_kg: sayiVeyaBos(uretimForm.diger_kg),
         diger_fiyat: sayiVeyaBos(uretimForm.diger_fiyat),
+        paket_2_adet: sayiVeyaBos(uretimForm.paket_2_adet),
+        paket_2_fiyat: sayiVeyaBos(uretimForm.paket_2_fiyat),
+        paket_3_adet: sayiVeyaBos(uretimForm.paket_3_adet),
+        paket_3_fiyat: sayiVeyaBos(uretimForm.paket_3_fiyat),
         cikti_2kg: sayiVeyaBos(uretimForm.cikti_2kg),
         satis_2_fiyat: sayiVeyaBos(uretimForm.satis_2_fiyat),
         cikan_toplam_kg: cikanToplamKg,
@@ -3246,6 +3266,8 @@ export default function App() {
                 {renderKgSatiri("Teremyağ", "tereyag", "tereyag_fiyat", "#0f766e")}
                 {renderKgSatiri("Katkı", "katki_kg", "katki_fiyat", "#0f766e")}
                 {renderKgSatiri("Şeker", "diger_kg", "diger_fiyat", "#0f766e")}
+                {renderAdetFiyatSatiri("2 KG Boş Paket", "paket_2_adet", "paket_2_fiyat", "#0f766e")}
+                {renderAdetFiyatSatiri("3 KG Boş Paket", "paket_3_adet", "paket_3_fiyat", "#0f766e")}
               </>
             ) : (
               <>
@@ -3327,7 +3349,9 @@ export default function App() {
                   <div style={{display: "flex", justifyContent: "space-between", fontSize: "11px", padding: "3px 0"}}><span>Süt ({fSayi(detay.cig_sut)} kg x {fSayi(detay.sut_fiyat)})</span><b>{fSayi(kgSatirTutari(detay.cig_sut, detay.sut_fiyat))} ₺</b></div>
                   <div style={{display: "flex", justifyContent: "space-between", fontSize: "11px", padding: "3px 0"}}><span>Teremyağ ({fSayi(detay.tereyag)} kg x {fSayi(detay.tereyag_fiyat)})</span><b>{fSayi(kgSatirTutari(detay.tereyag, detay.tereyag_fiyat))} ₺</b></div>
                   <div style={{display: "flex", justifyContent: "space-between", fontSize: "11px", padding: "3px 0"}}><span>Katkı ({fSayi(detay.katki_kg)} kg x {fSayi(detay.katki_fiyat)})</span><b>{fSayi(kgSatirTutari(detay.katki_kg, detay.katki_fiyat))} ₺</b></div>
-                  <div style={{display: "flex", justifyContent: "space-between", fontSize: "11px", padding: "3px 0"}}><span>Diğer ({fSayi(detay.diger_adet)} adet / {fSayi(detay.diger_kg)} kg x {fSayi(detay.diger_fiyat)})</span><b>{fSayi(miktarSatirTutari(detay.diger_kg, detay.diger_adet, detay.diger_fiyat))} ₺</b></div>
+                  <div style={{display: "flex", justifyContent: "space-between", fontSize: "11px", padding: "3px 0"}}><span>Şeker ({fSayi(detay.diger_kg)} kg x {fSayi(detay.diger_fiyat)})</span><b>{fSayi(miktarSatirTutari(detay.diger_kg, detay.diger_adet, detay.diger_fiyat))} ₺</b></div>
+                  <div style={{display: "flex", justifyContent: "space-between", fontSize: "11px", padding: "3px 0"}}><span>2 KG Boş Paket ({fSayi(detay.paket_2_adet)} adet x {fSayi(detay.paket_2_fiyat)})</span><b>{fSayi(sayiDegeri(detay.paket_2_adet) * sayiDegeri(detay.paket_2_fiyat))} ₺</b></div>
+                  <div style={{display: "flex", justifyContent: "space-between", fontSize: "11px", padding: "3px 0"}}><span>3 KG Boş Paket ({fSayi(detay.paket_3_adet)} adet x {fSayi(detay.paket_3_fiyat)})</span><b>{fSayi(sayiDegeri(detay.paket_3_adet) * sayiDegeri(detay.paket_3_fiyat))} ₺</b></div>
                 </>
               ) : (
                 <>
