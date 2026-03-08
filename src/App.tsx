@@ -426,7 +426,12 @@ export default function App() {
   const [openDropdown, setOpenDropdown] = useState<{type: string, id: string} | null>(null);
 
   // DİĞER İŞLEMLER (Sadece Kasaya Devir Kaldı)
-  const [digerModalConfig, setDigerModalConfig] = useState<{isOpen: boolean, type: 'kasa_devir'|null}>({isOpen: false, type: null});
+  const [digerModalConfig, setDigerModalConfig] = useState<{
+    isOpen: boolean;
+    type: 'kasa_devir' | null;
+    mode: 'create' | 'edit' | 'view';
+    fisId: number | null;
+  }>({ isOpen: false, type: null, mode: 'create', fisId: null });
   const [digerForm, setDigerForm] = useState({tarih: getLocalDateString(), tutar: "", aciklama: ""});
 
   // YENİ AYARLAR STATE'İ (Çöp Kutusu Eklendi)
@@ -1450,7 +1455,35 @@ export default function App() {
     verileriGetir("satis");
   }
 
+  const resetDigerForm = () => {
+    setDigerModalConfig({ isOpen: false, type: null, mode: "create", fisId: null });
+    setDigerForm({ tarih: getLocalDateString(), tutar: "", aciklama: "" });
+  };
+
+  const handleKasaDevirGoruntule = (fis: SatisFis) => {
+    setDigerForm({
+      tarih: fis.tarih || getLocalDateString(),
+      tutar: String(Number(fis.tahsilat || 0) || ""),
+      aciklama: fis.aciklama || "",
+    });
+    setDigerModalConfig({ isOpen: true, type: "kasa_devir", mode: "view", fisId: Number(fis.id) || null });
+  };
+
+  const handleKasaDevirDuzenle = (fis: SatisFis) => {
+    if (!fisDuzenlenebilirMi(fis)) {
+      alert("Bu kasa devir fiÅŸini sadece ekleyen kullanÄ±cÄ± veya admin dÃ¼zenleyebilir.");
+      return;
+    }
+    setDigerForm({
+      tarih: fis.tarih || getLocalDateString(),
+      tutar: String(Number(fis.tahsilat || 0) || ""),
+      aciklama: fis.aciklama || "",
+    });
+    setDigerModalConfig({ isOpen: true, type: "kasa_devir", mode: "edit", fisId: Number(fis.id) || null });
+  };
+
   async function handleDigerIslemKaydet() {
+    return handleKasaDevirKaydet();
     if (!digerForm.tutar || Number(digerForm.tutar) <= 0) return alert("Geçerli bir tutar girin.");
 
     const fNo = `D-${Date.now().toString().slice(-6)}${Math.floor(Math.random()*1000)}`;
@@ -1472,8 +1505,37 @@ export default function App() {
     const { error } = await supabase.from("satis_fisleri").insert(fData);
     if (error) return alert("Hata: " + veritabaniHatasiMesaji("satis_fisleri", error));
 
-    setDigerModalConfig({isOpen: false, type: null});
-    setDigerForm({tarih: getLocalDateString(), tutar: "", aciklama: ""});
+    resetDigerForm();
+    verileriGetir("satis");
+  }
+
+  async function handleKasaDevirKaydet() {
+    if (!digerForm.tutar || Number(digerForm.tutar) <= 0) return alert("Geçerli bir tutar girin.");
+
+    const tahsilat = Number(digerForm.tutar);
+    const ortakData = {
+      tarih: digerForm.tarih,
+      bayi_id: null,
+      bayi: "SİSTEM İŞLEMİ",
+      toplam_tutar: 0,
+      tahsilat,
+      kalan_bakiye: 0,
+      odeme_turu: "KASAYA DEVİR",
+      aciklama: digerForm.aciklama,
+    };
+
+    const { error } =
+      digerModalConfig.mode === "edit" && digerModalConfig.fisId
+        ? await supabase.from("satis_fisleri").update(ortakData).eq("id", digerModalConfig.fisId)
+        : await supabase.from("satis_fisleri").insert({
+            ...ortakData,
+            fis_no: `D-${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 1000)}`,
+            ekleyen: aktifKullaniciEposta,
+          });
+
+    if (error) return alert("Hata: " + veritabaniHatasiMesaji("satis_fisleri", error));
+
+    resetDigerForm();
     verileriGetir("satis");
   }
 
@@ -2774,7 +2836,7 @@ export default function App() {
       <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', alignItems: 'center' }}>
          <button onClick={handleYeniFisAc} className="btn-anim m-btn green-btn" style={{ margin: 0, flex: 2, fontSize: '13px' }}>➕ YENİ SATIŞ FİŞİ</button>
          <button onClick={() => { setTahsilatForm({ tarih: aktifDonemTarihi(), bayi: "", miktar: "", odeme_turu: "PEŞİN", aciklama: "" }); setIsTahsilatModalOpen(true); }} className="btn-anim m-btn blue-btn" style={{ margin: 0, flex: 1.2, fontSize: '13px', background: '#3b82f6' }}>💸 TAHSİLAT</button>
-         <button onClick={() => setDigerModalConfig({isOpen: true, type: 'kasa_devir'})} className="btn-anim m-btn" style={{ margin: 0, flex: 1, fontSize: '13px', background: '#64748b', padding: '12px 0' }}>🏦 KASA DEVİR</button>
+         <button onClick={() => setDigerModalConfig({ isOpen: true, type: 'kasa_devir', mode: 'create', fisId: null })} className="btn-anim m-btn" style={{ margin: 0, flex: 1, fontSize: '13px', background: '#64748b', padding: '12px 0' }}>🏦 KASA DEVİR</button>
       </div>
 
       <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
@@ -2835,6 +2897,8 @@ export default function App() {
           const satirToplamBorc = f.id ? satisFisToplamBorcMap[String(f.id)] ?? 0 : 0;
           const silinebilir = fisSilinebilirMi(f);
           const duzenlenebilir = fisDuzenlenebilirMi(f);
+          const kasaDevirMi = fisKasayaDevirMi(f);
+          const sistemFisMi = sistemIslemiMi(satisFisBayiAdiGetir(f));
           return (
           <tr key={f.id}>
             <td style={{ textAlign: "center" }}>{f.tarih.split("-").reverse().slice(0, 2).join(".")}</td>
@@ -2854,8 +2918,8 @@ export default function App() {
                {openDropdown?.type === 'satis' && openDropdown.id === f.id && (
                      <div className="dropdown-menu">
                      {f.fis_gorseli && <button title="Fotoğrafı Gör" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); handleFisGorselGoster(f); }}>📷</button>}
-                     {f.bayi !== "SİSTEM İŞLEMİ" && <button title="Görüntüle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); handleFisDetayGoster(f); }}>🔍</button>}
-                     {f.bayi !== "SİSTEM İŞLEMİ" && duzenlenebilir && <button title="Düzenle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); handleFisDuzenle(f); }}>✏️</button>}
+                     {(!sistemFisMi || kasaDevirMi) && <button title="Görüntüle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); if (kasaDevirMi) { handleKasaDevirGoruntule(f); } else { handleFisDetayGoster(f); } }}>🔍</button>}
+                     {(!sistemFisMi || kasaDevirMi) && duzenlenebilir && <button title="Düzenle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); if (kasaDevirMi) { handleKasaDevirDuzenle(f); } else { handleFisDuzenle(f); } }}>✏️</button>}
                      {silinebilir && <button title="Sil" className="dropdown-item-icon" style={{ color: '#dc2626' }} onClick={() => { setOpenDropdown(null); handleFisSil(f); }}>🗑️</button>}
                   </div>
                )}
@@ -3651,18 +3715,20 @@ export default function App() {
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1400, padding: "10px" }}>
             <div style={{ backgroundColor: "#fff", width: "95vw", maxWidth: "350px", borderRadius: "12px", display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease-out", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }} onClick={e => e.stopPropagation()}>
                <div style={{ padding: "12px 15px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f8fafc", borderRadius: "12px 12px 0 0" }}>
-                 <h3 style={{ margin: "0", color: "#64748b", fontSize: "15px" }}>🏦 Kasaya Devir</h3>
-                 <button onClick={() => { setDigerModalConfig({isOpen: false, type: null}); setDigerForm({tarih: getLocalDateString(), tutar: "", aciklama: ""}); }} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#94a3b8", padding: 0 }}>✕</button>
+                 <h3 style={{ margin: "0", color: "#64748b", fontSize: "15px" }}>{digerModalConfig.mode === "view" ? "🏦 Kasaya Devir Görüntüle" : digerModalConfig.mode === "edit" ? "🏦 Kasaya Devir Düzenle" : "🏦 Kasaya Devir"}</h3>
+                 <button onClick={resetDigerForm} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#94a3b8", padding: 0 }}>✕</button>
                </div>
                <div style={{ padding: "15px", display: "flex", flexDirection: "column", gap: "10px" }}>
                  <div style={{ display: "flex", gap: "8px" }}>
-                    <div style={{flex: 1}}><label style={{fontSize: "11px", color: "#64748b"}}>Tarih</label><input type="date" value={digerForm.tarih} onChange={e => setDigerForm({...digerForm, tarih: e.target.value})} className="m-inp date-click" style={{ width: "100%" }} /></div>
-                    <div style={{flex: 1}}><label style={{fontSize: "11px", color: "#64748b"}}>Tutar (₺)</label><input type="number" step="0.01" value={digerForm.tutar} onChange={e => setDigerForm({...digerForm, tutar: e.target.value})} className="m-inp" style={{width: "100%", textAlign: "right", color: "#0f172a", fontWeight: "bold"}} /></div>
+                    <div style={{flex: 1}}><label style={{fontSize: "11px", color: "#64748b"}}>Tarih</label><input type="date" value={digerForm.tarih} onChange={e => setDigerForm({...digerForm, tarih: e.target.value})} readOnly={digerModalConfig.mode === "view"} disabled={digerModalConfig.mode === "view"} className="m-inp date-click" style={{ width: "100%", opacity: digerModalConfig.mode === "view" ? 0.85 : 1 }} /></div>
+                    <div style={{flex: 1}}><label style={{fontSize: "11px", color: "#64748b"}}>Tutar (₺)</label><input type="number" step="0.01" value={digerForm.tutar} onChange={e => setDigerForm({...digerForm, tutar: e.target.value})} readOnly={digerModalConfig.mode === "view"} disabled={digerModalConfig.mode === "view"} className="m-inp" style={{width: "100%", textAlign: "right", color: "#0f172a", fontWeight: "bold", opacity: digerModalConfig.mode === "view" ? 0.85 : 1}} /></div>
                  </div>
-                 <div><label style={{fontSize: "11px", color: "#64748b"}}>Açıklama / Not</label><input placeholder="Opsiyonel..." value={digerForm.aciklama} onChange={e => setDigerForm({...digerForm, aciklama: e.target.value})} className="m-inp" style={{width: "100%"}} /></div>
+                 <div><label style={{fontSize: "11px", color: "#64748b"}}>Açıklama / Not</label><input placeholder="Opsiyonel..." value={digerForm.aciklama} onChange={e => setDigerForm({...digerForm, aciklama: e.target.value})} readOnly={digerModalConfig.mode === "view"} disabled={digerModalConfig.mode === "view"} className="m-inp" style={{width: "100%", opacity: digerModalConfig.mode === "view" ? 0.85 : 1}} /></div>
                </div>
                <div style={{ padding: "12px 15px", borderTop: "1px solid #e2e8f0", background: "#f8fafc", borderRadius: "0 0 12px 12px" }}>
-                 <button onClick={handleDigerIslemKaydet} className="p-btn btn-anim" style={{ background: "#64748b", width: "100%", height: "45px", fontSize: "15px" }}>KAYDET</button>
+                 {digerModalConfig.mode === "view"
+                   ? <button onClick={resetDigerForm} className="p-btn btn-anim" style={{ background: "#64748b", width: "100%", height: "45px", fontSize: "15px" }}>KAPAT</button>
+                   : <button onClick={handleDigerIslemKaydet} className="p-btn btn-anim" style={{ background: "#64748b", width: "100%", height: "45px", fontSize: "15px" }}>{digerModalConfig.mode === "edit" ? "GÜNCELLE" : "KAYDET"}</button>}
                </div>
             </div>
           </div>
