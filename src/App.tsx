@@ -240,6 +240,30 @@ const fisKasayaDevirMi = (fis: Partial<SatisFis>) => {
   return odemeTuru === "KASAYA DEVİR" || odemeTuru === "KASAYA DEVIR";
 };
 
+const fisTahsilatMi = (fis: Partial<SatisFis>) =>
+  !fisKasayaDevirMi(fis) &&
+  !fisDevirMi(fis) &&
+  Number(fis.toplam_tutar || 0) === 0 &&
+  Number(fis.tahsilat || 0) > 0;
+
+const urunAdiniNormalizeEt = (urunAdi?: string | null) =>
+  String(urunAdi || "")
+    .toLocaleLowerCase("tr-TR")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/ı/g, "i")
+    .trim();
+
+const urunAdiAyniMi = (urunAdi?: string | null, hedef?: string | null) =>
+  urunAdiniNormalizeEt(urunAdi) === urunAdiniNormalizeEt(hedef);
+
+const urunSistemSabitMi = (urunAdi?: string | null) =>
+  urunAdiAyniMi(urunAdi, "3 kg yoğurt") ||
+  urunAdiAyniMi(urunAdi, "5 kg yoğurt") ||
+  urunAdiAyniMi(urunAdi, "Süt kaymağı");
+
+const urunSutKaymagiMi = (urunAdi?: string | null) => urunAdiAyniMi(urunAdi, "Süt kaymağı");
+
 const giderTurunuNormalizeEt = (tur?: string | null) =>
   String(tur || "")
     .toLocaleLowerCase("tr-TR")
@@ -460,6 +484,7 @@ export default function App() {
   
   const [isFisModalOpen, setIsFisModalOpen] = useState<boolean>(false);
   const [isTahsilatModalOpen, setIsTahsilatModalOpen] = useState<boolean>(false);
+  const [editingTahsilatId, setEditingTahsilatId] = useState<number | null>(null);
   const [tahsilatForm, setTahsilatForm] = useState({ tarih: aktifDonemTarihi(), bayi: "", miktar: "", odeme_turu: "PEŞİN", aciklama: "" });
   
   const [editingFisId, setEditingFisId] = useState<string | null>(null);
@@ -1474,9 +1499,12 @@ export default function App() {
         tablo === "gider_turleri"
           ? { isim }
           : tablo === "urunler"
-            ? { isim, aktif: true, sabit: yeniUrunSabitle }
+            ? { isim, aktif: true, ...(yeniUrunSabitle ? { sabit: true } : {}) }
             : { isim, aktif: true };
       const { error } = await supabase.from(tablo).insert(insertData);
+      if (error && tablo === "urunler" && yeniUrunSabitle && kolonBulunamadiMi(error, "urunler", "sabit")) {
+        return alert("Urun sabitleme ozelligi icin once sql/add-sabit-column-to-urunler.sql dosyasini Supabase SQL Editor'da calistir.");
+      }
       if (error) return alert(`Hata: ${error.message}`);
       if(resetFn) resetFn("");
       if (tablo === "urunler") setYeniUrunSabitle(false);
@@ -1494,6 +1522,9 @@ export default function App() {
     } else if (islemTip === "sabit") {
       if (!id) return;
       const { error } = await supabase.from(tablo).update({ sabit: Boolean(isim) }).eq("id", id);
+      if (error && tablo === "urunler" && kolonBulunamadiMi(error, "urunler", "sabit")) {
+        return alert("Sabitle ozelligi icin once sql/add-sabit-column-to-urunler.sql dosyasini Supabase SQL Editor'da calistir.");
+      }
       if (error) return alert(`Hata: ${error.message}`);
     } else if (islemTip === "sil") {
       await supabase.from(tablo).delete().eq("id", id);
@@ -1816,6 +1847,33 @@ export default function App() {
     setEditingUretimId(null); setIsUretimModalOpen(false); verileriGetir("uretim");
   }
 
+  const resetTahsilatForm = () => {
+    setEditingTahsilatId(null);
+    setTahsilatForm({ tarih: aktifDonemTarihi(), bayi: "", miktar: "", odeme_turu: "PEŞİN", aciklama: "" });
+  };
+
+  const handleTahsilatDuzenle = (fis: SatisFis) => {
+    if (!fisDuzenlenebilirMi(fis)) {
+      alert("Bu tahsilat kaydını sadece ekleyen kullanıcı veya admin düzenleyebilir.");
+      return;
+    }
+
+    let safAciklama = fis.aciklama || "";
+    if (safAciklama.includes("[Sadece Tahsilat]")) {
+      safAciklama = safAciklama.replace(/\[Sadece Tahsilat\]\s*-\s*/, "").replace(/\[Sadece Tahsilat\]/, "");
+    }
+
+    setEditingTahsilatId(Number(fis.id) || null);
+    setTahsilatForm({
+      tarih: fis.tarih || aktifDonemTarihi(),
+      bayi: satisFisBayiAdiGetir(fis),
+      miktar: paraGirdisiniTemizle(String(Number(fis.tahsilat || 0) || "")),
+      odeme_turu: fis.odeme_turu || "PEŞİN",
+      aciklama: safAciklama,
+    });
+    setIsTahsilatModalOpen(true);
+  };
+
   async function handleTahsilatKaydet() {
     if (!tahsilatForm.bayi || !tahsilatForm.miktar) return alert("Bayi ve miktar alanları zorunludur!");
     if (!tumBayiler.some(b => b.isim === tahsilatForm.bayi)) return alert("Lütfen listeden geçerli bir Bayi/Müşteri seçin! Kendiniz rastgele isim giremezsiniz.");
@@ -1823,24 +1881,28 @@ export default function App() {
     const tMiktar = paraGirdisiniSayiyaCevir(tahsilatForm.miktar);
     if (tMiktar <= 0) return alert("Geçerli bir tahsilat tutarı girin.");
 
-    const fNo = `T-${Date.now().toString().slice(-6)}${Math.floor(Math.random()*1000)}`;
-    const fData = {
-        fis_no: fNo,
-        tarih: tahsilatForm.tarih,
-        bayi: tahsilatForm.bayi,
-        bayi_id: seciliBayiId(tahsilatForm.bayi),
-        toplam_tutar: 0,
-        tahsilat: tMiktar,
-        kalan_bakiye: -tMiktar,
-        odeme_turu: tahsilatForm.odeme_turu,
-        aciklama: tahsilatForm.aciklama ? `[Sadece Tahsilat] - ${tahsilatForm.aciklama}` : `[Sadece Tahsilat]`,
-        ekleyen: aktifKullaniciEposta
+    const ortakData = {
+      tarih: tahsilatForm.tarih,
+      bayi: tahsilatForm.bayi,
+      bayi_id: seciliBayiId(tahsilatForm.bayi),
+      toplam_tutar: 0,
+      tahsilat: tMiktar,
+      kalan_bakiye: -tMiktar,
+      odeme_turu: tahsilatForm.odeme_turu,
+      aciklama: tahsilatForm.aciklama ? `[Sadece Tahsilat] - ${tahsilatForm.aciklama}` : `[Sadece Tahsilat]`,
     };
 
-    const { error } = await supabase.from("satis_fisleri").insert(fData);
+    const { error } =
+      editingTahsilatId
+        ? await supabase.from("satis_fisleri").update(ortakData).eq("id", editingTahsilatId)
+        : await supabase.from("satis_fisleri").insert({
+            ...ortakData,
+            fis_no: `T-${Date.now().toString().slice(-6)}${Math.floor(Math.random()*1000)}`,
+            ekleyen: aktifKullaniciEposta,
+          });
     if (error) return alert("Hata: " + veritabaniHatasiMesaji("satis_fisleri", error));
 
-    setTahsilatForm({ tarih: aktifDonemTarihi(), bayi: "", miktar: "", odeme_turu: "PEŞİN", aciklama: "" });
+    resetTahsilatForm();
     setIsTahsilatModalOpen(false);
     verileriGetir("satis");
   }
@@ -3344,7 +3406,7 @@ export default function App() {
     <div className="tab-fade-in main-content-area">
       <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', alignItems: 'center' }}>
          <button onClick={handleYeniFisAc} className="btn-anim m-btn green-btn" style={{ margin: 0, flex: 2, fontSize: '13px' }}>➕ YENİ SATIŞ FİŞİ</button>
-         <button onClick={() => { setTahsilatForm({ tarih: aktifDonemTarihi(), bayi: "", miktar: "", odeme_turu: "PEŞİN", aciklama: "" }); setIsTahsilatModalOpen(true); }} className="btn-anim m-btn blue-btn" style={{ margin: 0, flex: 1.2, fontSize: '13px', background: '#3b82f6' }}>💸 TAHSİLAT</button>
+         <button onClick={() => { resetTahsilatForm(); setIsTahsilatModalOpen(true); }} className="btn-anim m-btn blue-btn" style={{ margin: 0, flex: 1.2, fontSize: '13px', background: '#3b82f6' }}>💸 TAHSİLAT</button>
          <button onClick={() => setDigerModalConfig({ isOpen: true, type: 'kasa_devir', mode: 'create', fisId: null })} className="btn-anim m-btn" style={{ margin: 0, flex: 1, fontSize: '13px', background: '#64748b', padding: '12px 0' }}>🏦 KASA DEVİR</button>
       </div>
 
@@ -3428,7 +3490,7 @@ export default function App() {
                      <div className="dropdown-menu">
                      {f.fis_gorseli && <button title="Fotoğrafı Gör" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); handleFisGorselGoster(f); }}>📷</button>}
                      {(!sistemFisMi || kasaDevirMi) && <button title="Görüntüle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); if (kasaDevirMi) { handleKasaDevirGoruntule(f); } else { handleFisDetayGoster(f); } }}>🔍</button>}
-                     {(!sistemFisMi || kasaDevirMi) && duzenlenebilir && <button title="Düzenle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); if (kasaDevirMi) { handleKasaDevirDuzenle(f); } else { handleFisDuzenle(f); } }}>✏️</button>}
+                     {(!sistemFisMi || kasaDevirMi || fisTahsilatMi(f)) && duzenlenebilir && <button title="Düzenle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); if (kasaDevirMi) { handleKasaDevirDuzenle(f); } else if (fisTahsilatMi(f)) { handleTahsilatDuzenle(f); } else { handleFisDuzenle(f); } }}>✏️</button>}
                      {silinebilir && <button title="Sil" className="dropdown-item-icon" style={{ color: '#dc2626' }} onClick={() => { setOpenDropdown(null); handleFisSil(f); }}>🗑️</button>}
                   </div>
                )}
@@ -4045,13 +4107,13 @@ export default function App() {
   };
 
   const fisUrunDurumunuGetir = (u: Urun) => {
-    const isimLower = u.isim.toLowerCase();
-    const isSistemSabitUrun = isimLower.includes("3 kg yoğurt") || isimLower.includes("5 kg yoğurt") || isimLower.includes("süt kayma");
+    const isimLower = urunAdiniNormalizeEt(u.isim);
+    const isSistemSabitUrun = urunSistemSabitMi(u.isim);
     const isVarsayilanUrun = isSistemSabitUrun || u.sabit === true;
-    const isSutKaymagi = isimLower.includes("süt kayma");
+    const isSutKaymagi = urunSutKaymagiMi(u.isim);
     const isTereyagi = isimLower.includes("tereya");
-    const isYogurtKaymagi = isimLower.includes("yoğurt kayma");
-    const isBosUrun = isimLower.includes("boş");
+    const isYogurtKaymagi = isimLower.includes("yogurt kayma");
+    const isBosUrun = isimLower.includes("bos");
     const isFilled = Number(fisDetay[u.id]?.adet) > 0 || Number(fisDetay[u.id]?.kg) > 0;
     const isEkstraUrun = !isVarsayilanUrun && !isSutKaymagi && !isTereyagi && !isYogurtKaymagi;
     const ekstraUrunSecili = gosterilenEkler.urunler.includes(u.id);
@@ -4228,6 +4290,7 @@ export default function App() {
     setEditingSutId(null);
     setIsSutModalOpen(false);
     setIsFisModalOpen(false);
+    resetTahsilatForm();
     setIsTahsilatModalOpen(false);
     setIsGiderModalOpen(false);
     setIsUretimModalOpen(false);
@@ -4508,10 +4571,9 @@ export default function App() {
                     })
                     .sort((a, b) => {
                       const getSira = (urun: Urun) => {
-                        const isim = urun.isim.toLowerCase();
-                        if (isim.includes("3 kg yoğurt")) return 1;
-                        if (isim.includes("5 kg yoğurt")) return 2;
-                        if (isim.includes("süt kayma")) return 3;
+                        if (urunAdiAyniMi(urun.isim, "3 kg yoğurt")) return 1;
+                        if (urunAdiAyniMi(urun.isim, "5 kg yoğurt")) return 2;
+                        if (urunAdiAyniMi(urun.isim, "Süt kaymağı")) return 3;
                         if (urun.sabit) return 4;
                         return 99;
                       };
@@ -4531,11 +4593,11 @@ export default function App() {
                   <div style={{ display: "flex", gap: "6px", marginBottom: "4px", marginTop: "4px", flexWrap: "wrap", position: "relative" }}>
                       {(() => {
                         const digerSecenekler = aktifUrunler.filter(u => {
-                          const isimLower = u.isim.toLowerCase();
-                          const isVarsayilanUrun = isimLower.includes("3 kg yoğurt") || isimLower.includes("5 kg yoğurt");
-                          const isSutKaymagi = isimLower.includes("süt kayma");
+                          const isimLower = urunAdiniNormalizeEt(u.isim);
+                          const isVarsayilanUrun = urunAdiAyniMi(u.isim, "3 kg yoğurt") || urunAdiAyniMi(u.isim, "5 kg yoğurt");
+                          const isSutKaymagi = urunSutKaymagiMi(u.isim);
                           const isTereyagi = isimLower.includes("tereya");
-                          const isYogurtKaymagi = isimLower.includes("yoğurt kayma");
+                          const isYogurtKaymagi = isimLower.includes("yogurt kayma");
                           const isFilled = (Number(fisDetay[u.id]?.adet) > 0 || Number(fisDetay[u.id]?.kg) > 0);
                           if (isVarsayilanUrun || isSutKaymagi || u.sabit || isFilled) return false;
                           if (isTereyagi) return !gosterilenEkler.tereyagi;
@@ -4833,9 +4895,9 @@ export default function App() {
         {isTahsilatModalOpen && (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1200, padding: "10px" }}>
             <div style={{ backgroundColor: "#fff", width: "95vw", maxWidth: "350px", borderRadius: "12px", display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease-out", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }} onClick={(e) => e.stopPropagation()}>
-               <div style={{ padding: "12px 15px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f8fafc", borderRadius: "12px 12px 0 0" }}>
-                 <h3 style={{ margin: "0", color: "#2563eb", fontSize: "15px" }}>💸 Yeni Tahsilat Ekle</h3>
-                 <button onClick={() => setIsTahsilatModalOpen(false)} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#94a3b8", padding: 0 }}>✕</button>
+                 <div style={{ padding: "12px 15px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f8fafc", borderRadius: "12px 12px 0 0" }}>
+                  <h3 style={{ margin: "0", color: "#2563eb", fontSize: "15px" }}>{editingTahsilatId ? "💸 Tahsilatı Düzenle" : "💸 Yeni Tahsilat Ekle"}</h3>
+                  <button onClick={() => { resetTahsilatForm(); setIsTahsilatModalOpen(false); }} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#94a3b8", padding: 0 }}>✕</button>
                </div>
                <div style={{ padding: "15px", display: "flex", flexDirection: "column", gap: "10px" }}>
                  <div style={{ display: "flex", gap: "8px" }}>
@@ -4855,8 +4917,8 @@ export default function App() {
                  <div><label style={{fontSize: "11px", color: "#64748b"}}>Açıklama / Not</label><input placeholder="Opsiyonel..." value={tahsilatForm.aciklama} onChange={e => setTahsilatForm({ ...tahsilatForm, aciklama: e.target.value })} className="m-inp" style={{width: "100%"}} /></div>
                </div>
                <div style={{ padding: "12px 15px", borderTop: "1px solid #e2e8f0", background: "#f8fafc", borderRadius: "0 0 12px 12px" }}>
-                 <button onClick={handleTahsilatKaydet} className="p-btn btn-anim" style={{ background: "#2563eb", width: "100%", height: "45px", fontSize: "15px" }}>KAYDET</button>
-               </div>
+                  <button onClick={handleTahsilatKaydet} className="p-btn btn-anim" style={{ background: "#2563eb", width: "100%", height: "45px", fontSize: "15px" }}>{editingTahsilatId ? "GÜNCELLE" : "KAYDET"}</button>
+                 </div>
             </div>
           </div>
         )}
