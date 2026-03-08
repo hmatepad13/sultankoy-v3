@@ -4063,12 +4063,7 @@ export default function App() {
       <div key={u.id} style={{ display: "flex", gap: "4px", alignItems: "center", padding: "4px 6px", background: isFilled ? (editingFisId ? "#fef3c7" : "#ecfdf5") : "#f8fafc", borderRadius: "4px", border: isFilled ? (editingFisId ? "1px solid #fde68a" : "1px solid #a7f3d0") : "1px solid #e2e8f0" }}>
         <div style={{ flex: 1, minWidth: "85px", fontWeight: "bold", fontSize: "12px", color: isFilled ? (editingFisId ? "#b45309" : "#065f46") : "#475569", whiteSpace: "normal", lineHeight: "1.2" }}>{u.isim}</div>
         <input placeholder="Adet" type="number" value={fisDetay[u.id]?.adet || ""} onChange={handleAdetChange} className="m-inp" style={{ flex: "0 0 45px", width: "45px", padding: "4px 2px", textAlign: "center", background: isFilled ? "#fff" : "", fontSize: "12px", height: "24px" }} />
-        {isBosUrun ? (
-          <>
-            <div style={{ flex: "0 0 50px", width: "50px" }} />
-            <div style={{ width: "8px" }} />
-          </>
-        ) : (
+        {isBosUrun ? null : (
           <>
             <input placeholder="KG" type="number" step="0.01" value={fisDetay[u.id]?.kg || ""} onChange={(e) => setFisDetay({ ...fisDetay, [u.id]: { ...fisDetay[u.id], kg: e.target.value } })} className="m-inp" style={{ flex: "0 0 50px", width: "50px", padding: "4px 2px", textAlign: "center", background: isFilled ? "#fff" : "", fontSize: "12px", height: "24px" }} />
             <div style={{ fontSize: "12px", color: "#94a3b8", width: "8px", textAlign: "center" }}>x</div>
