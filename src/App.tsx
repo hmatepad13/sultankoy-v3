@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useEffectEvent, useMemo, useRef, useState, type ChangeEvent, type CSSProperties } from "react";
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, type ChangeEvent, type CSSProperties } from "react";
 import { LoginScreen } from "./components/LoginScreen";
 import { SettingsPanel } from "./components/SettingsPanel";
 import {
@@ -491,18 +491,68 @@ export default function App() {
       .trim()
       .replace(/\s+/g, " ")
       .toLocaleLowerCase("tr-TR");
+  const sistemIslemiMi = (deger?: string | null) => (deger || "") === "SİSTEM İŞLEMİ";
 
   const eslesenKayitIdBul = <T extends { id: string; isim: string }>(liste: T[], isim?: string | null) =>
     liste.find((item) => item.isim === isim)?.id ?? null;
 
-  const seciliBayiId = (bayiAdi?: string | null) => eslesenKayitIdBul(bayiler, bayiAdi);
-  const seciliUrunId = (urunAdi?: string | null) => eslesenKayitIdBul(urunler, urunAdi);
-  const seciliCiftlikId = (ciftlikAdi?: string | null) => eslesenKayitIdBul(tedarikciler, ciftlikAdi);
+  const seciliBayiId = useCallback((bayiAdi?: string | null) => eslesenKayitIdBul(bayiler, bayiAdi), [bayiler]);
+  const seciliUrunId = useCallback((urunAdi?: string | null) => eslesenKayitIdBul(urunler, urunAdi), [urunler]);
+  const seciliCiftlikId = useCallback((ciftlikAdi?: string | null) => eslesenKayitIdBul(tedarikciler, ciftlikAdi), [tedarikciler]);
   const kayitAktifMi = <T extends { aktif?: boolean | null }>(item: T) => item.aktif !== false;
   const aktifBayiler = useMemo(() => bayiler.filter(kayitAktifMi), [bayiler]);
   const aktifUrunler = useMemo(() => urunler.filter(kayitAktifMi), [urunler]);
   const aktifTedarikciler = useMemo(() => tedarikciler.filter(kayitAktifMi), [tedarikciler]);
   const tumBayiler = useMemo(() => [...bayiler], [bayiler]);
+  const bayiMap = useMemo(() => new Map(bayiler.map((item) => [item.id, item.isim])), [bayiler]);
+  const urunMap = useMemo(() => new Map(urunler.map((item) => [item.id, item.isim])), [urunler]);
+  const ciftlikMap = useMemo(() => new Map(tedarikciler.map((item) => [item.id, item.isim])), [tedarikciler]);
+
+  const satisFisBayiAdiGetir = useCallback(
+    (fis?: Partial<SatisFis> | null) => (fis?.bayi_id ? bayiMap.get(fis.bayi_id) : undefined) || fis?.bayi || "",
+    [bayiMap],
+  );
+  const satisSatiriBayiAdiGetir = useCallback(
+    (satir?: Partial<SatisGiris> | null) => (satir?.bayi_id ? bayiMap.get(satir.bayi_id) : undefined) || satir?.bayi || "",
+    [bayiMap],
+  );
+  const satisSatiriUrunAdiGetir = useCallback(
+    (satir?: Partial<SatisGiris> | null) => (satir?.urun_id ? urunMap.get(satir.urun_id) : undefined) || satir?.urun || "",
+    [urunMap],
+  );
+  const sutCiftlikAdiGetir = useCallback(
+    (kayit?: Partial<SutGiris> | null) => (kayit?.ciftlik_id ? ciftlikMap.get(kayit.ciftlik_id) : undefined) || kayit?.ciftlik || "",
+    [ciftlikMap],
+  );
+  const satisFisBayiAnahtariGetir = useCallback(
+    (fis?: Partial<SatisFis> | null) => (fis?.bayi_id ? `id:${fis.bayi_id}` : `isim:${masterKayitIsminiNormalizeEt(fis?.bayi)}`),
+    [],
+  );
+  const satisSatiriBayiAnahtariGetir = useCallback(
+    (satir?: Partial<SatisGiris> | null) => (satir?.bayi_id ? `id:${satir.bayi_id}` : `isim:${masterKayitIsminiNormalizeEt(satir?.bayi)}`),
+    [],
+  );
+  const satisSatiriUrunAnahtariGetir = useCallback(
+    (satir?: Partial<SatisGiris> | null) => (satir?.urun_id ? `id:${satir.urun_id}` : `isim:${masterKayitIsminiNormalizeEt(satir?.urun)}`),
+    [],
+  );
+  const sutCiftlikAnahtariGetir = useCallback(
+    (kayit?: Partial<SutGiris> | null) => (kayit?.ciftlik_id ? `id:${kayit.ciftlik_id}` : `isim:${masterKayitIsminiNormalizeEt(kayit?.ciftlik)}`),
+    [],
+  );
+
+  const hesaplaMusteriBakiyeleri = useCallback((kayitlar: SatisFis[], sonDonem?: string) => {
+    const resolveEdilmisKayitlar = kayitlar.map((fis) => ({
+      ...fis,
+      bayi: satisFisBayiAdiGetir(fis),
+    }));
+    const sonuc = satisBakiyeDurumuHesapla(resolveEdilmisKayitlar, sonDonem);
+    const labels = Object.keys(sonuc.bakiyeler).reduce<Record<string, string>>((acc, key) => {
+      acc[key] = key;
+      return acc;
+    }, {});
+    return { ...sonuc, labels };
+  }, [satisFisBayiAdiGetir]);
 
   const [activeFilterModal, setActiveFilterModal] = useState<'sut_ciftlik' | 'fis_bayi' | 'analiz_bayi' | 'analiz_urun' | 'sut_tarih' | 'fis_tarih' | 'analiz_tarih' | null>(null);
 
@@ -854,16 +904,16 @@ export default function App() {
 
   // Tüm Fişlerden Müşteri Borç Durumu Hesaplama
   const bayiBorclari = useMemo(() => {
-    const { bakiyeler } = satisBakiyeDurumuHesapla(satisFisList, aktifDonem);
+    const { bakiyeler, labels } = hesaplaMusteriBakiyeleri(satisFisList, aktifDonem);
     return Object.keys(bakiyeler)
-        .map(k => ({ isim: k, borc: bakiyeler[k] }))
-        .filter(b => Math.abs(b.borc) > 0.01)
-        .sort((a,b) => b.borc - a.borc);
-  }, [aktifDonem, satisFisList]);
+        .map((k) => ({ isim: labels[k] || k, borc: bakiyeler[k] }))
+        .filter((b) => Math.abs(b.borc) > 0.01)
+        .sort((a, b) => b.borc - a.borc);
+  }, [aktifDonem, hesaplaMusteriBakiyeleri, satisFisList]);
 
   const satisFisToplamBorcMap = useMemo(() => {
-    return satisBakiyeDurumuHesapla(satisFisList).map;
-  }, [satisFisList]);
+    return hesaplaMusteriBakiyeleri(satisFisList).map;
+  }, [hesaplaMusteriBakiyeleri, satisFisList]);
 
   const handleDonemKapat = async () => {
      if(!donemOnay) return;
@@ -993,7 +1043,8 @@ export default function App() {
   };
 
   const fisGorunenBayi = (fis: SatisFis) => {
-    if (fis.bayi !== "SİSTEM İŞLEMİ") return fis.bayi;
+    const bayiAdi = satisFisBayiAdiGetir(fis);
+    if (bayiAdi !== "SİSTEM İŞLEMİ") return bayiAdi;
     const odemeTuru = odemeTurunuNormalizeEt(fis.odeme_turu);
     if (odemeTuru === "PERSONEL DEVİR" || odemeTuru === "PERSONEL DEVIR") return "PERSONEL DEVİRİ";
     if (odemeTuru === "DEVİR" || odemeTuru === "DEVIR") return "DÖNEM DEVİRİ";
@@ -1319,9 +1370,21 @@ export default function App() {
   const handleBayiSecimi = (secilenBayi: string) => {
     if (!secilenBayi) return;
     const yeniDetay = { ...fisDetay };
+    const secilenBayiId = seciliBayiId(secilenBayi);
+    const secilenBayiAnahtari = secilenBayiId
+      ? `id:${secilenBayiId}`
+      : `isim:${masterKayitIsminiNormalizeEt(secilenBayi)}`;
     
     urunler.forEach(u => {
-      const bayiSatislari = satisList.filter(s => s.bayi === secilenBayi && s.urun === u.isim);
+      const urunAnahtari = `id:${u.id}`;
+      const bayiSatislari = satisList.filter(
+        (s) =>
+          satisSatiriBayiAnahtariGetir(s) === secilenBayiAnahtari &&
+          (
+            satisSatiriUrunAnahtariGetir(s) === urunAnahtari ||
+            masterKayitIsminiNormalizeEt(satisSatiriUrunAdiGetir(s)) === masterKayitIsminiNormalizeEt(u.isim)
+          ),
+      );
       let hafizaFiyat = u.fiyat || "";
       if (bayiSatislari.length > 0) {
         const sonSatis = [...bayiSatislari].sort((a, b) => {
@@ -1334,7 +1397,11 @@ export default function App() {
       if (!editingFisId) yeniDetay[u.id] = { adet: fisDetay[u.id]?.adet || "", kg: fisDetay[u.id]?.kg || "", fiyat: String(hafizaFiyat) };
     });
 
-    const bayiIadeler = satisList.filter(s => s.bayi === secilenBayi && s.urun === "İade");
+    const bayiIadeler = satisList.filter(
+      (s) =>
+        satisSatiriBayiAnahtariGetir(s) === secilenBayiAnahtari &&
+        satisSatiriUrunAdiGetir(s) === "İade",
+    );
     let hafizaIadeFiyat = "15";
     if (bayiIadeler.length > 0) {
         const sonIade = [...bayiIadeler].sort((a, b) => {
@@ -1345,7 +1412,11 @@ export default function App() {
         hafizaIadeFiyat = String(Math.abs(Number(sonIade.fiyat)));
     }
     
-    const bayiKovalar = satisList.filter(s => s.bayi === secilenBayi && s.urun === "Boş Kova");
+    const bayiKovalar = satisList.filter(
+      (s) =>
+        satisSatiriBayiAnahtariGetir(s) === secilenBayiAnahtari &&
+        satisSatiriUrunAdiGetir(s) === "Boş Kova",
+    );
     let hafizaKovaFiyat = "15";
     if (bayiKovalar.length > 0) {
         const sonKova = [...bayiKovalar].sort((a, b) => {
@@ -1390,12 +1461,22 @@ export default function App() {
   }, [aktifBayiler, bayiSecimModal.arama, bayiSecimModal.hedef, editingFisId, tumBayiler]);
 
   const aktifBayi = fisUst.bayi;
+  const aktifBayiId = useMemo(() => seciliBayiId(aktifBayi), [aktifBayi, seciliBayiId]);
+  const aktifBayiAnahtari = useMemo(
+    () => (aktifBayiId ? `id:${aktifBayiId}` : `isim:${masterKayitIsminiNormalizeEt(aktifBayi)}`),
+    [aktifBayi, aktifBayiId],
+  );
   
   const eskiBorc = useMemo(() => {
       if (!aktifBayi) return 0;
-      const bayiFisleri = periodSatisFis.filter(f => f.bayi === aktifBayi && f.id !== editingFisId && f.bayi !== "SİSTEM İŞLEMİ");
+      const bayiFisleri = periodSatisFis.filter(
+        (f) =>
+          satisFisBayiAnahtariGetir(f) === aktifBayiAnahtari &&
+          f.id !== editingFisId &&
+          !sistemIslemiMi(satisFisBayiAdiGetir(f)),
+      );
       return bayiFisleri.reduce((toplam, f) => toplam + Number(f.kalan_bakiye || 0), 0);
-  }, [aktifBayi, periodSatisFis, editingFisId]);
+  }, [aktifBayi, aktifBayiAnahtari, editingFisId, periodSatisFis, satisFisBayiAdiGetir, satisFisBayiAnahtariGetir]);
 
   const fisCanliToplam = useMemo(() => {
     const urunToplami = urunler.reduce((toplam, u) => {
@@ -1886,8 +1967,12 @@ export default function App() {
     if (safAciklama.includes("[Ödeme: ")) safAciklama = safAciklama.replace(/\[Ödeme: .*?\]\s*-\s*/, "").replace(/\[Ödeme: .*?\]/, "");
     if (safAciklama.includes("[Sadece Tahsilat]")) safAciklama = safAciklama.replace(/\[Sadece Tahsilat\]\s*-\s*/, "").replace(/\[Sadece Tahsilat\]/, "");
 
-    const iadeUrun = periodSatisList.find(s => s.fis_no === fis.fis_no && s.urun === "İade");
-    const kovaUrun = periodSatisList.find(s => s.fis_no === fis.fis_no && (s.urun === "İade Kova" || s.urun === "Boş Kova"));
+    const iadeUrun = periodSatisList.find((s) => s.fis_no === fis.fis_no && satisSatiriUrunAdiGetir(s) === "İade");
+    const kovaUrun = periodSatisList.find(
+      (s) =>
+        s.fis_no === fis.fis_no &&
+        (satisSatiriUrunAdiGetir(s) === "İade Kova" || satisSatiriUrunAdiGetir(s) === "Boş Kova"),
+    );
     
     const iadeAdetStr = iadeUrun?.adet ? String(iadeUrun.adet) : "";
     const iadeKgStr = iadeUrun?.toplam_kg && Number(iadeUrun.toplam_kg) > 0 ? String(iadeUrun.toplam_kg) : "";
@@ -1897,12 +1982,16 @@ export default function App() {
     const kovaKgStr = kovaUrun?.toplam_kg && Number(kovaUrun.toplam_kg) > 0 ? String(kovaUrun.toplam_kg) : "";
     const kovaFiyatStr = kovaUrun ? String(Math.abs(Number(kovaUrun.fiyat))) : "";
 
-    setFisUst({ tarih: fis.tarih, bayi: fis.bayi, aciklama: safAciklama, odeme_turu: fis.odeme_turu || "PEŞİN", tahsilat: fis.tahsilat > 0 ? String(fis.tahsilat) : "", bos_kova: "", teslim_alan: tAlan });
+    setFisUst({ tarih: fis.tarih, bayi: satisFisBayiAdiGetir(fis), aciklama: safAciklama, odeme_turu: fis.odeme_turu || "PEŞİN", tahsilat: fis.tahsilat > 0 ? String(fis.tahsilat) : "", bos_kova: "", teslim_alan: tAlan });
     
     const ilgiliUrunler = periodSatisList.filter(s => s.fis_no === fis.fis_no);
     const dolanDetay: any = {};
     urunler.forEach(u => {
-      const buUrun = ilgiliUrunler.find(s => s.urun === u.isim);
+      const buUrun = ilgiliUrunler.find(
+        (s) =>
+          satisSatiriUrunAnahtariGetir(s) === `id:${u.id}` ||
+          masterKayitIsminiNormalizeEt(satisSatiriUrunAdiGetir(s)) === masterKayitIsminiNormalizeEt(u.isim),
+      );
       let calculatedKg = "";
       if (buUrun) {
           const adetNum = Number(buUrun.adet), tutarNum = Number(buUrun.tutar), fiyatNum = Number(buUrun.fiyat);
@@ -1918,11 +2007,24 @@ export default function App() {
   };
 
   const handleFisDetayGoster = (fis: SatisFis) => {
-    const ilgiliUrunler = periodSatisList.filter(s => s.fis_no === fis.fis_no && s.urun !== "İade Kova" && s.urun !== "Boş Kova" && s.urun !== "İade");
-    const iadeUrun = periodSatisList.find(s => s.fis_no === fis.fis_no && s.urun === "İade");
-    const kovaUrun = periodSatisList.find(s => s.fis_no === fis.fis_no && (s.urun === "İade Kova" || s.urun === "Boş Kova"));
+    const ilgiliUrunler = periodSatisList.filter((s) => {
+      const urunAdi = satisSatiriUrunAdiGetir(s);
+      return s.fis_no === fis.fis_no && urunAdi !== "İade Kova" && urunAdi !== "Boş Kova" && urunAdi !== "İade";
+    });
+    const iadeUrun = periodSatisList.find((s) => s.fis_no === fis.fis_no && satisSatiriUrunAdiGetir(s) === "İade");
+    const kovaUrun = periodSatisList.find(
+      (s) =>
+        s.fis_no === fis.fis_no &&
+        (satisSatiriUrunAdiGetir(s) === "İade Kova" || satisSatiriUrunAdiGetir(s) === "Boş Kova"),
+    );
     
-    const bayiFisleri = periodSatisFis.filter(f => f.bayi === fis.bayi && f.bayi !== "SİSTEM İŞLEMİ" && (f.tarih < fis.tarih || (f.tarih === fis.tarih && Number(f.id) < Number(fis.id))));
+    const fisBayiAnahtari = satisFisBayiAnahtariGetir(fis);
+    const bayiFisleri = periodSatisFis.filter(
+      (f) =>
+        satisFisBayiAnahtariGetir(f) === fisBayiAnahtari &&
+        !sistemIslemiMi(satisFisBayiAdiGetir(f)) &&
+        (f.tarih < fis.tarih || (f.tarih === fis.tarih && Number(f.id) < Number(fis.id))),
+    );
     const oGunkuEskiBorc = bayiFisleri.reduce((toplam, f) => toplam + Number(f.kalan_bakiye || 0), 0);
     
     const ekstraIndirimler = [];
@@ -1937,7 +2039,7 @@ export default function App() {
     if (safAciklama.includes("[Sadece Tahsilat]")) safAciklama = safAciklama.replace(/\[Sadece Tahsilat\]\s*-\s*/, "").replace(/\[Sadece Tahsilat\]/, "");
 
     setSonFisData({ 
-      id: fis.id, fis_no: fis.fis_no, tarih: fis.tarih, bayi: fis.bayi, aciklama: safAciklama, teslim_alan: tAlan, fis_gorseli: fis.fis_gorseli, ekleyen: fis.ekleyen,
+      id: fis.id, fis_no: fis.fis_no, tarih: fis.tarih, bayi: satisFisBayiAdiGetir(fis), aciklama: safAciklama, teslim_alan: tAlan, fis_gorseli: fis.fis_gorseli, ekleyen: fis.ekleyen,
       urunler: ilgiliUrunler.map(u => {
           let calculatedKg = 0;
           const a = Number(u.adet), t = Number(u.tutar), f = Number(u.fiyat);
@@ -2048,11 +2150,11 @@ export default function App() {
   };
 
   const filteredForTotals = useMemo(() => periodSatisFis.filter((f: any) => {
-    const isBayiMatch = fisFiltre.bayiler.length === 0 || fisFiltre.bayiler.includes(f.bayi);
+    const isBayiMatch = fisFiltre.bayiler.length === 0 || fisFiltre.bayiler.includes(satisFisBayiAdiGetir(f));
     const isTarihMatch = (!fisFiltre.baslangic || f.tarih >= fisFiltre.baslangic) && (!fisFiltre.bitis || f.tarih <= fisFiltre.bitis);
     const isKisiMatch = satisFiltreKisi === 'herkes' || normalizeUsername(f.ekleyen) === aktifKullaniciKisa;
     return isBayiMatch && isTarihMatch && isKisiMatch && !fisDevirMi(f);
-  }), [aktifKullaniciKisa, periodSatisFis, fisFiltre, satisFiltreKisi]);
+  }), [aktifKullaniciKisa, periodSatisFis, fisFiltre, satisFiltreKisi, satisFisBayiAdiGetir]);
 
   const tFisToplam = useMemo(() => filteredForTotals.filter(f => !fisKasayaDevirMi(f)).reduce((a: number, b: any) => a + Number(b.toplam_tutar), 0), [filteredForTotals]);
   const tFisTahsilatRaw = useMemo(() => filteredForTotals.filter(f => !fisKasayaDevirMi(f)).reduce((a: number, b: any) => a + Number(b.tahsilat), 0), [filteredForTotals]);
@@ -2072,17 +2174,17 @@ export default function App() {
   }), fisSort), [filteredForTotals, satisFiltreTip, fisSort]);
 
   const fSutList = useMemo(() => sortData(periodSut.filter((s: any) => 
-    (sutFiltre.ciftlikler.length === 0 || sutFiltre.ciftlikler.includes(s.ciftlik)) && 
+    (sutFiltre.ciftlikler.length === 0 || sutFiltre.ciftlikler.includes(sutCiftlikAdiGetir(s))) && 
     (!sutFiltre.baslangic || s.tarih >= sutFiltre.baslangic) && (!sutFiltre.bitis || s.tarih <= sutFiltre.bitis)
-  ), sutSort), [periodSut, sutFiltre, sutSort]);
+  ), sutSort), [periodSut, sutFiltre, sutSort, sutCiftlikAdiGetir]);
   const tSutKg = useMemo(() => fSutList.reduce((a: number, b: any) => a + Number(b.kg), 0), [fSutList]);
   const tSutTl = useMemo(() => fSutList.reduce((a: number, b: any) => a + Number(b.toplam_tl), 0), [fSutList]);
 
   const fAnalizList = useMemo(() => sortData(periodSatisList.filter((s: any) => 
-    (analizFiltre.bayiler.length === 0 || analizFiltre.bayiler.includes(s.bayi)) && 
-    (analizFiltre.urunler.length === 0 || analizFiltre.urunler.includes(s.urun)) && 
+    (analizFiltre.bayiler.length === 0 || analizFiltre.bayiler.includes(satisSatiriBayiAdiGetir(s))) && 
+    (analizFiltre.urunler.length === 0 || analizFiltre.urunler.includes(satisSatiriUrunAdiGetir(s))) && 
     (!analizFiltre.baslangic || s.tarih >= analizFiltre.baslangic) && (!analizFiltre.bitis || s.tarih <= analizFiltre.bitis)
-  ), analizSort), [periodSatisList, analizFiltre, analizSort]);
+  ), analizSort), [periodSatisList, analizFiltre, analizSort, satisSatiriBayiAdiGetir, satisSatiriUrunAdiGetir]);
   const tAnalizAdet = useMemo(() => fAnalizList.reduce((a: number, b: any) => a + Number(b.adet), 0), [fAnalizList]);
   const tAnalizKg = useMemo(() => fAnalizList.reduce((a: number, b: any) => a + Number(b.toplam_kg), 0), [fAnalizList]);
   const tAnalizTutar = useMemo(() => fAnalizList.reduce((a: number, b: any) => a + Number(b.tutar), 0), [fAnalizList]);
@@ -2096,24 +2198,25 @@ export default function App() {
   const tUretimMaliyet = useMemo(() => periodUretim.reduce((a: number, b: any) => a + Number(b.toplam_maliyet), 0), [periodUretim]);
   const sutcuyeBorcumuz = useMemo(() => sutcuBorcunuHesapla(sutList, giderList, aktifDonem), [aktifDonem, giderList, sutList]);
   const sutBorcDetaySatirlari = useMemo(() => {
-    const kayitMap = new Map<string, { alim: number; odeme: number }>();
+    const kayitMap = new Map<string, { isim: string; alim: number; odeme: number }>();
     const ciftlikAdlari = Array.from(
       new Set([
         ...tedarikciler.map((item) => item.isim).filter(Boolean),
-        ...sutList.map((item) => item.ciftlik).filter(Boolean),
+        ...sutList.map((item) => sutCiftlikAdiGetir(item)).filter(Boolean),
       ]),
     );
 
-    const ensure = (isim: string) => {
-      if (!kayitMap.has(isim)) kayitMap.set(isim, { alim: 0, odeme: 0 });
-      return kayitMap.get(isim)!;
+    const ensure = (key: string, isim: string) => {
+      if (!kayitMap.has(key)) kayitMap.set(key, { isim, alim: 0, odeme: 0 });
+      return kayitMap.get(key)!;
     };
 
     sutList.forEach((item) => {
       const donem = String(item.tarih || "").substring(0, 7);
       if (aktifDonem && donem > aktifDonem) return;
-      const isim = item.ciftlik || "Bilinmeyen Çiftlik";
-      ensure(isim).alim += Number(item.toplam_tl || 0);
+      const isim = sutCiftlikAdiGetir(item) || "Bilinmeyen Çiftlik";
+      const key = sutCiftlikAnahtariGetir(item);
+      ensure(key, isim).alim += Number(item.toplam_tl || 0);
     });
 
     giderList.forEach((item) => {
@@ -2122,12 +2225,12 @@ export default function App() {
       if (!sutOdemesiMi(item.tur)) return;
 
       const ciftlikIsmi = sutOdemesiCiftlikIsminiBul(item.tur, ciftlikAdlari) || "Eşleşmeyen Ödeme";
-      ensure(ciftlikIsmi).odeme += Number(item.tutar || 0);
+      ensure(`isim:${masterKayitIsminiNormalizeEt(ciftlikIsmi)}`, ciftlikIsmi).odeme += Number(item.tutar || 0);
     });
 
     const detaylar = Array.from(kayitMap.entries())
-      .map(([isim, degerler]) => ({
-        isim,
+      .map(([, degerler]) => ({
+        isim: degerler.isim,
         alim: degerler.alim,
         odeme: degerler.odeme,
         borc: degerler.alim - degerler.odeme,
@@ -2152,7 +2255,7 @@ export default function App() {
       { etiket: "Toplam Ödeme", deger: `${fSayi(toplamOdeme)} ₺` },
       { etiket: "Toplam Borç", deger: `${fSayi(toplamBorc)} ₺`, vurgu: true },
     ];
-  }, [aktifDonem, giderList, sutList, tedarikciler]);
+  }, [aktifDonem, giderList, sutCiftlikAdiGetir, sutCiftlikAnahtariGetir, sutList, tedarikciler]);
   const aktifUretimTipi = uretimForm.uretim_tipi || "yogurt";
   const siraliUretimList = useMemo(() => sortData(periodUretim, uretimSort), [periodUretim, uretimSort]);
   const yogurtUretimListesi = useMemo(
@@ -2490,7 +2593,7 @@ export default function App() {
           return (
           <tr key={s.id}>
             <td>{s.tarih.split("-").reverse().slice(0, 2).join(".")}</td>
-            <td style={{ fontWeight: "bold" }} className="truncate-text-td">{s.ciftlik}</td>
+            <td style={{ fontWeight: "bold" }} className="truncate-text-td">{sutCiftlikAdiGetir(s)}</td>
             <td style={{ textAlign: "right" }}>{fSayi(s.kg)}</td>
             <td style={{ textAlign: "right" }}>{fSayi(s.fiyat)}</td>
             <td style={{ textAlign: "right", color: temaRengi, fontWeight: "bold" }}>{fSayiNoDec(s.toplam_tl)}</td>
@@ -2499,7 +2602,7 @@ export default function App() {
                <button onClick={(e) => { e.stopPropagation(); setOpenDropdown({ type: 'sut', id: s.id as string }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', padding: '0 8px', color: '#64748b' }}>⋮</button>
                {openDropdown?.type === 'sut' && openDropdown.id === s.id && (
                   <div className="dropdown-menu">
-                     {duzenlenebilir && <button title="Düzenle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); setEditingSutId(s.id); setSutForm(s as any); setIsSutModalOpen(true); }}>✏️</button>}
+                     {duzenlenebilir && <button title="Düzenle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); setEditingSutId(s.id); setSutForm({ ...(s as any), ciftlik: sutCiftlikAdiGetir(s) }); setIsSutModalOpen(true); }}>✏️</button>}
                      {silinebilir && <button title="Sil" className="dropdown-item-icon" style={{ color: '#dc2626' }} onClick={async () => { setOpenDropdown(null); await handleKayitSil("sut_giris", s, "sut"); }}>🗑️</button>}
                   </div>
                )}
@@ -2580,7 +2683,7 @@ export default function App() {
           return (
           <tr key={f.id}>
             <td style={{ textAlign: "center" }}>{f.tarih.split("-").reverse().slice(0, 2).join(".")}</td>
-            <td style={{ fontWeight: "bold", minWidth: "120px", color: f.toplam_tutar === 0 && f.odeme_turu !== 'KASAYA DEVİR' ? "#8b5cf6" : (f.bayi === "SİSTEM İŞLEMİ" ? "#475569" : "inherit") }} className="truncate-text-td">
+            <td style={{ fontWeight: "bold", minWidth: "120px", color: f.toplam_tutar === 0 && f.odeme_turu !== 'KASAYA DEVİR' ? "#8b5cf6" : (sistemIslemiMi(satisFisBayiAdiGetir(f)) ? "#475569" : "inherit") }} className="truncate-text-td">
                {fisGorunenBayi(f)}
             </td>
             <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold" }}>{f.toplam_tutar === 0 ? "-" : fSayi(f.toplam_tutar)}</td>
@@ -2588,7 +2691,7 @@ export default function App() {
                {f.odeme_turu === 'KASAYA DEVİR' && f.tahsilat > 0 ? "-" : ""}{fSayi(f.tahsilat)}
             </td>
             <td style={{ textAlign: "right", color: satirToplamBorc > 0 ? "#dc2626" : (satirToplamBorc < 0 ? "#059669" : "#64748b"), fontWeight: "bold" }} title="Bu fiş sonundaki toplam borç">
-                {f.bayi === "SİSTEM İŞLEMİ" ? "-" : (satirToplamBorc === 0 ? "-" : fSayi(satirToplamBorc))}
+                {sistemIslemiMi(satisFisBayiAdiGetir(f)) ? "-" : (satirToplamBorc === 0 ? "-" : fSayi(satirToplamBorc))}
             </td>
             <td style={{ textAlign: "center", color: "#64748b" }}>{f.ekleyen ? f.ekleyen.split('@')[0] : "-"}</td>
             <td className="actions-cell" style={{position: 'relative'}}>
@@ -2629,8 +2732,8 @@ export default function App() {
         <tbody>{fAnalizList.map(s => (
           <tr key={s.id}>
             <td>{s.tarih.split("-").reverse().slice(0, 2).join(".")}</td>
-            <td style={{ fontWeight: "bold" }}>{s.bayi}</td>
-            <td>{s.urun}</td>
+            <td style={{ fontWeight: "bold" }}>{satisSatiriBayiAdiGetir(s)}</td>
+            <td>{satisSatiriUrunAdiGetir(s)}</td>
             <td style={{ textAlign: "right" }}>{fSayi(s.adet)}</td>
             <td style={{ textAlign: "right" }}>{fSayi(s.toplam_kg)}</td>
             <td style={{ textAlign: "right" }}>{fSayi(Math.abs(Number(s.fiyat)))}</td>
