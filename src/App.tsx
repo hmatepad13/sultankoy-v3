@@ -4006,16 +4006,18 @@ export default function App() {
   const fisUrunDurumunuGetir = (u: Urun) => {
     const isimLower = u.isim.toLowerCase();
     const isVarsayilanUrun = isimLower.includes("3 kg yoğurt") || isimLower.includes("5 kg yoğurt");
+    const isSutKaymagi = isimLower.includes("süt kayma");
     const isTereyagi = isimLower.includes("tereya");
     const isYogurtKaymagi = isimLower.includes("yoğurt kayma");
     const isBosUrun = isimLower.includes("boş");
     const isFilled = Number(fisDetay[u.id]?.adet) > 0 || Number(fisDetay[u.id]?.kg) > 0;
-    const isEkstraUrun = !isVarsayilanUrun && !isTereyagi && !isYogurtKaymagi;
+    const isEkstraUrun = !isVarsayilanUrun && !isSutKaymagi && !isTereyagi && !isYogurtKaymagi;
     const ekstraUrunSecili = gosterilenEkler.urunler.includes(u.id);
     const isAktif = u.aktif !== false;
     const goster =
       (isAktif || isFilled) &&
       (isVarsayilanUrun ||
+        isSutKaymagi ||
         isFilled ||
         (gosterilenEkler.tereyagi && isTereyagi) ||
         (gosterilenEkler.yogurt_kaymagi && isYogurtKaymagi) ||
@@ -4023,6 +4025,7 @@ export default function App() {
 
     return {
       isVarsayilanUrun,
+      isSutKaymagi,
       isTereyagi,
       isYogurtKaymagi,
       isBosUrun,
@@ -4454,7 +4457,24 @@ export default function App() {
                   {urunler
                     .filter((u) => {
                       const durum = fisUrunDurumunuGetir(u);
-                      return durum.goster && durum.isVarsayilanUrun;
+                      return durum.goster && (durum.isVarsayilanUrun || durum.isSutKaymagi);
+                    })
+                    .sort((a, b) => {
+                      const getSira = (urun: Urun) => {
+                        const isim = urun.isim.toLowerCase();
+                        if (isim.includes("3 kg yoğurt")) return 1;
+                        if (isim.includes("5 kg yoğurt")) return 2;
+                        if (isim.includes("süt kayma")) return 3;
+                        return 99;
+                      };
+                      return getSira(a) - getSira(b);
+                    })
+                    .map((u) => fisDetaySatiriniRenderEt(u))}
+
+                  {urunler
+                    .filter((u) => {
+                      const durum = fisUrunDurumunuGetir(u);
+                      return durum.goster && !durum.isVarsayilanUrun && !durum.isSutKaymagi;
                     })
                     .map((u) => fisDetaySatiriniRenderEt(u))}
                   
@@ -4463,10 +4483,11 @@ export default function App() {
                         const digerSecenekler = aktifUrunler.filter(u => {
                           const isimLower = u.isim.toLowerCase();
                           const isVarsayilanUrun = isimLower.includes("3 kg yoğurt") || isimLower.includes("5 kg yoğurt");
+                          const isSutKaymagi = isimLower.includes("süt kayma");
                           const isTereyagi = isimLower.includes("tereya");
                           const isYogurtKaymagi = isimLower.includes("yoğurt kayma");
                           const isFilled = (Number(fisDetay[u.id]?.adet) > 0 || Number(fisDetay[u.id]?.kg) > 0);
-                          if (isVarsayilanUrun || isFilled) return false;
+                          if (isVarsayilanUrun || isSutKaymagi || isFilled) return false;
                           if (isTereyagi) return !gosterilenEkler.tereyagi;
                           if (isYogurtKaymagi) return !gosterilenEkler.yogurt_kaymagi;
                           return !gosterilenEkler.urunler.includes(u.id);
@@ -4535,13 +4556,6 @@ export default function App() {
                       <div style={{width: "55px", textAlign: "right", fontWeight: "bold", fontSize: "12px", color: "#dc2626"}}>{fSayi((Number(fisDetay["v_bos_kova"]?.kg) > 0 ? Number(fisDetay["v_bos_kova"]?.kg) : Number(fisDetay["v_bos_kova"]?.adet||0)) * Number(fisDetay["v_bos_kova"]?.fiyat||0))}</div>
                     </div>
                   )}
-
-                  {urunler
-                    .filter((u) => {
-                      const durum = fisUrunDurumunuGetir(u);
-                      return durum.goster && !durum.isVarsayilanUrun;
-                    })
-                    .map((u) => fisDetaySatiriniRenderEt(u))}
 
                 </div>
                 <div style={{display: "flex", gap: "6px"}}>
