@@ -1,4 +1,5 @@
 import type { FormEvent } from "react";
+import type { LoginKullaniciSecenegi } from "../types/app";
 
 interface LoginScreenProps {
   username: string;
@@ -6,6 +7,7 @@ interface LoginScreenProps {
   temaRengi: string;
   hatirlaSecili: boolean;
   hataMesaji?: string;
+  kullaniciSecenekleri: LoginKullaniciSecenegi[];
   onUsernameChange: (value: string) => void;
   onPasswordChange: (value: string) => void;
   onSubmit: (remember: boolean) => Promise<void>;
@@ -17,6 +19,7 @@ export function LoginScreen({
   temaRengi,
   hatirlaSecili,
   hataMesaji,
+  kullaniciSecenekleri,
   onUsernameChange,
   onPasswordChange,
   onSubmit,
@@ -75,19 +78,44 @@ export function LoginScreen({
             {hataMesaji}
           </div>
         )}
-        <input
-          value={username}
-          onChange={(event) => onUsernameChange(event.target.value)}
-          placeholder="Kullanıcı Adı"
-          style={{
-            width: "100%",
-            marginBottom: "16px",
-            padding: "8px",
-            border: "1px solid #cbd5e1",
-            borderRadius: "6px",
-            boxSizing: "border-box",
-          }}
-        />
+
+        {kullaniciSecenekleri.length > 0 ? (
+          <select
+            value={username}
+            onChange={(event) => onUsernameChange(event.target.value)}
+            style={{
+              width: "100%",
+              marginBottom: "16px",
+              padding: "10px 8px",
+              border: "1px solid #cbd5e1",
+              borderRadius: "6px",
+              boxSizing: "border-box",
+              background: "#fff",
+            }}
+          >
+            <option value="">Kullanıcı seçin</option>
+            {kullaniciSecenekleri.map((secenek) => (
+              <option key={secenek.value} value={secenek.value}>
+                {secenek.label}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input
+            value={username}
+            onChange={(event) => onUsernameChange(event.target.value)}
+            placeholder="Kullanıcı Adı"
+            style={{
+              width: "100%",
+              marginBottom: "16px",
+              padding: "8px",
+              border: "1px solid #cbd5e1",
+              borderRadius: "6px",
+              boxSizing: "border-box",
+            }}
+          />
+        )}
+
         <input
           type="password"
           value={password}

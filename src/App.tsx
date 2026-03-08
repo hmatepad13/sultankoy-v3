@@ -22,6 +22,7 @@ import type {
   Gider,
   GiderTuru,
   KullaniciSekmeYetkisi,
+  LoginKullaniciSecenegi,
   OzetKart,
   PersonelOzeti,
   SatisFis,
@@ -38,6 +39,32 @@ import { normalizeUsername } from "./utils/format";
 const URETIM_META_ETIKETI = "[URETIM_META]";
 const SUPABASE_FREE_DATABASE_LIMIT_BYTES = 500_000_000;
 const SUPABASE_FREE_STORAGE_LIMIT_BYTES = 1_000_000_000;
+const GIRIS_KULLANICI_STORAGE_KEY = "sultankoy-giris-kullanicilari-v1";
+
+const girisEtiketiniOlustur = (ad?: string | null, username?: string | null) => {
+  const temizAd = String(ad || "").trim();
+  if (temizAd) return temizAd;
+  const temizUsername = normalizeUsername(username);
+  if (!temizUsername) return "";
+  return temizUsername.charAt(0).toLocaleUpperCase("tr-TR") + temizUsername.slice(1);
+};
+
+const girisEpostasiniOlustur = (deger?: string | null) => {
+  const ham = String(deger || "").trim().toLowerCase();
+  if (!ham) return "";
+  return ham.includes("@") ? ham : `${normalizeUsername(ham)}@sistem.local`;
+};
+
+const kayitliGirisKullanicilariniOku = (): LoginKullaniciSecenegi[] => {
+  try {
+    const ham = localStorage.getItem(GIRIS_KULLANICI_STORAGE_KEY);
+    if (!ham) return [];
+    const parsed = JSON.parse(ham) as LoginKullaniciSecenegi[];
+    return Array.isArray(parsed) ? parsed.filter((item) => item?.value && item?.label) : [];
+  } catch {
+    return [];
+  }
+};
 
 const sayiDegeri = (deger: unknown) => {
   if (typeof deger === "number" && Number.isFinite(deger)) return deger;
@@ -394,6 +421,9 @@ export default function App() {
   const [uretimList, setUretimList] = useState<Uretim[]>([]);
   const [copKutusuList, setCopKutusuList] = useState<CopKutusu[]>([]);
   const [profilKullaniciListesi, setProfilKullaniciListesi] = useState<string[]>([]);
+  const [girisKullaniciSecenekleri, setGirisKullaniciSecenekleri] = useState<LoginKullaniciSecenegi[]>(() =>
+    kayitliGirisKullanicilariniOku(),
+  );
 
   // AYARLAR VE UI STATE'LERİ
   const temaRengi = TEMA_RENGI;
@@ -429,6 +459,24 @@ export default function App() {
 
   const bugun = getLocalDateString();
   const aktifDonemTarihi = (donem = aktifDonem) => (bugun.startsWith(donem) ? bugun : `${donem}-01`);
+
+  const girisKullanicilariniKaydet = useCallback(
+    (kayitlar: Array<{ username?: string | null; ad?: string | null }>) => {
+      const secenekMap = new Map<string, LoginKullaniciSecenegi>();
+
+      kayitlar.forEach((kayit) => {
+        const value = normalizeUsername(kayit.username);
+        const label = girisEtiketiniOlustur(kayit.ad, kayit.username);
+        if (!value || !label) return;
+        secenekMap.set(value, { value, label });
+      });
+
+      const secenekler = Array.from(secenekMap.values()).sort((a, b) => a.label.localeCompare(b.label, "tr"));
+      setGirisKullaniciSecenekleri(secenekler);
+      localStorage.setItem(GIRIS_KULLANICI_STORAGE_KEY, JSON.stringify(secenekler));
+    },
+    [],
+  );
 
   // --- SÜT STATE'LERİ ---
   const [isSutModalOpen, setIsSutModalOpen] = useState<boolean>(false);
@@ -766,8 +814,12 @@ export default function App() {
     if (session?.user?.email) {
       setUsername(normalizeUsername(session.user.email));
       setAuthHata("");
+      girisKullanicilariniKaydet([
+        ...girisKullaniciSecenekleri.map((item) => ({ username: item.value, ad: item.label })),
+        { username: session.user.email, ad: session.user.user_metadata?.full_name || null },
+      ]);
     }
-  }, [session]);
+  }, [girisKullanicilariniKaydet, girisKullaniciSecenekleri, session]);
 
   useEffect(() => {
     if (!session) return;
@@ -1096,7 +1148,7 @@ export default function App() {
           supabase.from("ciftlikler").select("*").order("isim"),
           supabase.from("bayiler").select("*").order("isim"),
           supabase.from("urunler").select("*").order("isim"),
-          supabase.from("profiles").select("username").order("username"),
+          supabase.from("profiles").select("username,ad").order("username"),
           supabase.from("gider_turleri").select("*").order("isim"),
         ]);
         if (cErr || bErr || uErr || pErr || gtErr) throw cErr || bErr || uErr || pErr || gtErr;
@@ -1116,12 +1168,13 @@ export default function App() {
         if (p) {
           const kullanicilar = Array.from(
             new Set(
-              (p as Array<{ username?: string | null }>)
+              (p as Array<{ username?: string | null; ad?: string | null }>)
                 .map((profil) => normalizeUsername(profil.username))
                 .filter(Boolean),
             ),
           ).sort((a, b) => a.localeCompare(b, "tr"));
           setProfilKullaniciListesi(kullanicilar);
+          girisKullanicilariniKaydet(p as Array<{ username?: string | null; ad?: string | null }>);
         }
       }
 
@@ -4069,15 +4122,21 @@ export default function App() {
         temaRengi={temaRengi}
         hatirlaSecili={localStorage.getItem("rememberMe") !== "false"}
         hataMesaji={authHata}
+        kullaniciSecenekleri={girisKullaniciSecenekleri}
         onUsernameChange={setUsername}
         onPasswordChange={setPassword}
         onSubmit={async (remember) => {
           setAuthHata("");
+          const loginEmail = girisEpostasiniOlustur(username);
+          if (!loginEmail) {
+            setAuthHata("Lütfen bir kullanıcı seçin.");
+            return;
+          }
           localStorage.setItem("rememberMe", remember ? "true" : "false");
           if (remember) localStorage.setItem("user", normalizeUsername(username));
           else localStorage.removeItem("user");
           const { error } = await supabase.auth.signInWithPassword({
-            email: username.includes("@") ? username : `${username}@sistem.local`,
+            email: loginEmail,
             password,
           });
           if (error) {
