@@ -712,12 +712,13 @@ export default function App() {
       localStorage.setItem("aktifDonem", aktifDonem);
   }, [aktifDonem]);
 
+  const oturumKullaniciKisa = normalizeUsername(session?.user?.email || "");
   const mevcutKullanici = normalizeUsername(session?.user?.email || username);
   const aktifKullaniciEposta =
     session?.user?.email || (username.includes("@") ? username : `${username}@sistem.local`);
   const aktifKullaniciKisa = normalizeUsername(aktifKullaniciEposta);
   const isAdmin = adminMi(mevcutKullanici);
-  const uretimAksiyonYetkiliMi = isAdmin || aktifKullaniciKisa === "yusuf";
+  const uretimAksiyonYetkiliMi = oturumKullaniciKisa === "admin" || oturumKullaniciKisa === "yusuf";
   const kaydiSilebilirMi = (ekleyen?: string | null) =>
     isAdmin || (!!normalizeUsername(ekleyen) && normalizeUsername(ekleyen) === aktifKullaniciKisa);
   const kaydiDuzenleyebilirMi = (ekleyen?: string | null) => kaydiSilebilirMi(ekleyen);
