@@ -1114,6 +1114,27 @@ export default function App() {
 
   const fSayi = (num: any) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 2 }).format(Number(num) || 0).replace(/,00$/, '');
   const fSayiNoDec = (num: any) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(Number(num) || 0);
+  const paraGirdisiniTemizle = (value: string) => {
+    const temiz = String(value || "")
+      .replace(/[^\d,.-]/g, "")
+      .replace(/\.(?=.*\.)/g, "");
+    const negatif = temiz.startsWith("-");
+    const isaretsiz = negatif ? temiz.slice(1) : temiz;
+    const noktasiz = isaretsiz.replace(/\./g, "");
+    const [tamKisim = "", ...ondalikParcalar] = noktasiz.split(",");
+    const ondalik = ondalikParcalar.join("").slice(0, 2);
+    return `${negatif ? "-" : ""}${tamKisim}${ondalik ? `.${ondalik}` : ""}`;
+  };
+  const paraGirdisiniSayiyaCevir = (value: string) => Number(paraGirdisiniTemizle(value)) || 0;
+  const paraGirdisiniFormatla = (value: string) => {
+    const temiz = paraGirdisiniTemizle(value);
+    if (!temiz) return "";
+    const negatif = temiz.startsWith("-");
+    const isaretsiz = negatif ? temiz.slice(1) : temiz;
+    const [tamKisim = "", ondalik] = isaretsiz.split(".");
+    const formatliTamKisim = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0 }).format(Number(tamKisim || 0));
+    return `${negatif ? "-" : ""}${formatliTamKisim}${ondalik !== undefined ? `,${ondalik}` : ""}`;
+  };
   const renderKompaktToplamlar = (
     kartlar: Array<{ etiket: string; deger: string; renk: string; onClick?: () => void }>,
     style?: CSSProperties,
@@ -1430,7 +1451,7 @@ export default function App() {
     if (!tahsilatForm.bayi || !tahsilatForm.miktar) return alert("Bayi ve miktar alanları zorunludur!");
     if (!tumBayiler.some(b => b.isim === tahsilatForm.bayi)) return alert("Lütfen listeden geçerli bir Bayi/Müşteri seçin! Kendiniz rastgele isim giremezsiniz.");
 
-    const tMiktar = Number(tahsilatForm.miktar);
+    const tMiktar = paraGirdisiniSayiyaCevir(tahsilatForm.miktar);
     if (tMiktar <= 0) return alert("Geçerli bir tahsilat tutarı girin.");
 
     const fNo = `T-${Date.now().toString().slice(-6)}${Math.floor(Math.random()*1000)}`;
@@ -1463,7 +1484,7 @@ export default function App() {
   const handleKasaDevirGoruntule = (fis: SatisFis) => {
     setDigerForm({
       tarih: fis.tarih || getLocalDateString(),
-      tutar: String(Number(fis.tahsilat || 0) || ""),
+      tutar: paraGirdisiniTemizle(String(Number(fis.tahsilat || 0) || "")),
       aciklama: fis.aciklama || "",
     });
     setDigerModalConfig({ isOpen: true, type: "kasa_devir", mode: "view", fisId: Number(fis.id) || null });
@@ -1476,7 +1497,7 @@ export default function App() {
     }
     setDigerForm({
       tarih: fis.tarih || getLocalDateString(),
-      tutar: String(Number(fis.tahsilat || 0) || ""),
+      tutar: paraGirdisiniTemizle(String(Number(fis.tahsilat || 0) || "")),
       aciklama: fis.aciklama || "",
     });
     setDigerModalConfig({ isOpen: true, type: "kasa_devir", mode: "edit", fisId: Number(fis.id) || null });
@@ -1484,10 +1505,10 @@ export default function App() {
 
   async function handleDigerIslemKaydet() {
     return handleKasaDevirKaydet();
-    if (!digerForm.tutar || Number(digerForm.tutar) <= 0) return alert("Geçerli bir tutar girin.");
+    if (!digerForm.tutar || paraGirdisiniSayiyaCevir(digerForm.tutar) <= 0) return alert("Geçerli bir tutar girin.");
 
     const fNo = `D-${Date.now().toString().slice(-6)}${Math.floor(Math.random()*1000)}`;
-    const tahsilat = Number(digerForm.tutar);
+    const tahsilat = paraGirdisiniSayiyaCevir(digerForm.tutar);
 
     const fData = {
         fis_no: fNo,
@@ -1510,9 +1531,9 @@ export default function App() {
   }
 
   async function handleKasaDevirKaydet() {
-    if (!digerForm.tutar || Number(digerForm.tutar) <= 0) return alert("Geçerli bir tutar girin.");
+    if (!digerForm.tutar || paraGirdisiniSayiyaCevir(digerForm.tutar) <= 0) return alert("Geçerli bir tutar girin.");
 
-    const tahsilat = Number(digerForm.tutar);
+    const tahsilat = paraGirdisiniSayiyaCevir(digerForm.tutar);
     const ortakData = {
       tarih: digerForm.tarih,
       bayi_id: null,
@@ -1673,7 +1694,7 @@ export default function App() {
     return urunToplami - (iMiktar * iFiyat) - (kMiktar * kFiyat);
   }, [urunler, fisDetay]);
 
-  const toplamGenelBorc = eskiBorc + (fisCanliToplam - Number(fisUst.tahsilat || 0));
+  const toplamGenelBorc = eskiBorc + (fisCanliToplam - paraGirdisiniSayiyaCevir(fisUst.tahsilat || ""));
 
   const fisGorselDosyaAdi = useMemo(() => {
     if (fisGorselDosya?.name) return fisGorselDosya.name;
@@ -1836,7 +1857,7 @@ export default function App() {
     if (eklenecekUrunler.length === 0 && iadeMiktar === 0 && kovaMiktar === 0) return alert("Fişte işlem yok! Ürün, iade veya kova girin.");
 
     let ortakFisNo = editingFisNo || benzersizFisNoOlustur("F");
-    const tahsilat = Number(fisUst.tahsilat) || 0;
+    const tahsilat = paraGirdisiniSayiyaCevir(fisUst.tahsilat || "");
     const kalanBakiye = fisCanliToplam - tahsilat;
     const yeniGorselSecildi = Boolean(fisGorselDosya);
     let fisGorselYolu = fisGorselMevcutYol || null;
@@ -3721,7 +3742,7 @@ export default function App() {
                <div style={{ padding: "15px", display: "flex", flexDirection: "column", gap: "10px" }}>
                  <div style={{ display: "flex", gap: "8px" }}>
                     <div style={{flex: 1}}><label style={{fontSize: "11px", color: "#64748b"}}>Tarih</label><input type="date" value={digerForm.tarih} onChange={e => setDigerForm({...digerForm, tarih: e.target.value})} readOnly={digerModalConfig.mode === "view"} disabled={digerModalConfig.mode === "view"} className="m-inp date-click" style={{ width: "100%", opacity: digerModalConfig.mode === "view" ? 0.85 : 1 }} /></div>
-                    <div style={{flex: 1}}><label style={{fontSize: "11px", color: "#64748b"}}>Tutar (₺)</label><input type="number" step="0.01" value={digerForm.tutar} onChange={e => setDigerForm({...digerForm, tutar: e.target.value})} readOnly={digerModalConfig.mode === "view"} disabled={digerModalConfig.mode === "view"} className="m-inp" style={{width: "100%", textAlign: "right", color: "#0f172a", fontWeight: "bold", opacity: digerModalConfig.mode === "view" ? 0.85 : 1}} /></div>
+                    <div style={{flex: 1}}><label style={{fontSize: "11px", color: "#64748b"}}>Tutar (₺)</label><input type="text" inputMode="decimal" value={paraGirdisiniFormatla(digerForm.tutar)} onChange={e => setDigerForm({...digerForm, tutar: paraGirdisiniTemizle(e.target.value)})} readOnly={digerModalConfig.mode === "view"} disabled={digerModalConfig.mode === "view"} className="m-inp" style={{width: "100%", textAlign: "right", color: "#0f172a", fontWeight: "bold", opacity: digerModalConfig.mode === "view" ? 0.85 : 1}} /></div>
                  </div>
                  <div><label style={{fontSize: "11px", color: "#64748b"}}>Açıklama / Not</label><input placeholder="Opsiyonel..." value={digerForm.aciklama} onChange={e => setDigerForm({...digerForm, aciklama: e.target.value})} readOnly={digerModalConfig.mode === "view"} disabled={digerModalConfig.mode === "view"} className="m-inp" style={{width: "100%", opacity: digerModalConfig.mode === "view" ? 0.85 : 1}} /></div>
                </div>
@@ -4021,8 +4042,8 @@ export default function App() {
               </div>
               <div style={{ padding: "10px 12px", borderTop: "1px solid #e2e8f0", background: "#f8fafc", borderRadius: "0 0 8px 8px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}><span style={{color: "#0f172a", fontWeight: "bold", fontSize: "14px"}}>Genel Toplam:</span><b style={{color: "#0f172a", fontSize: "16px"}}>{fSayi(fisCanliToplam)} ₺</b></div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}><span style={{color: "#2563eb", fontWeight: "bold", fontSize: "13px"}}>Tahsil Edilen:</span><input type="number" placeholder="Alınan..." value={fisUst.tahsilat} onChange={e => setFisUst({ ...fisUst, tahsilat: e.target.value })} className="m-inp" style={{ flex: "0 0 90px", padding: "4px 6px", textAlign: "right", borderColor: "#bfdbfe", fontSize: "13px", height: "28px" }} /></div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px", borderTop: "1px dashed #cbd5e1", paddingTop: "6px" }}><span style={{color: (fisCanliToplam - Number(fisUst.tahsilat || 0)) > 0 ? "#dc2626" : "#059669", fontWeight: "bold", fontSize: "13px"}}>BU FİŞTEN KALAN:</span><b style={{color: (fisCanliToplam - Number(fisUst.tahsilat || 0)) > 0 ? "#dc2626" : "#059669", fontSize: "14px"}}>{fSayi(fisCanliToplam - Number(fisUst.tahsilat || 0))} ₺</b></div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}><span style={{color: "#2563eb", fontWeight: "bold", fontSize: "13px"}}>Tahsil Edilen:</span><input type="text" inputMode="decimal" placeholder="Alınan..." value={paraGirdisiniFormatla(fisUst.tahsilat)} onChange={e => setFisUst({ ...fisUst, tahsilat: paraGirdisiniTemizle(e.target.value) })} className="m-inp" style={{ flex: "0 0 110px", padding: "4px 6px", textAlign: "right", borderColor: "#bfdbfe", fontSize: "13px", height: "28px" }} /></div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px", borderTop: "1px dashed #cbd5e1", paddingTop: "6px" }}><span style={{color: (fisCanliToplam - paraGirdisiniSayiyaCevir(fisUst.tahsilat || "")) > 0 ? "#dc2626" : "#059669", fontWeight: "bold", fontSize: "13px"}}>BU FİŞTEN KALAN:</span><b style={{color: (fisCanliToplam - paraGirdisiniSayiyaCevir(fisUst.tahsilat || "")) > 0 ? "#dc2626" : "#059669", fontSize: "14px"}}>{fSayi(fisCanliToplam - paraGirdisiniSayiyaCevir(fisUst.tahsilat || ""))} ₺</b></div>
                 
                 {aktifBayi && (
                   <>
@@ -4137,7 +4158,7 @@ export default function App() {
                     </button>
                  </div>
                  <div style={{ display: "flex", gap: "8px" }}>
-                    <div style={{flex: 1}}><label style={{fontSize: "11px", color: "#64748b"}}>Tutar (₺)</label><input type="number" step="0.01" value={tahsilatForm.miktar} onChange={e => setTahsilatForm({ ...tahsilatForm, miktar: e.target.value })} className="m-inp" style={{width: "100%", textAlign: "right", color: "#059669", fontWeight: "bold"}} /></div>
+                    <div style={{flex: 1}}><label style={{fontSize: "11px", color: "#64748b"}}>Tutar (₺)</label><input type="text" inputMode="decimal" value={paraGirdisiniFormatla(tahsilatForm.miktar)} onChange={e => setTahsilatForm({ ...tahsilatForm, miktar: paraGirdisiniTemizle(e.target.value) })} className="m-inp" style={{width: "100%", textAlign: "right", color: "#059669", fontWeight: "bold"}} /></div>
                     <div style={{flex: 1}}>
                       <label style={{fontSize: "11px", color: "#64748b"}}>Ödeme Türü</label>
                       <select value={tahsilatForm.odeme_turu} onChange={e => setTahsilatForm({ ...tahsilatForm, odeme_turu: e.target.value })} className="m-inp" style={{width: "100%"}}><option value="PEŞİN">💵 PEŞİN</option><option value="KREDİ KARTI">💳 K.KARTI</option><option value="HAVALE/EFT">🏦 HAVALE</option></select>
