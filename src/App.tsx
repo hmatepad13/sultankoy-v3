@@ -455,10 +455,11 @@ export default function App() {
   const [musteriEkstreData, setMusteriEkstreData] = useState<null | {
     musteri: string;
     donem: string;
+    urunKolonlari: string[];
     hareketler: Array<{
       tarih: string;
       fisNo: string;
-      urunler: string;
+      urunAdetleri: Record<string, number>;
       tutar: number;
       tahsilat: number;
       fistenKalanBorc: number;
@@ -1085,19 +1086,26 @@ export default function App() {
         return sayiDegeri((a as any).id) - sayiDegeri((b as any).id);
       });
 
+    const urunKolonSet = new Set<string>();
     const hareketler = ilgiliFisler
       .filter((fis) => String(fis.tarih || "").startsWith(aktifDonem))
       .filter((fis) => !fisDevirMi(fis))
       .map((fis) => {
-        const urunler = satisList
+        const urunAdetleri = satisList
           .filter((satir) => satir.fis_no === fis.fis_no)
-          .map((satir) => satisSatiriUrunAdiGetir(satir))
-          .filter(Boolean);
-        const benzersizUrunler = [...new Set(urunler)];
+          .reduce<Record<string, number>>((acc, satir) => {
+            const urunAdi = satisSatiriUrunAdiGetir(satir);
+            if (!urunAdi || urunAdi === "İade Kova" || urunAdi === "Boş Kova") return acc;
+            const adet = sayiDegeri(satir.adet);
+            if (adet <= 0) return acc;
+            urunKolonSet.add(urunAdi);
+            acc[urunAdi] = (acc[urunAdi] || 0) + adet;
+            return acc;
+          }, {});
         return {
           tarih: fis.tarih,
           fisNo: gorunenFisNoOlustur(fis),
-          urunler: benzersizUrunler.length > 0 ? benzersizUrunler.join(" / ") : "-",
+          urunAdetleri,
           tutar: Number(fis.toplam_tutar || 0),
           tahsilat: Number(fis.tahsilat || 0),
           fistenKalanBorc: Number(fis.kalan_bakiye || 0),
@@ -1107,13 +1115,36 @@ export default function App() {
     return {
       musteri: musteriAdi,
       donem: aktifDonem,
+      urunKolonlari: [
+        ...urunler.map((urun) => urun.isim).filter((isim) => urunKolonSet.has(isim)),
+        ...[...urunKolonSet].filter((isim) => !urunler.some((urun) => urun.isim === isim)),
+      ],
       hareketler,
     };
-  }, [aktifDonem, satisFisBayiAdiGetir, satisFisBayiAnahtariGetir, satisList, satisSatiriUrunAdiGetir, satisFisList]);
+  }, [aktifDonem, satisFisBayiAdiGetir, satisFisBayiAnahtariGetir, satisList, satisSatiriUrunAdiGetir, satisFisList, urunler]);
 
   const handleMusteriEkstreAc = useCallback((bayiAnahtar: string, musteriAdi: string) => {
     setMusteriEkstreData(musteriEkstreHesapla(bayiAnahtar, musteriAdi));
   }, [musteriEkstreHesapla]);
+
+  const musteriEkstreToplamlari = useMemo(() => {
+    if (!musteriEkstreData) {
+      return { urunAdetleri: {} as Record<string, number>, tutar: 0, tahsilat: 0, fistenKalanBorc: 0 };
+    }
+
+    return musteriEkstreData.hareketler.reduce(
+      (acc, hareket) => {
+        musteriEkstreData.urunKolonlari.forEach((urunAdi) => {
+          acc.urunAdetleri[urunAdi] = (acc.urunAdetleri[urunAdi] || 0) + (hareket.urunAdetleri[urunAdi] || 0);
+        });
+        acc.tutar += hareket.tutar;
+        acc.tahsilat += hareket.tahsilat;
+        acc.fistenKalanBorc += hareket.fistenKalanBorc;
+        return acc;
+      },
+      { urunAdetleri: {} as Record<string, number>, tutar: 0, tahsilat: 0, fistenKalanBorc: 0 },
+    );
+  }, [musteriEkstreData]);
 
   const satisFisToplamBorcMap = useMemo(() => {
     return hesaplaMusteriBakiyeleri(satisFisList).map;
@@ -4465,7 +4496,14 @@ export default function App() {
                     <tr>
                       <th style={{ textAlign: "left", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>Tarih</th>
                       <th style={{ textAlign: "left", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>Fiş No</th>
-                      <th style={{ textAlign: "left", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>Ürün</th>
+                      {musteriEkstreData.urunKolonlari.map((urunAdi) => (
+                        <th
+                          key={urunAdi}
+                          style={{ textAlign: "center", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold", minWidth: "54px" }}
+                        >
+                          {urunAdi}
+                        </th>
+                      ))}
                       <th style={{ textAlign: "right", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>Tutar</th>
                       <th style={{ textAlign: "right", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>Tahsilat</th>
                       <th style={{ textAlign: "right", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>Fişten Kalan Borç</th>
@@ -4473,19 +4511,36 @@ export default function App() {
                   </thead>
                   <tbody>
                     {musteriEkstreData.hareketler.length > 0 ? (
-                      musteriEkstreData.hareketler.map((hareket, index) => (
-                        <tr key={`${hareket.fisNo}-${index}`}>
-                          <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9" }}>{hareket.tarih.split("-").reverse().join(".")}</td>
-                          <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9" }}>{hareket.fisNo}</td>
-                          <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9" }}>{hareket.urunler}</td>
-                          <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9", textAlign: "right", color: hareket.tutar > 0 ? "#059669" : "#94a3b8" }}>{hareket.tutar > 0 ? `${fSayi(hareket.tutar)} ₺` : "-"}</td>
-                          <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9", textAlign: "right", color: hareket.tahsilat > 0 ? "#2563eb" : "#94a3b8" }}>{hareket.tahsilat > 0 ? `${fSayi(hareket.tahsilat)} ₺` : "-"}</td>
-                          <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9", textAlign: "right", color: hareket.fistenKalanBorc > 0 ? "#dc2626" : "#059669", fontWeight: "bold" }}>{fSayi(hareket.fistenKalanBorc)} ₺</td>
+                      <>
+                        {musteriEkstreData.hareketler.map((hareket, index) => (
+                          <tr key={`${hareket.fisNo}-${index}`}>
+                            <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9" }}>{hareket.tarih.split("-").reverse().join(".")}</td>
+                            <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9", fontSize: "10px", color: "#64748b", whiteSpace: "nowrap" }}>{hareket.fisNo}</td>
+                            {musteriEkstreData.urunKolonlari.map((urunAdi) => (
+                              <td key={`${hareket.fisNo}-${urunAdi}`} style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9", textAlign: "center" }}>
+                                {hareket.urunAdetleri[urunAdi] ? fSayi(hareket.urunAdetleri[urunAdi]) : "-"}
+                              </td>
+                            ))}
+                            <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9", textAlign: "right", color: hareket.tutar > 0 ? "#059669" : "#94a3b8" }}>{hareket.tutar > 0 ? `${fSayi(hareket.tutar)} ₺` : "-"}</td>
+                            <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9", textAlign: "right", color: hareket.tahsilat > 0 ? "#2563eb" : "#94a3b8" }}>{hareket.tahsilat > 0 ? `${fSayi(hareket.tahsilat)} ₺` : "-"}</td>
+                            <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9", textAlign: "right", color: hareket.fistenKalanBorc > 0 ? "#dc2626" : "#059669", fontWeight: "bold" }}>{fSayi(hareket.fistenKalanBorc)} ₺</td>
+                          </tr>
+                        ))}
+                        <tr>
+                          <td colSpan={2} style={{ padding: "7px 4px 0", fontSize: "10px", color: "#64748b", fontWeight: "bold" }}>Toplam</td>
+                          {musteriEkstreData.urunKolonlari.map((urunAdi) => (
+                            <td key={`toplam-${urunAdi}`} style={{ padding: "7px 4px 0", textAlign: "center", fontSize: "10px", color: "#475569", fontWeight: "bold" }}>
+                              {musteriEkstreToplamlari.urunAdetleri[urunAdi] ? fSayi(musteriEkstreToplamlari.urunAdetleri[urunAdi]) : "-"}
+                            </td>
+                          ))}
+                          <td style={{ padding: "7px 4px 0", textAlign: "right", fontSize: "10px", color: "#059669", fontWeight: "bold" }}>{fSayi(musteriEkstreToplamlari.tutar)} ₺</td>
+                          <td style={{ padding: "7px 4px 0", textAlign: "right", fontSize: "10px", color: "#2563eb", fontWeight: "bold" }}>{fSayi(musteriEkstreToplamlari.tahsilat)} ₺</td>
+                          <td style={{ padding: "7px 4px 0", textAlign: "right", fontSize: "10px", color: musteriEkstreToplamlari.fistenKalanBorc > 0 ? "#dc2626" : "#059669", fontWeight: "bold" }}>{fSayi(musteriEkstreToplamlari.fistenKalanBorc)} ₺</td>
                         </tr>
-                      ))
+                      </>
                     ) : (
                       <tr>
-                        <td colSpan={6} style={{ textAlign: "center", padding: "18px 6px", color: "#94a3b8", fontWeight: "bold" }}>
+                        <td colSpan={musteriEkstreData.urunKolonlari.length + 5} style={{ textAlign: "center", padding: "18px 6px", color: "#94a3b8", fontWeight: "bold" }}>
                           Bu dönem için hareket bulunmuyor.
                         </td>
                       </tr>
