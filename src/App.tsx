@@ -717,6 +717,7 @@ export default function App() {
     session?.user?.email || (username.includes("@") ? username : `${username}@sistem.local`);
   const aktifKullaniciKisa = normalizeUsername(aktifKullaniciEposta);
   const isAdmin = adminMi(mevcutKullanici);
+  const uretimAksiyonYetkiliMi = isAdmin || aktifKullaniciKisa === "yusuf";
   const kaydiSilebilirMi = (ekleyen?: string | null) =>
     isAdmin || (!!normalizeUsername(ekleyen) && normalizeUsername(ekleyen) === aktifKullaniciKisa);
   const kaydiDuzenleyebilirMi = (ekleyen?: string | null) => kaydiSilebilirMi(ekleyen);
@@ -2800,7 +2801,7 @@ export default function App() {
       <div className="table-wrapper"><table className="tbl tbl-satis" style={{ tableLayout: "fixed" }}>
         <thead><tr>
           <Th label="TAR." sortKey="tarih" currentSort={fisSort} setSort={setFisSort} filterType="fis_tarih" hideSortIndicator={true} compact={true} cellStyle={{ width: "68px" }} />
-          <Th label={satisFiltreTip === 'kasa_devir' ? "AÇIKLAMA" : "BAYİ"} sortKey={satisFiltreTip === 'kasa_devir' ? "aciklama" : "bayi"} currentSort={fisSort} setSort={setFisSort} filterType="fis_bayi" hideSortIndicator={true} compact={true} cellStyle={{ width: satisFiltreTip === 'kasa_devir' ? "136px" : "112px", paddingLeft: "8px" }} />
+          <Th label={satisFiltreTip === 'kasa_devir' ? "AÇIKLAMA" : "BAYİ"} sortKey={satisFiltreTip === 'kasa_devir' ? "aciklama" : "bayi"} currentSort={fisSort} setSort={setFisSort} filterType="fis_bayi" hideSortIndicator={true} compact={true} cellStyle={{ width: satisFiltreTip === 'kasa_devir' ? "136px" : "112px", paddingLeft: "14px" }} />
           <Th label="TUTAR" sortKey="toplam_tutar" currentSort={fisSort} setSort={setFisSort} align="right" />
           <Th label="TAHS." sortKey="tahsilat" currentSort={fisSort} setSort={setFisSort} align="right" />
           <Th label="BORÇ" sortKey="kalan_bakiye" currentSort={fisSort} setSort={setFisSort} align="right" />
@@ -3147,13 +3148,13 @@ export default function App() {
       {renderUretimToplamlari(kayitlar, renk, tip)}
 
       <div className="table-wrapper">
-        <table className="tbl" style={{ borderTop: `3px solid ${renk}`, tableLayout: "fixed", fontSize: "11px" }}>
+        <table className="tbl tbl-uretim" style={{ borderTop: `3px solid ${renk}`, tableLayout: "fixed", fontSize: "11px" }}>
           <thead><tr>
             <Th label="TAR" sortKey="tarih" currentSort={uretimSort} setSort={setUretimSort} />
             <th style={{ textAlign: "right", width: "13%" }}>GİR</th>
+            <th style={{ textAlign: "right", width: "12%" }}>ÇIK</th>
             <th style={{ textAlign: "right", width: "10%" }}>{ilkPaketBaslik}</th>
             <th style={{ textAlign: "right", width: "10%" }}>{ikinciPaketBaslik}</th>
-            <th style={{ textAlign: "right", width: "12%" }}>ÇIK</th>
             <th style={{ textAlign: "right", width: "16%" }}>MALİYET</th>
             <Th label="KÂR" sortKey="kar" currentSort={uretimSort} setSort={setUretimSort} align="right" />
             <Th label="NOT" sortKey="aciklama" currentSort={uretimSort} setSort={setUretimSort} />
@@ -3164,23 +3165,25 @@ export default function App() {
               const ilkPaketAdet = tip === "sut_kaymagi" ? sayiDegeri(u.cikti_2kg) : sayiDegeri(u.cikti_3kg);
               const ikinciPaketAdet = tip === "sut_kaymagi" ? sayiDegeri(u.cikti_3kg) : sayiDegeri(u.cikti_5kg);
               const cikanKg = uretimCikanToplamKg(u);
-              const silinebilir = kaydiSilebilirMi(u.ekleyen);
-              const duzenlenebilir = kaydiDuzenleyebilirMi(u.ekleyen);
+              const silinebilir = uretimAksiyonYetkiliMi;
+              const duzenlenebilir = uretimAksiyonYetkiliMi;
               return (
                 <tr key={u.id}>
                   <td>{u.tarih.split("-").reverse().slice(0, 2).join(".")}</td>
                   <td style={{ textAlign: "right", fontWeight: "bold", color: "#1d4ed8" }}>{fSayi(uretimGirenToplamKg(u))}</td>
+                  <td style={{ textAlign: "right", color: renk, fontWeight: "bold" }}>{fSayi(cikanKg)}</td>
                   <td style={{ textAlign: "right", color: renk, fontWeight: "bold" }}>{fSayi(ilkPaketAdet)}</td>
                   <td style={{ textAlign: "right", color: renk, fontWeight: "bold" }}>{fSayi(ikinciPaketAdet)}</td>
-                  <td style={{ textAlign: "right", color: renk, fontWeight: "bold" }}>{fSayi(cikanKg)}</td>
                   <td style={{ textAlign: "right", color: "#dc2626" }}>{fSayi(u.toplam_maliyet)}</td>
                   <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold" }}>{fSayi(u.kar)}</td>
                   <td className="truncate-text-td" style={{ maxWidth: "68px" }} title={u.aciklama || "-"}>
                     {uretimNotunuKisalt(u.aciklama, 8)}
                   </td>
                   <td className="actions-cell" style={{ position: "relative" }}>
-                    <button onClick={(e) => { e.stopPropagation(); setOpenDropdown({ type: "uretim", id: u.id as string }); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "18px", padding: "0 8px", color: "#64748b" }}>⋮</button>
-                    {openDropdown?.type === "uretim" && openDropdown.id === u.id && (
+                    {uretimAksiyonYetkiliMi && (
+                      <button onClick={(e) => { e.stopPropagation(); setOpenDropdown({ type: "uretim", id: u.id as string }); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "18px", padding: "0 8px", color: "#64748b" }}>⋮</button>
+                    )}
+                    {uretimAksiyonYetkiliMi && openDropdown?.type === "uretim" && openDropdown.id === u.id && (
                       <div className="dropdown-menu">
                         <button title="Görüntüle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); setUretimDetayData(u); }}>🔍</button>
                         {duzenlenebilir && <button title="Düzenle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); setEditingUretimId(u.id); setUretimForm(uretimKaydiniNormalizeEt(u as Uretim)); setIsUretimModalOpen(true); }}>✏️</button>}
@@ -4239,7 +4242,7 @@ export default function App() {
         .table-wrapper { width: 100%; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; overflow-x: auto; box-sizing: border-box; }
         .tbl { width: 100%; border-collapse: collapse; table-layout: auto; min-width: 100%; }
         .tbl th { background: #f1f5f9; border-bottom: 1px solid #cbd5e1; color: #475569; font-weight: bold; font-size: 10px; padding: 3px 4px !important; white-space: nowrap; }
-        .tbl-satis { table-layout: fixed !important; }
+        .tbl-satis { table-layout: fixed !important; width: 100% !important; min-width: 0 !important; }
         .tbl-satis th { background: #5b9bd5 !important; color: white !important; }
         .tbl-satis th:nth-child(1), .tbl-satis td:nth-child(1) { width: 12%; text-align: center; }
         .tbl-satis th:nth-child(2), .tbl-satis td:nth-child(2) { width: 30%; }
@@ -4248,6 +4251,7 @@ export default function App() {
         .tbl-satis th:nth-child(5), .tbl-satis td:nth-child(5) { width: 14%; }
         .tbl-satis th:nth-child(6), .tbl-satis td:nth-child(6) { width: 10%; }
         .tbl-satis th:nth-child(7), .tbl-satis td:nth-child(7) { width: 6%; }
+        .tbl-uretim { table-layout: fixed !important; width: 100% !important; min-width: 0 !important; }
         .tbl-analiz th { background: #8b5cf6 !important; color: white !important; }
         .tbl td { font-size: 11px; border-bottom: 1px solid #f1f5f9; padding: 3px 4px !important; white-space: nowrap; vertical-align: middle; }
         
@@ -4288,11 +4292,23 @@ export default function App() {
           .compact-totals.two .c-kutu { flex: 0 0 calc((100% - 4px) / 2) !important; width: calc((100% - 4px) / 2) !important; }
           .tbl-satis th:nth-child(1), .tbl-satis td:nth-child(1) { width: 9% !important; }
           .tbl-satis th:nth-child(2), .tbl-satis td:nth-child(2) { width: 31% !important; }
-          .tbl-satis th:nth-child(3), .tbl-satis td:nth-child(3) { width: 15% !important; font-size: 9px !important; }
-          .tbl-satis th:nth-child(4), .tbl-satis td:nth-child(4) { width: 14% !important; font-size: 9px !important; }
-          .tbl-satis th:nth-child(5), .tbl-satis td:nth-child(5) { width: 17% !important; font-size: 9px !important; }
-          .tbl-satis th:nth-child(6), .tbl-satis td:nth-child(6) { width: 8% !important; font-size: 9px !important; }
+          .tbl-satis th:nth-child(3), .tbl-satis td:nth-child(3) { width: 15% !important; font-size: 10px !important; }
+          .tbl-satis th:nth-child(4), .tbl-satis td:nth-child(4) { width: 14% !important; font-size: 10px !important; }
+          .tbl-satis th:nth-child(5), .tbl-satis td:nth-child(5) { width: 17% !important; font-size: 10px !important; }
+          .tbl-satis th:nth-child(6), .tbl-satis td:nth-child(6) { width: 8% !important; font-size: 10px !important; }
           .tbl-satis th:nth-child(7), .tbl-satis td:nth-child(7) { width: 5% !important; }
+          .tbl-satis td:nth-child(3),
+          .tbl-satis td:nth-child(4),
+          .tbl-satis td:nth-child(5) { font-weight: 700; }
+          .tbl-uretim th:nth-child(1), .tbl-uretim td:nth-child(1) { width: 8% !important; }
+          .tbl-uretim th:nth-child(2), .tbl-uretim td:nth-child(2) { width: 12% !important; font-size: 9px !important; }
+          .tbl-uretim th:nth-child(3), .tbl-uretim td:nth-child(3) { width: 12% !important; font-size: 9px !important; }
+          .tbl-uretim th:nth-child(4), .tbl-uretim td:nth-child(4) { width: 9% !important; font-size: 9px !important; }
+          .tbl-uretim th:nth-child(5), .tbl-uretim td:nth-child(5) { width: 9% !important; font-size: 9px !important; }
+          .tbl-uretim th:nth-child(6), .tbl-uretim td:nth-child(6) { width: 16% !important; font-size: 9px !important; }
+          .tbl-uretim th:nth-child(7), .tbl-uretim td:nth-child(7) { width: 14% !important; font-size: 9px !important; }
+          .tbl-uretim th:nth-child(8), .tbl-uretim td:nth-child(8) { width: 15% !important; }
+          .tbl-uretim th:nth-child(9), .tbl-uretim td:nth-child(9) { width: 5% !important; }
           .tbl-personel th:nth-child(1), .tbl-personel td:nth-child(1) { width: 13% !important; }
           .tbl-personel th:nth-child(2), .tbl-personel td:nth-child(2),
           .tbl-personel th:nth-child(3), .tbl-personel td:nth-child(3),
