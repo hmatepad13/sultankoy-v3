@@ -556,10 +556,6 @@ export default function App() {
 
   const [activeFilterModal, setActiveFilterModal] = useState<'sut_ciftlik' | 'fis_bayi' | 'analiz_bayi' | 'analiz_urun' | 'sut_tarih' | 'fis_tarih' | 'analiz_tarih' | null>(null);
 
-  const closeAllDropdowns = () => {
-    setOpenDropdown(null);
-  };
-
   const bayiSecimModalAc = (hedef: "fis" | "tahsilat") => {
     setBayiSecimModal({ hedef, arama: "" });
   };
@@ -609,6 +605,25 @@ export default function App() {
       document.removeEventListener("touchstart", handleDisTiklama);
     };
   }, [isDigerUrunMenuOpen]);
+
+  useEffect(() => {
+    if (!openDropdown) return;
+
+    const handleDropdownDisTiklama = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Element | null;
+      if (!target) return;
+      if (target.closest(".dropdown-menu") || target.closest(".actions-cell")) return;
+      setOpenDropdown(null);
+    };
+
+    document.addEventListener("mousedown", handleDropdownDisTiklama);
+    document.addEventListener("touchstart", handleDropdownDisTiklama, { passive: true });
+
+    return () => {
+      document.removeEventListener("mousedown", handleDropdownDisTiklama);
+      document.removeEventListener("touchstart", handleDropdownDisTiklama);
+    };
+  }, [openDropdown]);
 
   const handleIdleLogout = useEffectEvent(() => {
     void cikisYap("10 dakika işlem yapılmadığı için güvenlik amacıyla oturum kapatıldı.");
@@ -3404,7 +3419,7 @@ export default function App() {
   }
   
   return (
-    <div className="app-container" onClick={closeAllDropdowns}>
+    <div className="app-container">
       <header className="header-style">
         <b style={{ color: temaRengi, fontSize: "18px", marginLeft: "10px" }}>SULTANKÖY V3</b>
         <div style={{display: 'flex', gap: '10px', alignItems: 'center', marginRight: '10px'}}>
