@@ -4502,7 +4502,10 @@ export default function App() {
                     <tr>
                       <th style={{ textAlign: "left", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>Tarih</th>
                       <th style={{ textAlign: "left", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>Fiş No</th>
-                      <th style={{ textAlign: "left", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>Ürün</th>
+                      <th style={{ textAlign: "left", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>
+                        <div>Ürün</div>
+                        <div style={{ fontSize: "9px", fontWeight: "normal", color: "#94a3b8", marginTop: "1px" }}>(adet/tutar)</div>
+                      </th>
                       <th style={{ textAlign: "right", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>Tutar</th>
                       <th style={{ textAlign: "right", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>Tahsilat</th>
                       <th style={{ textAlign: "right", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>Fişten Kalan Borç</th>
