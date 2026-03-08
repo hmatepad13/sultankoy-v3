@@ -4510,8 +4510,13 @@ export default function App() {
                             <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9", lineHeight: 1.25 }}>
                               {hareket.urunSatirlari.length > 0 ? (
                                 hareket.urunSatirlari.map((urun, urunIndex) => (
-                                  <div key={`${hareket.fisNo}-${urun.isim}-${urunIndex}`} style={{ fontSize: "10px", color: "#334155", whiteSpace: "nowrap" }}>
-                                    {urun.isim} ({fSayi(urun.adet)}/{fSayi(urun.tutar)})
+                                  <div key={`${hareket.fisNo}-${urun.isim}-${urunIndex}`} style={{ marginBottom: urunIndex === hareket.urunSatirlari.length - 1 ? 0 : "3px" }}>
+                                    <div style={{ fontSize: "10px", color: "#334155", fontWeight: "bold", whiteSpace: "nowrap" }}>
+                                      {urun.isim}
+                                    </div>
+                                    <div style={{ fontSize: "9px", color: "#64748b", whiteSpace: "nowrap" }}>
+                                      ({fSayi(urun.adet)}/{fSayi(urun.tutar)})
+                                    </div>
                                   </div>
                                 ))
                               ) : (
