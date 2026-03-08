@@ -3437,16 +3437,18 @@ export default function App() {
         onClick={() => setOzetMiniDetay(null)}
       >
         <div
-          style={{ background: "#fff", borderRadius: "12px", width: "100%", maxWidth: "320px", padding: "14px", border: "1px solid #dbeafe", boxShadow: "0 14px 30px rgba(15, 23, 42, 0.14)" }}
+          style={{ position: "relative", background: "#fff", borderRadius: "10px", width: "100%", maxWidth: "250px", padding: "10px 10px 9px", border: "1px solid #dbeafe", boxShadow: "0 12px 24px rgba(15, 23, 42, 0.12)" }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-            <h4 style={{ margin: 0, color: ozetMiniDetay.renk, fontSize: "14px" }}>{ozetMiniDetay.baslik}</h4>
-            <button onClick={() => setOzetMiniDetay(null)} style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: "18px", padding: 0 }}>✕</button>
-          </div>
-          <div style={{ display: "grid", gap: "6px" }}>
+          <button
+            onClick={() => setOzetMiniDetay(null)}
+            style={{ position: "absolute", top: "6px", right: "7px", background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: "15px", lineHeight: 1, padding: 0 }}
+          >
+            ✕
+          </button>
+          <div style={{ display: "grid", gap: "5px", paddingTop: "2px" }}>
             {ozetMiniDetay.satirlar.map((satir) => (
-              <div key={`${ozetMiniDetay.baslik}-${satir.etiket}`} style={{ display: "flex", justifyContent: "space-between", gap: "12px", fontSize: satir.vurgu ? "12px" : "11px", fontWeight: satir.vurgu ? "bold" : "normal", color: satir.vurgu ? ozetMiniDetay.renk : "#334155", paddingTop: satir.vurgu ? "6px" : 0, borderTop: satir.vurgu ? "1px dashed #cbd5e1" : "none" }}>
+              <div key={`${satir.etiket}-${satir.deger}`} style={{ display: "flex", justifyContent: "space-between", gap: "10px", fontSize: satir.vurgu ? "11px" : "10px", fontWeight: satir.vurgu ? "bold" : "normal", color: satir.vurgu ? ozetMiniDetay.renk : "#334155", paddingTop: satir.vurgu ? "5px" : 0, borderTop: satir.vurgu ? "1px dashed #cbd5e1" : "none" }}>
                 <span>{satir.etiket}</span>
                 <span>{satir.deger}</span>
               </div>
@@ -4274,8 +4276,8 @@ export default function App() {
         .c-kutu { flex: 1; background: #fff; padding: 8px 6px; border-radius: 14px; border: 1px solid #cbd5e1; border-left-width: 4px; display: flex; flex-direction: column; justify-content: center; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02); text-align: center; min-width: 0; }
         .c-kutu span { font-size: 8.5px; color: #64748b; font-weight: bold; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
         .c-kutu b { font-size: 12px; line-height: 1.15; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
-        .summary-c .c-kutu span { font-size: 10px; }
-        .summary-c .c-kutu b { font-size: 14px; }
+        .summary-c .c-kutu span { font-size: 12px; }
+        .summary-c .c-kutu b { font-size: 16px; }
         
         .table-wrapper { width: 100%; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; overflow-x: auto; box-sizing: border-box; }
         .tbl { width: 100%; border-collapse: collapse; table-layout: auto; min-width: 100%; }
@@ -4323,8 +4325,8 @@ export default function App() {
           .c-kutu { border-radius: 14px !important; padding: 7px 4px !important; min-width: 0 !important; }
           .c-kutu span { font-size: 7px !important; margin-bottom: 1px !important; }
           .c-kutu b { font-size: 10px !important; }
-          .summary-c .c-kutu span { font-size: 8px !important; }
-          .summary-c .c-kutu b { font-size: 11px !important; }
+          .summary-c .c-kutu span { font-size: 10px !important; }
+          .summary-c .c-kutu b { font-size: 13px !important; }
           .compact-totals.three .c-kutu { flex: 0 0 calc((100% - 8px) / 3) !important; width: calc((100% - 8px) / 3) !important; }
           .compact-totals.two .c-kutu { flex: 0 0 calc((100% - 4px) / 2) !important; width: calc((100% - 4px) / 2) !important; }
           .tbl-satis th:nth-child(1), .tbl-satis td:nth-child(1) { width: 9% !important; }
