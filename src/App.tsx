@@ -1339,10 +1339,12 @@ export default function App() {
         yag: sonKaymak?.tereyag_fiyat || "",
         katki: sonKaymak?.katki_fiyat || "",
         krema: sonKaymak?.krema_fiyat || "",
-        diger: sonKaymak?.diger_fiyat || "",
-        satis2: sonKaymak?.satis_2_fiyat || "",
-        satis3: sonKaymak?.satis_3_fiyat || "",
-      },
+      diger: sonKaymak?.diger_fiyat || "",
+      paket2: sonKaymak?.paket_2_fiyat || "",
+      paket3: sonKaymak?.paket_3_fiyat || "",
+      satis2: sonKaymak?.satis_2_fiyat || "",
+      satis3: sonKaymak?.satis_3_fiyat || "",
+    },
     };
   }, [uretimList]);
 
