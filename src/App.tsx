@@ -4516,8 +4516,13 @@ export default function App() {
                       <>
                         {musteriEkstreData.hareketler.map((hareket, index) => (
                           <tr key={`${hareket.fisNo}-${index}`}>
-                            <td style={{ padding: "6px 3px", borderBottom: "1px solid #f1f5f9", fontSize: "9px", whiteSpace: "nowrap" }}>{hareket.tarih.split("-").reverse().join(".")}</td>
-                            <td style={{ padding: "6px 3px", borderBottom: "1px solid #f1f5f9", fontSize: "9px", color: "#64748b", whiteSpace: "nowrap" }}>{hareket.fisNo}</td>
+                            <td style={{ padding: "6px 3px", borderBottom: "1px solid #f1f5f9", fontSize: "9px", whiteSpace: "nowrap" }}>
+                              {(() => {
+                                const parcalar = String(hareket.tarih || "").split("-");
+                                return parcalar.length === 3 ? `${parcalar[2]}.${parcalar[1]}` : hareket.tarih;
+                              })()}
+                            </td>
+                            <td style={{ padding: "6px 3px", borderBottom: "1px solid #f1f5f9", fontSize: "8px", color: "#64748b", whiteSpace: "nowrap" }}>{hareket.fisNo}</td>
                             <td style={{ padding: "6px 3px", borderBottom: "1px solid #f1f5f9", lineHeight: 1.25 }}>
                               {hareket.urunSatirlari.length > 0 ? (
                                 hareket.urunSatirlari.map((urun, urunIndex) => (
