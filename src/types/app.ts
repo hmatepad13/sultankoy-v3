@@ -22,11 +22,6 @@ export interface AdminKullanici {
   lastSignInAt?: string | null;
 }
 
-export interface LoginKullaniciSecenegi {
-  value: string;
-  label: string;
-}
-
 export interface Ciftlik {
   id: string;
   isim: string;
