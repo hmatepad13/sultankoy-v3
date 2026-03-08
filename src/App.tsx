@@ -4381,8 +4381,7 @@ export default function App() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px' }}>
                   {urunler.map(u => {
                     const isimLower = u.isim.toLowerCase();
-                    const isFixed = (isimLower.includes("3 kg") || isimLower.includes("5 kg") || (isimLower.includes("kayma") && !isimLower.includes("yoğurt")));
-                    const isVarsayilanUrun = isFixed && (isimLower.includes("3 kg") || isimLower.includes("5 kg"));
+                    const isVarsayilanUrun = isimLower.includes("3 kg yoğurt") || isimLower.includes("5 kg yoğurt");
                     const isTereyagi = isimLower.includes("tereya");
                     const isYogurtKaymagi = isimLower.includes("yoğurt kayma");
                     const isFilled = (Number(fisDetay[u.id]?.adet) > 0 || Number(fisDetay[u.id]?.kg) > 0);
@@ -4425,8 +4424,7 @@ export default function App() {
                       {(() => {
                         const digerSecenekler = aktifUrunler.filter(u => {
                           const isimLower = u.isim.toLowerCase();
-                          const isFixed = (isimLower.includes("3 kg") || isimLower.includes("5 kg") || (isimLower.includes("kayma") && !isimLower.includes("yoğurt")));
-                          const isVarsayilanUrun = isFixed && (isimLower.includes("3 kg") || isimLower.includes("5 kg"));
+                          const isVarsayilanUrun = isimLower.includes("3 kg yoğurt") || isimLower.includes("5 kg yoğurt");
                           const isTereyagi = isimLower.includes("tereya");
                           const isYogurtKaymagi = isimLower.includes("yoğurt kayma");
                           const isFilled = (Number(fisDetay[u.id]?.adet) > 0 || Number(fisDetay[u.id]?.kg) > 0);
