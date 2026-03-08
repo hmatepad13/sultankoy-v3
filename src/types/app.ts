@@ -86,6 +86,7 @@ export interface Gider {
   aciklama: string;
   tutar: number | string;
   ekleyen?: string;
+  gorsel?: string | null;
 }
 
 export interface Uretim {

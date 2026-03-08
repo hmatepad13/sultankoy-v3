@@ -476,6 +476,23 @@ export default function App() {
   const [isDigerUrunMenuOpen, setIsDigerUrunMenuOpen] = useState(false);
   const digerUrunMenuRef = useRef<HTMLDivElement | null>(null);
   const [sonFisData, setSonFisData] = useState<any>(null);
+  const [musteriEkstreData, setMusteriEkstreData] = useState<null | {
+    musteri: string;
+    donem: string;
+    donemBasi: number;
+    toplamSatis: number;
+    toplamTahsilat: number;
+    donemSonu: number;
+    hareketler: Array<{
+      tarih: string;
+      fisNo: string;
+      islem: string;
+      aciklama: string;
+      borc: number;
+      tahsilat: number;
+      bakiye: number;
+    }>;
+  }>(null);
   const [bayiSecimModal, setBayiSecimModal] = useState<{ hedef: "fis" | "tahsilat" | null; arama: string }>({
     hedef: null,
     arama: "",
@@ -495,6 +512,8 @@ export default function App() {
   const [isGiderModalOpen, setIsGiderModalOpen] = useState<boolean>(false);
   const [editingGiderId, setEditingGiderId] = useState<any>(null);
   const [giderForm, setGiderForm] = useState<Gider>({ tarih: aktifDonemTarihi(), tur: "Genel Gider", aciklama: "", tutar: "" });
+  const [giderGorselDosya, setGiderGorselDosya] = useState<File | null>(null);
+  const [giderGorselMevcutYol, setGiderGorselMevcutYol] = useState("");
   const [giderSort, setGiderSort] = useState<SortConfig>({ key: 'tarih', direction: 'desc' });
   const giderTurleri = useMemo(() => {
     const veritabaniTurleri = giderTuruListesi
@@ -879,6 +898,19 @@ export default function App() {
     );
   };
 
+  const kolonBulunamadiMi = (
+    hata: { message?: string } | null | undefined,
+    tabloAdi: string,
+    kolonAdi: string,
+  ) => {
+    const mesaj = String(hata?.message || "").toLowerCase();
+    return (
+      (mesaj.includes(`'${kolonAdi.toLowerCase()}'`) && mesaj.includes("schema cache")) ||
+      (mesaj.includes(`column "${kolonAdi.toLowerCase()}"`) && mesaj.includes(tabloAdi.toLowerCase())) ||
+      (mesaj.includes(kolonAdi.toLowerCase()) && mesaj.includes(tabloAdi.toLowerCase()) && mesaj.includes("could not find"))
+    );
+  };
+
   const depolamaDurumunuGetir = async (force = false) => {
     if (isDepolamaLoading) return;
     if (!force && depolamaDurumu) return;
@@ -1026,7 +1058,7 @@ export default function App() {
   const bayiBorclari = useMemo(() => {
     const { bakiyeler, labels } = hesaplaMusteriBakiyeleri(satisFisList, aktifDonem);
     return Object.keys(bakiyeler)
-        .map((k) => ({ isim: labels[k] || k, borc: bakiyeler[k] }))
+        .map((k) => ({ anahtar: k, isim: labels[k] || k, borc: bakiyeler[k] }))
         .filter((b) => Math.abs(b.borc) > 0.01)
         .sort((a, b) => b.borc - a.borc);
   }, [aktifDonem, hesaplaMusteriBakiyeleri, satisFisList]);
@@ -1051,6 +1083,89 @@ export default function App() {
       return ozetBorcSort.direction === "asc" ? sonuc : -sonuc;
     });
   }, [bayiBorclari, ozetBorcFiltre.bayiler, ozetBorcSort]);
+
+  const musteriEkstreHesapla = useCallback((bayiAnahtar: string, musteriAdi: string) => {
+    const donemBaslangici = `${aktifDonem}-01`;
+    const ilgiliFisler = [...satisFisList]
+      .filter((fis) => {
+        if (satisFisBayiAnahtariGetir(fis) !== bayiAnahtar) return false;
+        if (fisKasayaDevirMi(fis)) return false;
+        return !sistemIslemiMi(satisFisBayiAdiGetir(fis)) || fisDonemDevirMi(fis);
+      })
+      .sort((a, b) => {
+        const tarihKarsilastirma = String(a.tarih || "").localeCompare(String(b.tarih || ""));
+        if (tarihKarsilastirma !== 0) return tarihKarsilastirma;
+        const createdAtKarsilastirma = String((a as any).created_at || "").localeCompare(String((b as any).created_at || ""));
+        if (createdAtKarsilastirma !== 0) return createdAtKarsilastirma;
+        return sayiDegeri((a as any).id) - sayiDegeri((b as any).id);
+      });
+
+    let donemBasi = 0;
+    let birikimliBakiye = 0;
+
+    ilgiliFisler.forEach((fis) => {
+      if (!fis.tarih || fis.tarih >= donemBaslangici) return;
+      if (fisDonemDevirMi(fis)) {
+        birikimliBakiye = Number(fis.kalan_bakiye || 0);
+      } else {
+        birikimliBakiye += Number(fis.kalan_bakiye || 0);
+      }
+    });
+
+    donemBasi = birikimliBakiye;
+
+    const donemFisleri = ilgiliFisler.filter((fis) => String(fis.tarih || "").startsWith(aktifDonem));
+    const donemDevirFis = donemFisleri.find((fis) => fisDonemDevirMi(fis));
+    if (donemDevirFis) {
+      donemBasi = Number(donemDevirFis.kalan_bakiye || 0);
+      birikimliBakiye = donemBasi;
+    }
+
+    const hareketler = donemFisleri
+      .filter((fis) => !fisDevirMi(fis))
+      .map((fis) => {
+        const borc = Number(fis.toplam_tutar || 0);
+        const tahsilat = Number(fis.tahsilat || 0);
+        birikimliBakiye += Number(fis.kalan_bakiye || 0);
+        const aciklama = String(fis.aciklama || "")
+          .replace(/\[Ödeme: .*?\]\s*-\s*/gi, "")
+          .replace(/\[Ödeme: .*?\]/gi, "")
+          .replace(/\[Odeme: .*?\]\s*-\s*/gi, "")
+          .replace(/\[Odeme: .*?\]/gi, "")
+          .replace(/\[Teslim Alan: .*?\]\s*-\s*/gi, "")
+          .replace(/\[Teslim Alan: .*?\]/gi, "")
+          .replace(/\[Sadece Tahsilat\]\s*-\s*/gi, "")
+          .replace(/\[Sadece Tahsilat\]/gi, "")
+          .trim();
+        const islem = borc > 0 ? "Satis" : "Tahsilat";
+        return {
+          tarih: fis.tarih,
+          fisNo: gorunenFisNoOlustur(fis),
+          islem,
+          aciklama: aciklama || (islem === "Tahsilat" ? "Tahsilat Islemi" : "-"),
+          borc,
+          tahsilat,
+          bakiye: birikimliBakiye,
+        };
+      });
+
+    const toplamSatis = hareketler.reduce((toplam, hareket) => toplam + hareket.borc, 0);
+    const toplamTahsilat = hareketler.reduce((toplam, hareket) => toplam + hareket.tahsilat, 0);
+
+    return {
+      musteri: musteriAdi,
+      donem: aktifDonem,
+      donemBasi,
+      toplamSatis,
+      toplamTahsilat,
+      donemSonu: birikimliBakiye,
+      hareketler,
+    };
+  }, [aktifDonem, satisFisBayiAdiGetir, satisFisBayiAnahtariGetir, satisFisList]);
+
+  const handleMusteriEkstreAc = useCallback((bayiAnahtar: string, musteriAdi: string) => {
+    setMusteriEkstreData(musteriEkstreHesapla(bayiAnahtar, musteriAdi));
+  }, [musteriEkstreHesapla]);
 
   const satisFisToplamBorcMap = useMemo(() => {
     return hesaplaMusteriBakiyeleri(satisFisList).map;
@@ -1151,6 +1266,7 @@ export default function App() {
 
   const fSayi = (num: any) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 2 }).format(Number(num) || 0).replace(/,00$/, '');
   const fSayiNoDec = (num: any) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(Number(num) || 0);
+  const donemMetni = (donem: string) => donem.replace("-", " / ");
   const paraGirdisiniTemizle = (value: string) => {
     const temiz = String(value || "")
       .replace(/[^\d,.-]/g, "")
@@ -1372,11 +1488,63 @@ export default function App() {
     if (editingGiderId && !kaydiDuzenleyebilirMi(duzenlenenKayit?.ekleyen)) {
       return alert("Bu gider kaydını sadece ekleyen kullanıcı veya admin düzenleyebilir.");
     }
-    const p = { ...giderForm, tutar: Number(giderForm.tutar), ekleyen: aktifKullaniciEposta };
-    const { error } = editingGiderId ? await supabase.from("giderler").update(p).eq("id", editingGiderId) : await supabase.from("giderler").insert(p);
-    if (error) return alert("Hata: " + error.message);
+    const oncekiGorsel = duzenlenenKayit?.gorsel || giderGorselMevcutYol || "";
+    let yuklenenGorselYolu = giderGorselMevcutYol || null;
+
+    try {
+      yuklenenGorselYolu = await giderGorseliYukle();
+    } catch (error: any) {
+      alert(`Gider görseli yüklenemedi: ${error?.message || "Bilinmeyen hata"}`);
+      return;
+    }
+
+    const giderPayload = {
+      ...giderForm,
+      tutar: Number(giderForm.tutar),
+      ekleyen: aktifKullaniciEposta,
+      gorsel: yuklenenGorselYolu,
+    };
+
+    const kaydet = (payload: typeof giderPayload) =>
+      editingGiderId
+        ? supabase.from("giderler").update(payload).eq("id", editingGiderId)
+        : supabase.from("giderler").insert(payload);
+
+    let { error } = await kaydet(giderPayload);
+
+    if (error && kolonBulunamadiMi(error, "giderler", "gorsel")) {
+      if (giderGorselDosya || giderGorselMevcutYol) {
+        if (giderGorselDosya && yuklenenGorselYolu && yuklenenGorselYolu !== oncekiGorsel) {
+          await fisGorseliniSil(yuklenenGorselYolu);
+        }
+        alert("Gider görseli kolonu veritabanında yok. Önce SQL dosyasını çalıştırın: add-gider-gorseli-column.sql");
+        return;
+      }
+
+      const sonuc = await kaydet({
+        ...giderPayload,
+        gorsel: undefined,
+      } as any);
+      error = sonuc.error;
+    }
+
+    if (error) {
+      if (giderGorselDosya && yuklenenGorselYolu && yuklenenGorselYolu !== oncekiGorsel) {
+        await fisGorseliniSil(yuklenenGorselYolu);
+      }
+      return alert("Hata: " + error.message);
+    }
+
+    if (editingGiderId && oncekiGorsel && oncekiGorsel !== yuklenenGorselYolu) {
+      await fisGorseliniSil(oncekiGorsel);
+    }
+
     setGiderForm({ tarih: aktifDonemTarihi(), tur: "Genel Gider", aciklama: "", tutar: "" });
-    setEditingGiderId(null); setIsGiderModalOpen(false); verileriGetir("gider");
+    setGiderGorselDosya(null);
+    setGiderGorselMevcutYol("");
+    setEditingGiderId(null);
+    setIsGiderModalOpen(false);
+    verileriGetir("gider");
   }
 
   const uretimSonFiyatlar = useMemo(() => {
@@ -1760,6 +1928,12 @@ export default function App() {
     return fisGorselMevcutYol.split("/").pop() || fisGorselMevcutYol;
   }, [fisGorselDosya, fisGorselMevcutYol]);
 
+  const giderGorselDosyaAdi = useMemo(() => {
+    if (giderGorselDosya?.name) return giderGorselDosya.name;
+    if (!giderGorselMevcutYol) return "";
+    return giderGorselMevcutYol.split("/").pop() || giderGorselMevcutYol;
+  }, [giderGorselDosya, giderGorselMevcutYol]);
+
   const fisGorselStorageYolu = (raw?: string | null) => {
     if (!raw) return "";
 
@@ -1796,6 +1970,22 @@ export default function App() {
   const handleFisGorselTemizle = () => {
     setFisGorselDosya(null);
     setFisGorselMevcutYol("");
+  };
+
+  const handleGiderGorselSec = (event: ChangeEvent<HTMLInputElement>) => {
+    const secilen = event.target.files?.[0];
+    event.target.value = "";
+    if (!secilen) return;
+    if (!secilen.type.startsWith("image/")) {
+      alert("Lütfen sadece görsel dosyası seçin.");
+      return;
+    }
+    setGiderGorselDosya(secilen);
+  };
+
+  const handleGiderGorselTemizle = () => {
+    setGiderGorselDosya(null);
+    setGiderGorselMevcutYol("");
   };
 
   const fisGorseliniSil = async (yol?: string | null) => {
@@ -1836,9 +2026,57 @@ export default function App() {
     setFisGorselOnizleme({ url: data.signedUrl, baslik });
   };
 
+  const handleGiderGorselGoster = async (gider: Gider) => {
+    if (!gider.gorsel) return;
+
+    const raw = gider.gorsel;
+    const storageYolu = fisGorselStorageYolu(raw);
+    const baslik = `${gider.tur || "Gider"} • ${gider.tarih ? gider.tarih.split("-").reverse().join(".") : ""}`;
+
+    if (!storageYolu && (raw.startsWith("http://") || raw.startsWith("https://"))) {
+      setFisGorselOnizleme({ url: raw, baslik });
+      return;
+    }
+
+    if (!storageYolu) {
+      alert("Gider görseli açılamadı.");
+      return;
+    }
+
+    const { data, error } = await supabase.storage
+      .from("fis_gorselleri")
+      .createSignedUrl(storageYolu, 60 * 10);
+
+    if (error || !data?.signedUrl) {
+      alert(`Gider görseli açılamadı: ${error?.message || "Bilinmeyen hata"}`);
+      return;
+    }
+
+    setFisGorselOnizleme({ url: data.signedUrl, baslik });
+  };
+
+  const giderGorseliYukle = async () => {
+    if (!giderGorselDosya) return giderGorselMevcutYol || null;
+
+    const uzanti = giderGorselDosya.name.split(".").pop()?.toLowerCase() || "jpg";
+    const tarihParcasi = String(giderForm.tarih || getLocalDateString()).replace(/-/g, "");
+    const turSlug = dosyaAdiIcinTemizle(giderForm.tur || "gider");
+    const kullaniciSlug = dosyaAdiIcinTemizle(aktifKullaniciKisa || aktifKullaniciEposta || "kullanici");
+    const rastgeleEk = Math.random().toString(36).slice(2, 8).toUpperCase();
+    const dosyaYolu = `giderler/${turSlug}/${tarihParcasi}-${turSlug}-${kullaniciSlug}-${rastgeleEk}.${uzanti}`;
+
+    const { error } = await supabase.storage.from("fis_gorselleri").upload(dosyaYolu, giderGorselDosya, {
+      contentType: giderGorselDosya.type,
+      upsert: false,
+    });
+
+    if (error) throw error;
+    return dosyaYolu;
+  };
+
   const handleKayitSil = async (
     tablo: "sut_giris" | "giderler" | "uretim",
-    kayit: { id?: string; ekleyen?: string | null },
+    kayit: { id?: string; ekleyen?: string | null; gorsel?: string | null },
     hedef: "sut" | "gider" | "uretim",
   ) => {
     if (!kaydiSilebilirMi(kayit.ekleyen)) {
@@ -1857,6 +2095,10 @@ export default function App() {
     if (error) {
       alert(`Silme hatası: ${veritabaniHatasiMesaji(tablo, error)}`);
       return;
+    }
+
+    if (tablo === "giderler" && kayit.gorsel) {
+      await fisGorseliniSil(kayit.gorsel);
     }
 
     verileriGetir(hedef);
@@ -2382,23 +2624,42 @@ export default function App() {
     verileriGetir("satis"); verileriGetir("cop");
   }
 
-  const handleWhatsappResimGonder = () => {
-    const fisElement = document.getElementById("print-receipt");
-    if (!fisElement) return;
-    if (typeof (window as any).html2canvas !== "undefined") {
-      (window as any).html2canvas(fisElement, { scale: 3, backgroundColor: "#ffffff" }).then((canvas: any) => {
-        canvas.toBlob((blob: Blob | null) => {
-          if (!blob) return;
-          const file = new File([blob], `Fis_${sonFisData?.fis_no || Date.now()}.jpg`, { type: "image/jpeg" });
-          if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-              navigator.share({ title: 'Fiş Özeti', files: [file] }).catch(() => {});
-          } else { 
-              const link = document.createElement("a"); link.download = file.name; link.href = canvas.toDataURL("image/jpeg", 0.9); link.click(); 
-          }
-        }, "image/jpeg", 0.9);
-      });
-    } else alert("Yükleniyor, tekrar deneyin.");
+  const goruntuyuJpegOlarakPaylas = async (elementId: string, dosyaAdi: string, baslik: string) => {
+    const hedefElement = document.getElementById(elementId);
+    if (!hedefElement) return;
+    if (typeof (window as any).html2canvas === "undefined") {
+      alert("Yukleniyor, tekrar deneyin.");
+      return;
+    }
+
+    const canvas = await (window as any).html2canvas(hedefElement, { scale: 3, backgroundColor: "#ffffff" });
+    canvas.toBlob((blob: Blob | null) => {
+      if (!blob) return;
+      const file = new File([blob], dosyaAdi, { type: "image/jpeg" });
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({ title: baslik, files: [file] }).catch(() => {});
+        return;
+      }
+      const link = document.createElement("a");
+      link.download = file.name;
+      link.href = canvas.toDataURL("image/jpeg", 0.9);
+      link.click();
+    }, "image/jpeg", 0.9);
   };
+
+  const handleWhatsappResimGonder = () =>
+    goruntuyuJpegOlarakPaylas(
+      "print-receipt",
+      `Fis_${sonFisData?.fis_no || Date.now()}.jpg`,
+      "Fis Ozeti",
+    );
+
+  const handleMusteriEkstrePaylas = () =>
+    goruntuyuJpegOlarakPaylas(
+      "print-customer-statement",
+      `Ekstre_${dosyaAdiIcinTemizle(musteriEkstreData?.musteri || "musteri")}_${musteriEkstreData?.donem || aktifDonem}.jpg`,
+      "Musteri Ekstresi",
+    );
 
   const filteredForTotals = useMemo(() => periodSatisFis.filter((f: any) => {
     const isBayiMatch = fisFiltre.bayiler.length === 0 || fisFiltre.bayiler.includes(satisFisBayiAdiGetir(f));
@@ -2794,11 +3055,12 @@ export default function App() {
                   align="right"
                   compact
                 />
+                <th style={{ width: "34px" }}></th>
               </tr>
             </thead>
             <tbody>
-              {filtrelenmisBayiBorclari.map((b, i) => (
-                <tr key={i}>
+              {filtrelenmisBayiBorclari.map((b) => (
+                <tr key={b.anahtar}>
                   <td>
                     <b className="truncate-text" style={{ fontSize: "12px" }}>{b.isim}</b>
                   </td>
@@ -2807,11 +3069,36 @@ export default function App() {
                       {fSayi(b.borc)} ₺
                     </b>
                   </td>
+                  <td className="actions-cell" style={{ position: "relative" }}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenDropdown({ type: "ozet_borc", id: b.anahtar });
+                      }}
+                      style={{ background: "none", border: "none", cursor: "pointer", fontSize: "18px", padding: "0 6px", color: "#64748b" }}
+                    >
+                      ⋮
+                    </button>
+                    {openDropdown?.type === "ozet_borc" && openDropdown.id === b.anahtar && (
+                      <div className="dropdown-menu">
+                        <button
+                          title="Ekstre"
+                          className="dropdown-item-icon"
+                          onClick={() => {
+                            setOpenDropdown(null);
+                            handleMusteriEkstreAc(b.anahtar, b.isim);
+                          }}
+                        >
+                          🧾
+                        </button>
+                      </div>
+                    )}
+                  </td>
                 </tr>
               ))}
               {filtrelenmisBayiBorclari.length === 0 && (
                 <tr>
-                  <td colSpan={2} style={{ color: "#94a3b8", fontSize: "12px", textAlign: "center" }}>
+                  <td colSpan={3} style={{ color: "#94a3b8", fontSize: "12px", textAlign: "center" }}>
                     Açık hesap bulunmuyor.
                   </td>
                 </tr>
@@ -3051,7 +3338,7 @@ export default function App() {
           <button onClick={() => setGiderFiltreKisi('benim')} style={{ flex: 1, padding: '8px 10px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', background: giderFiltreKisi==='benim'?'#dc2626':'transparent', color: giderFiltreKisi==='benim'?'#fff':'#475569' }}>Benim</button>
           <button onClick={() => setGiderFiltreKisi('tumu')} style={{ flex: 1, padding: '8px 10px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', background: giderFiltreKisi==='tumu'?'#dc2626':'transparent', color: giderFiltreKisi==='tumu'?'#fff':'#475569' }}>Tümü</button>
         </div>
-        <button onClick={() => { setGiderForm({ tarih: aktifDonemTarihi(), tur: "Genel Gider", aciklama: "", tutar: "" }); setEditingGiderId(null); setIsGiderModalOpen(true); }} className="btn-anim m-btn inline-mobile-btn" style={{ background: "#dc2626", margin: 0, width: "auto", minWidth: "136px", flex: "0 0 auto", fontSize: "13px", padding: "10px 12px" }}>➕ YENİ GİDER EKLE</button>
+        <button onClick={() => { setGiderForm({ tarih: aktifDonemTarihi(), tur: "Genel Gider", aciklama: "", tutar: "" }); setGiderGorselDosya(null); setGiderGorselMevcutYol(""); setEditingGiderId(null); setIsGiderModalOpen(true); }} className="btn-anim m-btn inline-mobile-btn" style={{ background: "#dc2626", margin: 0, width: "auto", minWidth: "136px", flex: "0 0 auto", fontSize: "13px", padding: "10px 12px" }}>➕ YENİ GİDER EKLE</button>
         <div className="gider-ust-ozet" style={{ border: "1px solid #dc262633", background: "#dc262610", color: "#dc2626", borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", flex: "1 1 auto", minWidth: "110px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
           GİDERLER: {fSayi(fGTutarNormal)} ₺
         </div>
@@ -3079,7 +3366,8 @@ export default function App() {
                <button onClick={(e) => { e.stopPropagation(); setOpenDropdown({ type: 'gider', id: g.id as string }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', padding: '0 8px', color: '#64748b' }}>⋮</button>
                {openDropdown?.type === 'gider' && openDropdown.id === g.id && (
                   <div className="dropdown-menu">
-                     {duzenlenebilir && <button title="Düzenle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); setEditingGiderId(g.id); setGiderForm(g as any); setIsGiderModalOpen(true); }}>✏️</button>}
+                     {g.gorsel && <button title="Fotoğrafı Gör" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); handleGiderGorselGoster(g); }}>📷</button>}
+                     {duzenlenebilir && <button title="Düzenle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); setEditingGiderId(g.id); setGiderForm(g as any); setGiderGorselDosya(null); setGiderGorselMevcutYol(g.gorsel || ""); setIsGiderModalOpen(true); }}>✏️</button>}
                      {silinebilir && <button title="Sil" className="dropdown-item-icon" style={{ color: '#dc2626' }} onClick={async () => { setOpenDropdown(null); await handleKayitSil("giderler", g, "gider"); }}>🗑️</button>}
                   </div>
                )}
@@ -4215,6 +4503,78 @@ export default function App() {
           </div>
         )}
 
+        {musteriEkstreData && (
+          <div className="print-modal-wrapper" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1300, padding: "10px" }} onClick={() => setMusteriEkstreData(null)}>
+            <div className="print-modal-content" style={{ backgroundColor: "#fff", width: "95vw", maxWidth: "430px", borderRadius: "12px", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }} onClick={(e) => e.stopPropagation()}>
+              <div id="print-customer-statement" style={{ background: "#fff", padding: "14px" }}>
+                <div style={{ textAlign: "center", borderBottom: "1px dashed #cbd5e1", paddingBottom: "10px", marginBottom: "10px" }}>
+                  <div style={{ fontSize: "18px", fontWeight: "bold", color: "#0f172a" }}>Müşteri Ekstresi</div>
+                  <div style={{ fontSize: "13px", color: "#475569", marginTop: "4px" }}>{musteriEkstreData.musteri}</div>
+                  <div style={{ fontSize: "11px", color: "#64748b", marginTop: "2px" }}>{donemMetni(musteriEkstreData.donem)}</div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "12px" }}>
+                  {[
+                    { etiket: "Dönem Başı", deger: musteriEkstreData.donemBasi, renk: "#64748b" },
+                    { etiket: "Toplam Satış", deger: musteriEkstreData.toplamSatis, renk: "#059669" },
+                    { etiket: "Toplam Tahsilat", deger: musteriEkstreData.toplamTahsilat, renk: "#2563eb" },
+                    { etiket: "Dönem Sonu", deger: musteriEkstreData.donemSonu, renk: musteriEkstreData.donemSonu > 0 ? "#dc2626" : "#059669" },
+                  ].map((item) => (
+                    <div key={item.etiket} style={{ border: "1px solid #e2e8f0", borderRadius: "10px", padding: "8px", background: "#f8fafc" }}>
+                      <div style={{ fontSize: "10px", color: "#64748b", fontWeight: "bold" }}>{item.etiket}</div>
+                      <div style={{ fontSize: "14px", fontWeight: "bold", color: item.renk, marginTop: "2px" }}>{fSayi(item.deger)} ₺</div>
+                    </div>
+                  ))}
+                </div>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px" }}>
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: "left", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>Tarih</th>
+                      <th style={{ textAlign: "left", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>Fiş No</th>
+                      <th style={{ textAlign: "left", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>İşlem</th>
+                      <th style={{ textAlign: "right", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>Borç</th>
+                      <th style={{ textAlign: "right", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>Tahsilat</th>
+                      <th style={{ textAlign: "right", padding: "6px 4px", borderBottom: "1px solid #cbd5e1", color: "#475569", fontWeight: "bold" }}>Bakiye</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {musteriEkstreData.hareketler.length > 0 ? (
+                      musteriEkstreData.hareketler.map((hareket, index) => (
+                        <tr key={`${hareket.fisNo}-${index}`}>
+                          <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9" }}>{hareket.tarih.split("-").reverse().join(".")}</td>
+                          <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9" }}>{hareket.fisNo}</td>
+                          <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9", fontWeight: "bold" }}>{hareket.islem}</td>
+                          <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9", textAlign: "right", color: hareket.borc > 0 ? "#059669" : "#94a3b8" }}>{hareket.borc > 0 ? `${fSayi(hareket.borc)} ₺` : "-"}</td>
+                          <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9", textAlign: "right", color: hareket.tahsilat > 0 ? "#2563eb" : "#94a3b8" }}>{hareket.tahsilat > 0 ? `${fSayi(hareket.tahsilat)} ₺` : "-"}</td>
+                          <td style={{ padding: "6px 4px", borderBottom: "1px solid #f1f5f9", textAlign: "right", color: hareket.bakiye > 0 ? "#dc2626" : "#059669", fontWeight: "bold" }}>{fSayi(hareket.bakiye)} ₺</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={6} style={{ textAlign: "center", padding: "18px 6px", color: "#94a3b8", fontWeight: "bold" }}>
+                          Bu dönem için hareket bulunmuyor.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <div className="no-print" style={{ padding: "12px", display: "flex", flexDirection: "column", gap: "8px", background: "#f8fafc", borderTop: "1px solid #cbd5e1" }}>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button onClick={() => window.print()} className="btn-anim" style={{ flex: 1, padding: "10px", background: "#475569", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", fontSize: "12px" }}>
+                    Yazdır
+                  </button>
+                  <button onClick={handleMusteriEkstrePaylas} className="btn-anim" style={{ flex: 1, padding: "10px", background: "#25D366", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", fontSize: "12px" }}>
+                    JPEG Paylaş
+                  </button>
+                </div>
+                <button onClick={() => setMusteriEkstreData(null)} className="btn-anim" style={{ width: "100%", padding: "8px", background: "transparent", color: "#64748b", border: "1px solid #cbd5e1", borderRadius: "8px", fontWeight: "bold", fontSize: "11px" }}>
+                  Kapat
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {isTahsilatModalOpen && (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1200, padding: "10px" }}>
             <div style={{ backgroundColor: "#fff", width: "95vw", maxWidth: "350px", borderRadius: "12px", display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease-out", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }} onClick={(e) => e.stopPropagation()}>
@@ -4260,7 +4620,26 @@ export default function App() {
                      {giderTurleri.map(t => <option key={t} value={t}>{t}</option>)}
                    </select>
                 </div>
-                <div><label style={{fontSize: "11px", color: "#64748b"}}>Tutar (₺)</label><input type="number" step="0.01" value={giderForm.tutar} onChange={e => setGiderForm({ ...giderForm, tutar: e.target.value })} className="m-inp" style={{width: "100%", textAlign: "right", color: "#dc2626", fontWeight: "bold"}} /></div>
+                <div>
+                  <label style={{fontSize: "11px", color: "#64748b"}}>Tutar (₺)</label>
+                  <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                    <input type="number" step="0.01" value={giderForm.tutar} onChange={e => setGiderForm({ ...giderForm, tutar: e.target.value })} className="m-inp" style={{flex: 1, width: "100%", textAlign: "right", color: "#dc2626", fontWeight: "bold"}} />
+                    <label className="btn-anim" style={{ background: "#e2e8f0", border: "1px solid #cbd5e1", borderRadius: "6px", padding: "8px 10px", fontSize: "11px", fontWeight: "bold", color: "#334155", cursor: "pointer", flex: "0 0 auto", whiteSpace: "nowrap" }}>
+                      <input type="file" accept="image/*" onChange={handleGiderGorselSec} style={{ display: "none" }} />
+                      {giderGorselDosyaAdi ? "Fotoğrafı Değiştir" : "Fotoğraf Yükle"}
+                    </label>
+                  </div>
+                  {giderGorselDosyaAdi && (
+                    <div style={{ display: "flex", gap: "8px", alignItems: "center", marginTop: "6px", flexWrap: "wrap" }}>
+                      <span style={{ fontSize: "11px", color: "#64748b", maxWidth: "180px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {giderGorselDosyaAdi}
+                      </span>
+                      <button type="button" onClick={handleGiderGorselTemizle} className="btn-anim" style={{ background: "transparent", border: "1px solid #fecaca", color: "#dc2626", borderRadius: "6px", padding: "6px 8px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}>
+                        Temizle
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <div><label style={{fontSize: "11px", color: "#64748b"}}>Açıklama / Not</label><input placeholder="Opsiyonel..." value={giderForm.aciklama} onChange={e => setGiderForm({ ...giderForm, aciklama: e.target.value })} className="m-inp" style={{width: "100%"}} /></div>
               </div>
               <div style={{ padding: "12px 15px", borderTop: "1px solid #e2e8f0", background: "#f8fafc", borderRadius: "0 0 12px 12px" }}>
@@ -4520,6 +4899,7 @@ export default function App() {
           .print-modal-wrapper { position: static !important; display: block !important; background: transparent !important; padding: 0 !important; }
           .print-modal-content { max-width: 100% !important; border-radius: 0 !important; box-shadow: none !important; }
           #print-receipt { border: none !important; padding: 0 !important; width: 55mm; margin: 0 auto; display: block !important; }
+          #print-customer-statement { border: none !important; padding: 0 !important; width: 100%; max-width: 180mm; margin: 0 auto; display: block !important; }
           .no-print { display: none !important; }
         }
       `}</style>
