@@ -4289,8 +4289,13 @@ export default function App() {
           .c-kutu b { font-size: 11px !important; }
           .compact-totals.three .c-kutu { flex: 0 0 calc((100% - 8px) / 3) !important; width: calc((100% - 8px) / 3) !important; }
           .compact-totals.two .c-kutu { flex: 0 0 calc((100% - 4px) / 2) !important; width: calc((100% - 4px) / 2) !important; }
-          .tbl-satis th:nth-child(2), .tbl-satis td:nth-child(2) { width: 28% !important; }
-          .tbl-satis th:nth-child(6), .tbl-satis td:nth-child(6) { width: 12% !important; }
+          .tbl-satis th:nth-child(1), .tbl-satis td:nth-child(1) { width: 10% !important; }
+          .tbl-satis th:nth-child(2), .tbl-satis td:nth-child(2) { width: 36% !important; }
+          .tbl-satis th:nth-child(3), .tbl-satis td:nth-child(3) { width: 13% !important; }
+          .tbl-satis th:nth-child(4), .tbl-satis td:nth-child(4) { width: 11% !important; }
+          .tbl-satis th:nth-child(5), .tbl-satis td:nth-child(5) { width: 14% !important; }
+          .tbl-satis th:nth-child(6), .tbl-satis td:nth-child(6) { width: 9% !important; font-size: 10px !important; }
+          .tbl-satis th:nth-child(7), .tbl-satis td:nth-child(7) { width: 7% !important; }
           .truncate-text-td { max-width: 72px !important; }
           .fixed-nav { min-height: 62px !important; padding: 5px 4px calc(5px + env(safe-area-inset-bottom, 0px)) !important; gap: 4px !important; }
           .n-item { padding: 3px 2px !important; min-height: 46px !important; border-radius: 12px !important; gap: 1px !important; }
