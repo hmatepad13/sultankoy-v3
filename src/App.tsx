@@ -1095,8 +1095,9 @@ export default function App() {
     kartlar: Array<{ etiket: string; deger: string; renk: string; onClick?: () => void }>,
     style?: CSSProperties,
     variant: "auto" | "three" | "two" = "auto",
+    extraClassName = "",
   ) => (
-    <div className={`compact-totals ${variant}`} style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "10px", ...style }}>
+    <div className={`compact-totals ${variant} ${extraClassName}`.trim()} style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "10px", ...style }}>
       {kartlar.map((kart) => (
         <div
           key={kart.etiket}
@@ -2592,7 +2593,7 @@ export default function App() {
         { etiket: "SATIŞ", deger: `${fSayiNoDec(tFisToplam)} ₺`, renk: "#059669" },
         { etiket: "TAHSİLAT", deger: `${fSayiNoDec(tFisTahsilatRaw)} ₺`, renk: "#2563eb" },
         { etiket: "AÇIK HESAP", deger: `${fSayiNoDec(bayiNetDurum)} ₺`, renk: "#f59e0b" },
-      ], { marginBottom: "6px" }, "three")}
+      ], { marginBottom: "6px" }, "three", "summary-c")}
       {renderKompaktToplamlar([
         { etiket: "GİDER", deger: `${fSayiNoDec(tGiderNormal)} ₺`, renk: "#dc2626" },
         {
@@ -2605,7 +2606,7 @@ export default function App() {
             satirlar: sutBorcDetaySatirlari,
           }),
         },
-      ], { marginBottom: "4px" }, "two")}
+      ], { marginBottom: "4px" }, "two", "summary-c")}
       <div className="card" style={{marginTop: "5px", order: 2}}>
         <h4 style={{ margin: "0 0 10px", borderBottom: "1px solid #e2e8f0", paddingBottom: "5px" }}>Müşteri Borç Durumları</h4>
         <div style={{maxHeight: '300px', overflowY: 'auto', paddingRight: '5px'}}>
@@ -4273,6 +4274,8 @@ export default function App() {
         .c-kutu { flex: 1; background: #fff; padding: 8px 6px; border-radius: 14px; border: 1px solid #cbd5e1; border-left-width: 4px; display: flex; flex-direction: column; justify-content: center; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02); text-align: center; min-width: 0; }
         .c-kutu span { font-size: 8.5px; color: #64748b; font-weight: bold; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
         .c-kutu b { font-size: 12px; line-height: 1.15; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+        .summary-c .c-kutu span { font-size: 10px; }
+        .summary-c .c-kutu b { font-size: 14px; }
         
         .table-wrapper { width: 100%; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; overflow-x: auto; box-sizing: border-box; }
         .tbl { width: 100%; border-collapse: collapse; table-layout: auto; min-width: 100%; }
@@ -4320,6 +4323,8 @@ export default function App() {
           .c-kutu { border-radius: 14px !important; padding: 7px 4px !important; min-width: 0 !important; }
           .c-kutu span { font-size: 7px !important; margin-bottom: 1px !important; }
           .c-kutu b { font-size: 10px !important; }
+          .summary-c .c-kutu span { font-size: 8px !important; }
+          .summary-c .c-kutu b { font-size: 11px !important; }
           .compact-totals.three .c-kutu { flex: 0 0 calc((100% - 8px) / 3) !important; width: calc((100% - 8px) / 3) !important; }
           .compact-totals.two .c-kutu { flex: 0 0 calc((100% - 4px) / 2) !important; width: calc((100% - 4px) / 2) !important; }
           .tbl-satis th:nth-child(1), .tbl-satis td:nth-child(1) { width: 10% !important; }
