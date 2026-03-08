@@ -401,6 +401,7 @@ export default function App() {
   const [depolamaDurumu, setDepolamaDurumu] = useState<DepolamaDurumu | null>(null);
   const [isDepolamaLoading, setIsDepolamaLoading] = useState(false);
   const [depolamaHata, setDepolamaHata] = useState("");
+  const [veriYuklemeHata, setVeriYuklemeHata] = useState("");
   const [authHata, setAuthHata] = useState("");
   
   // AÇILIR MENÜLER
@@ -485,6 +486,12 @@ export default function App() {
   const [uretimForm, setUretimForm] = useState<Uretim>(bosUretimFormu(aktifDonemTarihi(), "yogurt"));
   const [uretimSort, setUretimSort] = useState<SortConfig>({ key: 'tarih', direction: 'desc' });
 
+  const masterKayitIsminiNormalizeEt = (deger?: string | null) =>
+    String(deger || "")
+      .trim()
+      .replace(/\s+/g, " ")
+      .toLocaleLowerCase("tr-TR");
+
   const eslesenKayitIdBul = <T extends { id: string; isim: string }>(liste: T[], isim?: string | null) =>
     liste.find((item) => item.isim === isim)?.id ?? null;
 
@@ -495,6 +502,7 @@ export default function App() {
   const aktifBayiler = useMemo(() => bayiler.filter(kayitAktifMi), [bayiler]);
   const aktifUrunler = useMemo(() => urunler.filter(kayitAktifMi), [urunler]);
   const aktifTedarikciler = useMemo(() => tedarikciler.filter(kayitAktifMi), [tedarikciler]);
+  const tumBayiler = useMemo(() => [...bayiler], [bayiler]);
 
   const [activeFilterModal, setActiveFilterModal] = useState<'sut_ciftlik' | 'fis_bayi' | 'analiz_bayi' | 'analiz_urun' | 'sut_tarih' | 'fis_tarih' | 'analiz_tarih' | null>(null);
 
@@ -508,6 +516,30 @@ export default function App() {
 
   const bayiSecimModalKapat = () => {
     setBayiSecimModal({ hedef: null, arama: "" });
+  };
+
+  const tabloKayitListesi = useMemo(
+    () => ({
+      bayiler,
+      urunler,
+      ciftlikler: tedarikciler,
+      gider_turleri: giderTuruListesi,
+    }),
+    [bayiler, giderTuruListesi, tedarikciler, urunler],
+  );
+
+  const ayarKayitAdiVarMi = (
+    tablo: "bayiler" | "urunler" | "ciftlikler" | "gider_turleri",
+    isim: string,
+    excludeId?: string | null,
+  ) => {
+    const normalized = masterKayitIsminiNormalizeEt(isim);
+    if (!normalized) return false;
+    return tabloKayitListesi[tablo].some(
+      (item) =>
+        String(item.id) !== String(excludeId || "") &&
+        masterKayitIsminiNormalizeEt(item.isim) === normalized,
+    );
   };
 
   useEffect(() => {
@@ -733,14 +765,17 @@ export default function App() {
 
   async function verileriGetir(hedef: "hepsi" | "satis" | "sut" | "gider" | "uretim" | "ayar" | "cop" = "hepsi") {
     try {
+      setVeriYuklemeHata("");
+
       if (hedef === "hepsi" || hedef === "ayar") {
-        const [{ data: c }, { data: b }, { data: u }, { data: p }, { data: gt }] = await Promise.all([
+        const [{ data: c, error: cErr }, { data: b, error: bErr }, { data: u, error: uErr }, { data: p, error: pErr }, { data: gt, error: gtErr }] = await Promise.all([
           supabase.from("ciftlikler").select("*").order("isim"),
           supabase.from("bayiler").select("*").order("isim"),
           supabase.from("urunler").select("*").order("isim"),
           supabase.from("profiles").select("username").order("username"),
           supabase.from("gider_turleri").select("*").order("isim"),
         ]);
+        if (cErr || bErr || uErr || pErr || gtErr) throw cErr || bErr || uErr || pErr || gtErr;
         if (c) setTedarikciler(c);
         if (b) setBayiler(b);
         if (gt) setGiderTuruListesi(gt);
@@ -767,35 +802,43 @@ export default function App() {
       }
 
       if (hedef === "hepsi" || hedef === "satis") {
-        const [{ data: f }, { data: st }] = await Promise.all([
+        const [{ data: f, error: fErr }, { data: st, error: stErr }] = await Promise.all([
           supabase.from("satis_fisleri").select("*").order("tarih", { ascending: true }).order("id", { ascending: true }),
           supabase.from("satis_giris").select("*").order("tarih", { ascending: true }).order("id", { ascending: true })
         ]);
+        if (fErr || stErr) throw fErr || stErr;
         if (f) setSatisFisList(f);
         if (st) setSatisList(st);
       }
 
       if (hedef === "hepsi" || hedef === "sut") {
-        const { data: s } = await supabase.from("sut_giris").select("*").order("tarih", { ascending: true }).order("id", { ascending: true });
+        const { data: s, error: sErr } = await supabase.from("sut_giris").select("*").order("tarih", { ascending: true }).order("id", { ascending: true });
+        if (sErr) throw sErr;
         if (s) setSutList(s);
       }
 
       if (hedef === "hepsi" || hedef === "gider") {
-        const { data: g } = await supabase.from("giderler").select("*").order("tarih", { ascending: true }).order("id", { ascending: true });
+        const { data: g, error: gErr } = await supabase.from("giderler").select("*").order("tarih", { ascending: true }).order("id", { ascending: true });
+        if (gErr) throw gErr;
         if (g) setGiderList(g);
       }
 
       if (hedef === "hepsi" || hedef === "uretim") {
-        const { data: ur } = await supabase.from("uretim").select("*").order("tarih", { ascending: true }).order("id", { ascending: true });
+        const { data: ur, error: urErr } = await supabase.from("uretim").select("*").order("tarih", { ascending: true }).order("id", { ascending: true });
+        if (urErr) throw urErr;
         if (ur) setUretimList(ur.map((kayit) => uretimKaydiniNormalizeEt(kayit as Uretim)));
       }
 
       if (hedef === "hepsi" || hedef === "cop") {
-          const { data: cop } = await supabase.from("cop_kutusu").select("*").order("silinme_tarihi", { ascending: false });
+          const { data: cop, error: copErr } = await supabase.from("cop_kutusu").select("*").order("silinme_tarihi", { ascending: false });
+          if (copErr) throw copErr;
           if(cop) setCopKutusuList(cop);
       }
 
-    } catch (error) { console.error(error); }
+    } catch (error: any) {
+      console.error(error);
+      setVeriYuklemeHata(error?.message || "Veriler alinirken beklenmeyen bir hata olustu.");
+    }
   }
 
   // DÖNEM GEÇİŞ LİSTESİ OLUŞTURUCU
@@ -961,12 +1004,21 @@ export default function App() {
   async function ayarIslem(tablo: string, isim: any, islemTip: string, id: any, resetFn?: any) {
     if (islemTip === "ekle") {
       if (!isim.trim()) return;
+      if (tablo !== "gider_turleri" && ayarKayitAdiVarMi(tablo as "bayiler" | "urunler" | "ciftlikler", isim)) {
+        return alert("Aynı isimde kayıt zaten var. Lütfen farklı bir isim kullanın.");
+      }
+      if (tablo === "gider_turleri" && ayarKayitAdiVarMi("gider_turleri", isim)) {
+        return alert("Aynı isimde gider türü zaten var.");
+      }
       const insertData: any = tablo === "gider_turleri" ? { isim } : { isim, aktif: true };
       const { error } = await supabase.from(tablo).insert(insertData);
       if (error) return alert(`Hata: ${error.message}`);
       if(resetFn) resetFn("");
     } else if (islemTip === "guncelle") {
       if (!isim?.trim() || !id) return;
+      if (ayarKayitAdiVarMi(tablo as "bayiler" | "urunler" | "ciftlikler" | "gider_turleri", isim, id)) {
+        return alert("Aynı isimde başka bir kayıt zaten var.");
+      }
       const { error } = await supabase.from(tablo).update({ isim }).eq("id", id);
       if (error) return alert(`Hata: ${error.message}`);
     } else if (islemTip === "durum") {
@@ -1210,7 +1262,7 @@ export default function App() {
 
   async function handleTahsilatKaydet() {
     if (!tahsilatForm.bayi || !tahsilatForm.miktar) return alert("Bayi ve miktar alanları zorunludur!");
-    if (!aktifBayiler.some(b => b.isim === tahsilatForm.bayi)) return alert("Lütfen listeden geçerli bir Bayi/Müşteri seçin! Kendiniz rastgele isim giremezsiniz.");
+    if (!tumBayiler.some(b => b.isim === tahsilatForm.bayi)) return alert("Lütfen listeden geçerli bir Bayi/Müşteri seçin! Kendiniz rastgele isim giremezsiniz.");
 
     const tMiktar = Number(tahsilatForm.miktar);
     if (tMiktar <= 0) return alert("Geçerli bir tahsilat tutarı girin.");
@@ -1329,9 +1381,13 @@ export default function App() {
 
   const filtrelenmisBayiler = useMemo(() => {
     const arama = bayiSecimModal.arama.trim().toLocaleLowerCase("tr-TR");
-    if (!arama) return aktifBayiler;
-    return aktifBayiler.filter((bayi) => bayi.isim.toLocaleLowerCase("tr-TR").includes(arama));
-  }, [aktifBayiler, bayiSecimModal.arama]);
+    const kaynakListe =
+      bayiSecimModal.hedef === "tahsilat" || editingFisId
+        ? tumBayiler
+        : aktifBayiler;
+    if (!arama) return kaynakListe;
+    return kaynakListe.filter((bayi) => bayi.isim.toLocaleLowerCase("tr-TR").includes(arama));
+  }, [aktifBayiler, bayiSecimModal.arama, bayiSecimModal.hedef, editingFisId, tumBayiler]);
 
   const aktifBayi = fisUst.bayi;
   
@@ -1506,7 +1562,8 @@ export default function App() {
 
   async function handleTopluFisKaydet() {
     if (!fisUst.bayi) return alert("Lütfen bir Bayi/Market seçin!");
-    if (!aktifBayiler.some(b => b.isim === fisUst.bayi)) return alert("Lütfen listeden geçerli bir Bayi/Market seçin! Kendiniz rastgele isim giremezsiniz.");
+    const secilebilirBayiler = editingFisId ? tumBayiler : aktifBayiler;
+    if (!secilebilirBayiler.some(b => b.isim === fisUst.bayi)) return alert("Lütfen listeden geçerli bir Bayi/Market seçin! Kendiniz rastgele isim giremezsiniz.");
     if (editingFisId && !fisDuzenlenebilirMi({ id: editingFisId, fis_no: editingFisNo || undefined })) {
       return alert("Bu fişi sadece ekleyen kullanıcı veya admin düzenleyebilir.");
     }
@@ -3261,6 +3318,57 @@ export default function App() {
            </button>
         </div>
       </header>
+
+      {veriYuklemeHata && (
+        <div
+          style={{
+            margin: "8px 10px 0",
+            padding: "10px 12px",
+            borderRadius: "10px",
+            background: "#fef2f2",
+            border: "1px solid #fecaca",
+            color: "#991b1b",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "10px",
+            fontSize: "12px",
+          }}
+        >
+          <span>Veriler yenilenemedi: {veriYuklemeHata}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+            <button
+              onClick={() => void verileriGetir("hepsi")}
+              style={{
+                background: "#fff",
+                border: "1px solid #fca5a5",
+                borderRadius: "999px",
+                color: "#b91c1c",
+                cursor: "pointer",
+                fontSize: "11px",
+                fontWeight: "bold",
+                padding: "4px 10px",
+              }}
+            >
+              Tekrar Dene
+            </button>
+            <button
+              onClick={() => setVeriYuklemeHata("")}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#b91c1c",
+                cursor: "pointer",
+                fontSize: "16px",
+                lineHeight: 1,
+                padding: 0,
+              }}
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
 
       <main className="main-content">
         {activeTab === "ozet" && renderOzet()}
