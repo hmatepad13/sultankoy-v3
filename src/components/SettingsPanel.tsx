@@ -477,6 +477,13 @@ export function SettingsPanel({
             <div style={{ ...kartStili, display: "grid", gap: "10px", maxWidth: "420px" }}>
               <input
                 type="password"
+                placeholder="Eski şifre"
+                value={sifreForm.eski}
+                onChange={(event) => setSifreForm((prev) => ({ ...prev, eski: event.target.value }))}
+                style={{ padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", outline: "none", fontSize: "13px" }}
+              />
+              <input
+                type="password"
                 placeholder="Yeni şifre"
                 value={sifreForm.yeni}
                 onChange={(event) => setSifreForm((prev) => ({ ...prev, yeni: event.target.value }))}
@@ -487,13 +494,6 @@ export function SettingsPanel({
                 placeholder="Yeni şifre tekrar"
                 value={sifreForm.tekrar}
                 onChange={(event) => setSifreForm((prev) => ({ ...prev, tekrar: event.target.value }))}
-                style={{ padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", outline: "none", fontSize: "13px" }}
-              />
-              <input
-                type="password"
-                placeholder="Eski şifre"
-                value={sifreForm.eski}
-                onChange={(event) => setSifreForm((prev) => ({ ...prev, eski: event.target.value }))}
                 style={{ padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", outline: "none", fontSize: "13px" }}
               />
               <button
