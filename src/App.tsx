@@ -45,8 +45,8 @@ const sayiDegeri = (deger: unknown) => {
   return 0;
 };
 
-const GORSEL_OPTIMIZE_UZUN_KENAR = 1400;
-const GORSEL_OPTIMIZE_KALITE = 0.65;
+const GORSEL_OPTIMIZE_UZUN_KENAR = 900;
+const GORSEL_OPTIMIZE_KALITE = 0.5;
 
 const gorseliOptimizasyonIcinYukle = (dosya: File) =>
   new Promise<HTMLImageElement>((resolve, reject) => {
