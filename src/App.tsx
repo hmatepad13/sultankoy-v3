@@ -3053,6 +3053,20 @@ export default function App() {
     () => fGiderList.filter((g) => kremaOdemesiMi(g.tur)).reduce((a: number, b: any) => a + Number(b.tutar), 0),
     [fGiderList],
   );
+  const fGKovaOdemesi = useMemo(
+    () => fGiderList.filter((g) => kovaOdemesiMi(g.tur)).reduce((a: number, b: any) => a + Number(b.tutar), 0),
+    [fGiderList],
+  );
+  const fGKatkiOdemesi = useMemo(
+    () => fGiderList.filter((g) => katkiOdemesiMi(g.tur)).reduce((a: number, b: any) => a + Number(b.tutar), 0),
+    [fGiderList],
+  );
+  const fGSutTozuOdemesi = useMemo(
+    () => fGiderList.filter((g) => sutTozuOdemesiMi(g.tur)).reduce((a: number, b: any) => a + Number(b.tutar), 0),
+    [fGiderList],
+  );
+  const fGHammaddeOdemeleri =
+    fGSutOdemesi + fGKremaOdemesi + fGKovaOdemesi + fGKatkiOdemesi + fGSutTozuOdemesi;
 
   const tGiderNormal = useMemo(
     () => periodGider.filter((g) => !odemeGideriMi(g.tur)).reduce((a: number, b: any) => a + Number(b.tutar), 0),
@@ -3078,11 +3092,32 @@ export default function App() {
     () => periodGider.filter((g) => sutTozuOdemesiMi(g.tur)).reduce((a: number, b: any) => a + Number(b.tutar), 0),
     [periodGider],
   );
+  const tHammaddeOdemeleri = tSutOdemesi + tKremaOdemesi + tKovaOdemesi + tKatkiOdemesi + tSutTozuOdemesi;
   const sutcuyeBorcumuz = useMemo(() => sutcuBorcunuHesapla(sutList, giderList, aktifDonem), [aktifDonem, giderList, sutList]);
   const hammaddeBorclari = useMemo(
     () => uretimHammaddeBorclariniHesapla(uretimList, giderList, aktifDonem),
     [aktifDonem, giderList, uretimList],
   );
+  const tHammaddeBorcu =
+    sutcuyeBorcumuz +
+    hammaddeBorclari.krema +
+    hammaddeBorclari.kova +
+    hammaddeBorclari.katki +
+    hammaddeBorclari.sutTozu;
+  const hammaddeOdemeDetaySatirlari = [
+    { etiket: "Süt Ödemesi", deger: `${fSayi(tSutOdemesi)} TL`, vurgu: true },
+    { etiket: "Krema Ödemesi", deger: `${fSayi(tKremaOdemesi)} TL`, vurgu: true },
+    { etiket: "Kova Ödemesi", deger: `${fSayi(tKovaOdemesi)} TL`, vurgu: true },
+    { etiket: "Katkı Ödemesi", deger: `${fSayi(tKatkiOdemesi)} TL`, vurgu: true },
+    { etiket: "Süt Tozu Ödemesi", deger: `${fSayi(tSutTozuOdemesi)} TL`, vurgu: true },
+  ];
+  const hammaddeBorcDetaySatirlari = [
+    { etiket: "Süt Borcu", deger: `${fSayi(sutcuyeBorcumuz)} TL`, vurgu: true },
+    { etiket: "Krema Borcu", deger: `${fSayi(hammaddeBorclari.krema)} TL`, vurgu: true },
+    { etiket: "Kova Borcu", deger: `${fSayi(hammaddeBorclari.kova)} TL`, vurgu: true },
+    { etiket: "Katkı Borcu", deger: `${fSayi(hammaddeBorclari.katki)} TL`, vurgu: true },
+    { etiket: "Süt Tozu Borcu", deger: `${fSayi(hammaddeBorclari.sutTozu)} TL`, vurgu: true },
+  ];
   const aktifUretimTipi = uretimForm.uretim_tipi || "yogurt";
   const siraliUretimList = useMemo(() => sortData(periodUretim, uretimSort), [periodUretim, uretimSort]);
   const yogurtUretimListesi = useMemo(
@@ -3355,18 +3390,20 @@ export default function App() {
             padding: "6px 10px",
             fontSize: "10px",
             fontWeight: "bold",
-            flex: "1 1 170px",
-            minWidth: "155px",
+            flex: "1 1 150px",
+            minWidth: "145px",
+            cursor: "pointer",
           }}
+          onClick={() =>
+            setOzetMiniDetay({
+              baslik: "Hammadde Ödemeleri",
+              renk: "#7c3aed",
+              satirlar: hammaddeOdemeDetaySatirlari,
+            })
+          }
         >
-          <div style={{ color: "#7c3aed", fontSize: "10px", marginBottom: "4px" }}>ÜRETİM HAMMADDE ÖDEMELERİ</div>
-          <div style={{ display: "grid", gap: "2px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: "8px" }}><span>Süt Ödemesi</span><b style={{ color: "#0f766e" }}>{fSayiNoDec(tSutOdemesi)} ₺</b></div>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: "8px" }}><span>Krema Ödemesi</span><b style={{ color: "#8b5cf6" }}>{fSayiNoDec(tKremaOdemesi)} ₺</b></div>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: "8px" }}><span>Kova Ödemesi</span><b style={{ color: "#2563eb" }}>{fSayiNoDec(tKovaOdemesi)} ₺</b></div>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: "8px" }}><span>Katkı Ödemesi</span><b style={{ color: "#059669" }}>{fSayiNoDec(tKatkiOdemesi)} ₺</b></div>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: "8px" }}><span>Süt Tozu Ödemesi</span><b style={{ color: "#f59e0b" }}>{fSayiNoDec(tSutTozuOdemesi)} ₺</b></div>
-          </div>
+          <div style={{ color: "#7c3aed", fontSize: "10px", marginBottom: "2px" }}>HAMMADDE ÖDEMELERİ</div>
+          <b style={{ fontSize: "14px" }}>{fSayiNoDec(tHammaddeOdemeleri)} ₺</b>
         </div>
         <div
           className="c-kutu"
@@ -3378,30 +3415,20 @@ export default function App() {
             padding: "6px 10px",
             fontSize: "10px",
             fontWeight: "bold",
-            flex: "1 1 170px",
-            minWidth: "155px",
+            flex: "1 1 150px",
+            minWidth: "145px",
             cursor: "pointer",
           }}
           onClick={() =>
             setOzetMiniDetay({
               baslik: "Hammadde Borçları",
               renk: "#0f766e",
-              satirlar: [
-                { etiket: "Süt Borcu", deger: `${fSayi(sutcuyeBorcumuz)} TL`, vurgu: true },
-                { etiket: "Krema Borcu", deger: `${fSayi(hammaddeBorclari.krema)} TL`, vurgu: true },
-                { etiket: "Kova Borcu", deger: `${fSayi(hammaddeBorclari.kova)} TL`, vurgu: true },
-                { etiket: "Süt Tozu Borcu", deger: `${fSayi(hammaddeBorclari.sutTozu)} TL`, vurgu: true },
-              ],
+              satirlar: hammaddeBorcDetaySatirlari,
             })
           }
         >
-          <div style={{ color: "#0f766e", fontSize: "10px", marginBottom: "4px" }}>HAMMADDE BORÇLARI</div>
-          <div style={{ display: "grid", gap: "2px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: "8px" }}><span>Süt Borcu</span><b style={{ color: "#0f766e" }}>{fSayiNoDec(sutcuyeBorcumuz)} ₺</b></div>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: "8px" }}><span>Krema Borcu</span><b style={{ color: "#7c3aed" }}>{fSayiNoDec(hammaddeBorclari.krema)} ₺</b></div>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: "8px" }}><span>Kova Borcu</span><b style={{ color: "#2563eb" }}>{fSayiNoDec(hammaddeBorclari.kova)} ₺</b></div>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: "8px" }}><span>Süt Tozu Borcu</span><b style={{ color: "#f59e0b" }}>{fSayiNoDec(hammaddeBorclari.sutTozu)} ₺</b></div>
-          </div>
+          <div style={{ color: "#0f766e", fontSize: "10px", marginBottom: "2px" }}>HAMMADDE BORÇLARI</div>
+          <b style={{ fontSize: "14px" }}>{fSayiNoDec(tHammaddeBorcu)} ₺</b>
         </div>
       </div>
       <div className="card" style={{marginTop: "5px", order: 2}}>
@@ -3715,11 +3742,24 @@ export default function App() {
           <div className="gider-ust-ozet" style={{ border: "1px solid #dc262633", background: "#dc262610", color: "#dc2626", borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", flex: "1 1 120px", minWidth: "100px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
             GİDERLER: {fSayi(fGGiderNormal)} ₺
           </div>
-          <div className="gider-ust-ozet" style={{ border: "1px solid #0f766e33", background: "#0f766e10", color: "#0f766e", borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", flex: "1 1 120px", minWidth: "100px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            SÜT ÖDEMESİ: {fSayi(fGSutOdemesi)} ₺
-          </div>
-          <div className="gider-ust-ozet" style={{ border: "1px solid #8b5cf633", background: "#8b5cf610", color: "#8b5cf6", borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", flex: "1 1 130px", minWidth: "110px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            KREMA ÖDEMESİ: {fSayi(fGKremaOdemesi)} ₺
+          <div
+            className="gider-ust-ozet"
+            onClick={() =>
+              setOzetMiniDetay({
+                baslik: "Hammadde Ödemeleri",
+                renk: "#7c3aed",
+                satirlar: [
+                  { etiket: "Süt Ödemesi", deger: `${fSayi(fGSutOdemesi)} TL`, vurgu: true },
+                  { etiket: "Krema Ödemesi", deger: `${fSayi(fGKremaOdemesi)} TL`, vurgu: true },
+                  { etiket: "Kova Ödemesi", deger: `${fSayi(fGKovaOdemesi)} TL`, vurgu: true },
+                  { etiket: "Katkı Ödemesi", deger: `${fSayi(fGKatkiOdemesi)} TL`, vurgu: true },
+                  { etiket: "Süt Tozu Ödemesi", deger: `${fSayi(fGSutTozuOdemesi)} TL`, vurgu: true },
+                ],
+              })
+            }
+            style={{ border: "1px solid #8b5cf633", background: "#8b5cf610", color: "#7c3aed", borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", flex: "1 1 145px", minWidth: "125px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", cursor: "pointer" }}
+          >
+            HAMMADDE ÖDEMELERİ: {fSayi(fGHammaddeOdemeleri)} ₺
           </div>
         </div>
       </div>
