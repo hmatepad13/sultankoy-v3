@@ -1569,6 +1569,13 @@ export default function App() {
     const formatliTamKisim = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0 }).format(Number(tamKisim || 0));
     return `${negatif ? "-" : ""}${formatliTamKisim}${ondalik !== undefined ? `,${ondalik}` : ""}`;
   };
+  const hesaplaFisGosterimKg = (isim: string, adetValue: any, kgValue: any) => {
+    const adet = Number(adetValue) || 0;
+    const kg = Number(kgValue) || 0;
+    if (kg > 0) return kg;
+    const kgEslesme = isim.match(/(\d+(?:\.\d+)?)\s*(kg|lt|l|gr)\b/i);
+    return kgEslesme ? Number(kgEslesme[1]) * adet : 0;
+  };
   const renderKompaktToplamlar = (
     kartlar: Array<{ etiket: string; deger: string; renk: string; onClick?: () => void }>,
     style?: CSSProperties,
@@ -2760,7 +2767,7 @@ export default function App() {
         ekleyen: aktifKullaniciEposta,
         urunler: eklenecekUrunler.map(u => {
           const adet = Number(fisDetay[u.id].adet);
-          const kg = Number(fisDetay[u.id].kg);
+          const kg = hesaplaFisGosterimKg(u.isim, fisDetay[u.id].adet, fisDetay[u.id].kg);
           const fiyat = Number(fisDetay[u.id].fiyat);
           const isKova = u.isim.match(/([345])\s*kg/i);
           const miktar = isKova ? adet : (kg > 0 ? kg : adet);
@@ -2853,7 +2860,7 @@ export default function App() {
       ekleyen: aktifKullaniciEposta,
       urunler: eklenecekUrunler.map(u => {
          const adet = Number(fisDetay[u.id].adet);
-         const kg = Number(fisDetay[u.id].kg);
+         const kg = hesaplaFisGosterimKg(u.isim, fisDetay[u.id].adet, fisDetay[u.id].kg);
          const fiyat = Number(fisDetay[u.id].fiyat);
          const isKova = u.isim.match(/([345])\s*kg/i);
          const miktar = isKova ? adet : (kg > 0 ? kg : adet);
@@ -4773,9 +4780,23 @@ export default function App() {
                   <button
                     onClick={handleAcikGorseliIndir}
                     title="İndir"
-                    style={{ background: "none", border: "none", color: "#cbd5e1", fontSize: "18px", cursor: "pointer", lineHeight: 1 }}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      padding: "5px 9px",
+                      borderRadius: "999px",
+                      border: "1px solid #334155",
+                      background: "#111827",
+                      color: "#e2e8f0",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      lineHeight: 1
+                    }}
                   >
-                    ⭳
+                    <span style={{ fontSize: "14px", lineHeight: 1 }}>↓</span>
+                    <span>İndir</span>
                   </button>
                   <button onClick={() => setFisGorselOnizleme(null)} style={{ background: "none", border: "none", color: "#cbd5e1", fontSize: "20px", cursor: "pointer", lineHeight: 1 }}>✕</button>
                 </div>
