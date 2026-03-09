@@ -276,21 +276,11 @@ const giderTurunuNormalizeEt = (tur?: string | null) =>
 
 const sutOdemesiMi = (tur?: string | null) => giderTurunuNormalizeEt(tur).startsWith("sut odemesi");
 const kremaOdemesiMi = (tur?: string | null) => giderTurunuNormalizeEt(tur).startsWith("krema odemesi");
-const odemeGideriMi = (tur?: string | null) => sutOdemesiMi(tur) || kremaOdemesiMi(tur);
-
-const sutOdemesiCiftlikIsminiBul = (tur: string | null | undefined, ciftlikAdlari: string[]) => {
-  const normalizeTur = giderTurunuNormalizeEt(tur);
-  if (!normalizeTur.startsWith("sut odemesi")) return null;
-
-  const adaylar = [...ciftlikAdlari].sort((a, b) => b.length - a.length);
-  for (const isim of adaylar) {
-    if (normalizeTur.includes(giderTurunuNormalizeEt(isim))) {
-      return isim;
-    }
-  }
-
-  return null;
-};
+const kovaOdemesiMi = (tur?: string | null) => giderTurunuNormalizeEt(tur).startsWith("kova odemesi");
+const katkiOdemesiMi = (tur?: string | null) => giderTurunuNormalizeEt(tur).startsWith("katki odemesi");
+const sutTozuOdemesiMi = (tur?: string | null) => giderTurunuNormalizeEt(tur).startsWith("sut tozu odemesi");
+const odemeGideriMi = (tur?: string | null) =>
+  sutOdemesiMi(tur) || kremaOdemesiMi(tur) || kovaOdemesiMi(tur) || katkiOdemesiMi(tur) || sutTozuOdemesiMi(tur);
 
 const sutcuBorcunuHesapla = (sutKayitlari: SutGiris[], giderKayitlari: Gider[], sonDonem?: string) => {
   const toplamSutTutari = sutKayitlari.reduce((toplam, item) => {
@@ -309,21 +299,49 @@ const sutcuBorcunuHesapla = (sutKayitlari: SutGiris[], giderKayitlari: Gider[], 
   return toplamSutTutari - toplamSutOdemesi;
 };
 
-const kremaciBorcunuHesapla = (uretimKayitlari: Uretim[], giderKayitlari: Gider[], sonDonem?: string) => {
-  const toplamKremaTutari = uretimKayitlari.reduce((toplam, item) => {
-    const donem = String(item.tarih || "").substring(0, 7);
-    if (sonDonem && donem > sonDonem) return toplam;
-    return toplam + kgSatirTutari(item.krema, item.krema_fiyat);
-  }, 0);
+const uretimHammaddeBorclariniHesapla = (uretimKayitlari: Uretim[], giderKayitlari: Gider[], sonDonem?: string) => {
+  const toplamlar = uretimKayitlari.reduce(
+    (acc, item) => {
+      const donem = String(item.tarih || "").substring(0, 7);
+      if (sonDonem && donem > sonDonem) return acc;
 
-  const toplamKremaOdemesi = giderKayitlari.reduce((toplam, item) => {
-    const donem = String(item.tarih || "").substring(0, 7);
-    if (sonDonem && donem > sonDonem) return toplam;
-    if (!kremaOdemesiMi(item.tur)) return toplam;
-    return toplam + Number(item.tutar || 0);
-  }, 0);
+      acc.krema += kgSatirTutari(item.krema, item.krema_fiyat);
+      acc.sutTozu += kgSatirTutari(item.sut_tozu, item.sut_tozu_fiyat);
+      acc.katki += kgSatirTutari(item.katki_kg, item.katki_fiyat);
+      acc.kova +=
+        sayiDegeri(item.kova_3_adet) * sayiDegeri(item.kova_3_fiyat) +
+        sayiDegeri(item.kova_5_adet) * sayiDegeri(item.kova_5_fiyat) +
+        sayiDegeri(item.paket_02_adet) * sayiDegeri(item.paket_02_fiyat) +
+        sayiDegeri(item.paket_2_adet) * sayiDegeri(item.paket_2_fiyat) +
+        sayiDegeri(item.paket_3_adet) * sayiDegeri(item.paket_3_fiyat);
 
-  return toplamKremaTutari - toplamKremaOdemesi;
+      return acc;
+    },
+    { krema: 0, sutTozu: 0, katki: 0, kova: 0 },
+  );
+
+  const odemeler = giderKayitlari.reduce(
+    (acc, item) => {
+      const donem = String(item.tarih || "").substring(0, 7);
+      if (sonDonem && donem > sonDonem) return acc;
+
+      const tutar = Number(item.tutar || 0);
+      if (kremaOdemesiMi(item.tur)) acc.krema += tutar;
+      if (sutTozuOdemesiMi(item.tur)) acc.sutTozu += tutar;
+      if (katkiOdemesiMi(item.tur)) acc.katki += tutar;
+      if (kovaOdemesiMi(item.tur)) acc.kova += tutar;
+      return acc;
+    },
+    { krema: 0, sutTozu: 0, katki: 0, kova: 0 },
+  );
+
+  return {
+    krema: toplamlar.krema - odemeler.krema,
+    sutTozu: toplamlar.sutTozu - odemeler.sutTozu,
+    katki: toplamlar.katki - odemeler.katki,
+    kova: toplamlar.kova - odemeler.kova,
+    odemeler,
+  };
 };
 
 const benzersizFisNoOlustur = (prefix: string, index = 0) => {
@@ -3048,76 +3066,23 @@ export default function App() {
     () => periodGider.filter((g) => kremaOdemesiMi(g.tur)).reduce((a: number, b: any) => a + Number(b.tutar), 0),
     [periodGider],
   );
+  const tKovaOdemesi = useMemo(
+    () => periodGider.filter((g) => kovaOdemesiMi(g.tur)).reduce((a: number, b: any) => a + Number(b.tutar), 0),
+    [periodGider],
+  );
+  const tKatkiOdemesi = useMemo(
+    () => periodGider.filter((g) => katkiOdemesiMi(g.tur)).reduce((a: number, b: any) => a + Number(b.tutar), 0),
+    [periodGider],
+  );
+  const tSutTozuOdemesi = useMemo(
+    () => periodGider.filter((g) => sutTozuOdemesiMi(g.tur)).reduce((a: number, b: any) => a + Number(b.tutar), 0),
+    [periodGider],
+  );
   const sutcuyeBorcumuz = useMemo(() => sutcuBorcunuHesapla(sutList, giderList, aktifDonem), [aktifDonem, giderList, sutList]);
-  const kremaciyaBorcumuz = useMemo(() => kremaciBorcunuHesapla(uretimList, giderList, aktifDonem), [aktifDonem, giderList, uretimList]);
-  const sutBorcDetaySatirlari = useMemo(() => {
-    const kayitMap = new Map<string, { isim: string; alim: number; odeme: number }>();
-    const isimdenAnahtarMap = new Map<string, { key: string; isim: string }>();
-    const ciftlikKayitlari = [
-      ...tedarikciler
-        .filter((item) => item?.isim)
-        .map((item) => ({
-          isim: item.isim,
-          key: item.id ? `id:${item.id}` : `isim:${masterKayitIsminiNormalizeEt(item.isim)}`,
-        })),
-      ...sutList
-        .map((item) => ({
-          isim: sutCiftlikAdiGetir(item),
-          key: sutCiftlikAnahtariGetir(item),
-        }))
-        .filter((item) => item.isim),
-    ];
-    const ciftlikAdlari = Array.from(new Set(ciftlikKayitlari.map((item) => item.isim).filter(Boolean)));
-
-    const ensure = (key: string, isim: string) => {
-      if (!kayitMap.has(key)) kayitMap.set(key, { isim, alim: 0, odeme: 0 });
-      return kayitMap.get(key)!;
-    };
-
-    ciftlikKayitlari.forEach((item) => {
-      const normalized = masterKayitIsminiNormalizeEt(item.isim);
-      if (!normalized || isimdenAnahtarMap.has(normalized)) return;
-      isimdenAnahtarMap.set(normalized, { key: item.key, isim: item.isim });
-    });
-
-    sutList.forEach((item) => {
-      const donem = String(item.tarih || "").substring(0, 7);
-      if (aktifDonem && donem > aktifDonem) return;
-      const isim = sutCiftlikAdiGetir(item) || "Bilinmeyen Çiftlik";
-      const key = sutCiftlikAnahtariGetir(item);
-      ensure(key, isim).alim += Number(item.toplam_tl || 0);
-    });
-
-    giderList.forEach((item) => {
-      const donem = String(item.tarih || "").substring(0, 7);
-      if (aktifDonem && donem > aktifDonem) return;
-      if (!sutOdemesiMi(item.tur)) return;
-      const ciftlikIsmi = sutOdemesiCiftlikIsminiBul(item.tur, ciftlikAdlari) || "Eşleşmeyen Ödeme";
-      const normalized = masterKayitIsminiNormalizeEt(ciftlikIsmi);
-      const eslesenKayit = isimdenAnahtarMap.get(normalized);
-      ensure(eslesenKayit?.key || `isim:${normalized}`, eslesenKayit?.isim || ciftlikIsmi).odeme += Number(item.tutar || 0);
-    });
-
-    const detaylar = Array.from(kayitMap.entries())
-      .map(([, degerler]) => ({
-        isim: degerler.isim,
-        alim: degerler.alim,
-        odeme: degerler.odeme,
-        borc: degerler.alim - degerler.odeme,
-      }))
-      .filter((item) => Math.abs(item.alim) > 0.01 || Math.abs(item.odeme) > 0.01 || Math.abs(item.borc) > 0.01)
-      .sort((a, b) => a.isim.localeCompare(b.isim, "tr"));
-
-    if (detaylar.length === 0) {
-      return [{ etiket: "Kayıt", deger: "Detay bulunamadı" }];
-    }
-
-    return detaylar.map((item) => ({
-      etiket: item.isim,
-      deger: `${fSayi(item.borc)} TL`,
-      vurgu: true,
-    }));
-  }, [aktifDonem, giderList, masterKayitIsminiNormalizeEt, sutCiftlikAdiGetir, sutCiftlikAnahtariGetir, sutList, tedarikciler]);
+  const hammaddeBorclari = useMemo(
+    () => uretimHammaddeBorclariniHesapla(uretimList, giderList, aktifDonem),
+    [aktifDonem, giderList, uretimList],
+  );
   const aktifUretimTipi = uretimForm.uretim_tipi || "yogurt";
   const siraliUretimList = useMemo(() => sortData(periodUretim, uretimSort), [periodUretim, uretimSort]);
   const yogurtUretimListesi = useMemo(
@@ -3362,22 +3327,83 @@ export default function App() {
         { etiket: "TAHSİLAT", deger: `${fSayiNoDec(tOzetFisTahsilatRaw)} ₺`, renk: "#2563eb" },
         { etiket: "AÇIK HESAP", deger: `${fSayiNoDec(bayiNetDurum)} ₺`, renk: "#f59e0b" },
       ], { marginBottom: "6px" }, "three", "summary-c")}
-      {renderKompaktToplamlar([
-        { etiket: "GİDER", deger: `${fSayiNoDec(tGiderNormal)} ₺`, renk: "#dc2626" },
-        { etiket: "SÜT ÖDEMESİ", deger: `${fSayiNoDec(tSutOdemesi)} ₺`, renk: "#0f766e" },
-        { etiket: "KREMA ÖDEMESİ", deger: `${fSayiNoDec(tKremaOdemesi)} ₺`, renk: "#8b5cf6" },
-        { etiket: "KREMA BORCU", deger: `${fSayiNoDec(kremaciyaBorcumuz)} ₺`, renk: "#7c3aed" },
-        {
-          etiket: "SÜT BORCU",
-          deger: `${fSayiNoDec(sutcuyeBorcumuz)} ₺`,
-          renk: "#0f766e",
-          onClick: () => setOzetMiniDetay({
-            baslik: "Süt Borcu Detayı",
-            renk: "#0f766e",
-            satirlar: sutBorcDetaySatirlari,
-          }),
-        },
-      ], { marginBottom: "4px" }, "auto", "summary-c")}
+      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "4px" }}>
+        <div
+          className="c-kutu"
+          style={{
+            border: "1px solid #dc262633",
+            background: "#dc262610",
+            color: "#dc2626",
+            borderRadius: "18px",
+            padding: "6px 10px",
+            fontSize: "11px",
+            fontWeight: "bold",
+            flex: "1 1 130px",
+            minWidth: "120px",
+          }}
+        >
+          <div style={{ fontSize: "10px", opacity: 0.9, marginBottom: "2px" }}>İŞLETME GİDERLERİ</div>
+          <b style={{ fontSize: "14px" }}>{fSayiNoDec(tGiderNormal)} ₺</b>
+        </div>
+        <div
+          className="c-kutu"
+          style={{
+            border: "1px solid #8b5cf633",
+            background: "#8b5cf610",
+            color: "#334155",
+            borderRadius: "18px",
+            padding: "6px 10px",
+            fontSize: "10px",
+            fontWeight: "bold",
+            flex: "1 1 170px",
+            minWidth: "155px",
+          }}
+        >
+          <div style={{ color: "#7c3aed", fontSize: "10px", marginBottom: "4px" }}>ÜRETİM HAMMADDE ÖDEMELERİ</div>
+          <div style={{ display: "grid", gap: "2px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: "8px" }}><span>Süt Ödemesi</span><b style={{ color: "#0f766e" }}>{fSayiNoDec(tSutOdemesi)} ₺</b></div>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: "8px" }}><span>Krema Ödemesi</span><b style={{ color: "#8b5cf6" }}>{fSayiNoDec(tKremaOdemesi)} ₺</b></div>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: "8px" }}><span>Kova Ödemesi</span><b style={{ color: "#2563eb" }}>{fSayiNoDec(tKovaOdemesi)} ₺</b></div>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: "8px" }}><span>Katkı Ödemesi</span><b style={{ color: "#059669" }}>{fSayiNoDec(tKatkiOdemesi)} ₺</b></div>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: "8px" }}><span>Süt Tozu Ödemesi</span><b style={{ color: "#f59e0b" }}>{fSayiNoDec(tSutTozuOdemesi)} ₺</b></div>
+          </div>
+        </div>
+        <div
+          className="c-kutu"
+          style={{
+            border: "1px solid #0f766e33",
+            background: "#0f766e10",
+            color: "#334155",
+            borderRadius: "18px",
+            padding: "6px 10px",
+            fontSize: "10px",
+            fontWeight: "bold",
+            flex: "1 1 170px",
+            minWidth: "155px",
+            cursor: "pointer",
+          }}
+          onClick={() =>
+            setOzetMiniDetay({
+              baslik: "Hammadde Borçları",
+              renk: "#0f766e",
+              satirlar: [
+                { etiket: "Süt Borcu", deger: `${fSayi(sutcuyeBorcumuz)} TL`, vurgu: true },
+                { etiket: "Krema Borcu", deger: `${fSayi(hammaddeBorclari.krema)} TL`, vurgu: true },
+                { etiket: "Kova Borcu", deger: `${fSayi(hammaddeBorclari.kova)} TL`, vurgu: true },
+                { etiket: "Süt Tozu Borcu", deger: `${fSayi(hammaddeBorclari.sutTozu)} TL`, vurgu: true },
+              ],
+            })
+          }
+        >
+          <div style={{ color: "#0f766e", fontSize: "10px", marginBottom: "4px" }}>HAMMADDE BORÇLARI</div>
+          <div style={{ display: "grid", gap: "2px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: "8px" }}><span>Süt Borcu</span><b style={{ color: "#0f766e" }}>{fSayiNoDec(sutcuyeBorcumuz)} ₺</b></div>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: "8px" }}><span>Krema Borcu</span><b style={{ color: "#7c3aed" }}>{fSayiNoDec(hammaddeBorclari.krema)} ₺</b></div>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: "8px" }}><span>Kova Borcu</span><b style={{ color: "#2563eb" }}>{fSayiNoDec(hammaddeBorclari.kova)} ₺</b></div>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: "8px" }}><span>Süt Tozu Borcu</span><b style={{ color: "#f59e0b" }}>{fSayiNoDec(hammaddeBorclari.sutTozu)} ₺</b></div>
+          </div>
+        </div>
+      </div>
       <div className="card" style={{marginTop: "5px", order: 2}}>
         <h4 style={{ margin: "0 0 10px", borderBottom: "1px solid #e2e8f0", paddingBottom: "5px" }}>Müşteri Borç Durumları</h4>
         <div style={{maxHeight: '300px', overflowY: 'auto', paddingRight: '5px'}}>
