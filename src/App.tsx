@@ -45,7 +45,7 @@ const sayiDegeri = (deger: unknown) => {
   return 0;
 };
 
-const GORSEL_OPTIMIZE_UZUN_KENAR = 900;
+const GORSEL_OPTIMIZE_UZUN_KENAR = 1200;
 const GORSEL_OPTIMIZE_KALITE = 0.5;
 
 const gorseliOptimizasyonIcinYukle = (dosya: File) =>
@@ -596,10 +596,14 @@ export default function App() {
   const [fisDetay, setFisDetay] = useState<FisDetayMap>({});
   const [fisGorselDosya, setFisGorselDosya] = useState<File | null>(null);
   const [fisGorselMevcutYol, setFisGorselMevcutYol] = useState("");
-  const [fisGorselOnizleme, setFisGorselOnizleme] = useState<{ url: string; baslik: string; boyut?: string } | null>(null);
+  const [fisGorselOnizleme, setFisGorselOnizleme] = useState<{ url: string; baslik: string; boyut?: string; indirmeAdi?: string } | null>(null);
   const [gosterilenEkler, setGosterilenEkler] = useState({ tereyagi: false, yogurt_kaymagi: false, iade: false, bos_kova: false, urunler: [] as string[] });
   const [isDigerUrunMenuOpen, setIsDigerUrunMenuOpen] = useState(false);
   const digerUrunMenuRef = useRef<HTMLDivElement | null>(null);
+  const fisGorselKameraInputRef = useRef<HTMLInputElement | null>(null);
+  const fisGorselGaleriInputRef = useRef<HTMLInputElement | null>(null);
+  const giderGorselKameraInputRef = useRef<HTMLInputElement | null>(null);
+  const giderGorselGaleriInputRef = useRef<HTMLInputElement | null>(null);
   const [sonFisData, setSonFisData] = useState<any>(null);
   const [musteriEkstreData, setMusteriEkstreData] = useState<null | {
     musteri: string;
@@ -2371,6 +2375,9 @@ export default function App() {
     setFisGorselMevcutYol("");
   };
 
+  const handleFisKameraAc = () => fisGorselKameraInputRef.current?.click();
+  const handleFisGaleriAc = () => fisGorselGaleriInputRef.current?.click();
+
   const handleGiderGorselSec = (event: ChangeEvent<HTMLInputElement>) => {
     const secilen = event.target.files?.[0];
     event.target.value = "";
@@ -2385,6 +2392,17 @@ export default function App() {
   const handleGiderGorselTemizle = () => {
     setGiderGorselDosya(null);
     setGiderGorselMevcutYol("");
+  };
+
+  const handleGiderKameraAc = () => giderGorselKameraInputRef.current?.click();
+  const handleGiderGaleriAc = () => giderGorselGaleriInputRef.current?.click();
+
+  const gorselIndirmeAdiBul = (kaynak?: string | null, varsayilan = "gorsel.jpg") => {
+    if (!kaynak) return varsayilan;
+    const temiz = kaynak.split("?")[0];
+    const parca = temiz.split("/").pop();
+    if (!parca) return varsayilan;
+    return decodeURIComponent(parca);
   };
 
   const fisGorseliniSil = async (yol?: string | null) => {
@@ -2405,7 +2423,7 @@ export default function App() {
 
     if (!storageYolu && (raw.startsWith("http://") || raw.startsWith("https://"))) {
       const boyut = await gorselBoyutunuGetir(raw);
-      setFisGorselOnizleme({ url: raw, baslik, boyut });
+      setFisGorselOnizleme({ url: raw, baslik, boyut, indirmeAdi: gorselIndirmeAdiBul(raw, `${dosyaAdiIcinTemizle(baslik) || "fis"}.jpg`) });
       return;
     }
 
@@ -2424,7 +2442,7 @@ export default function App() {
     }
 
     const boyut = await gorselBoyutunuGetir(data.signedUrl);
-    setFisGorselOnizleme({ url: data.signedUrl, baslik, boyut });
+    setFisGorselOnizleme({ url: data.signedUrl, baslik, boyut, indirmeAdi: gorselIndirmeAdiBul(raw, `${dosyaAdiIcinTemizle(baslik) || "fis"}.jpg`) });
   };
 
   const handleGiderGorselGoster = async (gider: Gider) => {
@@ -2436,7 +2454,7 @@ export default function App() {
 
     if (!storageYolu && (raw.startsWith("http://") || raw.startsWith("https://"))) {
       const boyut = await gorselBoyutunuGetir(raw);
-      setFisGorselOnizleme({ url: raw, baslik, boyut });
+      setFisGorselOnizleme({ url: raw, baslik, boyut, indirmeAdi: gorselIndirmeAdiBul(raw, `${dosyaAdiIcinTemizle(baslik) || "gider"}.jpg`) });
       return;
     }
 
@@ -2455,7 +2473,24 @@ export default function App() {
     }
 
     const boyut = await gorselBoyutunuGetir(data.signedUrl);
-    setFisGorselOnizleme({ url: data.signedUrl, baslik, boyut });
+    setFisGorselOnizleme({ url: data.signedUrl, baslik, boyut, indirmeAdi: gorselIndirmeAdiBul(raw, `${dosyaAdiIcinTemizle(baslik) || "gider"}.jpg`) });
+  };
+
+  const handleAcikGorseliIndir = async () => {
+    if (!fisGorselOnizleme?.url) return;
+    try {
+      const response = await fetch(fisGorselOnizleme.url);
+      if (!response.ok) throw new Error("Görsel indirilemedi.");
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = fisGorselOnizleme.indirmeAdi || "gorsel.jpg";
+      link.click();
+      URL.revokeObjectURL(blobUrl);
+    } catch (error: any) {
+      alert(`İndirme hatası: ${error?.message || "Bilinmeyen hata"}`);
+    }
   };
 
   const giderGorseliYukle = async () => {
@@ -4734,7 +4769,16 @@ export default function App() {
                     <div style={{ fontSize: "11px", color: "#94a3b8", flexShrink: 0 }}>{fisGorselOnizleme.boyut}</div>
                   ) : null}
                 </div>
-                <button onClick={() => setFisGorselOnizleme(null)} style={{ background: "none", border: "none", color: "#cbd5e1", fontSize: "20px", cursor: "pointer", lineHeight: 1 }}>✕</button>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <button
+                    onClick={handleAcikGorseliIndir}
+                    title="İndir"
+                    style={{ background: "none", border: "none", color: "#cbd5e1", fontSize: "18px", cursor: "pointer", lineHeight: 1 }}
+                  >
+                    ⭳
+                  </button>
+                  <button onClick={() => setFisGorselOnizleme(null)} style={{ background: "none", border: "none", color: "#cbd5e1", fontSize: "20px", cursor: "pointer", lineHeight: 1 }}>✕</button>
+                </div>
               </div>
               <div style={{ padding: "8px", overflow: "auto", background: "#020617" }}>
                 <img src={fisGorselOnizleme.url} alt={fisGorselOnizleme.baslik} style={{ width: "100%", height: "auto", maxHeight: "78vh", objectFit: "contain", borderRadius: "10px", display: "block", margin: "0 auto", background: "#000" }} />
@@ -4994,10 +5038,24 @@ export default function App() {
                   <input placeholder="Açıklama/Not..." value={fisUst.aciklama} onChange={e => setFisUst({ ...fisUst, aciklama: e.target.value })} className="m-inp grow-inp" style={{padding: "6px 8px", fontSize: "12px", height: "30px"}} />
                 </div>
                 <div style={{display: "flex", gap: "6px", marginTop: "6px", alignItems: "center", flexWrap: "wrap"}}>
-                  <label className="btn-anim" style={{ background: "#e2e8f0", border: "1px solid #cbd5e1", borderRadius: "6px", padding: "6px 10px", fontSize: "12px", fontWeight: "bold", color: "#334155", cursor: "pointer" }}>
-                    <input type="file" accept="image/*" onChange={handleFisGorselSec} style={{ display: "none" }} />
+                  <input ref={fisGorselKameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleFisGorselSec} style={{ display: "none" }} />
+                  <input ref={fisGorselGaleriInputRef} type="file" accept="image/*" onChange={handleFisGorselSec} style={{ display: "none" }} />
+                  <button
+                    type="button"
+                    className="btn-anim"
+                    onClick={handleFisKameraAc}
+                    style={{ background: "#e2e8f0", border: "1px solid #cbd5e1", borderRadius: "6px", padding: "6px 10px", fontSize: "12px", fontWeight: "bold", color: "#334155", cursor: "pointer" }}
+                  >
                     {fisGorselDosyaAdi ? "Fotoğrafı Değiştir" : "Fotoğraf Ekle"}
-                  </label>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-anim"
+                    onClick={handleFisGaleriAc}
+                    style={{ background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", padding: "6px 8px", fontSize: "11px", fontWeight: "bold", color: "#475569", cursor: "pointer" }}
+                  >
+                    Galeri
+                  </button>
                   <input placeholder="Teslim Alan (İsim Soyisim)" value={fisUst.teslim_alan || ""} onChange={e => setFisUst({ ...fisUst, teslim_alan: e.target.value })} className="m-inp grow-inp" style={{padding: "6px 8px", fontSize: "12px", height: "30px", minWidth: "180px"}} />
                   {fisGorselDosyaAdi && (
                     <>
@@ -5263,10 +5321,16 @@ export default function App() {
                   <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                     <input type="text" inputMode="decimal" value={paraGirdisiniFormatla(String(giderForm.tutar || ""))} onChange={e => setGiderForm({ ...giderForm, tutar: paraGirdisiniTemizle(e.target.value) })} disabled={giderModalMode === "view"} className="m-inp" style={{flex: 1, width: "100%", textAlign: "right", color: "#dc2626", fontWeight: "bold", background: giderModalMode === "view" ? "#f8fafc" : undefined}} />
                     {giderModalMode !== "view" ? (
-                    <label className="btn-anim" style={{ background: "#e2e8f0", border: "1px solid #cbd5e1", borderRadius: "6px", padding: "8px 10px", fontSize: "11px", fontWeight: "bold", color: "#334155", cursor: "pointer", flex: "0 0 auto", whiteSpace: "nowrap" }}>
-                      <input type="file" accept="image/*" onChange={handleGiderGorselSec} style={{ display: "none" }} />
-                      {giderGorselDosyaAdi ? "Fotoğrafı Değiştir" : "Fotoğraf Yükle"}
-                    </label>
+                    <>
+                      <input ref={giderGorselKameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleGiderGorselSec} style={{ display: "none" }} />
+                      <input ref={giderGorselGaleriInputRef} type="file" accept="image/*" onChange={handleGiderGorselSec} style={{ display: "none" }} />
+                      <button type="button" onClick={handleGiderKameraAc} className="btn-anim" style={{ background: "#e2e8f0", border: "1px solid #cbd5e1", borderRadius: "6px", padding: "8px 10px", fontSize: "11px", fontWeight: "bold", color: "#334155", cursor: "pointer", flex: "0 0 auto", whiteSpace: "nowrap" }}>
+                        {giderGorselDosyaAdi ? "Fotoğrafı Değiştir" : "Fotoğraf Yükle"}
+                      </button>
+                      <button type="button" onClick={handleGiderGaleriAc} className="btn-anim" style={{ background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", padding: "8px 9px", fontSize: "10px", fontWeight: "bold", color: "#475569", cursor: "pointer", flex: "0 0 auto", whiteSpace: "nowrap" }}>
+                        Galeri
+                      </button>
+                    </>
                     ) : giderGorselMevcutYol ? (
                     <button type="button" onClick={() => handleGiderGorselGoster(giderForm)} className="btn-anim" style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "6px", padding: "8px 10px", fontSize: "11px", fontWeight: "bold", color: "#2563eb", cursor: "pointer", flex: "0 0 auto", whiteSpace: "nowrap" }}>
                       Fotoğrafı Gör
