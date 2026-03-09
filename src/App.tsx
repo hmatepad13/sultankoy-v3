@@ -4727,16 +4727,16 @@ export default function App() {
         {fisGorselOnizleme && (
           <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(15,23,42,0.86)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1450, padding: "12px" }} onClick={() => setFisGorselOnizleme(null)}>
             <div style={{ width: "100%", maxWidth: "760px", maxHeight: "92vh", background: "#0f172a", borderRadius: "14px", overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.45)" }} onClick={(e) => e.stopPropagation()}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", background: "#111827", color: "#fff" }}>
-                <div style={{ minWidth: 0 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 12px", background: "#111827", color: "#fff" }}>
+                <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: "8px" }}>
                   <div style={{ fontWeight: "bold", fontSize: "13px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fisGorselOnizleme.baslik}</div>
                   {fisGorselOnizleme.boyut ? (
-                    <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "2px" }}>Boyut: {fisGorselOnizleme.boyut}</div>
+                    <div style={{ fontSize: "11px", color: "#94a3b8", flexShrink: 0 }}>{fisGorselOnizleme.boyut}</div>
                   ) : null}
                 </div>
                 <button onClick={() => setFisGorselOnizleme(null)} style={{ background: "none", border: "none", color: "#cbd5e1", fontSize: "20px", cursor: "pointer", lineHeight: 1 }}>✕</button>
               </div>
-              <div style={{ padding: "12px", overflow: "auto", background: "#020617" }}>
+              <div style={{ padding: "8px", overflow: "auto", background: "#020617" }}>
                 <img src={fisGorselOnizleme.url} alt={fisGorselOnizleme.baslik} style={{ width: "100%", height: "auto", maxHeight: "78vh", objectFit: "contain", borderRadius: "10px", display: "block", margin: "0 auto", background: "#000" }} />
               </div>
             </div>
