@@ -45,6 +45,63 @@ const sayiDegeri = (deger: unknown) => {
   return 0;
 };
 
+const GORSEL_OPTIMIZE_UZUN_KENAR = 1400;
+const GORSEL_OPTIMIZE_KALITE = 0.65;
+
+const gorseliOptimizasyonIcinYukle = (dosya: File) =>
+  new Promise<HTMLImageElement>((resolve, reject) => {
+    const url = URL.createObjectURL(dosya);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Görsel yüklenemedi."));
+    };
+    img.src = url;
+  });
+
+const canvasBlobOlustur = (canvas: HTMLCanvasElement, kalite: number) =>
+  new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error("Görsel sıkıştırılamadı."));
+      },
+      "image/jpeg",
+      kalite,
+    );
+  });
+
+const gorseliYuklemeIcinKucult = async (dosya: File) => {
+  if (!dosya.type.startsWith("image/")) return dosya;
+
+  const img = await gorseliOptimizasyonIcinYukle(dosya);
+  const uzunKenar = Math.max(img.width, img.height);
+  const oran = uzunKenar > GORSEL_OPTIMIZE_UZUN_KENAR ? GORSEL_OPTIMIZE_UZUN_KENAR / uzunKenar : 1;
+  const yeniGenislik = Math.max(1, Math.round(img.width * oran));
+  const yeniYukseklik = Math.max(1, Math.round(img.height * oran));
+
+  const canvas = document.createElement("canvas");
+  canvas.width = yeniGenislik;
+  canvas.height = yeniYukseklik;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Görsel işleme başlatılamadı.");
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(img, 0, 0, yeniGenislik, yeniYukseklik);
+
+  const blob = await canvasBlobOlustur(canvas, GORSEL_OPTIMIZE_KALITE);
+  const dosyaAdi = dosya.name.replace(/\.[^.]+$/, "") || "gorsel";
+  return new File([blob], `${dosyaAdi}.jpg`, {
+    type: "image/jpeg",
+    lastModified: Date.now(),
+  });
+};
+
 const sayiVeyaBos = (deger: unknown) => {
   if (deger === null || deger === undefined || deger === "") return "";
   if (typeof deger === "number" && Number.isFinite(deger)) return deger;
@@ -2381,15 +2438,16 @@ export default function App() {
   const giderGorseliYukle = async () => {
     if (!giderGorselDosya) return giderGorselMevcutYol || null;
 
-    const uzanti = giderGorselDosya.name.split(".").pop()?.toLowerCase() || "jpg";
+    const optimizeDosya = await gorseliYuklemeIcinKucult(giderGorselDosya);
+    const uzanti = "jpg";
     const tarihParcasi = String(giderForm.tarih || getLocalDateString()).replace(/-/g, "");
     const turSlug = dosyaAdiIcinTemizle(giderForm.tur || "gider");
     const kullaniciSlug = dosyaAdiIcinTemizle(aktifKullaniciKisa || aktifKullaniciEposta || "kullanici");
     const rastgeleEk = Math.random().toString(36).slice(2, 8).toUpperCase();
     const dosyaYolu = `giderler/${turSlug}/${tarihParcasi}-${turSlug}-${kullaniciSlug}-${rastgeleEk}.${uzanti}`;
 
-    const { error } = await supabase.storage.from("fis_gorselleri").upload(dosyaYolu, giderGorselDosya, {
-      contentType: giderGorselDosya.type,
+    const { error } = await supabase.storage.from("fis_gorselleri").upload(dosyaYolu, optimizeDosya, {
+      contentType: optimizeDosya.type,
       upsert: false,
     });
 
@@ -2431,7 +2489,8 @@ export default function App() {
   const fisGorseliYukle = async (fisNo: string) => {
     if (!fisGorselDosya) return fisGorselMevcutYol || null;
 
-    const uzanti = fisGorselDosya.name.split(".").pop()?.toLowerCase() || "jpg";
+    const optimizeDosya = await gorseliYuklemeIcinKucult(fisGorselDosya);
+    const uzanti = "jpg";
     const bayiSlug = dosyaAdiIcinTemizle(fisUst.bayi || "baysiz");
     const yuklemeTarihi = new Date();
     const tarihParcasi = [
@@ -2445,8 +2504,8 @@ export default function App() {
     const guvenliEk = fisNo.replace(/[^a-zA-Z0-9]/g, "").slice(-6) || Math.random().toString(36).slice(2, 8).toUpperCase();
     const dosyaYolu = `${bayiSlug}/${bayiSlug}-${tarihParcasi}-${guvenliEk}.${uzanti}`;
 
-    const { error } = await supabase.storage.from("fis_gorselleri").upload(dosyaYolu, fisGorselDosya, {
-      contentType: fisGorselDosya.type,
+    const { error } = await supabase.storage.from("fis_gorselleri").upload(dosyaYolu, optimizeDosya, {
+      contentType: optimizeDosya.type,
       upsert: false,
     });
 
