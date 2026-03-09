@@ -275,6 +275,8 @@ const giderTurunuNormalizeEt = (tur?: string | null) =>
     .replace(/ç/g, "c");
 
 const sutOdemesiMi = (tur?: string | null) => giderTurunuNormalizeEt(tur).startsWith("sut odemesi");
+const kremaOdemesiMi = (tur?: string | null) => giderTurunuNormalizeEt(tur).startsWith("krema odemesi");
+const odemeGideriMi = (tur?: string | null) => sutOdemesiMi(tur) || kremaOdemesiMi(tur);
 
 const sutOdemesiCiftlikIsminiBul = (tur: string | null | undefined, ciftlikAdlari: string[]) => {
   const normalizeTur = giderTurunuNormalizeEt(tur);
@@ -305,6 +307,23 @@ const sutcuBorcunuHesapla = (sutKayitlari: SutGiris[], giderKayitlari: Gider[], 
   }, 0);
 
   return toplamSutTutari - toplamSutOdemesi;
+};
+
+const kremaciBorcunuHesapla = (uretimKayitlari: Uretim[], giderKayitlari: Gider[], sonDonem?: string) => {
+  const toplamKremaTutari = uretimKayitlari.reduce((toplam, item) => {
+    const donem = String(item.tarih || "").substring(0, 7);
+    if (sonDonem && donem > sonDonem) return toplam;
+    return toplam + kgSatirTutari(item.krema, item.krema_fiyat);
+  }, 0);
+
+  const toplamKremaOdemesi = giderKayitlari.reduce((toplam, item) => {
+    const donem = String(item.tarih || "").substring(0, 7);
+    if (sonDonem && donem > sonDonem) return toplam;
+    if (!kremaOdemesiMi(item.tur)) return toplam;
+    return toplam + Number(item.tutar || 0);
+  }, 0);
+
+  return toplamKremaTutari - toplamKremaOdemesi;
 };
 
 const benzersizFisNoOlustur = (prefix: string, index = 0) => {
@@ -523,7 +542,7 @@ export default function App() {
   const [fisFiltre, setFisFiltre] = useState<{ bayiler: string[], baslangic: string, bitis: string }>({ bayiler: [], baslangic: "", bitis: "" });
   const [fisSort, setFisSort] = useState<SortConfig>({ key: 'tarih', direction: 'desc' });
   const [ozetBorcFiltre, setOzetBorcFiltre] = useState<{ bayiler: string[] }>({ bayiler: [] });
-  const [ozetBorcSort, setOzetBorcSort] = useState<SortConfig>({ key: "isim", direction: "asc" });
+  const [ozetBorcSort, setOzetBorcSort] = useState<SortConfig>({ key: "borc", direction: "desc" });
 
   // --- ANALİZ STATE'LERİ ---
   const [analizFiltre, setAnalizFiltre] = useState<{bayiler: string[], urunler: string[], baslangic: string, bitis: string}>({ bayiler: [], urunler: [], baslangic: "", bitis: "" });
@@ -3004,10 +3023,33 @@ export default function App() {
   const fGiderList = useMemo(() => sortData(periodGider.filter((g: any) => 
     giderFiltreKisi === 'tumu' || normalizeUsername(g.ekleyen) === aktifKullaniciKisa
   ), giderSort), [aktifKullaniciKisa, periodGider, giderSort, giderFiltreKisi]);
-  const fGTutarNormal = useMemo(() => fGiderList.reduce((a: number, b: any) => a + Number(b.tutar), 0), [fGiderList]);
+  const fGGiderNormal = useMemo(
+    () => fGiderList.filter((g) => !odemeGideriMi(g.tur)).reduce((a: number, b: any) => a + Number(b.tutar), 0),
+    [fGiderList],
+  );
+  const fGSutOdemesi = useMemo(
+    () => fGiderList.filter((g) => sutOdemesiMi(g.tur)).reduce((a: number, b: any) => a + Number(b.tutar), 0),
+    [fGiderList],
+  );
+  const fGKremaOdemesi = useMemo(
+    () => fGiderList.filter((g) => kremaOdemesiMi(g.tur)).reduce((a: number, b: any) => a + Number(b.tutar), 0),
+    [fGiderList],
+  );
 
-  const tGiderNormal = useMemo(() => periodGider.reduce((a: number, b: any) => a + Number(b.tutar), 0), [periodGider]);
+  const tGiderNormal = useMemo(
+    () => periodGider.filter((g) => !odemeGideriMi(g.tur)).reduce((a: number, b: any) => a + Number(b.tutar), 0),
+    [periodGider],
+  );
+  const tSutOdemesi = useMemo(
+    () => periodGider.filter((g) => sutOdemesiMi(g.tur)).reduce((a: number, b: any) => a + Number(b.tutar), 0),
+    [periodGider],
+  );
+  const tKremaOdemesi = useMemo(
+    () => periodGider.filter((g) => kremaOdemesiMi(g.tur)).reduce((a: number, b: any) => a + Number(b.tutar), 0),
+    [periodGider],
+  );
   const sutcuyeBorcumuz = useMemo(() => sutcuBorcunuHesapla(sutList, giderList, aktifDonem), [aktifDonem, giderList, sutList]);
+  const kremaciyaBorcumuz = useMemo(() => kremaciBorcunuHesapla(uretimList, giderList, aktifDonem), [aktifDonem, giderList, uretimList]);
   const sutBorcDetaySatirlari = useMemo(() => {
     const kayitMap = new Map<string, { isim: string; alim: number; odeme: number }>();
     const isimdenAnahtarMap = new Map<string, { key: string; isim: string }>();
@@ -3322,6 +3364,9 @@ export default function App() {
       ], { marginBottom: "6px" }, "three", "summary-c")}
       {renderKompaktToplamlar([
         { etiket: "GİDER", deger: `${fSayiNoDec(tGiderNormal)} ₺`, renk: "#dc2626" },
+        { etiket: "SÜT ÖDEMESİ", deger: `${fSayiNoDec(tSutOdemesi)} ₺`, renk: "#0f766e" },
+        { etiket: "KREMA ÖDEMESİ", deger: `${fSayiNoDec(tKremaOdemesi)} ₺`, renk: "#8b5cf6" },
+        { etiket: "KREMA BORCU", deger: `${fSayiNoDec(kremaciyaBorcumuz)} ₺`, renk: "#7c3aed" },
         {
           etiket: "SÜT BORCU",
           deger: `${fSayiNoDec(sutcuyeBorcumuz)} ₺`,
@@ -3332,7 +3377,7 @@ export default function App() {
             satirlar: sutBorcDetaySatirlari,
           }),
         },
-      ], { marginBottom: "4px" }, "two", "summary-c")}
+      ], { marginBottom: "4px" }, "auto", "summary-c")}
       <div className="card" style={{marginTop: "5px", order: 2}}>
         <h4 style={{ margin: "0 0 10px", borderBottom: "1px solid #e2e8f0", paddingBottom: "5px" }}>Müşteri Borç Durumları</h4>
         <div style={{maxHeight: '300px', overflowY: 'auto', paddingRight: '5px'}}>
@@ -3640,8 +3685,16 @@ export default function App() {
           <button onClick={() => setGiderFiltreKisi('tumu')} style={{ flex: 1, padding: '8px 10px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', background: giderFiltreKisi==='tumu'?'#dc2626':'transparent', color: giderFiltreKisi==='tumu'?'#fff':'#475569' }}>Tümü</button>
         </div>
         <button onClick={handleYeniGiderModalAc} className="btn-anim m-btn inline-mobile-btn" style={{ background: "#dc2626", margin: 0, width: "auto", minWidth: "136px", flex: "0 0 auto", fontSize: "13px", padding: "10px 12px" }}>➕ YENİ GİDER EKLE</button>
-        <div className="gider-ust-ozet" style={{ border: "1px solid #dc262633", background: "#dc262610", color: "#dc2626", borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", flex: "1 1 auto", minWidth: "110px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-          GİDERLER: {fSayi(fGTutarNormal)} ₺
+        <div style={{ display: "flex", gap: "6px", flex: "1 1 auto", minWidth: "0", flexWrap: "wrap" }}>
+          <div className="gider-ust-ozet" style={{ border: "1px solid #dc262633", background: "#dc262610", color: "#dc2626", borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", flex: "1 1 120px", minWidth: "100px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            GİDERLER: {fSayi(fGGiderNormal)} ₺
+          </div>
+          <div className="gider-ust-ozet" style={{ border: "1px solid #0f766e33", background: "#0f766e10", color: "#0f766e", borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", flex: "1 1 120px", minWidth: "100px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            SÜT ÖDEMESİ: {fSayi(fGSutOdemesi)} ₺
+          </div>
+          <div className="gider-ust-ozet" style={{ border: "1px solid #8b5cf633", background: "#8b5cf610", color: "#8b5cf6", borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", flex: "1 1 130px", minWidth: "110px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            KREMA ÖDEMESİ: {fSayi(fGKremaOdemesi)} ₺
+          </div>
         </div>
       </div>
       <div className="table-wrapper"><table className="tbl" style={{borderTop: "3px solid #fca5a5"}}>
