@@ -84,7 +84,7 @@ const sayiDegeri = (veri: Record<string, unknown> | null, alan: string) => {
   return null;
 };
 
-const paraMetni = (deger: number | null) => (deger === null ? "" : `${fSayi(deger)} â‚º`);
+const paraMetni = (deger: number | null) => (deger === null ? "" : `${fSayi(deger)} ₺`);
 
 const byteMetni = (bytes: number) => {
   if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
@@ -103,8 +103,8 @@ const copKutusuOzetiniGetir = (tabloAdi: string, veri: unknown) => {
   const kayit = kayitObjesi(veri);
   if (!kayit) {
     return {
-      baslik: "KayÄ±t Ã¶zeti alÄ±namadÄ±",
-      detay: typeof veri === "string" ? veri : "Ham veri gÃ¶rÃ¼ntÃ¼lenemedi.",
+      baslik: "Kayıt özeti alınamadı",
+      detay: typeof veri === "string" ? veri : "Ham veri görüntülenemedi.",
     };
   }
 
@@ -119,23 +119,23 @@ const copKutusuOzetiniGetir = (tabloAdi: string, veri: unknown) => {
   if (tabloAdi === "satis_fisleri") {
     const detaylar = [tarih, bayi, paraMetni(sayiDegeri(kayit, "toplam_tutar")), paraMetni(sayiDegeri(kayit, "kalan_bakiye"))].filter(Boolean);
     return {
-      baslik: fisNo || bayi || "SatÄ±ÅŸ fiÅŸi",
-      detay: detaylar.join(" | ") || "SatÄ±ÅŸ fiÅŸi kaydÄ±",
+      baslik: fisNo || bayi || "Satış fişi",
+      detay: detaylar.join(" | ") || "Satış fişi kaydı",
     };
   }
 
   if (tabloAdi === "satis_giris") {
     const detaylar = [tarih, bayi, urun, paraMetni(sayiDegeri(kayit, "tutar"))].filter(Boolean);
     return {
-      baslik: urun || fisNo || "SatÄ±ÅŸ satÄ±rÄ±",
-      detay: detaylar.join(" | ") || "SatÄ±ÅŸ satÄ±rÄ± kaydÄ±",
+      baslik: urun || fisNo || "Satış satırı",
+      detay: detaylar.join(" | ") || "Satış satırı kaydı",
     };
   }
 
   if (tabloAdi === "sut_giris") {
     const detaylar = [tarih, ciftlik, `${fSayi(sayiDegeri(kayit, "kg") || 0)} kg`, paraMetni(sayiDegeri(kayit, "toplam_tl"))].filter(Boolean);
     return {
-      baslik: ciftlik || "SÃ¼t giriÅŸi",
+      baslik: ciftlik || "Süt girişi",
       detay: detaylar.join(" | "),
     };
   }
@@ -143,7 +143,7 @@ const copKutusuOzetiniGetir = (tabloAdi: string, veri: unknown) => {
   if (tabloAdi === "giderler") {
     const detaylar = [tarih, tur, paraMetni(sayiDegeri(kayit, "tutar")), aciklama].filter(Boolean);
     return {
-      baslik: tur || "Gider kaydÄ±",
+      baslik: tur || "Gider kaydı",
       detay: detaylar.join(" | "),
     };
   }
@@ -156,7 +156,7 @@ const copKutusuOzetiniGetir = (tabloAdi: string, veri: unknown) => {
       aciklama,
     ].filter(Boolean);
     return {
-      baslik: tarih ? `${tarih} Ã¼retim kaydÄ±` : "Ãœretim kaydÄ±",
+      baslik: tarih ? `${tarih} üretim kaydı` : "Üretim kaydı",
       detay: detaylar.join(" | "),
     };
   }
@@ -276,10 +276,10 @@ export function SettingsPanel({
   }, [activeAyarTab]);
 
   const ayarPlaceholderi = useMemo(() => {
-    if (activeAyarTab === "musteriler") return "Yeni mÃ¼ÅŸteri ismi...";
-    if (activeAyarTab === "urunler") return "Yeni Ã¼rÃ¼n ismi...";
-    if (activeAyarTab === "ciftlikler") return "Yeni Ã§iftlik ismi...";
-    return "Yeni gider tÃ¼rÃ¼...";
+    if (activeAyarTab === "musteriler") return "Yeni müşteri ismi...";
+    if (activeAyarTab === "urunler") return "Yeni ürün ismi...";
+    if (activeAyarTab === "ciftlikler") return "Yeni çiftlik ismi...";
+    return "Yeni gider türü...";
   }, [activeAyarTab]);
 
   useEffect(() => {
@@ -298,19 +298,19 @@ export function SettingsPanel({
     const eskiSifre = sifreForm.eski.trim();
     const yeniSifre = sifreForm.yeni.trim();
     if (!eskiSifre) {
-      setSifreMesaji({ tip: "error", metin: "Eski ÅŸifre zorunludur." });
+      setSifreMesaji({ tip: "error", metin: "Eski şifre zorunludur." });
       return;
     }
     if (!yeniSifre) {
-      setSifreMesaji({ tip: "error", metin: "Yeni ÅŸifre boÅŸ bÄ±rakÄ±lamaz." });
+      setSifreMesaji({ tip: "error", metin: "Yeni şifre boş bırakılamaz." });
       return;
     }
     if (yeniSifre.length < 6) {
-      setSifreMesaji({ tip: "error", metin: "Åifre en az 6 karakter olmalÄ±dÄ±r." });
+      setSifreMesaji({ tip: "error", metin: "Şifre en az 6 karakter olmalıdır." });
       return;
     }
     if (yeniSifre !== sifreForm.tekrar) {
-      setSifreMesaji({ tip: "error", metin: "Åifre tekrar alanÄ± eÅŸleÅŸmiyor." });
+      setSifreMesaji({ tip: "error", metin: "Şifre tekrar alanı eşleşmiyor." });
       return;
     }
 
@@ -327,11 +327,11 @@ export function SettingsPanel({
     const email = yeniKullaniciForm.email.trim().toLowerCase();
     const password = yeniKullaniciForm.password.trim();
     if (!email || !password) {
-      setAdminMesaji({ tip: "error", metin: "E-posta ve ÅŸifre zorunludur." });
+      setAdminMesaji({ tip: "error", metin: "E-posta ve şifre zorunludur." });
       return;
     }
     if (password.length < 6) {
-      setAdminMesaji({ tip: "error", metin: "Åifre en az 6 karakter olmalÄ±dÄ±r." });
+      setAdminMesaji({ tip: "error", metin: "Şifre en az 6 karakter olmalıdır." });
       return;
     }
     const sonuc = await onCreateAdminUser({
@@ -347,11 +347,11 @@ export function SettingsPanel({
 
   const handleAdminSifreGuncelle = async () => {
     if (!sifreSifirlamaForm.userId || !sifreSifirlamaForm.newPassword.trim()) {
-      setAdminMesaji({ tip: "error", metin: "KullanÄ±cÄ± ve yeni ÅŸifre alanÄ± zorunludur." });
+      setAdminMesaji({ tip: "error", metin: "Kullanıcı ve yeni şifre alanı zorunludur." });
       return;
     }
     if (sifreSifirlamaForm.newPassword.trim().length < 6) {
-      setAdminMesaji({ tip: "error", metin: "Yeni ÅŸifre en az 6 karakter olmalÄ±dÄ±r." });
+      setAdminMesaji({ tip: "error", metin: "Yeni şifre en az 6 karakter olmalıdır." });
       return;
     }
 
@@ -451,12 +451,12 @@ export function SettingsPanel({
         {activeAyarTab === "hesap" && (
           <div style={{ display: "grid", gap: "12px", overflowY: "auto" }}>
             <div style={kartStili}>
-              <h3 style={{ margin: "0 0 8px", fontSize: "15px", color: "#0f172a" }}>Åifre DeÄŸiÅŸtir</h3>
+              <h3 style={{ margin: "0 0 8px", fontSize: "15px", color: "#0f172a" }}>Şifre Değiştir</h3>
               <p style={{ margin: "0 0 8px", color: "#64748b", fontSize: "13px", lineHeight: 1.5 }}>
-                Oturumdaki kullanÄ±cÄ±: <b>{aktifKullaniciEposta || mevcutKullanici || "-"}</b>
+                Oturumdaki kullanıcı: <b>{aktifKullaniciEposta || mevcutKullanici || "-"}</b>
               </p>
               <p style={{ margin: 0, color: "#64748b", fontSize: "12px", lineHeight: 1.5 }}>
-                Buradan sadece kendi hesabÄ±nÄ±zÄ±n ÅŸifresini deÄŸiÅŸtirebilirsiniz.
+                Buradan sadece kendi hesabınızın şifresini değiştirebilirsiniz.
               </p>
             </div>
 
@@ -477,21 +477,21 @@ export function SettingsPanel({
             <div style={{ ...kartStili, display: "grid", gap: "10px", maxWidth: "420px" }}>
               <input
                 type="password"
-                placeholder="Yeni ÅŸifre"
+                placeholder="Yeni şifre"
                 value={sifreForm.yeni}
                 onChange={(event) => setSifreForm((prev) => ({ ...prev, yeni: event.target.value }))}
                 style={{ padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", outline: "none", fontSize: "13px" }}
               />
               <input
                 type="password"
-                placeholder="Yeni ÅŸifre tekrar"
+                placeholder="Yeni şifre tekrar"
                 value={sifreForm.tekrar}
                 onChange={(event) => setSifreForm((prev) => ({ ...prev, tekrar: event.target.value }))}
                 style={{ padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", outline: "none", fontSize: "13px" }}
               />
               <input
                 type="password"
-                placeholder="Eski ÅŸifre"
+                placeholder="Eski şifre"
                 value={sifreForm.eski}
                 onChange={(event) => setSifreForm((prev) => ({ ...prev, eski: event.target.value }))}
                 style={{ padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", outline: "none", fontSize: "13px" }}
@@ -510,7 +510,7 @@ export function SettingsPanel({
                   fontSize: "13px",
                 }}
               >
-                {isSifreKayitLoading ? "Kaydediliyor..." : "Åifreyi DeÄŸiÅŸtir"}
+                {isSifreKayitLoading ? "Kaydediliyor..." : "Şifreyi Değiştir"}
               </button>
             </div>
           </div>
@@ -521,9 +521,9 @@ export function SettingsPanel({
             <div style={kartStili}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
                 <div>
-                  <h3 style={{ margin: "0 0 6px", fontSize: "15px", color: "#0f172a" }}>KullanÄ±cÄ± YÃ¶netimi</h3>
+                  <h3 style={{ margin: "0 0 6px", fontSize: "15px", color: "#0f172a" }}>Kullanıcı Yönetimi</h3>
                   <p style={{ margin: 0, color: "#64748b", fontSize: "12px", lineHeight: 1.5 }}>
-                    Yeni kullanÄ±cÄ± ekleme ve mevcut kullanÄ±cÄ± ÅŸifresi deÄŸiÅŸtirme iÅŸlemleri gÃ¼venli backend Ã¼zerinden yapÄ±lÄ±r.
+                    Yeni kullanıcı ekleme ve mevcut kullanıcı şifresi değiştirme işlemleri güvenli backend üzerinden yapılır.
                   </p>
                 </div>
                 <button
@@ -540,7 +540,7 @@ export function SettingsPanel({
                     fontSize: "12px",
                   }}
                 >
-                  {isAdminKullaniciLoading ? "YÃ¼kleniyor..." : "Listeyi Yenile"}
+                  {isAdminKullaniciLoading ? "Yükleniyor..." : "Listeyi Yenile"}
                 </button>
               </div>
             </div>
@@ -575,7 +575,7 @@ export function SettingsPanel({
 
             <div style={{ display: "grid", gap: "12px", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
               <div style={{ ...kartStili, display: "grid", gap: "10px" }}>
-                <h4 style={{ margin: 0, fontSize: "14px", color: "#0f172a" }}>Yeni KullanÄ±cÄ± Ekle</h4>
+                <h4 style={{ margin: 0, fontSize: "14px", color: "#0f172a" }}>Yeni Kullanıcı Ekle</h4>
                 <input
                   placeholder="Ad soyad (opsiyonel)"
                   value={yeniKullaniciForm.displayName}
@@ -590,7 +590,7 @@ export function SettingsPanel({
                 />
                 <input
                   type="password"
-                  placeholder="GeÃ§ici ÅŸifre"
+                  placeholder="Geçici şifre"
                   value={yeniKullaniciForm.password}
                   onChange={(event) => setYeniKullaniciForm((prev) => ({ ...prev, password: event.target.value }))}
                   style={{ padding: "9px 11px", borderRadius: "8px", border: "1px solid #cbd5e1", outline: "none", fontSize: "13px" }}
@@ -609,18 +609,18 @@ export function SettingsPanel({
                     fontSize: "13px",
                   }}
                 >
-                  KullanÄ±cÄ± Ekle
+                  Kullanıcı Ekle
                 </button>
               </div>
 
               <div style={{ ...kartStili, display: "grid", gap: "10px" }}>
-                <h4 style={{ margin: 0, fontSize: "14px", color: "#0f172a" }}>KullanÄ±cÄ± Åifresi DeÄŸiÅŸtir</h4>
+                <h4 style={{ margin: 0, fontSize: "14px", color: "#0f172a" }}>Kullanıcı Şifresi Değiştir</h4>
                 <select
                   value={sifreSifirlamaForm.userId}
                   onChange={(event) => setSifreSifirlamaForm((prev) => ({ ...prev, userId: event.target.value }))}
                   style={{ padding: "9px 11px", borderRadius: "8px", border: "1px solid #cbd5e1", outline: "none", fontSize: "13px", background: "#fff" }}
                 >
-                  <option value="">KullanÄ±cÄ± seÃ§in</option>
+                  <option value="">Kullanıcı seçin</option>
                   {adminKullanicilar.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.email}
@@ -629,13 +629,13 @@ export function SettingsPanel({
                 </select>
                 {seciliAdminKullanici && (
                   <div style={{ fontSize: "12px", color: "#64748b" }}>
-                    <div><b>KullanÄ±cÄ±:</b> {seciliAdminKullanici.email}</div>
+                    <div><b>Kullanıcı:</b> {seciliAdminKullanici.email}</div>
                     {seciliAdminKullanici.role && <div><b>Rol:</b> {seciliAdminKullanici.role}</div>}
                   </div>
                 )}
                 <input
                   type="password"
-                  placeholder="Yeni ÅŸifre"
+                  placeholder="Yeni şifre"
                   value={sifreSifirlamaForm.newPassword}
                   onChange={(event) => setSifreSifirlamaForm((prev) => ({ ...prev, newPassword: event.target.value }))}
                   style={{ padding: "9px 11px", borderRadius: "8px", border: "1px solid #cbd5e1", outline: "none", fontSize: "13px" }}
@@ -654,13 +654,13 @@ export function SettingsPanel({
                     fontSize: "13px",
                   }}
                 >
-                  Åifreyi GÃ¼ncelle
+                  Şifreyi Güncelle
                 </button>
               </div>
             </div>
 
             <div style={{ ...kartStili, display: "grid", gap: "8px" }}>
-              <h4 style={{ margin: 0, fontSize: "14px", color: "#0f172a" }}>Mevcut KullanÄ±cÄ±lar</h4>
+              <h4 style={{ margin: 0, fontSize: "14px", color: "#0f172a" }}>Mevcut Kullanıcılar</h4>
               <div style={{ display: "grid", gap: "8px" }}>
                 {adminKullanicilar.map((item) => (
                   <div
@@ -680,7 +680,7 @@ export function SettingsPanel({
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontWeight: "bold", color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis" }}>{item.email}</div>
                       <div style={{ color: "#64748b" }}>
-                        {(item.displayName || item.username || "-")}{item.role ? ` â€¢ ${item.role}` : ""}
+                        {(item.displayName || item.username || "-")}{item.role ? ` • ${item.role}` : ""}
                       </div>
                     </div>
                     <div style={{ color: "#94a3b8", whiteSpace: "nowrap" }}>
@@ -690,7 +690,7 @@ export function SettingsPanel({
                 ))}
                 {adminKullanicilar.length === 0 && (
                   <div style={{ textAlign: "center", color: "#94a3b8", fontSize: "12px" }}>
-                    {isAdminKullaniciLoading ? "KullanÄ±cÄ±lar yÃ¼kleniyor..." : "HenÃ¼z kullanÄ±cÄ± bulunamadÄ±."}
+                    {isAdminKullaniciLoading ? "Kullanıcılar yükleniyor..." : "Henüz kullanıcı bulunamadı."}
                   </div>
                 )}
               </div>
@@ -729,7 +729,7 @@ export function SettingsPanel({
                     whiteSpace: "nowrap",
                     flex: "0 0 auto",
                   }}
-                  title="Yeni Ã¼rÃ¼n satÄ±ÅŸ fiÅŸinde sabit Ã¼rÃ¼n olarak gÃ¶rÃ¼nsÃ¼n mÃ¼?"
+                  title="Yeni ürün satış fişinde sabit ürün olarak görünsün mü?"
                 >
                   {yeniUrunSabitle ? "Sabitlenecek" : "Sabitle"}
                 </button>
@@ -756,7 +756,7 @@ export function SettingsPanel({
             {(activeAyarTab === "musteriler" || activeAyarTab === "gider_turleri") && (
               <div style={{ display: "flex", justifyContent: "flex-end" }}>
                 <input
-                  placeholder={activeAyarTab === "musteriler" ? "MÃ¼ÅŸteri ara..." : "Gider tÃ¼rÃ¼ ara..."}
+                  placeholder={activeAyarTab === "musteriler" ? "Müşteri ara..." : "Gider türü ara..."}
                   value={ayarArama}
                   onChange={(event) => setAyarArama(event.target.value)}
                   style={{
@@ -797,7 +797,7 @@ export function SettingsPanel({
                     <span style={{ fontWeight: "bold", color: "#475569", fontSize: "12px" }}>
                       {item.isim}
                       {activeAyarTab === "urunler" && "fiyat" in item && item.fiyat
-                        ? ` (${fSayi((item as Urun).fiyat)} â‚º)`
+                        ? ` (${fSayi((item as Urun).fiyat)} ₺)`
                         : ""}
                     </span>
                     {activeAyarTab === "urunler" && (
@@ -855,9 +855,9 @@ export function SettingsPanel({
                           padding: "0 8px",
                           whiteSpace: "nowrap",
                         }}
-                        title={(item as Urun).sabit ? "Sabit Ã¼rÃ¼nÃ¼ kaldÄ±r" : "ÃœrÃ¼nÃ¼ sabitle"}
+                        title={(item as Urun).sabit ? "Sabit ürünü kaldır" : "Ürünü sabitle"}
                       >
-                        {(item as Urun).sabit ? "Sabitten Ã‡Ä±k" : "Sabitle"}
+                        {(item as Urun).sabit ? "Sabitten Çık" : "Sabitle"}
                       </button>
                     )}
                     <button
@@ -875,9 +875,9 @@ export function SettingsPanel({
                         cursor: "pointer",
                         fontSize: "12px",
                       }}
-                      title="DÃ¼zenle"
+                      title="Düzenle"
                     >
-                      âœ
+                      ✎
                     </button>
                     {pasifDestekli ? (
                       <button
@@ -920,7 +920,7 @@ export function SettingsPanel({
                         }}
                         title="Sil"
                       >
-                        âœ•
+                        ✕
                       </button>
                     )}
                     {adminSilmeDestekli && (
@@ -941,7 +941,7 @@ export function SettingsPanel({
                         }}
                         title="Sil"
                       >
-                        ğŸ—‘
+                        🗑
                       </button>
                     )}
                   </div>
@@ -952,7 +952,7 @@ export function SettingsPanel({
 
               {filtrelenmisAyarListesi.length === 0 && (
                 <div style={{ textAlign: "center", color: "#94a3b8", marginTop: "20px", fontSize: "13px" }}>
-                  KayÄ±t bulunamadÄ±.
+                  Kayıt bulunamadı.
                 </div>
               )}
             </div>
@@ -964,7 +964,7 @@ export function SettingsPanel({
             <div style={kartStili}>
               <h3 style={{ margin: "0 0 8px", fontSize: "15px", color: "#0f172a" }}>Veri Yedekleme</h3>
               <p style={{ margin: 0, color: "#64748b", fontSize: "13px", lineHeight: 1.5 }}>
-                Excel yedeÄŸi kullanÄ±cÄ±nÄ±n ekranda gÃ¶rdÃ¼ÄŸÃ¼ sade tablo gÃ¶rÃ¼nÃ¼mÃ¼nÃ¼ ayrÄ± sayfalara bÃ¶ler. JSON yedeÄŸi ise tam veri dÃ¶kÃ¼mÃ¼nÃ¼ alÄ±r.
+                Excel yedeği kullanıcının ekranda gördüğü sade tablo görünümünü ayrı sayfalara böler. JSON yedeği ise tam veri dökümünü alır.
               </p>
             </div>
             <div style={{ ...kartStili, display: "grid", gap: "10px" }}>
@@ -996,7 +996,7 @@ export function SettingsPanel({
                   cursor: isBackupLoading ? "wait" : "pointer",
                 }}
               >
-                {isBackupLoading ? "HazÄ±rlanÄ±yor..." : "Excel YedeÄŸi Ä°ndir"}
+                {isBackupLoading ? "Hazırlanıyor..." : "Excel Yedeği İndir"}
               </button>
               <button
                 onClick={onJsonBackup}
@@ -1011,7 +1011,7 @@ export function SettingsPanel({
                   cursor: isBackupLoading ? "wait" : "pointer",
                 }}
               >
-                {isBackupLoading ? "HazÄ±rlanÄ±yor..." : "JSON YedeÄŸi Ä°ndir"}
+                {isBackupLoading ? "Hazırlanıyor..." : "JSON Yedeği İndir"}
               </button>
             </div>
           </div>
@@ -1097,10 +1097,10 @@ export function SettingsPanel({
             <div style={kartStili}>
               <h3 style={{ margin: "0 0 8px", fontSize: "15px", color: "#0f172a" }}>Sekme Yetkileri</h3>
               <p style={{ margin: "0 0 8px", color: "#64748b", fontSize: "13px", lineHeight: 1.5 }}>
-                Admin kullanÄ±cÄ±: <b>{mevcutKullanici || "-"}</b>
+                Admin kullanıcı: <b>{mevcutKullanici || "-"}</b>
               </p>
               <p style={{ margin: 0, color: yetkiKaynak === "supabase" ? "#0f766e" : "#b45309", fontSize: "12px" }}>
-                Yetki kaynaÄŸÄ±: {yetkiKaynak === "supabase" ? "Supabase tablosu" : "Bu cihazÄ±n yerel kaydÄ±"}
+                Yetki kaynağı: {yetkiKaynak === "supabase" ? "Supabase tablosu" : "Bu cihazın yerel kaydı"}
               </p>
               {yetkiUyari && <p style={{ margin: "8px 0 0", color: "#b45309", fontSize: "12px" }}>{yetkiUyari}</p>}
             </div>
@@ -1111,7 +1111,7 @@ export function SettingsPanel({
                   list="kullanici-listesi"
                   value={hedefKullanici}
                   onChange={(event) => hedefKullaniciSec(event.target.value)}
-                  placeholder="KullanÄ±cÄ± adÄ± seÃ§ veya yaz"
+                  placeholder="Kullanıcı adı seç veya yaz"
                   style={{
                     flex: 1,
                     padding: "8px 10px",
@@ -1177,7 +1177,7 @@ export function SettingsPanel({
         {activeAyarTab === "cop_kutusu" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "6px", overflowY: "auto", paddingRight: "4px" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" }}>
-              <h4 style={{ margin: 0, fontSize: "13px", color: "#dc2626" }}>Son Silinen KayÄ±tlar</h4>
+              <h4 style={{ margin: 0, fontSize: "13px", color: "#dc2626" }}>Son Silinen Kayıtlar</h4>
               {isAdmin && (
                 <button
                   onClick={() => void onEmptyTrash()}
@@ -1193,7 +1193,7 @@ export function SettingsPanel({
                     fontSize: "12px",
                   }}
                 >
-                  Ã‡Ã¶p Kutusunu BoÅŸalt
+                  Çöp Kutusunu Boşalt
                 </button>
               )}
             </div>
@@ -1228,7 +1228,7 @@ export function SettingsPanel({
             ))}
             {copKutusuList.length === 0 && (
               <div style={{ textAlign: "center", color: "#94a3b8", marginTop: "20px", fontSize: "12px" }}>
-                Ã‡Ã¶p kutusu boÅŸ. EÄŸer Supabase tablosu yoksa silinenler buraya dÃ¼ÅŸmez.
+                Çöp kutusu boş. Eğer Supabase tablosu yoksa silinenler buraya düşmez.
               </div>
             )}
           </div>
@@ -1237,4 +1237,5 @@ export function SettingsPanel({
     </div>
   );
 }
+
 
