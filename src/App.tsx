@@ -2920,6 +2920,20 @@ export default function App() {
     return isBayiMatch && isTarihMatch && isKisiMatch && !fisDevirMi(f);
   }), [aktifKullaniciKisa, periodSatisFis, fisFiltre, satisFiltreKisi, satisFisBayiAdiGetir]);
 
+  const ozetToplamFisler = useMemo(
+    () => periodSatisFis.filter((f: any) => !fisDevirMi(f) && !fisKasayaDevirMi(f)),
+    [periodSatisFis],
+  );
+
+  const tOzetFisToplam = useMemo(
+    () => ozetToplamFisler.reduce((a: number, b: any) => a + Number(b.toplam_tutar), 0),
+    [ozetToplamFisler],
+  );
+  const tOzetFisTahsilatRaw = useMemo(
+    () => ozetToplamFisler.reduce((a: number, b: any) => a + Number(b.tahsilat), 0),
+    [ozetToplamFisler],
+  );
+
   const tFisToplam = useMemo(() => filteredForTotals.filter(f => !fisKasayaDevirMi(f)).reduce((a: number, b: any) => a + Number(b.toplam_tutar), 0), [filteredForTotals]);
   const tFisTahsilatRaw = useMemo(() => filteredForTotals.filter(f => !fisKasayaDevirMi(f)).reduce((a: number, b: any) => a + Number(b.tahsilat), 0), [filteredForTotals]);
   const tFisKalan = useMemo(() => filteredForTotals.filter(f => !fisKasayaDevirMi(f)).reduce((a: number, b: any) => a + Number(b.kalan_bakiye), 0), [filteredForTotals]);
@@ -3268,8 +3282,8 @@ export default function App() {
   const renderOzet = () => (
     <div className="tab-fade-in main-content-area" style={{ display: "flex", flexDirection: "column" }}>
       {renderKompaktToplamlar([
-        { etiket: "SATIŞ", deger: `${fSayiNoDec(tFisToplam)} ₺`, renk: "#059669" },
-        { etiket: "TAHSİLAT", deger: `${fSayiNoDec(tFisTahsilatRaw)} ₺`, renk: "#2563eb" },
+        { etiket: "SATIŞ", deger: `${fSayiNoDec(tOzetFisToplam)} ₺`, renk: "#059669" },
+        { etiket: "TAHSİLAT", deger: `${fSayiNoDec(tOzetFisTahsilatRaw)} ₺`, renk: "#2563eb" },
         { etiket: "AÇIK HESAP", deger: `${fSayiNoDec(bayiNetDurum)} ₺`, renk: "#f59e0b" },
       ], { marginBottom: "6px" }, "three", "summary-c")}
       {renderKompaktToplamlar([
