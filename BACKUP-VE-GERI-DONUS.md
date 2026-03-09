@@ -2,6 +2,13 @@
 
 ## Guncel Stabil Surum
 
+2026-03-09 itibariyla ek guncel yedekler:
+
+- Kaynak arsivi: `backups/sultankoy-v3-kaynak-yedek-20260309-160025.zip`
+- Tam klasor arsivi: `backups/sultankoy-v3-tam-yedek-20260309-160025.zip`
+- Devam notu: `DEVAM-VE-SURUM-NOTLARI-20260309.md`
+- Yeni sohbet ozeti: `YENI-SOHBET-OZETI-20260309.txt`
+
 Bu proje icin su anki calisan stabil durum su sekilde yedeklendi:
 
 - Kaynak arsivi: `backups/sultankoy-v3-kaynak-yedek-20260307-123315.zip`

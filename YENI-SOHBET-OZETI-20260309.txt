@@ -1,0 +1,21 @@
+Proje yolu: C:\Users\BattleStar\Desktop\site kod\sultankoy-v3
+Canli: https://sultankoy-v3.vercel.app/
+Branch: main
+Yedek temel commit: ddf170b
+
+Kisa durum:
+- proje stabil calisiyor
+- satis, tahsilat, kasa devir, sut, uretim, gider, ozet, analiz aktif
+- donem devri calisiyor
+- musteri ekstresi var
+- kullanici yonetimi ve sifre degistirme aktif
+- satis ve gider gorselleri yuklenmeden once 900px + JPEG %50 sikistiriliyor
+
+Onemli dosya:
+- C:\Users\BattleStar\Desktop\site kod\sultankoy-v3\DEVAM-VE-SURUM-NOTLARI-20260309.md
+
+Yeni sohbette istek:
+- kisa cevap ver
+- tek isi bitir sonra digerine gec
+- gerekmedikce buyuk log/JSON isteme
+- gorsel/tasarim degisikliklerinde once local/branch ilerle
