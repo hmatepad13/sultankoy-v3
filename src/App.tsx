@@ -434,6 +434,14 @@ const dosyaAdiIcinTemizle = (deger?: string | null) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "") || "fis";
 
+const byteBoyutunuFormatla = (bytes?: number | null) => {
+  const deger = Number(bytes || 0);
+  if (!Number.isFinite(deger) || deger <= 0) return "";
+  if (deger < 1024) return `${deger} B`;
+  if (deger < 1024 * 1024) return `${Math.round(deger / 1024)} KB`;
+  return `${(deger / (1024 * 1024)).toFixed(2)} MB`;
+};
+
 const uretimCikanToplamAdet = (kayit: Partial<Uretim>) => {
   const tip = kayit.uretim_tipi || "yogurt";
   if (tip === "sut_kaymagi") {
@@ -588,7 +596,7 @@ export default function App() {
   const [fisDetay, setFisDetay] = useState<FisDetayMap>({});
   const [fisGorselDosya, setFisGorselDosya] = useState<File | null>(null);
   const [fisGorselMevcutYol, setFisGorselMevcutYol] = useState("");
-  const [fisGorselOnizleme, setFisGorselOnizleme] = useState<{ url: string; baslik: string } | null>(null);
+  const [fisGorselOnizleme, setFisGorselOnizleme] = useState<{ url: string; baslik: string; boyut?: string } | null>(null);
   const [gosterilenEkler, setGosterilenEkler] = useState({ tereyagi: false, yogurt_kaymagi: false, iade: false, bos_kova: false, urunler: [] as string[] });
   const [isDigerUrunMenuOpen, setIsDigerUrunMenuOpen] = useState(false);
   const digerUrunMenuRef = useRef<HTMLDivElement | null>(null);
@@ -2336,6 +2344,17 @@ export default function App() {
     return raw;
   };
 
+  const gorselBoyutunuGetir = async (url: string) => {
+    try {
+      const response = await fetch(url, { method: "HEAD" });
+      if (!response.ok) return "";
+      const boyut = Number(response.headers.get("content-length") || 0);
+      return byteBoyutunuFormatla(boyut);
+    } catch {
+      return "";
+    }
+  };
+
   const handleFisGorselSec = (event: ChangeEvent<HTMLInputElement>) => {
     const secilen = event.target.files?.[0];
     event.target.value = "";
@@ -2385,7 +2404,8 @@ export default function App() {
     const baslik = `${fis.bayi || "Fiş"} • ${gorunenFisNoOlustur(fis)}`;
 
     if (!storageYolu && (raw.startsWith("http://") || raw.startsWith("https://"))) {
-      setFisGorselOnizleme({ url: raw, baslik });
+      const boyut = await gorselBoyutunuGetir(raw);
+      setFisGorselOnizleme({ url: raw, baslik, boyut });
       return;
     }
 
@@ -2403,7 +2423,8 @@ export default function App() {
       return;
     }
 
-    setFisGorselOnizleme({ url: data.signedUrl, baslik });
+    const boyut = await gorselBoyutunuGetir(data.signedUrl);
+    setFisGorselOnizleme({ url: data.signedUrl, baslik, boyut });
   };
 
   const handleGiderGorselGoster = async (gider: Gider) => {
@@ -2414,7 +2435,8 @@ export default function App() {
     const baslik = `${gider.tur || "Gider"} • ${gider.tarih ? gider.tarih.split("-").reverse().join(".") : ""}`;
 
     if (!storageYolu && (raw.startsWith("http://") || raw.startsWith("https://"))) {
-      setFisGorselOnizleme({ url: raw, baslik });
+      const boyut = await gorselBoyutunuGetir(raw);
+      setFisGorselOnizleme({ url: raw, baslik, boyut });
       return;
     }
 
@@ -2432,7 +2454,8 @@ export default function App() {
       return;
     }
 
-    setFisGorselOnizleme({ url: data.signedUrl, baslik });
+    const boyut = await gorselBoyutunuGetir(data.signedUrl);
+    setFisGorselOnizleme({ url: data.signedUrl, baslik, boyut });
   };
 
   const giderGorseliYukle = async () => {
@@ -2501,8 +2524,9 @@ export default function App() {
       String(yuklemeTarihi.getMinutes()).padStart(2, "0"),
       String(yuklemeTarihi.getSeconds()).padStart(2, "0"),
     ].join("");
-    const guvenliEk = fisNo.replace(/[^a-zA-Z0-9]/g, "").slice(-6) || Math.random().toString(36).slice(2, 8).toUpperCase();
-    const dosyaYolu = `${bayiSlug}/${bayiSlug}-${tarihParcasi}-${guvenliEk}.${uzanti}`;
+    const fisNoSlug = dosyaAdiIcinTemizle(fisNo || "fis");
+    const guvenliEk = Math.random().toString(36).slice(2, 8).toUpperCase();
+    const dosyaYolu = `${bayiSlug}/${bayiSlug}-${tarihParcasi}-${fisNoSlug}-${guvenliEk}.${uzanti}`;
 
     const { error } = await supabase.storage.from("fis_gorselleri").upload(dosyaYolu, optimizeDosya, {
       contentType: optimizeDosya.type,
@@ -4704,7 +4728,12 @@ export default function App() {
           <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(15,23,42,0.86)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1450, padding: "12px" }} onClick={() => setFisGorselOnizleme(null)}>
             <div style={{ width: "100%", maxWidth: "760px", maxHeight: "92vh", background: "#0f172a", borderRadius: "14px", overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.45)" }} onClick={(e) => e.stopPropagation()}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", background: "#111827", color: "#fff" }}>
-                <div style={{ fontWeight: "bold", fontSize: "13px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fisGorselOnizleme.baslik}</div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: "bold", fontSize: "13px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fisGorselOnizleme.baslik}</div>
+                  {fisGorselOnizleme.boyut ? (
+                    <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "2px" }}>Boyut: {fisGorselOnizleme.boyut}</div>
+                  ) : null}
+                </div>
                 <button onClick={() => setFisGorselOnizleme(null)} style={{ background: "none", border: "none", color: "#cbd5e1", fontSize: "20px", cursor: "pointer", lineHeight: 1 }}>✕</button>
               </div>
               <div style={{ padding: "12px", overflow: "auto", background: "#020617" }}>
