@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { CekSenetKaydi, CekSenetTur } from "../types/app";
+import type { CekSenetDurum, CekSenetKaydi, CekSenetTur } from "../types/app";
 import { getLocalDateString } from "../utils/date";
 import { fSayi, normalizeUsername } from "../utils/format";
 
@@ -58,6 +58,11 @@ const kisaTarih = (tarih?: string) => String(tarih || "").split("-").reverse().s
 const turBilgisiGetir = (tur: CekSenetTur) =>
   TUR_SECENEKLERI.find((item) => item.deger === tur) || TUR_SECENEKLERI[0];
 
+const durumBilgisiGetir = (durum: CekSenetDurum) =>
+  durum === "tahsil_edildi"
+    ? { etiket: "Tahsil Edildi", renk: "#0f766e", arkaPlan: "#ecfdf5" }
+    : { etiket: "Bekliyor", renk: "#b45309", arkaPlan: "#fff7ed" };
+
 const localStorageOku = (): CekSenetKaydi[] => {
   if (typeof window === "undefined") return [];
 
@@ -74,6 +79,8 @@ const localStorageOku = (): CekSenetKaydi[] => {
       tahTarihi: String(item?.tahTarihi || ""),
       miktar: sayiDegeri(item?.miktar),
       banka: String(item?.banka || ""),
+      durum: item?.durum === "tahsil_edildi" ? "tahsil_edildi" : "bekliyor",
+      tahsilEdilmeTarihi: String(item?.tahsilEdilmeTarihi || ""),
       onYuzFoto: typeof item?.onYuzFoto === "string" ? item.onYuzFoto : "",
       arkaYuzFoto: typeof item?.arkaYuzFoto === "string" ? item.arkaYuzFoto : "",
       ekleyen: String(item?.ekleyen || ""),
@@ -220,6 +227,8 @@ export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem }: CekSenetPanelP
       tahTarihi: form.tahTarihi,
       miktar: sayiDegeri(form.miktar),
       banka: form.banka.trim(),
+      durum: oncekiKayit?.durum || "bekliyor",
+      tahsilEdilmeTarihi: oncekiKayit?.tahsilEdilmeTarihi || "",
       onYuzFoto: form.onYuzFoto || "",
       arkaYuzFoto: form.arkaYuzFoto || "",
       ekleyen: aktifKullaniciKisa,
@@ -244,6 +253,35 @@ export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem }: CekSenetPanelP
     const sonrakiKayitlar = kayitlar.filter((item) => item.id !== kayit.id);
     if (!kayitlariKaydet(sonrakiKayitlar)) return;
     if (editingId === kayit.id) formKapat();
+  };
+
+  const handleDurumDegistir = (kayit: CekSenetKaydi) => {
+    if (!kayitSahibiMi(kayit)) {
+      alert("Bu kaydı sadece ekleyen kullanıcı güncelleyebilir.");
+      return;
+    }
+
+    const yeniDurum: CekSenetDurum = kayit.durum === "tahsil_edildi" ? "bekliyor" : "tahsil_edildi";
+    const sonrakiKayitlar = kayitlar.map((item) =>
+      item.id === kayit.id
+        ? {
+            ...item,
+            durum: yeniDurum,
+            tahsilEdilmeTarihi: yeniDurum === "tahsil_edildi" ? getLocalDateString() : "",
+          }
+        : item,
+    );
+
+    if (!kayitlariKaydet(sonrakiKayitlar)) return;
+    setDetayKaydi((prev) =>
+      prev?.id === kayit.id
+        ? {
+            ...prev,
+            durum: yeniDurum,
+            tahsilEdilmeTarihi: yeniDurum === "tahsil_edildi" ? getLocalDateString() : "",
+          }
+        : prev,
+    );
   };
 
   const renderFotoAlani = (
@@ -325,30 +363,37 @@ export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem }: CekSenetPanelP
             <tr>
               <th style={{ width: "11%", textAlign: "center", background: "#5b9bd5", color: "#fff" }}>TAR.</th>
               <th style={{ width: "16%", textAlign: "left", background: "#5b9bd5", color: "#fff" }}>TÜR</th>
+              <th style={{ width: "13%", textAlign: "center", background: "#5b9bd5", color: "#fff" }}>DURUM</th>
               <th style={{ width: "18%", textAlign: "left", background: "#5b9bd5", color: "#fff" }}>DÜZENLEYEN</th>
-              <th style={{ width: "14%", textAlign: "center", background: "#5b9bd5", color: "#fff" }}>TAHSİLAT TAR.</th>
-              <th style={{ width: "13%", textAlign: "right", background: "#5b9bd5", color: "#fff" }}>MİKTAR</th>
-              <th style={{ width: "14%", textAlign: "left", background: "#5b9bd5", color: "#fff" }}>BANKA</th>
-              <th style={{ width: "6%", textAlign: "center", background: "#5b9bd5", color: "#fff" }}>KİŞİ</th>
+              <th style={{ width: "13%", textAlign: "center", background: "#5b9bd5", color: "#fff" }}>TAHSİLAT TAR.</th>
+              <th style={{ width: "12%", textAlign: "right", background: "#5b9bd5", color: "#fff" }}>MİKTAR</th>
+              <th style={{ width: "12%", textAlign: "left", background: "#5b9bd5", color: "#fff" }}>BANKA</th>
+              <th style={{ width: "7%", textAlign: "center", background: "#5b9bd5", color: "#fff" }}>KİŞİ</th>
               <th style={{ width: "8%", background: "#5b9bd5" }}></th>
             </tr>
           </thead>
           <tbody>
             {donemKayitlari.length === 0 && (
               <tr>
-                <td colSpan={8} style={{ textAlign: "center", padding: "14px", color: "#94a3b8", fontWeight: "bold" }}>
+                <td colSpan={9} style={{ textAlign: "center", padding: "14px", color: "#94a3b8", fontWeight: "bold" }}>
                   Kayıt bulunmuyor.
                 </td>
               </tr>
             )}
             {donemKayitlari.map((kayit) => {
               const tur = turBilgisiGetir(kayit.tur);
+              const durum = durumBilgisiGetir(kayit.durum);
               return (
                 <tr key={kayit.id}>
                   <td style={{ textAlign: "center" }}>{kisaTarih(kayit.tarih)}</td>
                   <td>
                     <span style={{ display: "inline-flex", alignItems: "center", borderRadius: "999px", padding: "4px 7px", background: tur.arkaPlan, color: tur.renk, fontWeight: "bold", fontSize: "10px" }}>
                       {tur.etiket}
+                    </span>
+                  </td>
+                  <td style={{ textAlign: "center" }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", borderRadius: "999px", padding: "4px 7px", background: durum.arkaPlan, color: durum.renk, fontWeight: "bold", fontSize: "10px" }}>
+                      {durum.etiket}
                     </span>
                   </td>
                   <td style={{ fontWeight: "bold" }}>{kayit.duzenleyen}</td>
@@ -374,6 +419,18 @@ export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem }: CekSenetPanelP
                             }}
                           >
                             🖼️
+                          </button>
+                        )}
+                        {kayitSahibiMi(kayit) && (
+                          <button
+                            title={kayit.durum === "tahsil_edildi" ? "Bekliyor Yap" : "Tahsil Edildi"}
+                            className="dropdown-item-icon"
+                            onClick={() => {
+                              setOpenDropdownId(null);
+                              handleDurumDegistir(kayit);
+                            }}
+                          >
+                            {kayit.durum === "tahsil_edildi" ? "↩️" : "✅"}
                           </button>
                         )}
                         {kayitSahibiMi(kayit) && <button title="Düzenle" className="dropdown-item-icon" onClick={() => { setOpenDropdownId(null); duzenlemeAc(kayit); }}>✏️</button>}
@@ -459,8 +516,10 @@ export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem }: CekSenetPanelP
             </div>
             <div style={{ padding: "14px 16px", display: "grid", gap: "8px", fontSize: "13px", color: "#475569" }}>
               <div><b>Tarih:</b> {String(detayKaydi.tarih || "").split("-").reverse().join(".")}</div>
+              <div><b>Durum:</b> {durumBilgisiGetir(detayKaydi.durum).etiket}</div>
               <div><b>Düzenleyen:</b> {detayKaydi.duzenleyen}</div>
               <div><b>Tahsilat Tarihi:</b> {String(detayKaydi.tahTarihi || "").split("-").reverse().join(".")}</div>
+              {detayKaydi.tahsilEdilmeTarihi ? <div><b>Tahsil Edildiği Tarih:</b> {String(detayKaydi.tahsilEdilmeTarihi).split("-").reverse().join(".")}</div> : null}
               <div><b>Miktar:</b> {fSayi(detayKaydi.miktar)} ₺</div>
               <div><b>Banka:</b> {detayKaydi.banka}</div>
               <div><b>Ekleyen:</b> {normalizeUsername(detayKaydi.ekleyen) || "-"}</div>
