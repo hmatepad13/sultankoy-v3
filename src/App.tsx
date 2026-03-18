@@ -1,6 +1,7 @@
 ﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, type ChangeEvent, type CSSProperties } from "react";
 import { LoginScreen } from "./components/LoginScreen";
+import { SevkiyatPanel } from "./components/SevkiyatPanel";
 import { SettingsPanel } from "./components/SettingsPanel";
 import {
   GIDER_TURLERI,
@@ -4618,6 +4619,7 @@ export default function App() {
   
   const sekmeRengiGetir = (tabId: AppTabId | "menu") => {
     if (tabId === "satis") return "#059669";
+    if (tabId === "sevkiyat") return "#ea580c";
     if (tabId === "gider") return "#dc2626";
     if (tabId === "analiz" || tabId === "uretim") return "#8b5cf6";
     if (tabId === "sut") return "#0f766e";
@@ -4722,6 +4724,7 @@ export default function App() {
       <main className="main-content">
         {activeTab === "ozet" && renderOzet()}
         {activeTab === "sut" && renderSut()}
+        {activeTab === "sevkiyat" && <SevkiyatPanel aktifKullaniciKisa={aktifKullaniciKisa} aktifDonem={aktifDonem} />}
         {activeTab === "satis" && renderSatis()}
         {activeTab === "gider" && renderGider()}
         {activeTab === "uretim" && renderUretimYeni()}

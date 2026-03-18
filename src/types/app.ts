@@ -1,4 +1,4 @@
-export type AppTabId = "ozet" | "sut" | "uretim" | "satis" | "gider" | "analiz" | "ayarlar";
+export type AppTabId = "ozet" | "sut" | "uretim" | "sevkiyat" | "satis" | "gider" | "analiz" | "ayarlar";
 
 export type ActiveAyarTab =
   | "hesap"
@@ -45,6 +45,16 @@ export interface Urun {
 export interface GiderTuru {
   id: string;
   isim: string;
+}
+
+export interface SevkiyatKaydi {
+  id: string;
+  tarih: string;
+  kullanici: string;
+  yogurt3kg: number;
+  yogurt5kg: number;
+  kaymak: number;
+  createdAt?: string;
 }
 
 export interface SutGiris {
@@ -213,6 +223,7 @@ export interface YedekVerisi {
   satisList: SatisGiris[];
   giderList: Gider[];
   uretimList: Uretim[];
+  sevkiyatList?: SevkiyatKaydi[];
   bayiler: Bayi[];
   urunler: Urun[];
   ciftlikler: Ciftlik[];
