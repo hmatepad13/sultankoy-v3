@@ -302,6 +302,17 @@ const fisDonemDevirMi = (fis: Partial<SatisFis>) => {
   return odemeTuru === "DEVİR" || odemeTuru === "DEVIR";
 };
 
+const donemSatisEtiketiGetir = (donem?: string | null) => {
+  const [yilStr, ayStr] = String(donem || "").split("-");
+  const yil = Number(yilStr);
+  const ay = Number(ayStr);
+  if (!Number.isInteger(yil) || !Number.isInteger(ay) || ay < 1 || ay > 12) return "SATIŞ";
+
+  return `${new Date(yil, ay - 1, 1)
+    .toLocaleDateString("tr-TR", { month: "long" })
+    .toLocaleUpperCase("tr-TR")} SATIŞ`;
+};
+
 const fisPersonelDevirMi = (fis: Partial<SatisFis>) => {
   const odemeTuru = odemeTurunuNormalizeEt(fis.odeme_turu);
   return odemeTuru === "PERSONEL DEVİR" || odemeTuru === "PERSONEL DEVIR";
@@ -3165,6 +3176,7 @@ export default function App() {
     () => tOzetFisToplam - tOzetDevredenBakiye,
     [tOzetDevredenBakiye, tOzetFisToplam],
   );
+  const aktifDonemSatisEtiketi = useMemo(() => donemSatisEtiketiGetir(aktifDonem), [aktifDonem]);
 
   const tFisToplam = useMemo(() => filteredForTotals.filter(f => !fisKasayaDevirMi(f)).reduce((a: number, b: any) => a + Number(b.toplam_tutar), 0), [filteredForTotals]);
   const tFisTahsilatRaw = useMemo(() => filteredForTotals.filter(f => !fisKasayaDevirMi(f)).reduce((a: number, b: any) => a + Number(b.tahsilat), 0), [filteredForTotals]);
@@ -3389,14 +3401,22 @@ export default function App() {
 
   const ozetKartlari = useMemo<OzetKart[]>(
     () => [
-      { baslik: "Satış", deger: tOzetReelSatis },
+      { baslik: aktifDonemSatisEtiketi, deger: tOzetReelSatis },
       { baslik: "Devreden Bakiye", deger: tOzetDevredenBakiye },
       { baslik: "Gider", deger: tGiderNormal },
       { baslik: "Tahsilat", deger: tOzetFisTahsilatRaw },
       { baslik: "Açık Hesap", deger: bayiNetDurum },
       { baslik: "Süt Borcu", deger: sutcuyeBorcumuz },
     ],
-    [bayiNetDurum, sutcuyeBorcumuz, tGiderNormal, tOzetDevredenBakiye, tOzetFisTahsilatRaw, tOzetReelSatis],
+    [
+      aktifDonemSatisEtiketi,
+      bayiNetDurum,
+      sutcuyeBorcumuz,
+      tGiderNormal,
+      tOzetDevredenBakiye,
+      tOzetFisTahsilatRaw,
+      tOzetReelSatis,
+    ],
   );
 
   const yedekVerisi = useMemo<YedekVerisi>(
@@ -3520,7 +3540,7 @@ export default function App() {
   const renderOzet = () => (
     <div className="tab-fade-in main-content-area" style={{ display: "flex", flexDirection: "column" }}>
       {renderKompaktToplamlar([
-        { etiket: "REEL SATIŞ", deger: `${fSayiNoDec(tOzetReelSatis)} ₺`, renk: "#059669" },
+        { etiket: aktifDonemSatisEtiketi, deger: `${fSayiNoDec(tOzetReelSatis)} ₺`, renk: "#059669" },
         { etiket: "TAHSİLAT", deger: `${fSayiNoDec(tOzetFisTahsilatRaw)} ₺`, renk: "#2563eb" },
         { etiket: "AÇIK HESAP", deger: `${fSayiNoDec(bayiNetDurum)} ₺`, renk: "#f59e0b" },
       ], { marginBottom: "6px" }, "three", "summary-c")}
