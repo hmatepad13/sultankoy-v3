@@ -364,8 +364,17 @@ const kremaOdemesiMi = (tur?: string | null) => giderTurunuNormalizeEt(tur).star
 const kovaOdemesiMi = (tur?: string | null) => giderTurunuNormalizeEt(tur).startsWith("kova odemesi");
 const katkiOdemesiMi = (tur?: string | null) => giderTurunuNormalizeEt(tur).startsWith("katki odemesi");
 const sutTozuOdemesiMi = (tur?: string | null) => giderTurunuNormalizeEt(tur).startsWith("sut tozu odemesi");
+const kremaBorcuMi = (tur?: string | null) => giderTurunuNormalizeEt(tur).startsWith("krema borcu");
+const kovaBorcuMi = (tur?: string | null) => giderTurunuNormalizeEt(tur).startsWith("kova borcu");
+const katkiBorcuMi = (tur?: string | null) => giderTurunuNormalizeEt(tur).startsWith("katki borcu");
+const sutTozuBorcuMi = (tur?: string | null) => giderTurunuNormalizeEt(tur).startsWith("sut tozu borcu");
 const odemeGideriMi = (tur?: string | null) =>
   sutOdemesiMi(tur) || kremaOdemesiMi(tur) || kovaOdemesiMi(tur) || katkiOdemesiMi(tur) || sutTozuOdemesiMi(tur);
+const hammaddeBorcuGideriMi = (tur?: string | null) =>
+  kremaBorcuMi(tur) || kovaBorcuMi(tur) || katkiBorcuMi(tur) || sutTozuBorcuMi(tur);
+const normalGiderMi = (tur?: string | null) => !odemeGideriMi(tur) && !hammaddeBorcuGideriMi(tur);
+
+const HAMMADDE_BORC_TURLERI = ["Krema Borcu", "Kova Borcu", "Katkı Borcu", "Süt Tozu Borcu"] as const;
 
 const sutcuBorcunuHesapla = (sutKayitlari: SutGiris[], giderKayitlari: Gider[], sonDonem?: string) => {
   const toplamSutTutari = sutKayitlari.reduce((toplam, item) => {
@@ -384,21 +393,17 @@ const sutcuBorcunuHesapla = (sutKayitlari: SutGiris[], giderKayitlari: Gider[], 
   return toplamSutTutari - toplamSutOdemesi;
 };
 
-const uretimHammaddeBorclariniHesapla = (uretimKayitlari: Uretim[], giderKayitlari: Gider[], sonDonem?: string) => {
-  const toplamlar = uretimKayitlari.reduce(
+const hammaddeBorclariniHesapla = (giderKayitlari: Gider[], sonDonem?: string) => {
+  const toplamBorclar = giderKayitlari.reduce(
     (acc, item) => {
       const donem = String(item.tarih || "").substring(0, 7);
       if (sonDonem && donem > sonDonem) return acc;
 
-      acc.krema += kgSatirTutari(item.krema, item.krema_fiyat);
-      acc.sutTozu += kgSatirTutari(item.sut_tozu, item.sut_tozu_fiyat);
-      acc.katki += kgSatirTutari(item.katki_kg, item.katki_fiyat);
-      acc.kova +=
-        sayiDegeri(item.kova_3_adet) * sayiDegeri(item.kova_3_fiyat) +
-        sayiDegeri(item.kova_5_adet) * sayiDegeri(item.kova_5_fiyat) +
-        sayiDegeri(item.paket_02_adet) * sayiDegeri(item.paket_02_fiyat) +
-        sayiDegeri(item.paket_2_adet) * sayiDegeri(item.paket_2_fiyat) +
-        sayiDegeri(item.paket_3_adet) * sayiDegeri(item.paket_3_fiyat);
+      const tutar = Number(item.tutar || 0);
+      if (kremaBorcuMi(item.tur)) acc.krema += tutar;
+      if (sutTozuBorcuMi(item.tur)) acc.sutTozu += tutar;
+      if (katkiBorcuMi(item.tur)) acc.katki += tutar;
+      if (kovaBorcuMi(item.tur)) acc.kova += tutar;
 
       return acc;
     },
@@ -421,10 +426,10 @@ const uretimHammaddeBorclariniHesapla = (uretimKayitlari: Uretim[], giderKayitla
   );
 
   return {
-    krema: toplamlar.krema - odemeler.krema,
-    sutTozu: toplamlar.sutTozu - odemeler.sutTozu,
-    katki: toplamlar.katki - odemeler.katki,
-    kova: toplamlar.kova - odemeler.kova,
+    krema: toplamBorclar.krema - odemeler.krema,
+    sutTozu: toplamBorclar.sutTozu - odemeler.sutTozu,
+    katki: toplamBorclar.katki - odemeler.katki,
+    kova: toplamBorclar.kova - odemeler.kova,
     odemeler,
   };
 };
@@ -677,7 +682,8 @@ export default function App() {
     const veritabaniTurleri = giderTuruListesi
       .map((item) => item.isim)
       .filter(Boolean);
-    return veritabaniTurleri.length > 0 ? veritabaniTurleri : [...GIDER_TURLERI];
+    const temelTurler = veritabaniTurleri.length > 0 ? veritabaniTurleri : [...GIDER_TURLERI];
+    return Array.from(new Set([...temelTurler, ...HAMMADDE_BORC_TURLERI]));
   }, [giderTuruListesi]);
 
   // --- ÜRETİM STATE'LERİ ---
@@ -3183,7 +3189,13 @@ export default function App() {
   const tFisKalan = useMemo(() => filteredForTotals.filter(f => !fisKasayaDevirMi(f)).reduce((a: number, b: any) => a + Number(b.kalan_bakiye), 0), [filteredForTotals]);
 
   // GİDERLER TAHSİLATTAN DÜŞÜYOR (Kullanıcının giderleri net tahsilatı belirler)
-  const tKullaniciGider = useMemo(() => periodGider.filter(g => normalizeUsername(g.ekleyen) === aktifKullaniciKisa).reduce((a: number, b: any) => a + Number(b.tutar), 0), [aktifKullaniciKisa, periodGider]);
+  const tKullaniciGider = useMemo(
+    () =>
+      periodGider
+        .filter((g) => normalizeUsername(g.ekleyen) === aktifKullaniciKisa && !hammaddeBorcuGideriMi(g.tur))
+        .reduce((a: number, b: any) => a + Number(b.tutar), 0),
+    [aktifKullaniciKisa, periodGider],
+  );
   const tKasayaDevir = useMemo(() => filteredForTotals.filter(f => fisKasayaDevirMi(f)).reduce((a: number, b: any) => a + Number(b.tahsilat), 0), [filteredForTotals]);
   const tNetTahsilat = tFisTahsilatRaw - tKullaniciGider - tKasayaDevir;
 
@@ -3215,7 +3227,7 @@ export default function App() {
     giderFiltreKisi === 'tumu' || normalizeUsername(g.ekleyen) === aktifKullaniciKisa
   ), giderSort), [aktifKullaniciKisa, periodGider, giderSort, giderFiltreKisi]);
   const fGGiderNormal = useMemo(
-    () => fGiderList.filter((g) => !odemeGideriMi(g.tur)).reduce((a: number, b: any) => a + Number(b.tutar), 0),
+    () => fGiderList.filter((g) => normalGiderMi(g.tur)).reduce((a: number, b: any) => a + Number(b.tutar), 0),
     [fGiderList],
   );
   const fGSutOdemesi = useMemo(
@@ -3242,7 +3254,7 @@ export default function App() {
     fGSutOdemesi + fGKremaOdemesi + fGKovaOdemesi + fGKatkiOdemesi + fGSutTozuOdemesi;
 
   const tGiderNormal = useMemo(
-    () => periodGider.filter((g) => !odemeGideriMi(g.tur)).reduce((a: number, b: any) => a + Number(b.tutar), 0),
+    () => periodGider.filter((g) => normalGiderMi(g.tur)).reduce((a: number, b: any) => a + Number(b.tutar), 0),
     [periodGider],
   );
   const tSutOdemesi = useMemo(
@@ -3268,8 +3280,8 @@ export default function App() {
   const tHammaddeOdemeleri = tSutOdemesi + tKremaOdemesi + tKovaOdemesi + tKatkiOdemesi + tSutTozuOdemesi;
   const sutcuyeBorcumuz = useMemo(() => sutcuBorcunuHesapla(sutList, giderList, aktifDonem), [aktifDonem, giderList, sutList]);
   const hammaddeBorclari = useMemo(
-    () => uretimHammaddeBorclariniHesapla(uretimList, giderList, aktifDonem),
-    [aktifDonem, giderList, uretimList],
+    () => hammaddeBorclariniHesapla(giderList, aktifDonem),
+    [aktifDonem, giderList],
   );
   const tHammaddeBorcu =
     sutcuyeBorcumuz +

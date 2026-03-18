@@ -111,6 +111,19 @@ const giderTurunuNormalizeEt = (tur?: string | null) =>
     .replace(/ç/g, "c");
 
 const sutOdemesiMi = (tur?: string | null) => giderTurunuNormalizeEt(tur) === "sut odemesi";
+const kremaOdemesiMi = (tur?: string | null) => giderTurunuNormalizeEt(tur).startsWith("krema odemesi");
+const kovaOdemesiMi = (tur?: string | null) => giderTurunuNormalizeEt(tur).startsWith("kova odemesi");
+const katkiOdemesiMi = (tur?: string | null) => giderTurunuNormalizeEt(tur).startsWith("katki odemesi");
+const sutTozuOdemesiMi = (tur?: string | null) => giderTurunuNormalizeEt(tur).startsWith("sut tozu odemesi");
+const kremaBorcuMi = (tur?: string | null) => giderTurunuNormalizeEt(tur).startsWith("krema borcu");
+const kovaBorcuMi = (tur?: string | null) => giderTurunuNormalizeEt(tur).startsWith("kova borcu");
+const katkiBorcuMi = (tur?: string | null) => giderTurunuNormalizeEt(tur).startsWith("katki borcu");
+const sutTozuBorcuMi = (tur?: string | null) => giderTurunuNormalizeEt(tur).startsWith("sut tozu borcu");
+const odemeGideriMi = (tur?: string | null) =>
+  sutOdemesiMi(tur) || kremaOdemesiMi(tur) || kovaOdemesiMi(tur) || katkiOdemesiMi(tur) || sutTozuOdemesiMi(tur);
+const hammaddeBorcuGideriMi = (tur?: string | null) =>
+  kremaBorcuMi(tur) || kovaBorcuMi(tur) || katkiBorcuMi(tur) || sutTozuBorcuMi(tur);
+const normalGiderMi = (tur?: string | null) => !odemeGideriMi(tur) && !hammaddeBorcuGideriMi(tur);
 
 const sutcuBorcunuHesapla = (sutKayitlari: YedekVerisi["sutList"], giderKayitlari: Gider[], sonDonem?: string) => {
   const toplamSutTutari = sutKayitlari.reduce((toplam, item) => {
@@ -280,6 +293,7 @@ const personelOzetleriniOlustur = (satisFisleri: SatisFis[], giderler: Gider[]) 
 
   giderler.forEach((gider) => {
     const key = kisiGetir(gider.ekleyen) || "Bilinmiyor";
+    if (hammaddeBorcuGideriMi(gider.tur)) return;
     personelKaydiGetir(map, key).gider += Number(gider.tutar || 0);
   });
 
@@ -364,7 +378,9 @@ const donemOzetiOlustur = (veri: YedekVerisi) =>
       "Yoğurt Üretimi": yogurtKayitlari.length,
       "Süt Kaymağı Üretimi": sutKaymagiKayitlari.length,
       "Toplam Satış": donemSatisToplami,
-      "Toplam Gider": donemGiderleri.reduce((toplam, item) => toplam + Number(item.tutar || 0), 0),
+      "Toplam Gider": donemGiderleri
+        .filter((item) => normalGiderMi(item.tur))
+        .reduce((toplam, item) => toplam + Number(item.tutar || 0), 0),
       "Bayi Açık Hesap": Object.values(donemSonuBorclar).reduce((toplam, borc) => toplam + borc, 0),
       "Sütçüye Borcumuz": sutcuyeBorc,
     };
@@ -379,7 +395,9 @@ const donemRaporKartlariniOlustur = (veri: YedekVerisi, donem: string) => {
   const rapordaGorunenFisler = donemSatisFisleri.filter(rapordaGosterilenSatisFisi);
   const satisToplami = rapordaGorunenFisler.reduce((toplam, item) => toplam + Number(item.toplam_tutar || 0), 0);
   const tahsilatToplami = rapordaGorunenFisler.reduce((toplam, item) => toplam + Number(item.tahsilat || 0), 0);
-  const giderToplami = donemGiderleri.reduce((toplam, item) => toplam + Number(item.tutar || 0), 0);
+  const giderToplami = donemGiderleri
+    .filter((item) => normalGiderMi(item.tur))
+    .reduce((toplam, item) => toplam + Number(item.tutar || 0), 0);
   const uretimMaliyeti = donemUretimleri.reduce((toplam, item) => toplam + Number(item.toplam_maliyet || 0), 0);
   const acikHesap = Object.values(satisBakiyeDurumuHesapla(veri.satisFisList, donem, haritalar).bakiyeler).reduce(
     (toplam, borc) => toplam + borc,
