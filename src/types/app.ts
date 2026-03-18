@@ -1,4 +1,4 @@
-export type AppTabId = "ozet" | "sut" | "uretim" | "sevkiyat" | "satis" | "gider" | "analiz" | "ayarlar";
+export type AppTabId = "ozet" | "sut" | "uretim" | "sevkiyat" | "cek_senet" | "satis" | "gider" | "analiz" | "ayarlar";
 
 export type ActiveAyarTab =
   | "hesap"
@@ -56,6 +56,22 @@ export interface SevkiyatKaydi {
   kaymak: number;
   ekleyen?: string;
   createdBy?: string | null;
+  createdAt?: string;
+}
+
+export type CekSenetTur = "verilen_cek" | "alinan_cek" | "verilen_senet" | "alinan_senet";
+
+export interface CekSenetKaydi {
+  id: string;
+  tur: CekSenetTur;
+  tarih: string;
+  duzenleyen: string;
+  tahTarihi: string;
+  miktar: number;
+  banka: string;
+  onYuzFoto?: string;
+  arkaYuzFoto?: string;
+  ekleyen?: string;
   createdAt?: string;
 }
 

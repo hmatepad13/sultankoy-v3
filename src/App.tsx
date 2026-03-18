@@ -1,5 +1,6 @@
 ﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, type ChangeEvent, type CSSProperties } from "react";
+import { CekSenetPanel } from "./components/CekSenetPanel";
 import { LoginScreen } from "./components/LoginScreen";
 import { SevkiyatPanel } from "./components/SevkiyatPanel";
 import { SettingsPanel } from "./components/SettingsPanel";
@@ -4845,6 +4846,7 @@ export default function App() {
         {activeTab === "ozet" && renderOzet()}
         {activeTab === "sut" && renderSut()}
         {activeTab === "sevkiyat" && <SevkiyatPanel aktifKullaniciKisa={aktifKullaniciKisa} aktifDonem={aktifDonem} />}
+        {activeTab === "cek_senet" && <CekSenetPanel aktifKullaniciKisa={aktifKullaniciKisa} aktifDonem={aktifDonem} />}
         {activeTab === "satis" && renderSatis()}
         {activeTab === "gider" && renderGider()}
         {activeTab === "uretim" && renderUretimYeni()}
