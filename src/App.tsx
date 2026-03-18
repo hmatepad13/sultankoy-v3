@@ -39,6 +39,14 @@ import { normalizeUsername } from "./utils/format";
 const URETIM_META_ETIKETI = "[URETIM_META]";
 const SUPABASE_FREE_DATABASE_LIMIT_BYTES = 500_000_000;
 const SUPABASE_FREE_STORAGE_LIMIT_BYTES = 1_000_000_000;
+const ODEME_TURU_SECENEKLERI = [
+  { value: "PEŞİN", label: "💵 PEŞİN" },
+  { value: "VADE", label: "⏳ VADE" },
+  { value: "KREDİ KARTI", label: "💳 K.KARTI" },
+  { value: "HAVALE/EFT", label: "🏦 HAVALE" },
+  { value: "ÇEK", label: "🧾 ÇEK" },
+  { value: "SENET", label: "📝 SENET" },
+] as const;
 
 const sayiDegeri = (deger: unknown) => {
   if (typeof deger === "number" && Number.isFinite(deger)) return deger;
@@ -5058,7 +5066,11 @@ export default function App() {
 
                 </div>
                 <div style={{display: "flex", gap: "6px"}}>
-                  <select value={fisUst.odeme_turu} onChange={e => setFisUst({ ...fisUst, odeme_turu: e.target.value })} className="m-inp" style={{flex: "0 0 95px", padding: "6px 4px", fontSize: "12px", height: "30px"}}><option value="PEŞİN">💵 PEŞİN</option><option value="VADE">⏳ VADE</option><option value="KREDİ KARTI">💳 K.KARTI</option><option value="HAVALE/EFT">🏦 HAVALE</option></select>
+                  <select value={fisUst.odeme_turu} onChange={e => setFisUst({ ...fisUst, odeme_turu: e.target.value })} className="m-inp" style={{flex: "0 0 110px", padding: "6px 4px", fontSize: "12px", height: "30px"}}>
+                    {ODEME_TURU_SECENEKLERI.map((secenek) => (
+                      <option key={secenek.value} value={secenek.value}>{secenek.label}</option>
+                    ))}
+                  </select>
                   <input placeholder="Açıklama/Not..." value={fisUst.aciklama} onChange={e => setFisUst({ ...fisUst, aciklama: e.target.value })} className="m-inp grow-inp" style={{padding: "6px 8px", fontSize: "12px", height: "30px"}} />
                 </div>
                 <div style={{display: "flex", gap: "6px", marginTop: "6px", alignItems: "center", flexWrap: "wrap"}}>
@@ -5312,7 +5324,11 @@ export default function App() {
                     <div style={{flex: 1}}><label style={{fontSize: "11px", color: "#64748b"}}>Tutar (₺)</label><input type="text" inputMode="decimal" value={paraGirdisiniFormatla(tahsilatForm.miktar)} onChange={e => setTahsilatForm({ ...tahsilatForm, miktar: paraGirdisiniTemizle(e.target.value) })} className="m-inp" style={{width: "100%", textAlign: "right", color: "#059669", fontWeight: "bold"}} /></div>
                     <div style={{flex: 1}}>
                       <label style={{fontSize: "11px", color: "#64748b"}}>Ödeme Türü</label>
-                      <select value={tahsilatForm.odeme_turu} onChange={e => setTahsilatForm({ ...tahsilatForm, odeme_turu: e.target.value })} className="m-inp" style={{width: "100%"}}><option value="PEŞİN">💵 PEŞİN</option><option value="KREDİ KARTI">💳 K.KARTI</option><option value="HAVALE/EFT">🏦 HAVALE</option></select>
+                      <select value={tahsilatForm.odeme_turu} onChange={e => setTahsilatForm({ ...tahsilatForm, odeme_turu: e.target.value })} className="m-inp" style={{width: "100%"}}>
+                        {ODEME_TURU_SECENEKLERI.filter((secenek) => secenek.value !== "VADE").map((secenek) => (
+                          <option key={secenek.value} value={secenek.value}>{secenek.label}</option>
+                        ))}
+                      </select>
                     </div>
                  </div>
                  <div><label style={{fontSize: "11px", color: "#64748b"}}>Açıklama / Not</label><input placeholder="Opsiyonel..." value={tahsilatForm.aciklama} onChange={e => setTahsilatForm({ ...tahsilatForm, aciklama: e.target.value })} className="m-inp" style={{width: "100%"}} /></div>
