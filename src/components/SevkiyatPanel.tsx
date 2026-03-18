@@ -1,14 +1,35 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { supabase } from "../lib/supabase";
 import type { SevkiyatKaydi } from "../types/app";
 import { getLocalDateString } from "../utils/date";
 import { fSayiNoDec, normalizeUsername } from "../utils/format";
-
-const SEVKIYAT_LOCAL_KEY = "sultankoy-sevkiyat-deneme-v1";
 
 type SevkiyatPanelProps = {
   aktifKullaniciKisa: string;
   aktifDonem: string;
 };
+
+type SevkiyatDbRow = {
+  id: number;
+  tarih: string;
+  kullanici: string | null;
+  yogurt3kg: number | string | null;
+  yogurt5kg: number | string | null;
+  kaymak: number | string | null;
+  ekleyen?: string | null;
+  created_by?: string | null;
+  created_at?: string | null;
+};
+
+type BasitSupabaseHatasi = {
+  code?: string;
+  message?: string;
+  details?: string | null;
+  hint?: string | null;
+} | null | undefined;
+
+const SEVKIYAT_TABLE = "sevkiyatlar";
+const SEVKIYAT_SQL_DOSYASI = "sql/add-sevkiyatlar-table.sql";
 
 const sayiDegeri = (deger: unknown) => {
   if (typeof deger === "number" && Number.isFinite(deger)) return deger;
@@ -16,27 +37,58 @@ const sayiDegeri = (deger: unknown) => {
   return 0;
 };
 
-const localKayitOku = <T,>(anahtar: string, varsayilan: T): T => {
-  if (typeof window === "undefined") return varsayilan;
-
-  try {
-    const ham = localStorage.getItem(anahtar);
-    if (!ham) return varsayilan;
-    return JSON.parse(ham) as T;
-  } catch {
-    return varsayilan;
-  }
-};
-
 const varsayilanTarihGetir = (aktifDonem: string) => {
   const bugun = getLocalDateString();
   return bugun.startsWith(aktifDonem) ? bugun : `${aktifDonem}-01`;
 };
 
-export function SevkiyatPanel({ aktifKullaniciKisa, aktifDonem }: SevkiyatPanelProps) {
-  const [sevkiyatList, setSevkiyatList] = useState<SevkiyatKaydi[]>(() =>
-    localKayitOku<SevkiyatKaydi[]>(SEVKIYAT_LOCAL_KEY, []),
+const donemAraligiGetir = (aktifDonem: string) => {
+  const [yilStr, ayStr] = String(aktifDonem || "").split("-");
+  const yil = Number(yilStr);
+  const ay = Number(ayStr);
+
+  if (!Number.isInteger(yil) || !Number.isInteger(ay) || ay < 1 || ay > 12) {
+    return { baslangic: `${aktifDonem}-01`, sonrakiBaslangic: `${aktifDonem}-32` };
+  }
+
+  const baslangic = new Date(Date.UTC(yil, ay - 1, 1));
+  const sonrakiBaslangic = new Date(Date.UTC(yil, ay, 1));
+  const formatDate = (tarih: Date) =>
+    `${tarih.getUTCFullYear()}-${String(tarih.getUTCMonth() + 1).padStart(2, "0")}-${String(tarih.getUTCDate()).padStart(2, "0")}`;
+
+  return {
+    baslangic: formatDate(baslangic),
+    sonrakiBaslangic: formatDate(sonrakiBaslangic),
+  };
+};
+
+const sevkiyatSatiriCevir = (satir: SevkiyatDbRow): SevkiyatKaydi => ({
+  id: satir.id,
+  tarih: satir.tarih,
+  kullanici: satir.kullanici || normalizeUsername(satir.ekleyen || "") || "bilinmiyor",
+  yogurt3kg: sayiDegeri(satir.yogurt3kg),
+  yogurt5kg: sayiDegeri(satir.yogurt5kg),
+  kaymak: sayiDegeri(satir.kaymak),
+  ekleyen: satir.ekleyen || undefined,
+  createdBy: satir.created_by || null,
+  createdAt: satir.created_at || undefined,
+});
+
+const sevkiyatTablosuEksikMi = (hata: BasitSupabaseHatasi) => {
+  const mesaj = `${hata?.message || ""} ${hata?.details || ""} ${hata?.hint || ""}`.toLowerCase();
+  return (
+    hata?.code === "42P01" ||
+    hata?.code === "PGRST205" ||
+    (mesaj.includes("sevkiyatlar") &&
+      (mesaj.includes("does not exist") || mesaj.includes("schema cache") || mesaj.includes("not find")))
   );
+};
+
+const sevkiyatKurulumMesaji = () =>
+  `Sevkiyat tablosu bulunamadı. Önce ${SEVKIYAT_SQL_DOSYASI} dosyasını Supabase SQL Editor'da çalıştırın.`;
+
+export function SevkiyatPanel({ aktifKullaniciKisa, aktifDonem }: SevkiyatPanelProps) {
+  const [sevkiyatList, setSevkiyatList] = useState<SevkiyatKaydi[]>([]);
   const [sevkiyatFiltreKisi, setSevkiyatFiltreKisi] = useState<"benim" | "tumu">("benim");
   const [sevkiyatForm, setSevkiyatForm] = useState({
     tarih: varsayilanTarihGetir(aktifDonem),
@@ -44,14 +96,12 @@ export function SevkiyatPanel({ aktifKullaniciKisa, aktifDonem }: SevkiyatPanelP
     yogurt5kg: "",
     kaymak: "",
   });
-  const [editingSevkiyatId, setEditingSevkiyatId] = useState<string | null>(null);
+  const [editingSevkiyatId, setEditingSevkiyatId] = useState<number | null>(null);
   const [sevkiyatDetayKaydi, setSevkiyatDetayKaydi] = useState<SevkiyatKaydi | null>(null);
-  const [openDropdown, setOpenDropdown] = useState<{ type: string; id: string } | null>(null);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    localStorage.setItem(SEVKIYAT_LOCAL_KEY, JSON.stringify(sevkiyatList));
-  }, [sevkiyatList]);
+  const [openDropdown, setOpenDropdown] = useState<{ type: string; id: string | number } | null>(null);
+  const [isYukleniyor, setIsYukleniyor] = useState(false);
+  const [isKaydediliyor, setIsKaydediliyor] = useState(false);
+  const [kurulumUyarisi, setKurulumUyarisi] = useState("");
 
   useEffect(() => {
     if (editingSevkiyatId) return;
@@ -92,21 +142,61 @@ export function SevkiyatPanel({ aktifKullaniciKisa, aktifDonem }: SevkiyatPanelP
     setSevkiyatForm((prev) => ({ ...prev, [alan]: temiz }));
   };
 
+  const veritabaniHataMesaji = useCallback((hata: BasitSupabaseHatasi) => {
+    if (sevkiyatTablosuEksikMi(hata)) return sevkiyatKurulumMesaji();
+    const mesaj = String(hata?.message || "Bilinmeyen veritabanı hatası");
+    if (mesaj.toLowerCase().includes("row-level security policy")) {
+      return "Sevkiyat kaydı engellendi. Bu kullanıcı için yazma izni yok.";
+    }
+    return mesaj;
+  }, []);
+
+  const sevkiyatlariYukle = useCallback(async () => {
+    setIsYukleniyor(true);
+
+    const { baslangic, sonrakiBaslangic } = donemAraligiGetir(aktifDonem);
+    const { data, error } = await supabase
+      .from(SEVKIYAT_TABLE)
+      .select("id,tarih,kullanici,yogurt3kg,yogurt5kg,kaymak,ekleyen,created_by,created_at")
+      .gte("tarih", baslangic)
+      .lt("tarih", sonrakiBaslangic)
+      .order("tarih", { ascending: false })
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      if (sevkiyatTablosuEksikMi(error)) {
+        setKurulumUyarisi(sevkiyatKurulumMesaji());
+        setSevkiyatList([]);
+      } else {
+        alert(`Hata: ${veritabaniHataMesaji(error)}`);
+      }
+      setIsYukleniyor(false);
+      return;
+    }
+
+    setKurulumUyarisi("");
+    setSevkiyatList(((data || []) as SevkiyatDbRow[]).map(sevkiyatSatiriCevir));
+    setIsYukleniyor(false);
+  }, [aktifDonem, veritabaniHataMesaji]);
+
+  useEffect(() => {
+    void sevkiyatlariYukle();
+  }, [sevkiyatlariYukle]);
+
   const sevkiyatKaydiSahibiMi = useCallback(
     (kayit?: Partial<SevkiyatKaydi> | null) =>
-      !!normalizeUsername(kayit?.kullanici) && normalizeUsername(kayit?.kullanici) === aktifKullaniciKisa,
+      !!normalizeUsername(kayit?.ekleyen || kayit?.kullanici) &&
+      normalizeUsername(kayit?.ekleyen || kayit?.kullanici) === aktifKullaniciKisa,
     [aktifKullaniciKisa],
   );
 
-  const handleSevkiyatKaydet = () => {
-    const yeniKayit: SevkiyatKaydi = {
-      id: editingSevkiyatId || `${Date.now()}`,
+  const handleSevkiyatKaydet = async () => {
+    const yeniKayit: Omit<SevkiyatKaydi, "id"> = {
       tarih: sevkiyatForm.tarih,
       kullanici: aktifKullaniciKisa,
       yogurt3kg: sayiDegeri(sevkiyatForm.yogurt3kg),
       yogurt5kg: sayiDegeri(sevkiyatForm.yogurt5kg),
       kaymak: sayiDegeri(sevkiyatForm.kaymak),
-      createdAt: new Date().toISOString(),
     };
 
     if (!sevkiyatForm.tarih) return alert("Tarih seçin.");
@@ -114,23 +204,49 @@ export function SevkiyatPanel({ aktifKullaniciKisa, aktifDonem }: SevkiyatPanelP
       return alert("En az bir sevkiyat miktarı girin.");
     }
 
-    setSevkiyatList((prev) => {
-      if (editingSevkiyatId) {
-        return prev.map((kayit) => (kayit.id === editingSevkiyatId ? yeniKayit : kayit));
+    const duzenlenenKayit = editingSevkiyatId
+      ? sevkiyatList.find((kayit) => Number(kayit.id) === Number(editingSevkiyatId))
+      : null;
+
+    if (editingSevkiyatId && !sevkiyatKaydiSahibiMi(duzenlenenKayit)) {
+      return alert("Bu sevkiyati sadece kaydı giren kullanıcı düzenleyebilir.");
+    }
+
+    setIsKaydediliyor(true);
+
+    const payload = {
+      tarih: yeniKayit.tarih,
+      kullanici: yeniKayit.kullanici,
+      yogurt3kg: yeniKayit.yogurt3kg,
+      yogurt5kg: yeniKayit.yogurt5kg,
+      kaymak: yeniKayit.kaymak,
+    };
+
+    const { error } = editingSevkiyatId
+      ? await supabase.from(SEVKIYAT_TABLE).update(payload).eq("id", editingSevkiyatId)
+      : await supabase.from(SEVKIYAT_TABLE).insert(payload);
+
+    if (error) {
+      const mesaj = veritabaniHataMesaji(error);
+      if (sevkiyatTablosuEksikMi(error)) {
+        setKurulumUyarisi(mesaj);
       }
-      return [yeniKayit, ...prev];
-    });
+      setIsKaydediliyor(false);
+      return alert(`Hata: ${mesaj}`);
+    }
 
     resetSevkiyatForm();
+    await sevkiyatlariYukle();
+    setIsKaydediliyor(false);
   };
 
   const handleSevkiyatDuzenle = (kayit: SevkiyatKaydi) => {
     if (!sevkiyatKaydiSahibiMi(kayit)) {
-      alert("Bu sevkiyati sadece kaydi giren kullanıcı düzenleyebilir.");
+      alert("Bu sevkiyati sadece kaydı giren kullanıcı düzenleyebilir.");
       return;
     }
 
-    setEditingSevkiyatId(kayit.id);
+    setEditingSevkiyatId(Number(kayit.id));
     setSevkiyatForm({
       tarih: kayit.tarih,
       yogurt3kg: kayit.yogurt3kg ? String(kayit.yogurt3kg) : "",
@@ -139,26 +255,37 @@ export function SevkiyatPanel({ aktifKullaniciKisa, aktifDonem }: SevkiyatPanelP
     });
   };
 
-  const handleSevkiyatSil = (id: string) => {
-    const kayit = sevkiyatList.find((item) => item.id === id);
+  const handleSevkiyatSil = async (id: string | number) => {
+    const kayit = sevkiyatList.find((item) => Number(item.id) === Number(id));
     if (!sevkiyatKaydiSahibiMi(kayit)) {
-      alert("Bu sevkiyati sadece kaydi giren kullanıcı silebilir.");
+      alert("Bu sevkiyati sadece kaydı giren kullanıcı silebilir.");
       return;
     }
 
     if (!confirm("Sevkiyat kaydı silinsin mi?")) return;
-    setSevkiyatList((prev) => prev.filter((item) => item.id !== id));
-    if (editingSevkiyatId === id) {
+
+    const { error } = await supabase.from(SEVKIYAT_TABLE).delete().eq("id", Number(id));
+    if (error) {
+      const mesaj = veritabaniHataMesaji(error);
+      if (sevkiyatTablosuEksikMi(error)) {
+        setKurulumUyarisi(mesaj);
+      }
+      return alert(`Hata: ${mesaj}`);
+    }
+
+    if (editingSevkiyatId === Number(id)) {
       resetSevkiyatForm();
     }
+    await sevkiyatlariYukle();
   };
 
   const filtrelenmisSevkiyatlar = useMemo(
     () =>
       sevkiyatList
+        .filter((kayit) => String(kayit.tarih || "").startsWith(aktifDonem))
         .filter((kayit) => sevkiyatFiltreKisi === "tumu" || normalizeUsername(kayit.kullanici) === aktifKullaniciKisa)
         .sort((a, b) => `${b.tarih}${b.createdAt || ""}`.localeCompare(`${a.tarih}${a.createdAt || ""}`)),
-    [aktifKullaniciKisa, sevkiyatFiltreKisi, sevkiyatList],
+    [aktifDonem, aktifKullaniciKisa, sevkiyatFiltreKisi, sevkiyatList],
   );
 
   const sevkiyatToplamlari = useMemo(
@@ -207,8 +334,8 @@ export function SevkiyatPanel({ aktifKullaniciKisa, aktifDonem }: SevkiyatPanelP
             <button onClick={() => setSevkiyatFiltreKisi("benim")} style={{ flex: 1, padding: "6px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "bold", background: sevkiyatFiltreKisi === "benim" ? "#ea580c" : "transparent", color: sevkiyatFiltreKisi === "benim" ? "#fff" : "#475569" }}>Benim</button>
             <button onClick={() => setSevkiyatFiltreKisi("tumu")} style={{ flex: 1, padding: "6px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "bold", background: sevkiyatFiltreKisi === "tumu" ? "#ea580c" : "transparent", color: sevkiyatFiltreKisi === "tumu" ? "#fff" : "#475569" }}>Tümü</button>
           </div>
-          <button onClick={handleSevkiyatKaydet} className="p-btn btn-anim" style={{ background: "#ea580c", minWidth: "110px", height: "32px", padding: "0 14px", fontSize: "12px", marginLeft: "auto" }}>
-            {editingSevkiyatId ? "GÜNCELLE" : "KAYDET"}
+          <button onClick={() => void handleSevkiyatKaydet()} disabled={isKaydediliyor} className="p-btn btn-anim" style={{ background: "#ea580c", minWidth: "110px", height: "32px", padding: "0 14px", fontSize: "12px", marginLeft: "auto", opacity: isKaydediliyor ? 0.7 : 1, cursor: isKaydediliyor ? "wait" : "pointer" }}>
+            {isKaydediliyor ? "KAYDEDİLİYOR" : editingSevkiyatId ? "GÜNCELLE" : "KAYDET"}
           </button>
         </div>
 
@@ -228,6 +355,12 @@ export function SevkiyatPanel({ aktifKullaniciKisa, aktifDonem }: SevkiyatPanelP
         </div>
       </div>
 
+      {kurulumUyarisi && (
+        <div style={{ marginBottom: "8px", border: "1px solid #fdba74", background: "#fff7ed", color: "#9a3412", borderRadius: "10px", padding: "8px 10px", fontSize: "12px", fontWeight: "bold" }}>
+          {kurulumUyarisi}
+        </div>
+      )}
+
       <div className="table-wrapper table-wrapper-fixed">
         <table className="tbl" style={{ tableLayout: "fixed" }}>
           <thead>
@@ -241,8 +374,22 @@ export function SevkiyatPanel({ aktifKullaniciKisa, aktifDonem }: SevkiyatPanelP
             </tr>
           </thead>
           <tbody>
-            {filtrelenmisSevkiyatlar.map((kayit) => (
-              <tr key={kayit.id}>
+            {isYukleniyor && (
+              <tr>
+                <td colSpan={6} style={{ textAlign: "center", padding: "14px", color: "#64748b", fontWeight: "bold" }}>
+                  Yükleniyor...
+                </td>
+              </tr>
+            )}
+            {!isYukleniyor && filtrelenmisSevkiyatlar.length === 0 && (
+              <tr>
+                <td colSpan={6} style={{ textAlign: "center", padding: "14px", color: "#94a3b8", fontWeight: "bold" }}>
+                  Sevkiyat kaydı bulunmuyor.
+                </td>
+              </tr>
+            )}
+            {!isYukleniyor && filtrelenmisSevkiyatlar.map((kayit) => (
+              <tr key={String(kayit.id)}>
                 <td style={{ textAlign: "center" }}>{kayit.tarih.split("-").reverse().slice(0, 2).join(".")}</td>
                 <td style={{ fontWeight: "bold", textAlign: "left" }}>{kayit.kullanici}</td>
                 <td style={{ textAlign: "right", fontWeight: "bold", color: "#ea580c" }}>{fSayiNoDec(kayit.yogurt3kg)}</td>
@@ -250,7 +397,7 @@ export function SevkiyatPanel({ aktifKullaniciKisa, aktifDonem }: SevkiyatPanelP
                 <td style={{ textAlign: "right", fontWeight: "bold", color: "#ea580c" }}>{fSayiNoDec(kayit.kaymak)}</td>
                 <td className="actions-cell" style={{ position: "relative" }}>
                   <button onClick={(e) => { e.stopPropagation(); setOpenDropdown({ type: "sevkiyat", id: kayit.id }); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "18px", padding: "0 8px", color: "#64748b" }}>⋮</button>
-                  {openDropdown?.type === "sevkiyat" && openDropdown.id === kayit.id && (
+                  {openDropdown?.type === "sevkiyat" && Number(openDropdown.id) === Number(kayit.id) && (
                     <div className="dropdown-menu">
                       <button title="Detay Gör" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); setSevkiyatDetayKaydi(kayit); }}>🔍</button>
                       {sevkiyatKaydiSahibiMi(kayit) && <button title="Düzenle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); handleSevkiyatDuzenle(kayit); }}>✏️</button>}

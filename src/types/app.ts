@@ -48,12 +48,14 @@ export interface GiderTuru {
 }
 
 export interface SevkiyatKaydi {
-  id: string;
+  id: string | number;
   tarih: string;
   kullanici: string;
   yogurt3kg: number;
   yogurt5kg: number;
   kaymak: number;
+  ekleyen?: string;
+  createdBy?: string | null;
   createdAt?: string;
 }
 

@@ -114,7 +114,8 @@ declare
     'satis_fisleri',
     'satis_giris',
     'giderler',
-    'uretim'
+    'uretim',
+    'sevkiyatlar'
   ];
 begin
   foreach tablo in array owned_tables loop

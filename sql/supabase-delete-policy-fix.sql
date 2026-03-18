@@ -46,7 +46,8 @@ declare
     'satis_giris',
     'sut_giris',
     'giderler',
-    'uretim'
+    'uretim',
+    'sevkiyatlar'
   ];
 begin
   foreach tablo in array tablolar loop
