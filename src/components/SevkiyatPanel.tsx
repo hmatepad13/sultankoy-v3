@@ -176,24 +176,26 @@ export function SevkiyatPanel({ aktifKullaniciKisa, aktifDonem }: SevkiyatPanelP
 
   return (
     <div className="tab-fade-in main-content-area">
-      <div className="card" style={{ borderLeft: "4px solid #ea580c", marginBottom: "8px", padding: "12px" }}>
+      <div className="card" style={{ borderLeft: "4px solid #ea580c", marginBottom: "8px", padding: "10px 12px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", marginBottom: "8px", flexWrap: "wrap" }}>
-          <div>
-            <h3 style={{ margin: 0, color: "#9a3412", fontSize: "16px" }}>Sevkiyat</h3>
-            <div style={{ fontSize: "12px", color: "#7c2d12", marginTop: "3px" }}>
-              Aktif hesap: <b>{aktifKullaniciKisa || "-"}</b>
+          <h3 style={{ margin: 0, color: "#9a3412", fontSize: "16px" }}>Sevkiyat</h3>
+          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginLeft: "auto" }}>
+            <div style={{ minWidth: "72px", border: "1px solid #ea580c33", background: "#fff7ed", color: "#c2410c", borderRadius: "10px", padding: "4px 8px", textAlign: "center" }}>
+              <div style={{ fontSize: "9px", fontWeight: "bold" }}>TOP 3 KG</div>
+              <div style={{ fontSize: "14px", fontWeight: "bold", marginTop: "1px" }}>{fSayiNoDec(sevkiyatToplamlari.yogurt3kg)}</div>
+            </div>
+            <div style={{ minWidth: "72px", border: "1px solid #c2410c33", background: "#fff7ed", color: "#c2410c", borderRadius: "10px", padding: "4px 8px", textAlign: "center" }}>
+              <div style={{ fontSize: "9px", fontWeight: "bold" }}>TOP 5 KG</div>
+              <div style={{ fontSize: "14px", fontWeight: "bold", marginTop: "1px" }}>{fSayiNoDec(sevkiyatToplamlari.yogurt5kg)}</div>
+            </div>
+            <div style={{ minWidth: "84px", border: "1px solid #9a341233", background: "#fff7ed", color: "#9a3412", borderRadius: "10px", padding: "4px 8px", textAlign: "center" }}>
+              <div style={{ fontSize: "9px", fontWeight: "bold" }}>TOP KAYMAK</div>
+              <div style={{ fontSize: "14px", fontWeight: "bold", marginTop: "1px" }}>{fSayiNoDec(sevkiyatToplamlari.kaymak)}</div>
             </div>
           </div>
-          <button
-            onClick={resetSevkiyatForm}
-            className="btn-anim"
-            style={{ border: "1px solid #fed7aa", background: "#fff7ed", color: "#c2410c", borderRadius: "8px", padding: "6px 9px", fontWeight: "bold", fontSize: "11px", cursor: "pointer" }}
-          >
-            Temizle
-          </button>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", marginBottom: "8px", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", marginBottom: "6px", flexWrap: "wrap" }}>
           <input
             type="date"
             className="m-inp"
@@ -223,21 +225,6 @@ export function SevkiyatPanel({ aktifKullaniciKisa, aktifDonem }: SevkiyatPanelP
             <span style={{ fontSize: "12px", fontWeight: "bold", color: "#7c2d12" }}>Kaymak</span>
             <input type="text" inputMode="numeric" className="m-inp" style={{ flex: "0 0 auto", width: "100%", height: "34px", minHeight: "34px", padding: "4px 8px", fontSize: "12px" }} value={sevkiyatForm.kaymak} onChange={(e) => handleSevkiyatInputDegistir("kaymak", e.target.value)} />
           </label>
-        </div>
-      </div>
-
-      <div className="compact-totals three" style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "8px" }}>
-        <div className="c-kutu" style={{ borderLeftColor: "#ea580c" }}>
-          <span>TOP 3 KG</span>
-          <b>{fSayiNoDec(sevkiyatToplamlari.yogurt3kg)}</b>
-        </div>
-        <div className="c-kutu" style={{ borderLeftColor: "#c2410c" }}>
-          <span>TOP 5 KG</span>
-          <b>{fSayiNoDec(sevkiyatToplamlari.yogurt5kg)}</b>
-        </div>
-        <div className="c-kutu" style={{ borderLeftColor: "#9a3412" }}>
-          <span>TOP KAYMAK</span>
-          <b>{fSayiNoDec(sevkiyatToplamlari.kaymak)}</b>
         </div>
       </div>
 
