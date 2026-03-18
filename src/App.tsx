@@ -47,6 +47,12 @@ const ODEME_TURU_SECENEKLERI = [
   { value: "ÇEK", label: "🧾 ÇEK" },
   { value: "SENET", label: "📝 SENET" },
 ] as const;
+const gunOfsetliTarih = (gunFarki: number) => {
+  const tarih = new Date();
+  tarih.setDate(tarih.getDate() + gunFarki);
+  tarih.setMinutes(tarih.getMinutes() - tarih.getTimezoneOffset());
+  return tarih.toISOString().split("T")[0];
+};
 
 const sayiDegeri = (deger: unknown) => {
   if (typeof deger === "number" && Number.isFinite(deger)) return deger;
@@ -580,6 +586,7 @@ export default function App() {
   const [yeniUrunSabitle, setYeniUrunSabitle] = useState(false);
 
   const bugun = getLocalDateString();
+  const dun = gunOfsetliTarih(-1);
   const aktifDonemTarihi = (donem = aktifDonem) => (bugun.startsWith(donem) ? bugun : `${donem}-01`);
 
   // --- SÜT STATE'LERİ ---
@@ -3749,6 +3756,41 @@ export default function App() {
             <button onClick={() => setSatisFiltreKisi('benim')} style={{ flex: 1, padding: '6px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', background: satisFiltreKisi==='benim'?'#2563eb':'transparent', color: satisFiltreKisi==='benim'?'#fff':'#475569' }}>Benim</button>
             <button onClick={() => setSatisFiltreKisi('herkes')} style={{ flex: 1, padding: '6px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', background: satisFiltreKisi==='herkes'?'#2563eb':'transparent', color: satisFiltreKisi==='herkes'?'#fff':'#475569' }}>Herkes</button>
          </div>
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "10px", flexWrap: "wrap" }}>
+        <span style={{ fontSize: "11px", fontWeight: "bold", color: "#64748b" }}>Tarih:</span>
+        {[
+          { etiket: "Bugün", tarih: bugun },
+          { etiket: "Dün", tarih: dun },
+        ].map((secenek) => {
+          const secili = fisFiltre.baslangic === secenek.tarih && fisFiltre.bitis === secenek.tarih;
+          return (
+            <button
+              key={secenek.etiket}
+              onClick={() =>
+                setFisFiltre((prev) =>
+                  prev.baslangic === secenek.tarih && prev.bitis === secenek.tarih
+                    ? { ...prev, baslangic: "", bitis: "" }
+                    : { ...prev, baslangic: secenek.tarih, bitis: secenek.tarih },
+                )
+              }
+              className="btn-anim"
+              style={{
+                border: "none",
+                borderRadius: "999px",
+                padding: "5px 10px",
+                fontSize: "11px",
+                fontWeight: "bold",
+                cursor: "pointer",
+                background: secili ? "#0f766e" : "#e2e8f0",
+                color: secili ? "#fff" : "#475569",
+              }}
+            >
+              {secenek.etiket}
+            </button>
+          );
+        })}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "0.95fr 1.45fr 1fr", gap: "6px", marginBottom: "10px", alignItems: "stretch" }}>
