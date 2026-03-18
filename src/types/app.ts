@@ -60,7 +60,7 @@ export interface SevkiyatKaydi {
 }
 
 export type CekSenetTur = "verilen_cek" | "alinan_cek" | "verilen_senet" | "alinan_senet";
-export type CekSenetDurum = "bekliyor" | "tahsil_edildi";
+export type CekSenetDurum = "bekliyor" | "tahsil_edildi" | "iade" | "iptal" | "karsiliksiz";
 
 export interface CekSenetKaydi {
   id: string;

@@ -28,6 +28,14 @@ const TUR_SECENEKLERI: Array<{ deger: CekSenetTur; etiket: string; renk: string;
   { deger: "alinan_senet", etiket: "Alınan Senet", renk: "#0f766e", arkaPlan: "#ecfdf5" },
 ];
 
+const DURUM_SECENEKLERI: Array<{ deger: CekSenetDurum; etiket: string; ikon: string; renk: string; arkaPlan: string }> = [
+  { deger: "bekliyor", etiket: "Bekliyor", ikon: "🕒", renk: "#b45309", arkaPlan: "#fff7ed" },
+  { deger: "tahsil_edildi", etiket: "Tahsil Edildi", ikon: "✅", renk: "#0f766e", arkaPlan: "#ecfdf5" },
+  { deger: "iade", etiket: "İade", ikon: "↩️", renk: "#0369a1", arkaPlan: "#eff6ff" },
+  { deger: "iptal", etiket: "İptal", ikon: "⛔", renk: "#6b7280", arkaPlan: "#f3f4f6" },
+  { deger: "karsiliksiz", etiket: "Karşılıksız", ikon: "⚠️", renk: "#dc2626", arkaPlan: "#fef2f2" },
+];
+
 const varsayilanTarihGetir = (aktifDonem: string) => {
   const bugun = getLocalDateString();
   return bugun.startsWith(aktifDonem) ? bugun : `${aktifDonem}-01`;
@@ -59,9 +67,7 @@ const turBilgisiGetir = (tur: CekSenetTur) =>
   TUR_SECENEKLERI.find((item) => item.deger === tur) || TUR_SECENEKLERI[0];
 
 const durumBilgisiGetir = (durum: CekSenetDurum) =>
-  durum === "tahsil_edildi"
-    ? { etiket: "Tahsil Edildi", renk: "#0f766e", arkaPlan: "#ecfdf5" }
-    : { etiket: "Bekliyor", renk: "#b45309", arkaPlan: "#fff7ed" };
+  DURUM_SECENEKLERI.find((item) => item.deger === durum) || DURUM_SECENEKLERI[0];
 
 const localStorageOku = (): CekSenetKaydi[] => {
   if (typeof window === "undefined") return [];
@@ -79,7 +85,7 @@ const localStorageOku = (): CekSenetKaydi[] => {
       tahTarihi: String(item?.tahTarihi || ""),
       miktar: sayiDegeri(item?.miktar),
       banka: String(item?.banka || ""),
-      durum: item?.durum === "tahsil_edildi" ? "tahsil_edildi" : "bekliyor",
+      durum: DURUM_SECENEKLERI.some((secenek) => secenek.deger === item?.durum) ? item.durum : "bekliyor",
       tahsilEdilmeTarihi: String(item?.tahsilEdilmeTarihi || ""),
       onYuzFoto: typeof item?.onYuzFoto === "string" ? item.onYuzFoto : "",
       arkaYuzFoto: typeof item?.arkaYuzFoto === "string" ? item.arkaYuzFoto : "",
@@ -255,13 +261,12 @@ export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem }: CekSenetPanelP
     if (editingId === kayit.id) formKapat();
   };
 
-  const handleDurumDegistir = (kayit: CekSenetKaydi) => {
+  const handleDurumDegistir = (kayit: CekSenetKaydi, yeniDurum: CekSenetDurum) => {
     if (!kayitSahibiMi(kayit)) {
       alert("Bu kaydı sadece ekleyen kullanıcı güncelleyebilir.");
       return;
     }
 
-    const yeniDurum: CekSenetDurum = kayit.durum === "tahsil_edildi" ? "bekliyor" : "tahsil_edildi";
     const sonrakiKayitlar = kayitlar.map((item) =>
       item.id === kayit.id
         ? {
@@ -421,18 +426,20 @@ export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem }: CekSenetPanelP
                             🖼️
                           </button>
                         )}
-                        {kayitSahibiMi(kayit) && (
-                          <button
-                            title={kayit.durum === "tahsil_edildi" ? "Bekliyor Yap" : "Tahsil Edildi"}
-                            className="dropdown-item-icon"
-                            onClick={() => {
-                              setOpenDropdownId(null);
-                              handleDurumDegistir(kayit);
-                            }}
-                          >
-                            {kayit.durum === "tahsil_edildi" ? "↩️" : "✅"}
-                          </button>
-                        )}
+                        {kayitSahibiMi(kayit) &&
+                          DURUM_SECENEKLERI.filter((secenek) => secenek.deger !== kayit.durum).map((secenek) => (
+                            <button
+                              key={secenek.deger}
+                              title={secenek.etiket}
+                              className="dropdown-item-icon"
+                              onClick={() => {
+                                setOpenDropdownId(null);
+                                handleDurumDegistir(kayit, secenek.deger);
+                              }}
+                            >
+                              {secenek.ikon}
+                            </button>
+                          ))}
                         {kayitSahibiMi(kayit) && <button title="Düzenle" className="dropdown-item-icon" onClick={() => { setOpenDropdownId(null); duzenlemeAc(kayit); }}>✏️</button>}
                         {kayitSahibiMi(kayit) && <button title="Sil" className="dropdown-item-icon" style={{ color: "#dc2626" }} onClick={() => { setOpenDropdownId(null); handleSil(kayit); }}>🗑️</button>}
                       </div>
