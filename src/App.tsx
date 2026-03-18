@@ -329,6 +329,8 @@ const urunAdiniNormalizeEt = (urunAdi?: string | null) =>
 const urunAdiAyniMi = (urunAdi?: string | null, hedef?: string | null) =>
   urunAdiniNormalizeEt(urunAdi) === urunAdiniNormalizeEt(hedef);
 
+const devredenBorcSatiriMi = (urunAdi?: string | null) => urunAdiAyniMi(urunAdi, "Devreden borç");
+
 const urunSistemSabitMi = (urunAdi?: string | null) =>
   urunAdiAyniMi(urunAdi, "3 kg yoğurt") ||
   urunAdiAyniMi(urunAdi, "5 kg yoğurt") ||
@@ -3145,6 +3147,24 @@ export default function App() {
     () => ozetToplamFisler.reduce((a: number, b: any) => a + Number(b.tahsilat), 0),
     [ozetToplamFisler],
   );
+  const ozetToplamFisNoSet = useMemo(
+    () => new Set(ozetToplamFisler.map((fis) => String(fis.fis_no || "").trim()).filter(Boolean)),
+    [ozetToplamFisler],
+  );
+  const tOzetDevredenBakiye = useMemo(
+    () =>
+      periodSatisList.reduce((toplam: number, satir) => {
+        const fisNo = String(satir.fis_no || "").trim();
+        if (!fisNo || !ozetToplamFisNoSet.has(fisNo)) return toplam;
+        if (!devredenBorcSatiriMi(satisSatiriUrunAdiGetir(satir))) return toplam;
+        return toplam + Number(satir.tutar || 0);
+      }, 0),
+    [ozetToplamFisNoSet, periodSatisList, satisSatiriUrunAdiGetir],
+  );
+  const tOzetReelSatis = useMemo(
+    () => tOzetFisToplam - tOzetDevredenBakiye,
+    [tOzetDevredenBakiye, tOzetFisToplam],
+  );
 
   const tFisToplam = useMemo(() => filteredForTotals.filter(f => !fisKasayaDevirMi(f)).reduce((a: number, b: any) => a + Number(b.toplam_tutar), 0), [filteredForTotals]);
   const tFisTahsilatRaw = useMemo(() => filteredForTotals.filter(f => !fisKasayaDevirMi(f)).reduce((a: number, b: any) => a + Number(b.tahsilat), 0), [filteredForTotals]);
@@ -3369,13 +3389,14 @@ export default function App() {
 
   const ozetKartlari = useMemo<OzetKart[]>(
     () => [
-      { baslik: "Satış", deger: tFisToplam },
+      { baslik: "Satış", deger: tOzetReelSatis },
+      { baslik: "Devreden Bakiye", deger: tOzetDevredenBakiye },
       { baslik: "Gider", deger: tGiderNormal },
-      { baslik: "Tahsilat", deger: tFisTahsilatRaw },
+      { baslik: "Tahsilat", deger: tOzetFisTahsilatRaw },
       { baslik: "Açık Hesap", deger: bayiNetDurum },
       { baslik: "Süt Borcu", deger: sutcuyeBorcumuz },
     ],
-    [bayiNetDurum, sutcuyeBorcumuz, tFisTahsilatRaw, tFisToplam, tGiderNormal],
+    [bayiNetDurum, sutcuyeBorcumuz, tGiderNormal, tOzetDevredenBakiye, tOzetFisTahsilatRaw, tOzetReelSatis],
   );
 
   const yedekVerisi = useMemo<YedekVerisi>(
@@ -3499,11 +3520,28 @@ export default function App() {
   const renderOzet = () => (
     <div className="tab-fade-in main-content-area" style={{ display: "flex", flexDirection: "column" }}>
       {renderKompaktToplamlar([
-        { etiket: "SATIŞ", deger: `${fSayiNoDec(tOzetFisToplam)} ₺`, renk: "#059669" },
+        { etiket: "REEL SATIŞ", deger: `${fSayiNoDec(tOzetReelSatis)} ₺`, renk: "#059669" },
         { etiket: "TAHSİLAT", deger: `${fSayiNoDec(tOzetFisTahsilatRaw)} ₺`, renk: "#2563eb" },
         { etiket: "AÇIK HESAP", deger: `${fSayiNoDec(bayiNetDurum)} ₺`, renk: "#f59e0b" },
       ], { marginBottom: "6px" }, "three", "summary-c")}
       <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "4px" }}>
+        <div
+          className="c-kutu"
+          style={{
+            border: "1px solid #b4530933",
+            background: "#b4530910",
+            color: "#b45309",
+            borderRadius: "18px",
+            padding: "6px 10px",
+            fontSize: "11px",
+            fontWeight: "bold",
+            flex: "1 1 130px",
+            minWidth: "120px",
+          }}
+        >
+          <div style={{ fontSize: "10px", opacity: 0.9, marginBottom: "2px" }}>DEVREDEN BAKİYE</div>
+          <b style={{ fontSize: "14px" }}>{fSayiNoDec(tOzetDevredenBakiye)} ₺</b>
+        </div>
         <div
           className="c-kutu"
           style={{
