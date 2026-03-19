@@ -52,6 +52,13 @@ const varsayilanTarihGetir = (aktifDonem: string) => {
   return bugun.startsWith(aktifDonem) ? bugun : `${aktifDonem}-01`;
 };
 
+const giderSaatiFormatla = (value?: string | null) => {
+  if (!value) return "-";
+  const tarih = new Date(value);
+  if (Number.isNaN(tarih.getTime())) return "-";
+  return tarih.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+};
+
 const sortData = (data: any[], sortConfig: SortConfig) => {
   if (!sortConfig.key) return data;
   return [...data].sort((a, b) => {
@@ -179,7 +186,7 @@ export function GiderPanel({
 
   const handleGiderGoruntule = (gider: Gider) => {
     setEditingGiderId(gider.id || null);
-    setGiderForm({ tarih: gider.tarih, tur: gider.tur, aciklama: gider.aciklama || "", tutar: gider.tutar, ekleyen: gider.ekleyen, gorsel: gider.gorsel });
+    setGiderForm({ tarih: gider.tarih, tur: gider.tur, aciklama: gider.aciklama || "", tutar: gider.tutar, ekleyen: gider.ekleyen, gorsel: gider.gorsel, created_at: gider.created_at });
     setGiderGorselDosya(null);
     setGiderGorselMevcutYol(gider.gorsel || "");
     setGiderModalMode("view");
@@ -187,7 +194,7 @@ export function GiderPanel({
   };
   const handleGiderDuzenle = (gider: Gider) => {
     setEditingGiderId(gider.id || null);
-    setGiderForm({ tarih: gider.tarih, tur: gider.tur, aciklama: gider.aciklama || "", tutar: gider.tutar, ekleyen: gider.ekleyen, gorsel: gider.gorsel });
+    setGiderForm({ tarih: gider.tarih, tur: gider.tur, aciklama: gider.aciklama || "", tutar: gider.tutar, ekleyen: gider.ekleyen, gorsel: gider.gorsel, created_at: gider.created_at });
     setGiderGorselDosya(null);
     setGiderGorselMevcutYol(gider.gorsel || "");
     setGiderModalMode("edit");
@@ -246,7 +253,8 @@ export function GiderPanel({
     const oncekiGorsel = duzenlenenKayit?.gorsel || giderGorselMevcutYol || "";
     let yuklenenGorselYolu = giderGorselMevcutYol || null;
     try { yuklenenGorselYolu = await giderGorseliYukle(); } catch (error: any) { return alert(`Gider görseli yüklenemedi: ${error?.message || "Bilinmeyen hata"}`); }
-    const payload = { ...giderForm, tutar: helpers.paraGirdisiniSayiyaCevir(String(giderForm.tutar || "")), ekleyen: aktifKullaniciEposta, gorsel: yuklenenGorselYolu };
+    const { created_at: _createdAt, ...kayitFormu } = giderForm;
+    const payload = { ...kayitFormu, tutar: helpers.paraGirdisiniSayiyaCevir(String(giderForm.tutar || "")), ekleyen: aktifKullaniciEposta, gorsel: yuklenenGorselYolu };
     const kaydet = (body: typeof payload) => editingGiderId ? supabase.from("giderler").update(body).eq("id", editingGiderId) : supabase.from("giderler").insert(body);
     let { error } = await kaydet(payload);
     if (error && helpers.kolonBulunamadiMi(error, "giderler", "gorsel")) {
@@ -275,6 +283,7 @@ export function GiderPanel({
   };
 
   const giderDetayTarih = giderForm.tarih ? giderForm.tarih.split("-").reverse().join(".") : "-";
+  const giderDetaySaat = giderSaatiFormatla(giderForm.created_at);
   const giderDetayKisi = normalizeUsername(giderForm.ekleyen) || "-";
   const giderDetayTutar = helpers.fSayi(giderForm.tutar || 0);
 
@@ -349,6 +358,10 @@ export function GiderPanel({
                   <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", fontSize: "12px", marginBottom: "6px" }}>
                     <span>Tarih</span>
                     <b>{giderDetayTarih}</b>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", fontSize: "12px", marginBottom: "6px" }}>
+                    <span>Saat</span>
+                    <b>{giderDetaySaat}</b>
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", fontSize: "12px", marginBottom: "6px" }}>
                     <span>Ekleyen</span>

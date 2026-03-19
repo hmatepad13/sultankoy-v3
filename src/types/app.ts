@@ -131,6 +131,7 @@ export interface Gider {
   tutar: number | string;
   ekleyen?: string;
   gorsel?: string | null;
+  created_at?: string | null;
 }
 
 export interface Uretim {
