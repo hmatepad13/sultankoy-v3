@@ -3,6 +3,7 @@ import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, type
 import { CekSenetPanel } from "./components/CekSenetPanel";
 import { GiderPanel } from "./components/GiderPanel";
 import { LoginScreen } from "./components/LoginScreen";
+import { AnalizPanel } from "./components/AnalizPanel";
 import { SevkiyatPanel } from "./components/SevkiyatPanel";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { SutPanel } from "./components/SutPanel";
@@ -585,10 +586,6 @@ export default function App() {
   const [ozetBorcFiltre, setOzetBorcFiltre] = useState<{ bayiler: string[] }>({ bayiler: [] });
   const [ozetBorcSort, setOzetBorcSort] = useState<SortConfig>({ key: "borc", direction: "desc" });
 
-  // --- ANALİZ STATE'LERİ ---
-  const [analizFiltre, setAnalizFiltre] = useState<{bayiler: string[], urunler: string[], baslangic: string, bitis: string}>({ bayiler: [], urunler: [], baslangic: "", bitis: "" });
-  const [analizSort, setAnalizSort] = useState<SortConfig>({ key: 'tarih', direction: 'desc' });
-
   // --- GİDER STATE'LERİ ---
   const giderTurleri = useMemo(() => {
     const veritabaniTurleri = giderTuruListesi
@@ -640,10 +637,6 @@ export default function App() {
     (fis?: Partial<SatisFis> | null) => (fis?.bayi_id ? bayiMap.get(fis.bayi_id) : undefined) || fis?.bayi || "",
     [bayiMap],
   );
-  const satisSatiriBayiAdiGetir = useCallback(
-    (satir?: Partial<SatisGiris> | null) => (satir?.bayi_id ? bayiMap.get(satir.bayi_id) : undefined) || satir?.bayi || "",
-    [bayiMap],
-  );
   const satisSatiriUrunAdiGetir = useCallback(
     (satir?: Partial<SatisGiris> | null) => (satir?.urun_id ? urunMap.get(satir.urun_id) : undefined) || satir?.urun || "",
     [urunMap],
@@ -689,7 +682,7 @@ export default function App() {
     return { bakiyeler, labels, map };
   }, [satisFisBayiAdiGetir, satisFisBayiAnahtariGetir]);
 
-  const [activeFilterModal, setActiveFilterModal] = useState<'fis_bayi' | 'ozet_bayi' | 'analiz_bayi' | 'analiz_urun' | 'fis_tarih' | 'analiz_tarih' | null>(null);
+  const [activeFilterModal, setActiveFilterModal] = useState<'fis_bayi' | 'ozet_bayi' | 'fis_tarih' | null>(null);
 
   const bayiSecimModalAc = (hedef: "fis" | "tahsilat") => {
     setBayiSecimModal({ hedef, arama: "" });
@@ -2840,15 +2833,6 @@ export default function App() {
     return true;
   }), fisSort), [filteredForTotals, satisFiltreTip, fisSort]);
 
-  const fAnalizList = useMemo(() => sortData(periodSatisList.filter((s: any) => 
-    (analizFiltre.bayiler.length === 0 || analizFiltre.bayiler.includes(satisSatiriBayiAdiGetir(s))) && 
-    (analizFiltre.urunler.length === 0 || analizFiltre.urunler.includes(satisSatiriUrunAdiGetir(s))) && 
-    (!analizFiltre.baslangic || s.tarih >= analizFiltre.baslangic) && (!analizFiltre.bitis || s.tarih <= analizFiltre.bitis)
-  ), analizSort), [periodSatisList, analizFiltre, analizSort, satisSatiriBayiAdiGetir, satisSatiriUrunAdiGetir]);
-  const tAnalizAdet = useMemo(() => fAnalizList.reduce((a: number, b: any) => a + Number(b.adet), 0), [fAnalizList]);
-  const tAnalizKg = useMemo(() => fAnalizList.reduce((a: number, b: any) => a + Number(b.toplam_kg), 0), [fAnalizList]);
-  const tAnalizTutar = useMemo(() => fAnalizList.reduce((a: number, b: any) => a + Number(b.tutar), 0), [fAnalizList]);
-
   const tGiderNormal = useMemo(
     () => periodGider.filter((g) => normalGiderMi(g.tur)).reduce((a: number, b: any) => a + Number(b.tutar), 0),
     [periodGider],
@@ -3448,40 +3432,6 @@ export default function App() {
             </td>
           </tr>
         )})}
-        </tbody>
-      </table></div>
-    </div>
-  );
-
-  const renderAnaliz = () => (
-    <div className="tab-fade-in main-content-area">
-      {renderKompaktToplamlar([
-        { etiket: "TOP ADET", deger: fSayi(tAnalizAdet), renk: "#8b5cf6" },
-        { etiket: "TOP KG", deger: fSayi(tAnalizKg), renk: "#8b5cf6" },
-        { etiket: "TOP TUTAR", deger: `${fSayi(tAnalizTutar)} ₺`, renk: "#8b5cf6" },
-      ], { marginTop: "5px" })}
-      <div className="table-wrapper"><table className="tbl tbl-analiz">
-        <thead><tr>
-          <Th label="TARİH" sortKey="tarih" currentSort={analizSort} setSort={setAnalizSort} isAnaliz={true} filterType="analiz_tarih" />
-          <Th label="BAYİ" sortKey="bayi" currentSort={analizSort} setSort={setAnalizSort} isAnaliz={true} filterType="analiz_bayi" />
-          <Th label="ÜRÜN" sortKey="urun" currentSort={analizSort} setSort={setAnalizSort} isAnaliz={true} filterType="analiz_urun" />
-          <Th label="ADET" sortKey="adet" currentSort={analizSort} setSort={setAnalizSort} isAnaliz={true} align="right" />
-          <Th label="KG" sortKey="toplam_kg" currentSort={analizSort} setSort={setAnalizSort} isAnaliz={true} align="right" />
-          <Th label="FİYAT" sortKey="fiyat" currentSort={analizSort} setSort={setAnalizSort} isAnaliz={true} align="right" />
-          <Th label="TUTAR" sortKey="tutar" currentSort={analizSort} setSort={setAnalizSort} isAnaliz={true} align="right" />
-        </tr></thead>
-        <tbody>{fAnalizList.map(s => (
-          <tr key={s.id}>
-            <td>{s.tarih.split("-").reverse().slice(0, 2).join(".")}</td>
-            <td style={{ fontWeight: "bold" }}>{satisSatiriBayiAdiGetir(s)}</td>
-            <td>{satisSatiriUrunAdiGetir(s)}</td>
-            <td style={{ textAlign: "right" }}>{fSayi(s.adet)}</td>
-            <td style={{ textAlign: "right" }}>{fSayi(s.toplam_kg)}</td>
-            <td style={{ textAlign: "right" }}>{fSayi(Math.abs(Number(s.fiyat)))}</td>
-            <td style={{ textAlign: "right", color: Number(s.fiyat) < 0 ? "#dc2626" : "#8b5cf6", fontWeight: "bold" }}>
-              {Number(s.fiyat) < 0 ? "-" : ""}{fSayi(Math.abs(Number(s.tutar)))}
-            </td>
-          </tr>))}
         </tbody>
       </table></div>
     </div>
@@ -4330,7 +4280,14 @@ export default function App() {
           />
         )}
         {activeTab === "uretim" && renderUretimYeni()}
-        {activeTab === "analiz" && renderAnaliz()}
+        {activeTab === "analiz" && (
+          <AnalizPanel
+            periodSatisList={periodSatisList}
+            bayiler={bayiler}
+            urunler={urunler}
+            helpers={{ fSayi }}
+          />
+        )}
         {activeTab === "ayarlar" && renderAyarlar()}
 
         {isDonemModalOpen && (
@@ -4546,18 +4503,16 @@ export default function App() {
                         </div>
                       )}
                     </div>
-                    <input type="date" value={activeFilterModal.includes('fis') ? fisFiltre.baslangic : analizFiltre.baslangic} onChange={(e) => { if(activeFilterModal.includes('fis')) setFisFiltre({...fisFiltre, baslangic: e.target.value}); if(activeFilterModal.includes('analiz')) setAnalizFiltre({...analizFiltre, baslangic: e.target.value}); }} className="m-inp date-click" style={{width: "100%", marginTop: "4px"}} />
+                    <input type="date" value={fisFiltre.baslangic} onChange={(e) => setFisFiltre({...fisFiltre, baslangic: e.target.value})} className="m-inp date-click" style={{width: "100%", marginTop: "4px"}} />
                   </div>
-                  <div><label style={{fontSize: "12px", color: "#64748b"}}>Bitiş</label><input type="date" value={activeFilterModal.includes('fis') ? fisFiltre.bitis : analizFiltre.bitis} onChange={(e) => { if(activeFilterModal.includes('fis')) setFisFiltre({...fisFiltre, bitis: e.target.value}); if(activeFilterModal.includes('analiz')) setAnalizFiltre({...analizFiltre, bitis: e.target.value}); }} className="m-inp date-click" style={{width: "100%", marginTop: "4px"}} /></div>
+                  <div><label style={{fontSize: "12px", color: "#64748b"}}>Bitiş</label><input type="date" value={fisFiltre.bitis} onChange={(e) => setFisFiltre({...fisFiltre, bitis: e.target.value})} className="m-inp date-click" style={{width: "100%", marginTop: "4px"}} /></div>
                 </div>
               )}
               <div style={{ maxHeight: "250px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "10px", padding: "4px 0" }}>
                 {activeFilterModal === 'fis_bayi' && bayiler.map(b => (<label key={b.id} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}><input type="checkbox" checked={fisFiltre.bayiler.includes(b.isim)} onChange={() => handleCheckboxToggle('bayiler', setFisFiltre, b.isim)} style={{width:"18px", height:"18px"}}/> {b.isim}</label>))}
                 {activeFilterModal === 'ozet_bayi' && ozetBorcFiltreSecenekleri.map(isim => (<label key={isim} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}><input type="checkbox" checked={ozetBorcFiltre.bayiler.includes(isim)} onChange={() => handleCheckboxToggle('bayiler', setOzetBorcFiltre, isim)} style={{width:"18px", height:"18px"}}/> {isim}</label>))}
-                {activeFilterModal === 'analiz_bayi' && bayiler.map(b => (<label key={b.id} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}><input type="checkbox" checked={analizFiltre.bayiler.includes(b.isim)} onChange={() => handleCheckboxToggle('bayiler', setAnalizFiltre, b.isim)} style={{width:"18px", height:"18px"}}/> {b.isim}</label>))}
-                {activeFilterModal === 'analiz_urun' && urunler.map(u => (<label key={u.id} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}><input type="checkbox" checked={analizFiltre.urunler.includes(u.isim)} onChange={() => handleCheckboxToggle('urunler', setAnalizFiltre, u.isim)} style={{width:"18px", height:"18px"}}/> {u.isim}</label>))}
               </div>
-              <div style={{display: "flex", gap: "8px", marginTop: "15px"}}><button onClick={() => { if(activeFilterModal === 'fis_bayi') setFisFiltre({...fisFiltre, bayiler: []}); if(activeFilterModal === 'ozet_bayi') setOzetBorcFiltre({ bayiler: [] }); if(activeFilterModal === 'analiz_bayi') setAnalizFiltre({...analizFiltre, bayiler: []}); if(activeFilterModal === 'analiz_urun') setAnalizFiltre({...analizFiltre, urunler: []}); if(activeFilterModal?.includes('_tarih')){ setFisFiltre({...fisFiltre, baslangic: '', bitis: ''}); setAnalizFiltre({...analizFiltre, baslangic: '', bitis: ''}); } }} style={{flex: 1, padding: "10px", background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: "6px", fontWeight: "bold"}}>TEMİZLE</button><button onClick={() => setActiveFilterModal(null)} style={{flex: 1, padding: "10px", background: activeFilterModal.includes('analiz') ? '#8b5cf6' : temaRengi, color: "#fff", border: "none", borderRadius: "6px", fontWeight: "bold"}}>UYGULA</button></div>
+              <div style={{display: "flex", gap: "8px", marginTop: "15px"}}><button onClick={() => { if(activeFilterModal === 'fis_bayi') setFisFiltre({...fisFiltre, bayiler: []}); if(activeFilterModal === 'ozet_bayi') setOzetBorcFiltre({ bayiler: [] }); if(activeFilterModal?.includes('_tarih')){ setFisFiltre({...fisFiltre, baslangic: '', bitis: ''}); } }} style={{flex: 1, padding: "10px", background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: "6px", fontWeight: "bold"}}>TEMİZLE</button><button onClick={() => setActiveFilterModal(null)} style={{flex: 1, padding: "10px", background: temaRengi, color: "#fff", border: "none", borderRadius: "6px", fontWeight: "bold"}}>UYGULA</button></div>
             </div>
           </div>
         )}
