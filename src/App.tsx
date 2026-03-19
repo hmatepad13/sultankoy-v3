@@ -1779,7 +1779,7 @@ export default function App() {
     <th style={{ textAlign: align, ...cellStyle }}>
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', alignItems: align === 'right' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start' }}>
         <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: align === 'center' ? 'center' : 'space-between', gap: compact ? '2px' : '4px', cursor: sortClickScope === 'all' ? 'pointer' : 'default' }} onClick={sortClickScope === 'all' ? () => handleSortClick(sortKey, currentSort, setSort) : undefined}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: compact ? '2px' : '4px', justifyContent: align === 'right' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start', flex: align === 'center' ? '0 1 auto' : 1, cursor: sortClickScope === 'label' ? 'pointer' : 'inherit' }} onClick={sortClickScope === 'label' ? () => handleSortClick(sortKey, currentSort, setSort) : undefined}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: compact ? '2px' : '4px', justifyContent: align === 'right' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start', flex: sortClickScope === 'label' ? '0 0 auto' : align === 'center' ? '0 1 auto' : 1, cursor: sortClickScope === 'label' ? 'pointer' : 'inherit' }} onClick={sortClickScope === 'label' ? () => handleSortClick(sortKey, currentSort, setSort) : undefined}>
             <span>{label}</span>
             {filterType && (
               <span onClick={(e) => { e.stopPropagation(); setActiveFilterModal(filterType); }} style={{ fontSize: compact ? '8px' : '10px', padding: compact ? '1px' : '2px', background: isAnaliz ? '#7c3aed' : '#e2e8f0', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -3875,7 +3875,7 @@ export default function App() {
       <div className="table-wrapper"><table className="tbl tbl-satis" style={{ tableLayout: "fixed" }}>
         <thead><tr>
           <Th label="TAR." sortKey="tarih" currentSort={fisSort} setSort={setFisSort} filterType="fis_tarih" hideSortIndicator={true} compact={true} cellStyle={{ width: "68px" }} />
-          <Th label={satisFiltreTip === 'kasa_devir' ? "AÇIKLAMA" : "BAYİ"} sortKey={satisFiltreTip === 'kasa_devir' ? "aciklama" : "bayi"} currentSort={fisSort} setSort={setFisSort} filterType="fis_bayi" hideSortIndicator={true} compact={true} align="right" sortClickScope="label" cellStyle={{ width: satisFiltreTip === 'kasa_devir' ? "136px" : "112px", paddingLeft: satisFiltreTip === 'kasa_devir' ? "10px" : "18px" }} />
+          <Th label={satisFiltreTip === 'kasa_devir' ? "AÇIKLAMA" : "BAYİ"} sortKey={satisFiltreTip === 'kasa_devir' ? "aciklama" : "bayi"} currentSort={fisSort} setSort={setFisSort} filterType="fis_bayi" hideSortIndicator={true} compact={true} align="right" sortClickScope="label" cellStyle={{ width: satisFiltreTip === 'kasa_devir' ? "136px" : "112px", paddingLeft: satisFiltreTip === 'kasa_devir' ? "10px" : "14px", paddingRight: satisFiltreTip === 'kasa_devir' ? "4px" : "8px" }} />
           <Th label="TUTAR" sortKey="toplam_tutar" currentSort={fisSort} setSort={setFisSort} align="right" />
           <Th label="TAHS." sortKey="tahsilat" currentSort={fisSort} setSort={setFisSort} align="right" />
           <Th label="BORÇ" sortKey="kalan_bakiye" currentSort={fisSort} setSort={setFisSort} align="right" />
