@@ -3303,18 +3303,18 @@ export default function App() {
     hammaddeBorclari.katki +
     hammaddeBorclari.sutTozu;
   const hammaddeOdemeDetaySatirlari = [
-    { etiket: "Süt Ödemesi", deger: `${fSayi(tSutOdemesi)} TL`, vurgu: true },
-    { etiket: "Krema Ödemesi", deger: `${fSayi(tKremaOdemesi)} TL`, vurgu: true },
-    { etiket: "Kova Ödemesi", deger: `${fSayi(tKovaOdemesi)} TL`, vurgu: true },
-    { etiket: "Katkı Ödemesi", deger: `${fSayi(tKatkiOdemesi)} TL`, vurgu: true },
-    { etiket: "Süt Tozu Ödemesi", deger: `${fSayi(tSutTozuOdemesi)} TL`, vurgu: true },
+    { etiket: "Süt Ödemesi", deger: `${fSayiNoDec(tSutOdemesi)} TL`, vurgu: true },
+    { etiket: "Krema Ödemesi", deger: `${fSayiNoDec(tKremaOdemesi)} TL`, vurgu: true },
+    { etiket: "Kova Ödemesi", deger: `${fSayiNoDec(tKovaOdemesi)} TL`, vurgu: true },
+    { etiket: "Katkı Ödemesi", deger: `${fSayiNoDec(tKatkiOdemesi)} TL`, vurgu: true },
+    { etiket: "Süt Tozu Ödemesi", deger: `${fSayiNoDec(tSutTozuOdemesi)} TL`, vurgu: true },
   ];
   const hammaddeBorcDetaySatirlari = [
-    { etiket: "Süt Borcu", deger: `${fSayi(sutcuyeBorcumuz)} TL`, vurgu: true },
-    { etiket: "Krema Borcu", deger: `${fSayi(hammaddeBorclari.krema)} TL`, vurgu: true },
-    { etiket: "Kova Borcu", deger: `${fSayi(hammaddeBorclari.kova)} TL`, vurgu: true },
-    { etiket: "Katkı Borcu", deger: `${fSayi(hammaddeBorclari.katki)} TL`, vurgu: true },
-    { etiket: "Süt Tozu Borcu", deger: `${fSayi(hammaddeBorclari.sutTozu)} TL`, vurgu: true },
+    { etiket: "Süt Borcu", deger: `${fSayiNoDec(sutcuyeBorcumuz)} TL`, vurgu: true },
+    { etiket: "Krema Borcu", deger: `${fSayiNoDec(hammaddeBorclari.krema)} TL`, vurgu: true },
+    { etiket: "Kova Borcu", deger: `${fSayiNoDec(hammaddeBorclari.kova)} TL`, vurgu: true },
+    { etiket: "Katkı Borcu", deger: `${fSayiNoDec(hammaddeBorclari.katki)} TL`, vurgu: true },
+    { etiket: "Süt Tozu Borcu", deger: `${fSayiNoDec(hammaddeBorclari.sutTozu)} TL`, vurgu: true },
   ];
   const aktifUretimTipi = uretimForm.uretim_tipi || "yogurt";
   const siraliUretimList = useMemo(() => sortData(periodUretim, uretimSort), [periodUretim, uretimSort]);
@@ -3688,7 +3688,7 @@ export default function App() {
                   </td>
                   <td style={{ textAlign: "right" }}>
                     <b style={{ fontSize: "12px", color: b.borc > 0 ? "#dc2626" : (b.borc < 0 ? "#059669" : "#64748b") }}>
-                      {fSayi(b.borc)} ₺
+                      {fSayiNoDec(b.borc)} ₺
                     </b>
                   </td>
                   <td className="actions-cell" style={{ position: "relative" }}>
@@ -3748,12 +3748,12 @@ export default function App() {
               {personelOzetleri.map((p, i) => (
                 <tr key={i}>
                   <td style={{ fontWeight: "bold" }}>{p.isim}</td>
-                  <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{fSayi(p.satis)}</td>
-                  <td style={{ textAlign: "right", color: "#2563eb", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{fSayi(p.tahsilat)}</td>
-                  <td style={{ textAlign: "right", color: "#dc2626", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{fSayi(p.gider)}</td>
-                  <td style={{ textAlign: "right", color: "#0f766e", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{fSayi(p.kasayaDevir)}</td>
-                  <td style={{ textAlign: "right", fontWeight: "bold", color: p.net >= 0 ? "#16a34a" : "#dc2626", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{fSayi(p.net)}</td>
-                  <td style={{ textAlign: "right", fontWeight: "bold", color: p.acikBakiye >= 0 ? "#f59e0b" : "#059669", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{fSayi(p.acikBakiye)}</td>
+                  <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{fSayiNoDec(p.satis)}</td>
+                  <td style={{ textAlign: "right", color: "#2563eb", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{fSayiNoDec(p.tahsilat)}</td>
+                  <td style={{ textAlign: "right", color: "#dc2626", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{fSayiNoDec(p.gider)}</td>
+                  <td style={{ textAlign: "right", color: "#0f766e", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{fSayiNoDec(p.kasayaDevir)}</td>
+                  <td style={{ textAlign: "right", fontWeight: "bold", color: p.net >= 0 ? "#16a34a" : "#dc2626", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{fSayiNoDec(p.net)}</td>
+                  <td style={{ textAlign: "right", fontWeight: "bold", color: p.acikBakiye >= 0 ? "#f59e0b" : "#059669", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{fSayiNoDec(p.acikBakiye)}</td>
                 </tr>
               ))}
               {personelOzetleri.length === 0 && (
@@ -3844,12 +3844,12 @@ export default function App() {
       <div style={{ display: "grid", gridTemplateColumns: "0.95fr 1.45fr 1fr", gap: "6px", marginBottom: "10px", alignItems: "stretch" }}>
         <div style={{ minWidth: 0, border: "1px solid #05966933", background: "#05966910", color: "#059669", borderRadius: "12px", padding: "6px 8px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
           <span style={{ fontSize: "9px", fontWeight: "bold", opacity: 0.85, whiteSpace: "nowrap" }}>TOPLAM SATIŞ</span>
-          <b style={{ fontSize: "14px", marginTop: "2px", whiteSpace: "normal", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{fSayi(tFisToplam)} ₺</b>
+          <b style={{ fontSize: "14px", marginTop: "2px", whiteSpace: "normal", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{fSayiNoDec(tFisToplam)} ₺</b>
         </div>
         <div style={{ minWidth: 0, border: "1px solid #2563eb33", background: "#2563eb10", color: "#2563eb", borderRadius: "12px", padding: "6px 8px", display: "flex", flexDirection: "column", gap: "4px", justifyContent: "center" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "6px" }}>
             <span style={{ fontSize: "9px", fontWeight: "bold", opacity: 0.9, whiteSpace: "nowrap" }}>TAHSİLAT</span>
-            <b style={{ fontSize: "14px", whiteSpace: "normal", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05, textAlign: "right" }}>{fSayi(tFisTahsilatRaw)} ₺</b>
+            <b style={{ fontSize: "14px", whiteSpace: "normal", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05, textAlign: "right" }}>{fSayiNoDec(tFisTahsilatRaw)} ₺</b>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "5px" }}>
             <div style={{ borderRadius: "999px", background: "#ffffffb8", padding: "4px 6px", color: "#64748b", fontWeight: "bold", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", lineHeight: 1.1 }}>
@@ -3868,7 +3868,7 @@ export default function App() {
         </div>
         <div style={{ minWidth: 0, border: "1px solid #dc262633", background: "#dc262610", color: "#dc2626", borderRadius: "12px", padding: "6px 8px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
           <span style={{ fontSize: "9px", fontWeight: "bold", opacity: 0.85, whiteSpace: "nowrap" }}>AÇIK HESAP</span>
-          <b style={{ fontSize: "14px", marginTop: "2px", whiteSpace: "normal", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{fSayi(tFisKalan)} ₺</b>
+          <b style={{ fontSize: "14px", marginTop: "2px", whiteSpace: "normal", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{fSayiNoDec(tFisKalan)} ₺</b>
         </div>
       </div>
 
@@ -3894,12 +3894,12 @@ export default function App() {
             <td style={{ fontWeight: "bold", minWidth: 0, maxWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: f.toplam_tutar === 0 && f.odeme_turu !== 'KASAYA DEVİR' ? "#8b5cf6" : (sistemIslemiMi(satisFisBayiAdiGetir(f)) ? "#475569" : "inherit") }}>
                {fisGorunenBayi(f)}
             </td>
-            <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold" }}>{f.toplam_tutar === 0 ? "-" : fSayi(f.toplam_tutar)}</td>
+            <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold" }}>{f.toplam_tutar === 0 ? "-" : fSayiNoDec(f.toplam_tutar)}</td>
             <td style={{ textAlign: "right", color: f.odeme_turu === 'KASAYA DEVİR' ? "#dc2626" : "#2563eb", fontWeight: "bold" }}>
-               {f.odeme_turu === 'KASAYA DEVİR' && f.tahsilat > 0 ? "-" : ""}{fSayi(f.tahsilat)}
+               {f.odeme_turu === 'KASAYA DEVİR' && f.tahsilat > 0 ? "-" : ""}{fSayiNoDec(f.tahsilat)}
             </td>
             <td style={{ textAlign: "right", color: satirToplamBorc > 0 ? "#dc2626" : (satirToplamBorc < 0 ? "#059669" : "#64748b"), fontWeight: "bold" }} title="Bu fiş sonundaki toplam borç">
-                {sistemIslemiMi(satisFisBayiAdiGetir(f)) ? "-" : (satirToplamBorc === 0 ? "-" : fSayi(satirToplamBorc))}
+                {sistemIslemiMi(satisFisBayiAdiGetir(f)) ? "-" : (satirToplamBorc === 0 ? "-" : fSayiNoDec(satirToplamBorc))}
             </td>
             <td style={{ textAlign: "center", color: "#64748b" }}>{f.ekleyen ? f.ekleyen.split('@')[0] : "-"}</td>
             <td className="actions-cell" style={{position: 'relative'}}>
