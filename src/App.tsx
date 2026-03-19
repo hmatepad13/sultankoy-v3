@@ -672,6 +672,7 @@ export default function App() {
 
   // --- GİDER STATE'LERİ ---
   const [giderFiltreKisi, setGiderFiltreKisi] = useState<"benim" | "tumu">("benim");
+  const [giderFiltre, setGiderFiltre] = useState<{ turler: string[], kisiler: string[] }>({ turler: [], kisiler: [] });
   const [isGiderModalOpen, setIsGiderModalOpen] = useState<boolean>(false);
   const [editingGiderId, setEditingGiderId] = useState<any>(null);
   const [giderModalMode, setGiderModalMode] = useState<"create" | "edit" | "view">("create");
@@ -686,7 +687,6 @@ export default function App() {
     const temelTurler = veritabaniTurleri.length > 0 ? veritabaniTurleri : [...GIDER_TURLERI];
     return Array.from(new Set([...temelTurler, ...HAMMADDE_BORC_TURLERI]));
   }, [giderTuruListesi]);
-
   // --- ÜRETİM STATE'LERİ ---
   const [isUretimModalOpen, setIsUretimModalOpen] = useState<boolean>(false);
   const [uretimDetayData, setUretimDetayData] = useState<any>(null);
@@ -818,7 +818,7 @@ export default function App() {
     return { bakiyeler, labels, map };
   }, [satisFisBayiAdiGetir, satisFisBayiAnahtariGetir]);
 
-  const [activeFilterModal, setActiveFilterModal] = useState<'sut_ciftlik' | 'fis_bayi' | 'ozet_bayi' | 'analiz_bayi' | 'analiz_urun' | 'sut_tarih' | 'fis_tarih' | 'analiz_tarih' | null>(null);
+  const [activeFilterModal, setActiveFilterModal] = useState<'sut_ciftlik' | 'fis_bayi' | 'ozet_bayi' | 'analiz_bayi' | 'analiz_urun' | 'sut_tarih' | 'fis_tarih' | 'analiz_tarih' | 'gider_tur' | 'gider_kisi' | null>(null);
 
   const bayiSecimModalAc = (hedef: "fis" | "tahsilat") => {
     setBayiSecimModal({ hedef, arama: "" });
@@ -1580,6 +1580,14 @@ export default function App() {
   const periodSatisList = useMemo(() => satisList.filter(s => s.tarih.startsWith(aktifDonem)), [satisList, aktifDonem]);
   const periodGider = useMemo(() => giderList.filter(g => g.tarih.startsWith(aktifDonem)), [giderList, aktifDonem]);
   const periodUretim = useMemo(() => uretimList.filter(u => u.tarih.startsWith(aktifDonem)), [uretimList, aktifDonem]);
+  const giderTurFiltreSecenekleri = useMemo(
+    () => [...new Set(periodGider.map((g) => g.tur).filter(Boolean))].sort((a, b) => a.localeCompare(b, "tr")),
+    [periodGider],
+  );
+  const giderKisiFiltreSecenekleri = useMemo(
+    () => [...new Set(periodGider.map((g) => normalizeUsername(g.ekleyen)).filter(Boolean))].sort((a, b) => a.localeCompare(b, "tr")),
+    [periodGider],
+  );
 
   const fSayi = (num: any) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 2 }).format(Number(num) || 0).replace(/,00$/, '');
   const fSayiNoDec = (num: any) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(Number(num) || 0);
@@ -1751,7 +1759,7 @@ export default function App() {
     });
   };
 
-  const handleCheckboxToggle = (listName: 'ciftlikler' | 'bayiler' | 'urunler', setStateFn: any, val: string) => {
+  const handleCheckboxToggle = (listName: 'ciftlikler' | 'bayiler' | 'urunler' | 'turler' | 'kisiler', setStateFn: any, val: string) => {
     setStateFn((prev: any) => {
       const arr = prev[listName];
       if (arr.includes(val)) return { ...prev, [listName]: arr.filter((x: string) => x !== val) };
@@ -3224,9 +3232,13 @@ export default function App() {
   const tAnalizKg = useMemo(() => fAnalizList.reduce((a: number, b: any) => a + Number(b.toplam_kg), 0), [fAnalizList]);
   const tAnalizTutar = useMemo(() => fAnalizList.reduce((a: number, b: any) => a + Number(b.tutar), 0), [fAnalizList]);
 
-  const fGiderList = useMemo(() => sortData(periodGider.filter((g: any) => 
-    giderFiltreKisi === 'tumu' || normalizeUsername(g.ekleyen) === aktifKullaniciKisa
-  ), giderSort), [aktifKullaniciKisa, periodGider, giderSort, giderFiltreKisi]);
+  const fGiderList = useMemo(() => sortData(periodGider.filter((g: any) => {
+    const giderKisi = normalizeUsername(g.ekleyen);
+    const kisiEslesiyor = giderFiltreKisi === 'tumu' || giderKisi === aktifKullaniciKisa;
+    const turEslesiyor = giderFiltre.turler.length === 0 || giderFiltre.turler.includes(g.tur);
+    const filtreKisiEslesiyor = giderFiltre.kisiler.length === 0 || giderFiltre.kisiler.includes(giderKisi);
+    return kisiEslesiyor && turEslesiyor && filtreKisiEslesiyor;
+  }), giderSort), [aktifKullaniciKisa, periodGider, giderSort, giderFiltreKisi, giderFiltre]);
   const fGGiderNormal = useMemo(
     () => fGiderList.filter((g) => normalGiderMi(g.tur)).reduce((a: number, b: any) => a + Number(b.tutar), 0),
     [fGiderList],
@@ -3978,10 +3990,10 @@ export default function App() {
       <div className="table-wrapper"><table className="tbl" style={{borderTop: "3px solid #fca5a5"}}>
         <thead><tr>
           <Th label="TARİH" sortKey="tarih" currentSort={giderSort} setSort={setGiderSort} />
-          <Th label="TÜR" sortKey="tur" currentSort={giderSort} setSort={setGiderSort} />
+          <Th label="TÜR" sortKey="tur" currentSort={giderSort} setSort={setGiderSort} filterType="gider_tur" />
           <Th label="TUTAR" sortKey="tutar" currentSort={giderSort} setSort={setGiderSort} align="right" />
           <Th label="AÇIKLAMA" sortKey="aciklama" currentSort={giderSort} setSort={setGiderSort} />
-          <Th label="KİŞİ" sortKey="ekleyen" currentSort={giderSort} setSort={setGiderSort} align="center" />
+          <Th label="KİŞİ" sortKey="ekleyen" currentSort={giderSort} setSort={setGiderSort} align="center" filterType="gider_kisi" />
           <th></th>
         </tr></thead>
         <tbody>{fGiderList.map(g => {
@@ -5042,8 +5054,10 @@ export default function App() {
                 {activeFilterModal === 'ozet_bayi' && ozetBorcFiltreSecenekleri.map(isim => (<label key={isim} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}><input type="checkbox" checked={ozetBorcFiltre.bayiler.includes(isim)} onChange={() => handleCheckboxToggle('bayiler', setOzetBorcFiltre, isim)} style={{width:"18px", height:"18px"}}/> {isim}</label>))}
                 {activeFilterModal === 'analiz_bayi' && bayiler.map(b => (<label key={b.id} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}><input type="checkbox" checked={analizFiltre.bayiler.includes(b.isim)} onChange={() => handleCheckboxToggle('bayiler', setAnalizFiltre, b.isim)} style={{width:"18px", height:"18px"}}/> {b.isim}</label>))}
                 {activeFilterModal === 'analiz_urun' && urunler.map(u => (<label key={u.id} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}><input type="checkbox" checked={analizFiltre.urunler.includes(u.isim)} onChange={() => handleCheckboxToggle('urunler', setAnalizFiltre, u.isim)} style={{width:"18px", height:"18px"}}/> {u.isim}</label>))}
+                {activeFilterModal === 'gider_tur' && giderTurFiltreSecenekleri.map(tur => (<label key={tur} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}><input type="checkbox" checked={giderFiltre.turler.includes(tur)} onChange={() => handleCheckboxToggle('turler', setGiderFiltre, tur)} style={{width:"18px", height:"18px"}}/> {tur}</label>))}
+                {activeFilterModal === 'gider_kisi' && giderKisiFiltreSecenekleri.map(kisi => (<label key={kisi} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}><input type="checkbox" checked={giderFiltre.kisiler.includes(kisi)} onChange={() => handleCheckboxToggle('kisiler', setGiderFiltre, kisi)} style={{width:"18px", height:"18px"}}/> {kisi}</label>))}
               </div>
-              <div style={{display: "flex", gap: "8px", marginTop: "15px"}}><button onClick={() => { if(activeFilterModal === 'sut_ciftlik') setSutFiltre({...sutFiltre, ciftlikler: []}); if(activeFilterModal === 'fis_bayi') setFisFiltre({...fisFiltre, bayiler: []}); if(activeFilterModal === 'ozet_bayi') setOzetBorcFiltre({ bayiler: [] }); if(activeFilterModal === 'analiz_bayi') setAnalizFiltre({...analizFiltre, bayiler: []}); if(activeFilterModal === 'analiz_urun') setAnalizFiltre({...analizFiltre, urunler: []}); if(activeFilterModal?.includes('_tarih')){ setSutFiltre({...sutFiltre, baslangic: '', bitis: ''}); setFisFiltre({...fisFiltre, baslangic: '', bitis: ''}); setAnalizFiltre({...analizFiltre, baslangic: '', bitis: ''}); } }} style={{flex: 1, padding: "10px", background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: "6px", fontWeight: "bold"}}>TEMİZLE</button><button onClick={() => setActiveFilterModal(null)} style={{flex: 1, padding: "10px", background: activeFilterModal.includes('analiz') ? '#8b5cf6' : temaRengi, color: "#fff", border: "none", borderRadius: "6px", fontWeight: "bold"}}>UYGULA</button></div>
+              <div style={{display: "flex", gap: "8px", marginTop: "15px"}}><button onClick={() => { if(activeFilterModal === 'sut_ciftlik') setSutFiltre({...sutFiltre, ciftlikler: []}); if(activeFilterModal === 'fis_bayi') setFisFiltre({...fisFiltre, bayiler: []}); if(activeFilterModal === 'ozet_bayi') setOzetBorcFiltre({ bayiler: [] }); if(activeFilterModal === 'analiz_bayi') setAnalizFiltre({...analizFiltre, bayiler: []}); if(activeFilterModal === 'analiz_urun') setAnalizFiltre({...analizFiltre, urunler: []}); if(activeFilterModal === 'gider_tur') setGiderFiltre((prev) => ({ ...prev, turler: [] })); if(activeFilterModal === 'gider_kisi') setGiderFiltre((prev) => ({ ...prev, kisiler: [] })); if(activeFilterModal?.includes('_tarih')){ setSutFiltre({...sutFiltre, baslangic: '', bitis: ''}); setFisFiltre({...fisFiltre, baslangic: '', bitis: ''}); setAnalizFiltre({...analizFiltre, baslangic: '', bitis: ''}); } }} style={{flex: 1, padding: "10px", background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: "6px", fontWeight: "bold"}}>TEMİZLE</button><button onClick={() => setActiveFilterModal(null)} style={{flex: 1, padding: "10px", background: activeFilterModal.includes('analiz') ? '#8b5cf6' : temaRengi, color: "#fff", border: "none", borderRadius: "6px", fontWeight: "bold"}}>UYGULA</button></div>
             </div>
           </div>
         )}
