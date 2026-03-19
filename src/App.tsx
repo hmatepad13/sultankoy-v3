@@ -5,6 +5,7 @@ import { GiderPanel } from "./components/GiderPanel";
 import { LoginScreen } from "./components/LoginScreen";
 import { SevkiyatPanel } from "./components/SevkiyatPanel";
 import { SettingsPanel } from "./components/SettingsPanel";
+import { SutPanel } from "./components/SutPanel";
 import {
   GIDER_TURLERI,
   TAB_TANIMLARI,
@@ -502,7 +503,6 @@ export default function App() {
 
   // AYARLAR VE UI STATE'LERİ
   const temaRengi = TEMA_RENGI;
-  const [detayNot, setDetayNot] = useState<any>(null);
   const [tabYetkileri, setTabYetkileri] = useState<KullaniciSekmeYetkisi[]>([]);
   const [yetkiKaynak, setYetkiKaynak] = useState<"supabase" | "local">("local");
   const [yetkiUyari, setYetkiUyari] = useState("");
@@ -536,14 +536,6 @@ export default function App() {
   const bugun = getLocalDateString();
   const dun = gunOfsetliTarih(-1);
   const aktifDonemTarihi = (donem = aktifDonem) => (bugun.startsWith(donem) ? bugun : `${donem}-01`);
-
-  // --- SÜT STATE'LERİ ---
-  const [isSutModalOpen, setIsSutModalOpen] = useState<boolean>(false);
-  const [sutModalMode, setSutModalMode] = useState<"create" | "edit" | "view">("create");
-  const [editingSutId, setEditingSutId] = useState<any>(null);
-  const [sutForm, setSutForm] = useState<SutGiris>({ tarih: aktifDonemTarihi(), ciftlik: "", kg: "", fiyat: "", aciklama: "" });
-  const [sutFiltre, setSutFiltre] = useState<{ ciftlikler: string[], baslangic: string, bitis: string }>({ ciftlikler: [], baslangic: "", bitis: "" });
-  const [sutSort, setSutSort] = useState<SortConfig>({ key: 'tarih', direction: 'desc' });
 
   // --- SATIŞ STATE'LERİ ---
   const [satisFiltreKisi, setSatisFiltreKisi] = useState<"benim" | "herkes">("benim");
@@ -637,15 +629,12 @@ export default function App() {
 
   const seciliBayiId = useCallback((bayiAdi?: string | null) => eslesenKayitIdBul(bayiler, bayiAdi), [bayiler]);
   const seciliUrunId = useCallback((urunAdi?: string | null) => eslesenKayitIdBul(urunler, urunAdi), [urunler]);
-  const seciliCiftlikId = useCallback((ciftlikAdi?: string | null) => eslesenKayitIdBul(tedarikciler, ciftlikAdi), [tedarikciler]);
   const kayitAktifMi = <T extends { aktif?: boolean | null }>(item: T) => item.aktif !== false;
   const aktifBayiler = useMemo(() => bayiler.filter(kayitAktifMi), [bayiler]);
   const aktifUrunler = useMemo(() => urunler.filter(kayitAktifMi), [urunler]);
-  const aktifTedarikciler = useMemo(() => tedarikciler.filter(kayitAktifMi), [tedarikciler]);
   const tumBayiler = useMemo(() => [...bayiler], [bayiler]);
   const bayiMap = useMemo(() => new Map(bayiler.map((item) => [item.id, item.isim])), [bayiler]);
   const urunMap = useMemo(() => new Map(urunler.map((item) => [item.id, item.isim])), [urunler]);
-  const ciftlikMap = useMemo(() => new Map(tedarikciler.map((item) => [item.id, item.isim])), [tedarikciler]);
 
   const satisFisBayiAdiGetir = useCallback(
     (fis?: Partial<SatisFis> | null) => (fis?.bayi_id ? bayiMap.get(fis.bayi_id) : undefined) || fis?.bayi || "",
@@ -659,10 +648,6 @@ export default function App() {
     (satir?: Partial<SatisGiris> | null) => (satir?.urun_id ? urunMap.get(satir.urun_id) : undefined) || satir?.urun || "",
     [urunMap],
   );
-  const sutCiftlikAdiGetir = useCallback(
-    (kayit?: Partial<SutGiris> | null) => (kayit?.ciftlik_id ? ciftlikMap.get(kayit.ciftlik_id) : undefined) || kayit?.ciftlik || "",
-    [ciftlikMap],
-  );
   const satisFisBayiAnahtariGetir = useCallback(
     (fis?: Partial<SatisFis> | null) => (fis?.bayi_id ? `id:${fis.bayi_id}` : `isim:${masterKayitIsminiNormalizeEt(fis?.bayi)}`),
     [masterKayitIsminiNormalizeEt],
@@ -674,38 +659,6 @@ export default function App() {
   const satisSatiriUrunAnahtariGetir = useCallback(
     (satir?: Partial<SatisGiris> | null) => (satir?.urun_id ? `id:${satir.urun_id}` : `isim:${masterKayitIsminiNormalizeEt(satir?.urun)}`),
     [masterKayitIsminiNormalizeEt],
-  );
-  const sutCiftlikAnahtariGetir = useCallback(
-    (kayit?: Partial<SutGiris> | null) => (kayit?.ciftlik_id ? `id:${kayit.ciftlik_id}` : `isim:${masterKayitIsminiNormalizeEt(kayit?.ciftlik)}`),
-    [masterKayitIsminiNormalizeEt],
-  );
-  const sutSonFiyatHaritasi = useMemo(() => {
-    const map = new Map<string, string>();
-    const siraliKayitlar = [...sutList].sort((a, b) => {
-      const tarihFarki = String(b.tarih || "").localeCompare(String(a.tarih || ""));
-      if (tarihFarki !== 0) return tarihFarki;
-      const createdAtFarki = String((b as any).created_at || "").localeCompare(String((a as any).created_at || ""));
-      if (createdAtFarki !== 0) return createdAtFarki;
-      return sayiDegeri((b as any).id) - sayiDegeri((a as any).id);
-    });
-
-    siraliKayitlar.forEach((kayit) => {
-      const key = sutCiftlikAnahtariGetir(kayit);
-      if (!key || map.has(key)) return;
-      const fiyat = sayiDegeri(kayit.fiyat);
-      if (fiyat > 0) map.set(key, String(kayit.fiyat));
-    });
-
-    return map;
-  }, [sutCiftlikAnahtariGetir, sutList]);
-  const sonSutFiyatiniGetir = useCallback(
-    (ciftlikAdi?: string | null) => {
-      if (!ciftlikAdi) return "";
-      const ciftlikId = seciliCiftlikId(ciftlikAdi);
-      const key = ciftlikId ? `id:${ciftlikId}` : `isim:${masterKayitIsminiNormalizeEt(ciftlikAdi)}`;
-      return sutSonFiyatHaritasi.get(key) || "";
-    },
-    [masterKayitIsminiNormalizeEt, seciliCiftlikId, sutSonFiyatHaritasi],
   );
 
   const hesaplaMusteriBakiyeleri = useCallback((kayitlar: SatisFis[], sonDonem?: string) => {
@@ -736,7 +689,7 @@ export default function App() {
     return { bakiyeler, labels, map };
   }, [satisFisBayiAdiGetir, satisFisBayiAnahtariGetir]);
 
-  const [activeFilterModal, setActiveFilterModal] = useState<'sut_ciftlik' | 'fis_bayi' | 'ozet_bayi' | 'analiz_bayi' | 'analiz_urun' | 'sut_tarih' | 'fis_tarih' | 'analiz_tarih' | null>(null);
+  const [activeFilterModal, setActiveFilterModal] = useState<'fis_bayi' | 'ozet_bayi' | 'analiz_bayi' | 'analiz_urun' | 'fis_tarih' | 'analiz_tarih' | null>(null);
 
   const bayiSecimModalAc = (hedef: "fis" | "tahsilat") => {
     setBayiSecimModal({ hedef, arama: "" });
@@ -1494,7 +1447,6 @@ export default function App() {
 
   // DÖNEM İZOLASYONLARI
   const periodSatisFis = useMemo(() => satisFisList.filter(f => f.tarih.startsWith(aktifDonem)), [satisFisList, aktifDonem]);
-  const periodSut = useMemo(() => sutList.filter(s => s.tarih.startsWith(aktifDonem)), [sutList, aktifDonem]);
   const periodSatisList = useMemo(() => satisList.filter(s => s.tarih.startsWith(aktifDonem)), [satisList, aktifDonem]);
   const periodGider = useMemo(() => giderList.filter(g => g.tarih.startsWith(aktifDonem)), [giderList, aktifDonem]);
   const periodUretim = useMemo(() => uretimList.filter(u => u.tarih.startsWith(aktifDonem)), [uretimList, aktifDonem]);
@@ -1561,11 +1513,6 @@ export default function App() {
       ))}
     </div>
   );
-
-  const renderNot = (not: any) => {
-    if (!not) return "";
-    return not.length <= 15 ? not : <span onClick={(e) => { e.stopPropagation(); setDetayNot(not); }} style={{ cursor: "pointer", borderBottom: "1px dashed #94a3b8", color: "#3b82f6" }}>{not.substring(0, 15)}...</span>;
-  };
 
   const fisGorunenBayi = (fis: SatisFis) => {
     const bayiAdi = satisFisBayiAdiGetir(fis);
@@ -1704,52 +1651,6 @@ export default function App() {
       </div>
     </th>
   );
-
-  async function handleSutKaydet() {
-    if (!sutForm.ciftlik || !sutForm.kg || !sutForm.fiyat) return alert("Çiftlik, KG ve Fiyat alanları zorunludur!");
-    const duzenlenenKayit = sutList.find((item) => item.id === editingSutId);
-    if (editingSutId && !kaydiDuzenleyebilirMi(duzenlenenKayit?.ekleyen)) {
-      return alert("Bu süt kaydını sadece ekleyen kullanıcı veya admin düzenleyebilir.");
-    }
-    const p = {
-      ...sutForm,
-      ciftlik_id: seciliCiftlikId(sutForm.ciftlik),
-      kg: Number(sutForm.kg),
-      fiyat: Number(sutForm.fiyat),
-      toplam_tl: Number(sutForm.kg) * Number(sutForm.fiyat),
-      ekleyen: aktifKullaniciEposta,
-    };
-    const { error } = editingSutId ? await supabase.from("sut_giris").update(p).eq("id", editingSutId) : await supabase.from("sut_giris").insert(p);
-    if (error) return alert("Hata: " + error.message);
-    setSutForm({ tarih: aktifDonemTarihi(), ciftlik: "", kg: "", fiyat: "", aciklama: "" }); 
-    setEditingSutId(null); setSutModalMode("create"); setIsSutModalOpen(false); verileriGetir("sut"); 
-  }
-
-  const handleSutCiftlikSecimi = (secilenCiftlik: string) => {
-    const hafizaFiyati = sonSutFiyatiniGetir(secilenCiftlik);
-    setSutForm((prev) => ({
-      ...prev,
-      ciftlik: secilenCiftlik,
-      fiyat: hafizaFiyati || prev.fiyat || "",
-    }));
-  };
-
-  const handleYeniSutModalAc = () => {
-    setSutForm({ tarih: aktifDonemTarihi(), ciftlik: "", kg: "", fiyat: "", aciklama: "" });
-    setEditingSutId(null);
-    setSutModalMode("create");
-    setIsSutModalOpen(true);
-  };
-
-  const handleSutGoruntule = (kayit: SutGiris) => {
-    setEditingSutId(kayit.id || null);
-    setSutForm({
-      ...(kayit as any),
-      ciftlik: sutCiftlikAdiGetir(kayit),
-    });
-    setSutModalMode("view");
-    setIsSutModalOpen(true);
-  };
 
   const uretimSonFiyatlar = useMemo(() => {
     const sirali = [...uretimList].sort((a, b) => {
@@ -2939,13 +2840,6 @@ export default function App() {
     return true;
   }), fisSort), [filteredForTotals, satisFiltreTip, fisSort]);
 
-  const fSutList = useMemo(() => sortData(periodSut.filter((s: any) => 
-    (sutFiltre.ciftlikler.length === 0 || sutFiltre.ciftlikler.includes(sutCiftlikAdiGetir(s))) && 
-    (!sutFiltre.baslangic || s.tarih >= sutFiltre.baslangic) && (!sutFiltre.bitis || s.tarih <= sutFiltre.bitis)
-  ), sutSort), [periodSut, sutFiltre, sutSort, sutCiftlikAdiGetir]);
-  const tSutKg = useMemo(() => fSutList.reduce((a: number, b: any) => a + Number(b.kg), 0), [fSutList]);
-  const tSutTl = useMemo(() => fSutList.reduce((a: number, b: any) => a + Number(b.toplam_tl), 0), [fSutList]);
-
   const fAnalizList = useMemo(() => sortData(periodSatisList.filter((s: any) => 
     (analizFiltre.bayiler.length === 0 || analizFiltre.bayiler.includes(satisSatiriBayiAdiGetir(s))) && 
     (analizFiltre.urunler.length === 0 || analizFiltre.urunler.includes(satisSatiriUrunAdiGetir(s))) && 
@@ -3456,56 +3350,6 @@ export default function App() {
           </table>
         </div>
       </div>
-    </div>
-  );
-
-  const renderSut = () => (
-    <div className="tab-fade-in main-content-area">
-      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center", marginBottom: "10px" }}>
-        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", flex: 1 }}>
-          <div style={{ border: `1px solid ${temaRengi}33`, background: `${temaRengi}10`, color: temaRengi, borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold" }}>
-            SÜT: {fSayi(tSutKg)} KG
-          </div>
-          <div style={{ border: `1px solid ${temaRengi}33`, background: `${temaRengi}10`, color: temaRengi, borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold" }}>
-            TUTAR: {fSayiNoDec(tSutTl)} ₺
-          </div>
-        </div>
-        <button onClick={handleYeniSutModalAc} className="btn-anim m-btn blue-btn inline-mobile-btn" style={{ margin: 0, minWidth: "150px", width: "auto", fontSize: "13px", flex: "0 0 auto" }}>➕ YENİ SÜT GİRİŞİ</button>
-      </div>
-      <div className="table-wrapper"><table className="tbl">
-        <thead><tr>
-          <Th label="TARİH" sortKey="tarih" currentSort={sutSort} setSort={setSutSort} filterType="sut_tarih" />
-          <Th label="ÇİFTLİK" sortKey="ciftlik" currentSort={sutSort} setSort={setSutSort} filterType="sut_ciftlik" />
-          <Th label="KG" sortKey="kg" currentSort={sutSort} setSort={setSutSort} align="right" />
-          <Th label="FİYAT" sortKey="fiyat" currentSort={sutSort} setSort={setSutSort} align="right" />
-          <Th label="TUTAR" sortKey="toplam_tl" currentSort={sutSort} setSort={setSutSort} align="right" />
-          <th></th>
-        </tr></thead>
-        <tbody>{fSutList.map(s => {
-          const silinebilir = kaydiSilebilirMi(s.ekleyen);
-          const duzenlenebilir = kaydiDuzenleyebilirMi(s.ekleyen);
-          return (
-          <tr key={s.id}>
-            <td>{s.tarih.split("-").reverse().slice(0, 2).join(".")}</td>
-            <td style={{ fontWeight: "bold" }} className="truncate-text-td">{sutCiftlikAdiGetir(s)}</td>
-            <td style={{ textAlign: "right" }}>{fSayi(s.kg)}</td>
-            <td style={{ textAlign: "right" }}>{fSayi(s.fiyat)}</td>
-            <td style={{ textAlign: "right", color: temaRengi, fontWeight: "bold" }}>{fSayiNoDec(s.toplam_tl)}</td>
-            <td className="actions-cell" style={{position: 'relative'}}>
-               {renderNot(s.aciklama)}
-               <button onClick={(e) => { e.stopPropagation(); setOpenDropdown({ type: 'sut', id: s.id as string }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', padding: '0 8px', color: '#64748b' }}>⋮</button>
-               {openDropdown?.type === 'sut' && openDropdown.id === s.id && (
-                  <div className="dropdown-menu">
-                     <button title="Detay Gör" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); handleSutGoruntule(s as SutGiris); }}>🔍</button>
-                     {duzenlenebilir && <button title="Düzenle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); setEditingSutId(s.id); setSutForm({ ...(s as any), ciftlik: sutCiftlikAdiGetir(s) }); setSutModalMode("edit"); setIsSutModalOpen(true); }}>✏️</button>}
-                     {silinebilir && <button title="Sil" className="dropdown-item-icon" style={{ color: '#dc2626' }} onClick={async () => { setOpenDropdown(null); await handleKayitSil("sut_giris", s, "sut"); }}>🗑️</button>}
-                  </div>
-               )}
-            </td>
-          </tr>);
-        })}
-        </tbody>
-      </table></div>
     </div>
   );
 
@@ -4347,8 +4191,6 @@ export default function App() {
 
   const sekmeSec = (tabId: AppTabId) => {
     setActiveTab(tabId);
-    setEditingSutId(null);
-    setIsSutModalOpen(false);
     setIsFisModalOpen(false);
     resetTahsilatForm();
     setIsTahsilatModalOpen(false);
@@ -4439,7 +4281,24 @@ export default function App() {
 
       <main className="main-content">
         {activeTab === "ozet" && renderOzet()}
-        {activeTab === "sut" && renderSut()}
+        {activeTab === "sut" && (
+          <SutPanel
+            aktifDonem={aktifDonem}
+            aktifKullaniciEposta={aktifKullaniciEposta}
+            aktifKullaniciKisa={aktifKullaniciKisa}
+            isAdmin={isAdmin}
+            sutList={sutList}
+            tedarikciler={tedarikciler}
+            temaRengi={temaRengi}
+            onRefreshSut={() => verileriGetir("sut")}
+            onRefreshCop={() => verileriGetir("cop")}
+            helpers={{
+              fSayi,
+              fSayiNoDec,
+              veritabaniHatasiMesaji,
+            }}
+          />
+        )}
         {activeTab === "sevkiyat" && <SevkiyatPanel aktifKullaniciKisa={aktifKullaniciKisa} aktifDonem={aktifDonem} />}
         {activeTab === "cek_senet" && <CekSenetPanel aktifKullaniciKisa={aktifKullaniciKisa} aktifDonem={aktifDonem} />}
         {activeTab === "satis" && renderSatis()}
@@ -4687,19 +4546,18 @@ export default function App() {
                         </div>
                       )}
                     </div>
-                    <input type="date" value={activeFilterModal.includes('sut') ? sutFiltre.baslangic : activeFilterModal.includes('fis') ? fisFiltre.baslangic : analizFiltre.baslangic} onChange={(e) => { if(activeFilterModal.includes('sut')) setSutFiltre({...sutFiltre, baslangic: e.target.value}); if(activeFilterModal.includes('fis')) setFisFiltre({...fisFiltre, baslangic: e.target.value}); if(activeFilterModal.includes('analiz')) setAnalizFiltre({...analizFiltre, baslangic: e.target.value}); }} className="m-inp date-click" style={{width: "100%", marginTop: "4px"}} />
+                    <input type="date" value={activeFilterModal.includes('fis') ? fisFiltre.baslangic : analizFiltre.baslangic} onChange={(e) => { if(activeFilterModal.includes('fis')) setFisFiltre({...fisFiltre, baslangic: e.target.value}); if(activeFilterModal.includes('analiz')) setAnalizFiltre({...analizFiltre, baslangic: e.target.value}); }} className="m-inp date-click" style={{width: "100%", marginTop: "4px"}} />
                   </div>
-                  <div><label style={{fontSize: "12px", color: "#64748b"}}>Bitiş</label><input type="date" value={activeFilterModal.includes('sut') ? sutFiltre.bitis : activeFilterModal.includes('fis') ? fisFiltre.bitis : analizFiltre.bitis} onChange={(e) => { if(activeFilterModal.includes('sut')) setSutFiltre({...sutFiltre, bitis: e.target.value}); if(activeFilterModal.includes('fis')) setFisFiltre({...fisFiltre, bitis: e.target.value}); if(activeFilterModal.includes('analiz')) setAnalizFiltre({...analizFiltre, bitis: e.target.value}); }} className="m-inp date-click" style={{width: "100%", marginTop: "4px"}} /></div>
+                  <div><label style={{fontSize: "12px", color: "#64748b"}}>Bitiş</label><input type="date" value={activeFilterModal.includes('fis') ? fisFiltre.bitis : analizFiltre.bitis} onChange={(e) => { if(activeFilterModal.includes('fis')) setFisFiltre({...fisFiltre, bitis: e.target.value}); if(activeFilterModal.includes('analiz')) setAnalizFiltre({...analizFiltre, bitis: e.target.value}); }} className="m-inp date-click" style={{width: "100%", marginTop: "4px"}} /></div>
                 </div>
               )}
               <div style={{ maxHeight: "250px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "10px", padding: "4px 0" }}>
-                {activeFilterModal === 'sut_ciftlik' && tedarikciler.map(t => (<label key={t.id} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}><input type="checkbox" checked={sutFiltre.ciftlikler.includes(t.isim)} onChange={() => handleCheckboxToggle('ciftlikler', setSutFiltre, t.isim)} style={{width:"18px", height:"18px"}}/> {t.isim}</label>))}
                 {activeFilterModal === 'fis_bayi' && bayiler.map(b => (<label key={b.id} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}><input type="checkbox" checked={fisFiltre.bayiler.includes(b.isim)} onChange={() => handleCheckboxToggle('bayiler', setFisFiltre, b.isim)} style={{width:"18px", height:"18px"}}/> {b.isim}</label>))}
                 {activeFilterModal === 'ozet_bayi' && ozetBorcFiltreSecenekleri.map(isim => (<label key={isim} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}><input type="checkbox" checked={ozetBorcFiltre.bayiler.includes(isim)} onChange={() => handleCheckboxToggle('bayiler', setOzetBorcFiltre, isim)} style={{width:"18px", height:"18px"}}/> {isim}</label>))}
                 {activeFilterModal === 'analiz_bayi' && bayiler.map(b => (<label key={b.id} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}><input type="checkbox" checked={analizFiltre.bayiler.includes(b.isim)} onChange={() => handleCheckboxToggle('bayiler', setAnalizFiltre, b.isim)} style={{width:"18px", height:"18px"}}/> {b.isim}</label>))}
                 {activeFilterModal === 'analiz_urun' && urunler.map(u => (<label key={u.id} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}><input type="checkbox" checked={analizFiltre.urunler.includes(u.isim)} onChange={() => handleCheckboxToggle('urunler', setAnalizFiltre, u.isim)} style={{width:"18px", height:"18px"}}/> {u.isim}</label>))}
               </div>
-              <div style={{display: "flex", gap: "8px", marginTop: "15px"}}><button onClick={() => { if(activeFilterModal === 'sut_ciftlik') setSutFiltre({...sutFiltre, ciftlikler: []}); if(activeFilterModal === 'fis_bayi') setFisFiltre({...fisFiltre, bayiler: []}); if(activeFilterModal === 'ozet_bayi') setOzetBorcFiltre({ bayiler: [] }); if(activeFilterModal === 'analiz_bayi') setAnalizFiltre({...analizFiltre, bayiler: []}); if(activeFilterModal === 'analiz_urun') setAnalizFiltre({...analizFiltre, urunler: []}); if(activeFilterModal?.includes('_tarih')){ setSutFiltre({...sutFiltre, baslangic: '', bitis: ''}); setFisFiltre({...fisFiltre, baslangic: '', bitis: ''}); setAnalizFiltre({...analizFiltre, baslangic: '', bitis: ''}); } }} style={{flex: 1, padding: "10px", background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: "6px", fontWeight: "bold"}}>TEMİZLE</button><button onClick={() => setActiveFilterModal(null)} style={{flex: 1, padding: "10px", background: activeFilterModal.includes('analiz') ? '#8b5cf6' : temaRengi, color: "#fff", border: "none", borderRadius: "6px", fontWeight: "bold"}}>UYGULA</button></div>
+              <div style={{display: "flex", gap: "8px", marginTop: "15px"}}><button onClick={() => { if(activeFilterModal === 'fis_bayi') setFisFiltre({...fisFiltre, bayiler: []}); if(activeFilterModal === 'ozet_bayi') setOzetBorcFiltre({ bayiler: [] }); if(activeFilterModal === 'analiz_bayi') setAnalizFiltre({...analizFiltre, bayiler: []}); if(activeFilterModal === 'analiz_urun') setAnalizFiltre({...analizFiltre, urunler: []}); if(activeFilterModal?.includes('_tarih')){ setFisFiltre({...fisFiltre, baslangic: '', bitis: ''}); setAnalizFiltre({...analizFiltre, baslangic: '', bitis: ''}); } }} style={{flex: 1, padding: "10px", background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: "6px", fontWeight: "bold"}}>TEMİZLE</button><button onClick={() => setActiveFilterModal(null)} style={{flex: 1, padding: "10px", background: activeFilterModal.includes('analiz') ? '#8b5cf6' : temaRengi, color: "#fff", border: "none", borderRadius: "6px", fontWeight: "bold"}}>UYGULA</button></div>
             </div>
           </div>
         )}
@@ -5116,49 +4974,8 @@ export default function App() {
           </div>
         )}
 
-        {isSutModalOpen && (
-          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1200, padding: "10px" }}>
-            <div style={{ backgroundColor: "#fff", width: "95vw", maxWidth: "350px", borderRadius: "12px", display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease-out", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }} onClick={(e) => e.stopPropagation()}>
-              <div style={{ padding: "12px 15px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: sutModalMode === "view" ? "#eff6ff" : editingSutId ? "#fef3c7" : "#f8fafc", borderRadius: "12px 12px 0 0" }}>
-                <h3 style={{ margin: "0", color: sutModalMode === "view" ? "#2563eb" : editingSutId ? "#b45309" : temaRengi, fontSize: "15px" }}>{sutModalMode === "view" ? "🔍 Süt Detayı" : editingSutId ? "✏️ Süt Düzenle" : "🥛 Yeni Süt Girişi"}</h3>
-                <button onClick={() => { setSutModalMode("create"); setIsSutModalOpen(false); }} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#94a3b8", padding: 0 }}>✕</button>
-              </div>
-              <div style={{ padding: "15px", display: "flex", flexDirection: "column", gap: "10px" }}>
-                <div style={{ display: "flex", gap: "8px" }}>
-                   <input type="date" value={sutForm.tarih} onChange={e => setSutForm({ ...sutForm, tarih: e.target.value })} disabled={sutModalMode === "view"} className="m-inp date-click" style={{ flex: 1, background: sutModalMode === "view" ? "#f8fafc" : undefined }} />
-                   <select value={sutForm.ciftlik} onChange={e => handleSutCiftlikSecimi(e.target.value)} disabled={sutModalMode === "view"} className="m-inp" style={{ flex: 2, fontWeight: "bold", background: sutModalMode === "view" ? "#f8fafc" : undefined }}>
-                     <option value="">Çiftlik Seç...</option>
-                     {aktifTedarikciler.map(t => <option key={t.id} value={t.isim}>{t.isim}</option>)}
-                    </select>
-                </div>
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <div style={{flex: 1}}><label style={{fontSize: "11px", color: "#64748b"}}>Miktar (KG)</label><input type="number" value={sutForm.kg} onChange={e => setSutForm({ ...sutForm, kg: e.target.value })} disabled={sutModalMode === "view"} className="m-inp" style={{width: "100%", textAlign: "right", background: sutModalMode === "view" ? "#f8fafc" : undefined}} /></div>
-                  <div style={{flex: 1}}><label style={{fontSize: "11px", color: "#64748b"}}>Birim Fiyat</label><input type="number" step="0.01" value={sutForm.fiyat} onChange={e => setSutForm({ ...sutForm, fiyat: e.target.value })} disabled={sutModalMode === "view"} className="m-inp" style={{width: "100%", textAlign: "right", background: sutModalMode === "view" ? "#f8fafc" : undefined}} /></div>
-                </div>
-                <div><label style={{fontSize: "11px", color: "#64748b"}}>Açıklama / Not</label><input placeholder="Opsiyonel..." value={sutForm.aciklama} onChange={e => setSutForm({ ...sutForm, aciklama: e.target.value })} disabled={sutModalMode === "view"} className="m-inp" style={{width: "100%", background: sutModalMode === "view" ? "#f8fafc" : undefined}} /></div>
-              </div>
-              <div style={{ padding: "12px 15px", borderTop: "1px solid #e2e8f0", background: "#f8fafc", borderRadius: "0 0 12px 12px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}><span style={{color: "#64748b", fontSize: "13px"}}>Toplam Tutar:</span><b style={{color: temaRengi, fontSize: "18px"}}>{fSayi((Number(sutForm.kg) || 0) * (Number(sutForm.fiyat) || 0))} ₺</b></div>
-                {sutModalMode === "view" ? (
-                  <button onClick={() => { setSutModalMode("create"); setIsSutModalOpen(false); }} className="p-btn btn-anim" style={{ background: "#475569", width: "100%", height: "45px", fontSize: "15px" }}>KAPAT</button>
-                ) : (
-                  <button onClick={handleSutKaydet} className="p-btn btn-anim" style={{ background: editingSutId ? "#f59e0b" : temaRengi, width: "100%", height: "45px", fontSize: "15px" }}>{editingSutId ? "GÜNCELLE" : "KAYDET"}</button>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
         {isUretimModalOpen && renderUretimModalYeni()}
 
-        {detayNot && (
-          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1500, padding: "20px" }} onClick={() => setDetayNot(null)}>
-            <div style={{ backgroundColor: "#fff", padding: "25px", borderRadius: "16px", width: "100%", maxWidth: "350px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }} onClick={e => e.stopPropagation()}>
-              <h3 style={{ margin: "0 0 15px", borderBottom: "1px solid #e2e8f0", paddingBottom: "10px" }}>Açıklama / Not</h3><p style={{ margin: "0 0 25px", color: "#475569", lineHeight: "1.6", wordWrap: "break-word" }}>{detayNot}</p>
-              <button onClick={() => setDetayNot(null)} style={{ width: "100%", padding: "12px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}>KAPAT</button>
-            </div>
-          </div>
-        )}
       </main>
 
       <footer ref={bottomMenuRef} className="fixed-nav main-content-area">
