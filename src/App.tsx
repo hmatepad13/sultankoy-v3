@@ -3874,7 +3874,7 @@ export default function App() {
 
       <div className="table-wrapper"><table className="tbl tbl-satis" style={{ tableLayout: "fixed" }}>
         <thead><tr>
-          <Th label="TAR." sortKey="tarih" currentSort={fisSort} setSort={setFisSort} filterType="fis_tarih" hideSortIndicator={true} compact={true} cellStyle={{ width: "68px" }} />
+          <Th label="TAR." sortKey="tarih" currentSort={fisSort} setSort={setFisSort} filterType="fis_tarih" hideSortIndicator={true} compact={true} sortClickScope="label" cellStyle={{ width: "68px" }} />
           <Th label={satisFiltreTip === 'kasa_devir' ? "AÇIKLAMA" : "BAYİ"} sortKey={satisFiltreTip === 'kasa_devir' ? "aciklama" : "bayi"} currentSort={fisSort} setSort={setFisSort} filterType="fis_bayi" hideSortIndicator={true} compact={true} align={satisFiltreTip === 'kasa_devir' ? "left" : "center"} sortClickScope="label" cellStyle={{ width: satisFiltreTip === 'kasa_devir' ? "136px" : "112px", paddingLeft: satisFiltreTip === 'kasa_devir' ? "10px" : "4px", paddingRight: satisFiltreTip === 'kasa_devir' ? "4px" : "4px" }} />
           <Th label="TUTAR" sortKey="toplam_tutar" currentSort={fisSort} setSort={setFisSort} align="right" />
           <Th label="TAHS." sortKey="tahsilat" currentSort={fisSort} setSort={setFisSort} align="right" />
