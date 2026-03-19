@@ -5290,6 +5290,14 @@ export default function App() {
         .tbl-satis th:nth-child(5), .tbl-satis td:nth-child(5) { width: 14%; }
         .tbl-satis th:nth-child(6), .tbl-satis td:nth-child(6) { width: 10%; }
         .tbl-satis th:nth-child(7), .tbl-satis td:nth-child(7) { width: 6%; }
+        .tbl-gider { table-layout: fixed !important; width: 100% !important; min-width: 0 !important; }
+        .tbl-gider th { background: #f97316 !important; color: white !important; }
+        .tbl-gider th:nth-child(1), .tbl-gider td:nth-child(1) { width: 12%; text-align: center; }
+        .tbl-gider th:nth-child(2), .tbl-gider td:nth-child(2) { width: 26%; }
+        .tbl-gider th:nth-child(3), .tbl-gider td:nth-child(3) { width: 18%; }
+        .tbl-gider th:nth-child(4), .tbl-gider td:nth-child(4) { width: 24%; }
+        .tbl-gider th:nth-child(5), .tbl-gider td:nth-child(5) { width: 14%; text-align: center; }
+        .tbl-gider th:nth-child(6), .tbl-gider td:nth-child(6) { width: 6%; }
         .tbl-uretim { table-layout: fixed !important; width: 100% !important; min-width: 0 !important; }
         .tbl-analiz th { background: #8b5cf6 !important; color: white !important; }
         .tbl td { font-size: 11px; border-bottom: 1px solid #f1f5f9; padding: 3px 4px !important; white-space: nowrap; vertical-align: middle; }
@@ -5336,6 +5344,12 @@ export default function App() {
           .tbl-satis th:nth-child(5), .tbl-satis td:nth-child(5) { width: 17% !important; font-size: 10px !important; }
           .tbl-satis th:nth-child(6), .tbl-satis td:nth-child(6) { width: 8% !important; font-size: 10px !important; }
           .tbl-satis th:nth-child(7), .tbl-satis td:nth-child(7) { width: 5% !important; }
+          .tbl-gider th:nth-child(1), .tbl-gider td:nth-child(1) { width: 12% !important; }
+          .tbl-gider th:nth-child(2), .tbl-gider td:nth-child(2) { width: 24% !important; font-size: 10px !important; }
+          .tbl-gider th:nth-child(3), .tbl-gider td:nth-child(3) { width: 18% !important; font-size: 10px !important; }
+          .tbl-gider th:nth-child(4), .tbl-gider td:nth-child(4) { width: 25% !important; font-size: 10px !important; }
+          .tbl-gider th:nth-child(5), .tbl-gider td:nth-child(5) { width: 15% !important; font-size: 10px !important; }
+          .tbl-gider th:nth-child(6), .tbl-gider td:nth-child(6) { width: 6% !important; }
           .tbl-satis td:nth-child(3),
           .tbl-satis td:nth-child(4),
           .tbl-satis td:nth-child(5) { font-weight: 700; }
