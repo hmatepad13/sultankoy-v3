@@ -3829,41 +3829,6 @@ export default function App() {
          </div>
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "10px", flexWrap: "wrap" }}>
-        <span style={{ fontSize: "11px", fontWeight: "bold", color: "#64748b" }}>Tarih:</span>
-        {[
-          { etiket: "Bugün", tarih: bugun },
-          { etiket: "Dün", tarih: dun },
-        ].map((secenek) => {
-          const secili = fisFiltre.baslangic === secenek.tarih && fisFiltre.bitis === secenek.tarih;
-          return (
-            <button
-              key={secenek.etiket}
-              onClick={() =>
-                setFisFiltre((prev) =>
-                  prev.baslangic === secenek.tarih && prev.bitis === secenek.tarih
-                    ? { ...prev, baslangic: "", bitis: "" }
-                    : { ...prev, baslangic: secenek.tarih, bitis: secenek.tarih },
-                )
-              }
-              className="btn-anim"
-              style={{
-                border: "none",
-                borderRadius: "999px",
-                padding: "5px 10px",
-                fontSize: "11px",
-                fontWeight: "bold",
-                cursor: "pointer",
-                background: secili ? "#0f766e" : "#e2e8f0",
-                color: secili ? "#fff" : "#475569",
-              }}
-            >
-              {secenek.etiket}
-            </button>
-          );
-        })}
-      </div>
-
       <div style={{ display: "grid", gridTemplateColumns: "0.95fr 1.45fr 1fr", gap: "6px", marginBottom: "10px", alignItems: "stretch" }}>
         <div style={{ minWidth: 0, border: "1px solid #05966933", background: "#05966910", color: "#059669", borderRadius: "12px", padding: "6px 8px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
           <span style={{ fontSize: "9px", fontWeight: "bold", opacity: 0.85, whiteSpace: "nowrap" }}>TOPLAM SATIŞ</span>
@@ -5026,7 +4991,48 @@ export default function App() {
               <h4 style={{marginTop: 0, marginBottom: "10px", borderBottom: "1px solid #eee", paddingBottom: "5px", color: "#1e293b"}}>{activeFilterModal.endsWith('_tarih') ? 'Tarih Aralığı Seç' : 'Filtrele'}</h4>
               {activeFilterModal.endsWith('_tarih') && (
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                  <div><label style={{fontSize: "12px", color: "#64748b"}}>Başlangıç</label><input type="date" value={activeFilterModal.includes('sut') ? sutFiltre.baslangic : activeFilterModal.includes('fis') ? fisFiltre.baslangic : analizFiltre.baslangic} onChange={(e) => { if(activeFilterModal.includes('sut')) setSutFiltre({...sutFiltre, baslangic: e.target.value}); if(activeFilterModal.includes('fis')) setFisFiltre({...fisFiltre, baslangic: e.target.value}); if(activeFilterModal.includes('analiz')) setAnalizFiltre({...analizFiltre, baslangic: e.target.value}); }} className="m-inp date-click" style={{width: "100%", marginTop: "4px"}} /></div>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+                      <label style={{fontSize: "12px", color: "#64748b"}}>Başlangıç</label>
+                      {activeFilterModal === 'fis_tarih' && (
+                        <div style={{ display: "flex", gap: "6px" }}>
+                          {[
+                            { etiket: "Bugün", tarih: bugun },
+                            { etiket: "Dün", tarih: dun },
+                          ].map((secenek) => {
+                            const secili = fisFiltre.baslangic === secenek.tarih && fisFiltre.bitis === secenek.tarih;
+                            return (
+                              <button
+                                key={secenek.etiket}
+                                type="button"
+                                onClick={() =>
+                                  setFisFiltre((prev) =>
+                                    prev.baslangic === secenek.tarih && prev.bitis === secenek.tarih
+                                      ? { ...prev, baslangic: "", bitis: "" }
+                                      : { ...prev, baslangic: secenek.tarih, bitis: secenek.tarih },
+                                  )
+                                }
+                                className="btn-anim"
+                                style={{
+                                  border: "none",
+                                  borderRadius: "999px",
+                                  padding: "4px 8px",
+                                  fontSize: "11px",
+                                  fontWeight: "bold",
+                                  cursor: "pointer",
+                                  background: secili ? "#0f766e" : "#e2e8f0",
+                                  color: secili ? "#fff" : "#475569",
+                                }}
+                              >
+                                {secenek.etiket}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                    <input type="date" value={activeFilterModal.includes('sut') ? sutFiltre.baslangic : activeFilterModal.includes('fis') ? fisFiltre.baslangic : analizFiltre.baslangic} onChange={(e) => { if(activeFilterModal.includes('sut')) setSutFiltre({...sutFiltre, baslangic: e.target.value}); if(activeFilterModal.includes('fis')) setFisFiltre({...fisFiltre, baslangic: e.target.value}); if(activeFilterModal.includes('analiz')) setAnalizFiltre({...analizFiltre, baslangic: e.target.value}); }} className="m-inp date-click" style={{width: "100%", marginTop: "4px"}} />
+                  </div>
                   <div><label style={{fontSize: "12px", color: "#64748b"}}>Bitiş</label><input type="date" value={activeFilterModal.includes('sut') ? sutFiltre.bitis : activeFilterModal.includes('fis') ? fisFiltre.bitis : analizFiltre.bitis} onChange={(e) => { if(activeFilterModal.includes('sut')) setSutFiltre({...sutFiltre, bitis: e.target.value}); if(activeFilterModal.includes('fis')) setFisFiltre({...fisFiltre, bitis: e.target.value}); if(activeFilterModal.includes('analiz')) setAnalizFiltre({...analizFiltre, bitis: e.target.value}); }} className="m-inp date-click" style={{width: "100%", marginTop: "4px"}} /></div>
                 </div>
               )}
