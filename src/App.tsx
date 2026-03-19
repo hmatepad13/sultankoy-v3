@@ -1,19 +1,11 @@
 ﻿/* eslint-disable @typescript-eslint/no-explicit-any */
-import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, type ChangeEvent, type CSSProperties } from "react";
-import { CekSenetPanel } from "./components/CekSenetPanel";
-import { GiderPanel } from "./components/GiderPanel";
+import { Suspense, lazy, useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { LoginScreen } from "./components/LoginScreen";
-import { AnalizPanel } from "./components/AnalizPanel";
-import { SevkiyatPanel } from "./components/SevkiyatPanel";
-import { SettingsPanel } from "./components/SettingsPanel";
-import { SutPanel } from "./components/SutPanel";
-import { UretimPanel } from "./components/UretimPanel";
 import {
   GIDER_TURLERI,
   TAB_TANIMLARI,
   TEMA_RENGI,
 } from "./constants/app";
-import { yedegiExcelIndir, yedegiHtmlIndir, yedegiJsonIndir } from "./lib/backup";
 import {
   hammaddeBorclariniHesapla,
   hammaddeBorcuGideriMi,
@@ -246,6 +238,37 @@ const byteBoyutunuFormatla = (bytes?: number | null) => {
   return `${(deger / (1024 * 1024)).toFixed(2)} MB`;
 };
 
+const OzetPanel = lazy(() =>
+  import("./components/OzetPanel").then((module) => ({ default: module.OzetPanel })),
+);
+const SutPanel = lazy(() =>
+  import("./components/SutPanel").then((module) => ({ default: module.SutPanel })),
+);
+const SevkiyatPanel = lazy(() =>
+  import("./components/SevkiyatPanel").then((module) => ({ default: module.SevkiyatPanel })),
+);
+const CekSenetPanel = lazy(() =>
+  import("./components/CekSenetPanel").then((module) => ({ default: module.CekSenetPanel })),
+);
+const GiderPanel = lazy(() =>
+  import("./components/GiderPanel").then((module) => ({ default: module.GiderPanel })),
+);
+const UretimPanel = lazy(() =>
+  import("./components/UretimPanel").then((module) => ({ default: module.UretimPanel })),
+);
+const AnalizPanel = lazy(() =>
+  import("./components/AnalizPanel").then((module) => ({ default: module.AnalizPanel })),
+);
+const SettingsPanel = lazy(() =>
+  import("./components/SettingsPanel").then((module) => ({ default: module.SettingsPanel })),
+);
+const yedeklemeModulunuGetir = () => import("./lib/backup");
+const sekmeYukleniyorFallback = (
+  <div className="card" style={{ marginTop: "6px", textAlign: "center", color: "#64748b", fontWeight: "bold" }}>
+    Sekme yükleniyor...
+  </div>
+);
+
 export default function App() {
   const [session, setSession] = useState<any>(null);
   const [username, setUsername] = useState<string>("");
@@ -357,8 +380,6 @@ export default function App() {
 
   const [fisFiltre, setFisFiltre] = useState<{ bayiler: string[], baslangic: string, bitis: string }>({ bayiler: [], baslangic: "", bitis: "" });
   const [fisSort, setFisSort] = useState<SortConfig>({ key: 'tarih', direction: 'desc' });
-  const [ozetBorcFiltre, setOzetBorcFiltre] = useState<{ bayiler: string[] }>({ bayiler: [] });
-  const [ozetBorcSort, setOzetBorcSort] = useState<SortConfig>({ key: "borc", direction: "desc" });
 
   // --- GİDER STATE'LERİ ---
   const giderTurleri = useMemo(() => {
@@ -445,7 +466,7 @@ export default function App() {
     return { bakiyeler, labels, map };
   }, [satisFisBayiAdiGetir, satisFisBayiAnahtariGetir]);
 
-  const [activeFilterModal, setActiveFilterModal] = useState<'fis_bayi' | 'ozet_bayi' | 'fis_tarih' | null>(null);
+  const [activeFilterModal, setActiveFilterModal] = useState<'fis_bayi' | 'fis_tarih' | null>(null);
 
   const bayiSecimModalAc = (hedef: "fis" | "tahsilat") => {
     setBayiSecimModal({ hedef, arama: "" });
@@ -1010,27 +1031,6 @@ export default function App() {
         .sort((a, b) => b.borc - a.borc);
   }, [aktifDonem, hesaplaMusteriBakiyeleri, satisFisList]);
 
-  const ozetBorcFiltreSecenekleri = useMemo(
-    () => [...new Set(bayiBorclari.map((item) => item.isim))].sort((a, b) => a.localeCompare(b, "tr")),
-    [bayiBorclari],
-  );
-
-  const filtrelenmisBayiBorclari = useMemo(() => {
-    const filtreliListe = bayiBorclari.filter(
-      (item) => ozetBorcFiltre.bayiler.length === 0 || ozetBorcFiltre.bayiler.includes(item.isim),
-    );
-
-    return [...filtreliListe].sort((a, b) => {
-      if (ozetBorcSort.key === "borc") {
-        const fark = Number(a.borc) - Number(b.borc);
-        return ozetBorcSort.direction === "asc" ? fark : -fark;
-      }
-
-      const sonuc = a.isim.localeCompare(b.isim, "tr");
-      return ozetBorcSort.direction === "asc" ? sonuc : -sonuc;
-    });
-  }, [bayiBorclari, ozetBorcFiltre.bayiler, ozetBorcSort]);
-
   const musteriEkstreHesapla = useCallback((bayiAnahtar: string, musteriAdi: string) => {
     const ilgiliFisler = [...satisFisList]
       .filter((fis) => {
@@ -1234,38 +1234,6 @@ export default function App() {
     const kgEslesme = isim.match(/(\d+(?:\.\d+)?)\s*(kg|lt|l|gr)\b/i);
     return kgEslesme ? Number(kgEslesme[1]) * adet : 0;
   };
-  const renderKompaktToplamlar = (
-    kartlar: Array<{ etiket: string; deger: string; renk: string; onClick?: () => void }>,
-    style?: CSSProperties,
-    variant: "auto" | "three" | "two" = "auto",
-    extraClassName = "",
-  ) => (
-    <div className={`compact-totals ${variant} ${extraClassName}`.trim()} style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "10px", ...style }}>
-      {kartlar.map((kart) => (
-        <div
-          key={kart.etiket}
-          onClick={kart.onClick}
-          className="c-kutu"
-          style={{
-            border: `1px solid ${kart.renk}33`,
-            background: `${kart.renk}10`,
-            color: kart.renk,
-            borderRadius: "999px",
-            padding: "4px 8px",
-            fontSize: "11px",
-            fontWeight: "bold",
-            cursor: kart.onClick ? "pointer" : "default",
-            userSelect: "none",
-            overflow: "hidden",
-          }}
-        >
-          <span>{kart.etiket}</span>
-          <b>{kart.deger}</b>
-        </div>
-      ))}
-    </div>
-  );
-
   const fisGorunenBayi = (fis: SatisFis) => {
     const bayiAdi = satisFisBayiAdiGetir(fis);
     if (bayiAdi !== "SİSTEM İŞLEMİ") return bayiAdi;
@@ -2632,6 +2600,7 @@ export default function App() {
   const handleExcelBackup = async () => {
     setIsBackupLoading(true);
     try {
+      const { yedegiExcelIndir } = await yedeklemeModulunuGetir();
       yedegiExcelIndir(yedekVerisi);
     } finally {
       setIsBackupLoading(false);
@@ -2641,6 +2610,7 @@ export default function App() {
   const handleJsonBackup = async () => {
     setIsBackupLoading(true);
     try {
+      const { yedegiJsonIndir } = await yedeklemeModulunuGetir();
       yedegiJsonIndir(yedekVerisi);
     } finally {
       setIsBackupLoading(false);
@@ -2650,6 +2620,7 @@ export default function App() {
   const handleHtmlBackup = async () => {
     setIsBackupLoading(true);
     try {
+      const { yedegiHtmlIndir } = await yedeklemeModulunuGetir();
       yedegiHtmlIndir(yedekVerisi);
     } finally {
       setIsBackupLoading(false);
@@ -2708,214 +2679,6 @@ export default function App() {
       olaylar.forEach((olay) => window.removeEventListener(olay, resetIdleTimer));
     };
   }, [session]);
-
-  const renderOzet = () => (
-    <div className="tab-fade-in main-content-area" style={{ display: "flex", flexDirection: "column" }}>
-      {renderKompaktToplamlar([
-        { etiket: aktifDonemSatisEtiketi, deger: `${fSayiNoDec(tOzetReelSatis)} ₺`, renk: "#059669" },
-        { etiket: "TAHSİLAT", deger: `${fSayiNoDec(tOzetFisTahsilatRaw)} ₺`, renk: "#2563eb" },
-        { etiket: "AÇIK HESAP", deger: `${fSayiNoDec(bayiNetDurum)} ₺`, renk: "#f59e0b" },
-      ], { marginBottom: "6px" }, "three", "summary-c")}
-      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "4px" }}>
-        <div
-          className="c-kutu"
-          style={{
-            border: "1px solid #b4530933",
-            background: "#b4530910",
-            color: "#b45309",
-            borderRadius: "18px",
-            padding: "6px 10px",
-            fontSize: "11px",
-            fontWeight: "bold",
-            flex: "1 1 130px",
-            minWidth: "120px",
-          }}
-        >
-          <div style={{ fontSize: "10px", opacity: 0.9, marginBottom: "2px" }}>DEVREDEN BAKİYE</div>
-          <b style={{ fontSize: "14px" }}>{fSayiNoDec(tOzetDevredenBakiye)} ₺</b>
-        </div>
-        <div
-          className="c-kutu"
-          style={{
-            border: "1px solid #dc262633",
-            background: "#dc262610",
-            color: "#dc2626",
-            borderRadius: "18px",
-            padding: "6px 10px",
-            fontSize: "11px",
-            fontWeight: "bold",
-            flex: "1 1 130px",
-            minWidth: "120px",
-          }}
-        >
-          <div style={{ fontSize: "10px", opacity: 0.9, marginBottom: "2px" }}>İŞLETME GİDERLERİ</div>
-          <b style={{ fontSize: "14px" }}>{fSayiNoDec(tGiderNormal)} ₺</b>
-        </div>
-        <div
-          className="c-kutu"
-          style={{
-            border: "1px solid #8b5cf633",
-            background: "#8b5cf610",
-            color: "#334155",
-            borderRadius: "18px",
-            padding: "6px 10px",
-            fontSize: "10px",
-            fontWeight: "bold",
-            flex: "1 1 150px",
-            minWidth: "145px",
-            cursor: "pointer",
-          }}
-          onClick={() =>
-            setOzetMiniDetay({
-              baslik: "Hammadde Ödemeleri",
-              renk: "#7c3aed",
-              satirlar: hammaddeOdemeDetaySatirlari,
-            })
-          }
-        >
-          <div style={{ color: "#7c3aed", fontSize: "10px", marginBottom: "2px" }}>HAMMADDE ÖDEMELERİ</div>
-          <b style={{ fontSize: "14px" }}>{fSayiNoDec(tHammaddeOdemeleri)} ₺</b>
-        </div>
-        <div
-          className="c-kutu"
-          style={{
-            border: "1px solid #0f766e33",
-            background: "#0f766e10",
-            color: "#334155",
-            borderRadius: "18px",
-            padding: "6px 10px",
-            fontSize: "10px",
-            fontWeight: "bold",
-            flex: "1 1 150px",
-            minWidth: "145px",
-            cursor: "pointer",
-          }}
-          onClick={() =>
-            setOzetMiniDetay({
-              baslik: "Hammadde Borçları",
-              renk: "#0f766e",
-              satirlar: hammaddeBorcDetaySatirlari,
-            })
-          }
-        >
-          <div style={{ color: "#0f766e", fontSize: "10px", marginBottom: "2px" }}>HAMMADDE BORÇLARI</div>
-          <b style={{ fontSize: "14px" }}>{fSayiNoDec(tHammaddeBorcu)} ₺</b>
-        </div>
-      </div>
-      <div className="card" style={{marginTop: "5px", order: 2}}>
-        <h4 style={{ margin: "0 0 10px", borderBottom: "1px solid #e2e8f0", paddingBottom: "5px" }}>Müşteri Borç Durumları</h4>
-        <div style={{maxHeight: '300px', overflowY: 'auto', paddingRight: '5px'}}>
-          <table className="tbl" style={{ tableLayout: "fixed" }}>
-            <thead>
-              <tr>
-                <Th
-                  label="Bayi"
-                  sortKey="isim"
-                  currentSort={ozetBorcSort}
-                  setSort={setOzetBorcSort}
-                  filterType="ozet_bayi"
-                  compact
-                />
-                <Th
-                  label="Tutar"
-                  sortKey="borc"
-                  currentSort={ozetBorcSort}
-                  setSort={setOzetBorcSort}
-                  align="right"
-                  compact
-                />
-                <th style={{ width: "34px" }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtrelenmisBayiBorclari.map((b) => (
-                <tr key={b.anahtar}>
-                  <td>
-                    <b className="truncate-text" style={{ fontSize: "12px" }}>{b.isim}</b>
-                  </td>
-                  <td style={{ textAlign: "right" }}>
-                    <b style={{ fontSize: "12px", color: b.borc > 0 ? "#dc2626" : (b.borc < 0 ? "#059669" : "#64748b") }}>
-                      {fSayiNoDec(b.borc)} ₺
-                    </b>
-                  </td>
-                  <td className="actions-cell" style={{ position: "relative" }}>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setOpenDropdown({ type: "ozet_borc", id: b.anahtar });
-                      }}
-                      style={{ background: "none", border: "none", cursor: "pointer", fontSize: "18px", padding: "0 6px", color: "#64748b" }}
-                    >
-                      ⋮
-                    </button>
-                    {openDropdown?.type === "ozet_borc" && openDropdown.id === b.anahtar && (
-                      <div className="dropdown-menu">
-                        <button
-                          title="Ekstre"
-                          className="dropdown-item-icon"
-                          onClick={() => {
-                            setOpenDropdown(null);
-                            handleMusteriEkstreAc(b.anahtar, b.isim);
-                          }}
-                        >
-                          🧾
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {filtrelenmisBayiBorclari.length === 0 && (
-                <tr>
-                  <td colSpan={3} style={{ color: "#94a3b8", fontSize: "12px", textAlign: "center" }}>
-                    Açık hesap bulunmuyor.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div className="card" style={{marginTop: "5px", order: 1}}>
-        <h4 style={{ margin: "0 0 10px", borderBottom: "1px solid #e2e8f0", paddingBottom: "5px" }}>Personel Özetleri</h4>
-        <div style={{maxHeight: '300px', overflowY: 'auto', paddingRight: '0'}}>
-          <table className="tbl tbl-personel" style={{ fontSize: "11px", tableLayout: "fixed" }}>
-            <thead>
-              <tr>
-                <th>Personel</th>
-                <th style={{ textAlign: "right" }}>Satış</th>
-                <th style={{ textAlign: "right" }}>Tahs.</th>
-                <th style={{ textAlign: "right" }}>Gider</th>
-                <th style={{ textAlign: "right" }}>K. Devir</th>
-                <th style={{ textAlign: "right" }}>Net</th>
-                <th style={{ textAlign: "right" }}>Açık</th>
-              </tr>
-            </thead>
-            <tbody>
-              {personelOzetleri.map((p, i) => (
-                <tr key={i}>
-                  <td style={{ fontWeight: "bold" }}>{p.isim}</td>
-                  <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{fSayiNoDec(p.satis)}</td>
-                  <td style={{ textAlign: "right", color: "#2563eb", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{fSayiNoDec(p.tahsilat)}</td>
-                  <td style={{ textAlign: "right", color: "#dc2626", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{fSayiNoDec(p.gider)}</td>
-                  <td style={{ textAlign: "right", color: "#0f766e", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{fSayiNoDec(p.kasayaDevir)}</td>
-                  <td style={{ textAlign: "right", fontWeight: "bold", color: p.net >= 0 ? "#16a34a" : "#dc2626", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{fSayiNoDec(p.net)}</td>
-                  <td style={{ textAlign: "right", fontWeight: "bold", color: p.acikBakiye >= 0 ? "#f59e0b" : "#059669", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{fSayiNoDec(p.acikBakiye)}</td>
-                </tr>
-              ))}
-              {personelOzetleri.length === 0 && (
-                <tr>
-                  <td colSpan={7} style={{ textAlign: "center", color: "#94a3b8" }}>
-                    Bu döneme ait personel hareketi bulunmuyor.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
 
   const renderSatis = () => (
     <div className="tab-fade-in main-content-area">
@@ -3187,6 +2950,108 @@ export default function App() {
     />
   );
 
+  const renderAktifSekme = () => {
+    switch (activeTab) {
+      case "ozet":
+        return (
+          <OzetPanel
+            aktifDonemSatisEtiketi={aktifDonemSatisEtiketi}
+            tOzetReelSatis={tOzetReelSatis}
+            tOzetFisTahsilatRaw={tOzetFisTahsilatRaw}
+            bayiNetDurum={bayiNetDurum}
+            tOzetDevredenBakiye={tOzetDevredenBakiye}
+            tGiderNormal={tGiderNormal}
+            tHammaddeOdemeleri={tHammaddeOdemeleri}
+            tHammaddeBorcu={tHammaddeBorcu}
+            hammaddeOdemeDetaySatirlari={hammaddeOdemeDetaySatirlari}
+            hammaddeBorcDetaySatirlari={hammaddeBorcDetaySatirlari}
+            bayiBorclari={bayiBorclari}
+            personelOzetleri={personelOzetleri}
+            onOpenMiniDetay={setOzetMiniDetay}
+            onOpenMusteriEkstre={handleMusteriEkstreAc}
+            helpers={{ fSayiNoDec }}
+          />
+        );
+      case "sut":
+        return (
+          <SutPanel
+            aktifDonem={aktifDonem}
+            aktifKullaniciEposta={aktifKullaniciEposta}
+            aktifKullaniciKisa={aktifKullaniciKisa}
+            isAdmin={isAdmin}
+            sutList={sutList}
+            tedarikciler={tedarikciler}
+            temaRengi={temaRengi}
+            onRefreshSut={() => verileriGetir("sut")}
+            onRefreshCop={() => verileriGetir("cop")}
+            helpers={{
+              fSayi,
+              fSayiNoDec,
+              veritabaniHatasiMesaji,
+            }}
+          />
+        );
+      case "sevkiyat":
+        return <SevkiyatPanel aktifKullaniciKisa={aktifKullaniciKisa} aktifDonem={aktifDonem} />;
+      case "cek_senet":
+        return <CekSenetPanel aktifKullaniciKisa={aktifKullaniciKisa} aktifDonem={aktifDonem} />;
+      case "gider":
+        return (
+          <GiderPanel
+            aktifDonem={aktifDonem}
+            aktifKullaniciEposta={aktifKullaniciEposta}
+            aktifKullaniciKisa={aktifKullaniciKisa}
+            giderTurleri={giderTurleri}
+            periodGider={periodGider}
+            kaydiSilebilirMi={kaydiSilebilirMi}
+            kaydiDuzenleyebilirMi={kaydiDuzenleyebilirMi}
+            onRefreshGiderler={() => verileriGetir("gider")}
+            onOpenMiniDetay={setOzetMiniDetay}
+            onPreviewImage={setFisGorselOnizleme}
+            helpers={{
+              fSayi,
+              veritabaniHatasiMesaji,
+              kolonBulunamadiMi,
+              paraGirdisiniTemizle,
+              paraGirdisiniSayiyaCevir,
+              paraGirdisiniFormatla,
+              dosyaAdiIcinTemizle,
+              gorseliYuklemeIcinKucult,
+              fisGorselStorageYolu,
+              gorselBoyutunuGetir,
+              gorselIndirmeAdiBul,
+            }}
+          />
+        );
+      case "uretim":
+        return (
+          <UretimPanel
+            aktifDonem={aktifDonem}
+            aktifKullaniciEposta={aktifKullaniciEposta}
+            aktifKullaniciKisa={aktifKullaniciKisa}
+            isAdmin={isAdmin}
+            uretimList={uretimList}
+            onRefreshUretim={() => verileriGetir("uretim")}
+            onRefreshCop={() => verileriGetir("cop")}
+            helpers={{ fSayi, veritabaniHatasiMesaji }}
+          />
+        );
+      case "analiz":
+        return (
+          <AnalizPanel
+            periodSatisList={periodSatisList}
+            bayiler={bayiler}
+            urunler={urunler}
+            helpers={{ fSayi }}
+          />
+        );
+      case "ayarlar":
+        return renderAyarlar();
+      default:
+        return null;
+    }
+  };
+
   if (!session) {
     return (
       <LoginScreen
@@ -3318,76 +3183,13 @@ export default function App() {
       )}
 
       <main className="main-content">
-        {activeTab === "ozet" && renderOzet()}
-        {activeTab === "sut" && (
-          <SutPanel
-            aktifDonem={aktifDonem}
-            aktifKullaniciEposta={aktifKullaniciEposta}
-            aktifKullaniciKisa={aktifKullaniciKisa}
-            isAdmin={isAdmin}
-            sutList={sutList}
-            tedarikciler={tedarikciler}
-            temaRengi={temaRengi}
-            onRefreshSut={() => verileriGetir("sut")}
-            onRefreshCop={() => verileriGetir("cop")}
-            helpers={{
-              fSayi,
-              fSayiNoDec,
-              veritabaniHatasiMesaji,
-            }}
-          />
+        {activeTab === "satis" ? (
+          renderSatis()
+        ) : (
+          <Suspense fallback={sekmeYukleniyorFallback}>
+            {renderAktifSekme()}
+          </Suspense>
         )}
-        {activeTab === "sevkiyat" && <SevkiyatPanel aktifKullaniciKisa={aktifKullaniciKisa} aktifDonem={aktifDonem} />}
-        {activeTab === "cek_senet" && <CekSenetPanel aktifKullaniciKisa={aktifKullaniciKisa} aktifDonem={aktifDonem} />}
-        {activeTab === "satis" && renderSatis()}
-        {activeTab === "gider" && (
-          <GiderPanel
-            aktifDonem={aktifDonem}
-            aktifKullaniciEposta={aktifKullaniciEposta}
-            aktifKullaniciKisa={aktifKullaniciKisa}
-            giderTurleri={giderTurleri}
-            periodGider={periodGider}
-            kaydiSilebilirMi={kaydiSilebilirMi}
-            kaydiDuzenleyebilirMi={kaydiDuzenleyebilirMi}
-            onRefreshGiderler={() => verileriGetir("gider")}
-            onOpenMiniDetay={setOzetMiniDetay}
-            onPreviewImage={setFisGorselOnizleme}
-            helpers={{
-              fSayi,
-              veritabaniHatasiMesaji,
-              kolonBulunamadiMi,
-              paraGirdisiniTemizle,
-              paraGirdisiniSayiyaCevir,
-              paraGirdisiniFormatla,
-              dosyaAdiIcinTemizle,
-              gorseliYuklemeIcinKucult,
-              fisGorselStorageYolu,
-              gorselBoyutunuGetir,
-              gorselIndirmeAdiBul,
-            }}
-          />
-        )}
-        {activeTab === "uretim" && (
-          <UretimPanel
-            aktifDonem={aktifDonem}
-            aktifKullaniciEposta={aktifKullaniciEposta}
-            aktifKullaniciKisa={aktifKullaniciKisa}
-            isAdmin={isAdmin}
-            uretimList={uretimList}
-            onRefreshUretim={() => verileriGetir("uretim")}
-            onRefreshCop={() => verileriGetir("cop")}
-            helpers={{ fSayi, veritabaniHatasiMesaji }}
-          />
-        )}
-        {activeTab === "analiz" && (
-          <AnalizPanel
-            periodSatisList={periodSatisList}
-            bayiler={bayiler}
-            urunler={urunler}
-            helpers={{ fSayi }}
-          />
-        )}
-        {activeTab === "ayarlar" && renderAyarlar()}
 
         {isDonemModalOpen && (
           <div style={{position: 'fixed', top:0, left:0, right:0, bottom:0, background: 'rgba(0,0,0,0.6)', zIndex: 1500, display:'flex', alignItems:'center', justifyContent:'center', padding: '10px'}}>
@@ -3607,9 +3409,8 @@ export default function App() {
               )}
               <div style={{ maxHeight: "250px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "10px", padding: "4px 0" }}>
                 {activeFilterModal === 'fis_bayi' && bayiler.map(b => (<label key={b.id} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}><input type="checkbox" checked={fisFiltre.bayiler.includes(b.isim)} onChange={() => handleCheckboxToggle('bayiler', setFisFiltre, b.isim)} style={{width:"18px", height:"18px"}}/> {b.isim}</label>))}
-                {activeFilterModal === 'ozet_bayi' && ozetBorcFiltreSecenekleri.map(isim => (<label key={isim} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}><input type="checkbox" checked={ozetBorcFiltre.bayiler.includes(isim)} onChange={() => handleCheckboxToggle('bayiler', setOzetBorcFiltre, isim)} style={{width:"18px", height:"18px"}}/> {isim}</label>))}
               </div>
-              <div style={{display: "flex", gap: "8px", marginTop: "15px"}}><button onClick={() => { if(activeFilterModal === 'fis_bayi') setFisFiltre({...fisFiltre, bayiler: []}); if(activeFilterModal === 'ozet_bayi') setOzetBorcFiltre({ bayiler: [] }); if(activeFilterModal?.includes('_tarih')){ setFisFiltre({...fisFiltre, baslangic: '', bitis: ''}); } }} style={{flex: 1, padding: "10px", background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: "6px", fontWeight: "bold"}}>TEMİZLE</button><button onClick={() => setActiveFilterModal(null)} style={{flex: 1, padding: "10px", background: temaRengi, color: "#fff", border: "none", borderRadius: "6px", fontWeight: "bold"}}>UYGULA</button></div>
+              <div style={{display: "flex", gap: "8px", marginTop: "15px"}}><button onClick={() => { if(activeFilterModal === 'fis_bayi') setFisFiltre({...fisFiltre, bayiler: []}); if(activeFilterModal?.includes('_tarih')){ setFisFiltre({...fisFiltre, baslangic: '', bitis: ''}); } }} style={{flex: 1, padding: "10px", background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: "6px", fontWeight: "bold"}}>TEMİZLE</button><button onClick={() => setActiveFilterModal(null)} style={{flex: 1, padding: "10px", background: temaRengi, color: "#fff", border: "none", borderRadius: "6px", fontWeight: "bold"}}>UYGULA</button></div>
             </div>
           </div>
         )}
