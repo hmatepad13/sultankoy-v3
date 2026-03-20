@@ -28,6 +28,10 @@ type OzetPanelProps = {
   hammaddeOdemeDetaySatirlari: Array<{ etiket: string; deger: string; vurgu?: boolean }>;
   hammaddeBorcDetaySatirlari: Array<{ etiket: string; deger: string; vurgu?: boolean }>;
   bayiBorclari: BayiBorcSatiri[];
+  ozetBorcFiltre: { bayiler: string[] };
+  setOzetBorcFiltre: (next: { bayiler: string[] }) => void;
+  ozetBorcSort: SortConfig;
+  setOzetBorcSort: (next: SortConfig) => void;
   personelOzetleri: PersonelOzeti[];
   onOpenMiniDetay: (detay: MiniDetay) => void;
   onOpenMusteriEkstre: (bayiAnahtar: string, musteriAdi: string) => void;
@@ -171,13 +175,15 @@ export function OzetPanel({
   hammaddeOdemeDetaySatirlari,
   hammaddeBorcDetaySatirlari,
   bayiBorclari,
+  ozetBorcFiltre,
+  setOzetBorcFiltre,
+  ozetBorcSort,
+  setOzetBorcSort,
   personelOzetleri,
   onOpenMiniDetay,
   onOpenMusteriEkstre,
   helpers,
 }: OzetPanelProps) {
-  const [ozetBorcFiltre, setOzetBorcFiltre] = useState<{ bayiler: string[] }>({ bayiler: [] });
-  const [ozetBorcSort, setOzetBorcSort] = useState<SortConfig>({ key: "borc", direction: "desc" });
   const [activeFilterModal, setActiveFilterModal] = useState<OzetFilterModal>(null);
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
 
@@ -586,12 +592,12 @@ export function OzetPanel({
                     type="checkbox"
                     checked={ozetBorcFiltre.bayiler.includes(isim)}
                     onChange={() =>
-                      setOzetBorcFiltre((prev) => ({
-                        ...prev,
-                        bayiler: prev.bayiler.includes(isim)
-                          ? prev.bayiler.filter((item) => item !== isim)
-                          : [...prev.bayiler, isim],
-                      }))
+                      setOzetBorcFiltre({
+                        ...ozetBorcFiltre,
+                        bayiler: ozetBorcFiltre.bayiler.includes(isim)
+                          ? ozetBorcFiltre.bayiler.filter((item) => item !== isim)
+                          : [...ozetBorcFiltre.bayiler, isim],
+                      })
                     }
                     style={{ width: "18px", height: "18px" }}
                   />

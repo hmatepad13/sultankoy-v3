@@ -1,5 +1,18 @@
 ﻿/* eslint-disable @typescript-eslint/no-explicit-any */
-import { Suspense, lazy, useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, type ChangeEvent } from "react";
+import {
+  Component,
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type ErrorInfo,
+  type ReactNode,
+} from "react";
 import { LoginScreen } from "./components/LoginScreen";
 import {
   GIDER_TURLERI,
@@ -238,6 +251,90 @@ const byteBoyutunuFormatla = (bytes?: number | null) => {
   return `${(deger / (1024 * 1024)).toFixed(2)} MB`;
 };
 
+const hataMetniniGetir = (error: unknown) => {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === "string" && error.trim()) return error;
+  return "Bilinmeyen hata";
+};
+
+const dinamikModulHatasiMi = (error: unknown) => {
+  const mesaj = hataMetniniGetir(error);
+  return /ChunkLoadError|Loading chunk|dynamically imported module|Failed to fetch dynamically imported module|Importing a module script failed/i.test(
+    mesaj,
+  );
+};
+
+const yenilemeOnerisiMesaji = (islemAdi: string) =>
+  `${islemAdi} için gereken dosyalar yüklenemedi. Uygulama yeni sürüme geçmiş olabilir. Sayfa şimdi yenilensin mi?`;
+
+type LazySekmeHataSiniriProps = {
+  children: ReactNode;
+  resetKey: string;
+};
+
+type LazySekmeHataSiniriState = {
+  error: unknown | null;
+};
+
+class LazySekmeHataSiniri extends Component<LazySekmeHataSiniriProps, LazySekmeHataSiniriState> {
+  state: LazySekmeHataSiniriState = { error: null };
+
+  static getDerivedStateFromError(error: unknown): LazySekmeHataSiniriState {
+    return { error };
+  }
+
+  componentDidCatch(error: unknown, info: ErrorInfo) {
+    console.error("Lazy sekme yüklenemedi:", error, info);
+  }
+
+  componentDidUpdate(prevProps: LazySekmeHataSiniriProps) {
+    if (prevProps.resetKey !== this.props.resetKey && this.state.error) {
+      this.setState({ error: null });
+    }
+  }
+
+  render() {
+    if (!this.state.error) return this.props.children;
+
+    const deployHatasi = dinamikModulHatasiMi(this.state.error);
+    return (
+      <div
+        className="card"
+        style={{
+          marginTop: "6px",
+          display: "grid",
+          gap: "10px",
+          textAlign: "center",
+          borderColor: deployHatasi ? "#fdba74" : "#fecaca",
+          background: deployHatasi ? "#fff7ed" : "#fef2f2",
+          color: deployHatasi ? "#9a3412" : "#991b1b",
+        }}
+      >
+        <div style={{ fontWeight: "bold", fontSize: "14px" }}>Sekme açılamadı</div>
+        <div style={{ fontSize: "12px", lineHeight: 1.5 }}>
+          {deployHatasi
+            ? "Bu sekme yeni sürüm sonrası eski dosyayı istiyor olabilir."
+            : hataMetniniGetir(this.state.error)}
+        </div>
+        <button
+          onClick={() => window.location.reload()}
+          style={{
+            background: deployHatasi ? "#ea580c" : "#dc2626",
+            color: "#fff",
+            border: "none",
+            borderRadius: "8px",
+            padding: "10px 12px",
+            fontWeight: "bold",
+            cursor: "pointer",
+          }}
+        >
+          Sayfayı Yenile
+        </button>
+      </div>
+    );
+  }
+}
+
 const OzetPanel = lazy(() =>
   import("./components/OzetPanel").then((module) => ({ default: module.OzetPanel })),
 );
@@ -268,6 +365,16 @@ const sekmeYukleniyorFallback = (
     Sekme yükleniyor...
   </div>
 );
+const yedeklemeHatasiniGoster = (islemAdi: string, error: unknown) => {
+  console.error(`${islemAdi} hazırlanamadı:`, error);
+  if (dinamikModulHatasiMi(error)) {
+    if (window.confirm(yenilemeOnerisiMesaji(islemAdi))) {
+      window.location.reload();
+    }
+    return;
+  }
+  alert(`${islemAdi} hazırlanamadı.\n${hataMetniniGetir(error)}`);
+};
 
 export default function App() {
   const [session, setSession] = useState<any>(null);
@@ -380,6 +487,8 @@ export default function App() {
 
   const [fisFiltre, setFisFiltre] = useState<{ bayiler: string[], baslangic: string, bitis: string }>({ bayiler: [], baslangic: "", bitis: "" });
   const [fisSort, setFisSort] = useState<SortConfig>({ key: 'tarih', direction: 'desc' });
+  const [ozetBorcFiltre, setOzetBorcFiltre] = useState<{ bayiler: string[] }>({ bayiler: [] });
+  const [ozetBorcSort, setOzetBorcSort] = useState<SortConfig>({ key: "borc", direction: "desc" });
 
   // --- GİDER STATE'LERİ ---
   const giderTurleri = useMemo(() => {
@@ -2602,6 +2711,8 @@ export default function App() {
     try {
       const { yedegiExcelIndir } = await yedeklemeModulunuGetir();
       yedegiExcelIndir(yedekVerisi);
+    } catch (error) {
+      yedeklemeHatasiniGoster("Excel yedeği", error);
     } finally {
       setIsBackupLoading(false);
     }
@@ -2612,6 +2723,8 @@ export default function App() {
     try {
       const { yedegiJsonIndir } = await yedeklemeModulunuGetir();
       yedegiJsonIndir(yedekVerisi);
+    } catch (error) {
+      yedeklemeHatasiniGoster("JSON yedeği", error);
     } finally {
       setIsBackupLoading(false);
     }
@@ -2622,6 +2735,8 @@ export default function App() {
     try {
       const { yedegiHtmlIndir } = await yedeklemeModulunuGetir();
       yedegiHtmlIndir(yedekVerisi);
+    } catch (error) {
+      yedeklemeHatasiniGoster("HTML rapor yedeği", error);
     } finally {
       setIsBackupLoading(false);
     }
@@ -2966,6 +3081,10 @@ export default function App() {
             hammaddeOdemeDetaySatirlari={hammaddeOdemeDetaySatirlari}
             hammaddeBorcDetaySatirlari={hammaddeBorcDetaySatirlari}
             bayiBorclari={bayiBorclari}
+            ozetBorcFiltre={ozetBorcFiltre}
+            setOzetBorcFiltre={setOzetBorcFiltre}
+            ozetBorcSort={ozetBorcSort}
+            setOzetBorcSort={setOzetBorcSort}
             personelOzetleri={personelOzetleri}
             onOpenMiniDetay={setOzetMiniDetay}
             onOpenMusteriEkstre={handleMusteriEkstreAc}
@@ -3186,9 +3305,11 @@ export default function App() {
         {activeTab === "satis" ? (
           renderSatis()
         ) : (
-          <Suspense fallback={sekmeYukleniyorFallback}>
-            {renderAktifSekme()}
-          </Suspense>
+          <LazySekmeHataSiniri resetKey={activeTab}>
+            <Suspense fallback={sekmeYukleniyorFallback}>
+              {renderAktifSekme()}
+            </Suspense>
+          </LazySekmeHataSiniri>
         )}
 
         {isDonemModalOpen && (
