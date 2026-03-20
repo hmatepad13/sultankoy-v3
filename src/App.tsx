@@ -338,6 +338,9 @@ class LazySekmeHataSiniri extends Component<LazySekmeHataSiniriProps, LazySekmeH
 const OzetPanel = lazy(() =>
   import("./components/OzetPanel").then((module) => ({ default: module.OzetPanel })),
 );
+const SatisPanel = lazy(() =>
+  import("./components/SatisPanel").then((module) => ({ default: module.SatisPanel })),
+);
 const SutPanel = lazy(() =>
   import("./components/SutPanel").then((module) => ({ default: module.SutPanel })),
 );
@@ -421,9 +424,6 @@ export default function App() {
   const [isAdminKullaniciLoading, setIsAdminKullaniciLoading] = useState(false);
   const [adminKullaniciHata, setAdminKullaniciHata] = useState("");
   
-  // AÇILIR MENÜLER
-  const [openDropdown, setOpenDropdown] = useState<{type: string, id: string} | null>(null);
-
   // DİĞER İŞLEMLER (Sadece Kasaya Devir Kaldı)
   const [digerModalConfig, setDigerModalConfig] = useState<{
     isOpen: boolean;
@@ -575,8 +575,6 @@ export default function App() {
     return { bakiyeler, labels, map };
   }, [satisFisBayiAdiGetir, satisFisBayiAnahtariGetir]);
 
-  const [activeFilterModal, setActiveFilterModal] = useState<'fis_bayi' | 'fis_tarih' | null>(null);
-
   const bayiSecimModalAc = (hedef: "fis" | "tahsilat") => {
     setBayiSecimModal({ hedef, arama: "" });
   };
@@ -626,25 +624,6 @@ export default function App() {
       document.removeEventListener("touchstart", handleDisTiklama);
     };
   }, [isDigerUrunMenuOpen]);
-
-  useEffect(() => {
-    if (!openDropdown) return;
-
-    const handleDropdownDisTiklama = (event: MouseEvent | TouchEvent) => {
-      const target = event.target as Element | null;
-      if (!target) return;
-      if (target.closest(".dropdown-menu") || target.closest(".actions-cell")) return;
-      setOpenDropdown(null);
-    };
-
-    document.addEventListener("mousedown", handleDropdownDisTiklama);
-    document.addEventListener("touchstart", handleDropdownDisTiklama, { passive: true });
-
-    return () => {
-      document.removeEventListener("mousedown", handleDropdownDisTiklama);
-      document.removeEventListener("touchstart", handleDropdownDisTiklama);
-    };
-  }, [openDropdown]);
 
   const handleIdleLogout = useEffectEvent(() => {
     void cikisYap("10 dakika işlem yapılmadığı için güvenlik amacıyla oturum kapatıldı.");
@@ -1444,42 +1423,6 @@ export default function App() {
         : String(b.id || '').localeCompare(String(a.id || ''));
     });
   };
-
-  const handleCheckboxToggle = (listName: 'ciftlikler' | 'bayiler' | 'urunler' | 'turler' | 'kisiler', setStateFn: any, val: string) => {
-    setStateFn((prev: any) => {
-      const arr = prev[listName];
-      if (arr.includes(val)) return { ...prev, [listName]: arr.filter((x: string) => x !== val) };
-      return { ...prev, [listName]: [...arr, val] };
-    });
-  };
-
-  const handleSortClick = (sortKey: string, currentSort: any, setSort: any) => {
-      if (currentSort.key === sortKey) {
-          setSort({ key: sortKey, direction: currentSort.direction === 'asc' ? 'desc' : 'asc' });
-      } else {
-          setSort({ key: sortKey, direction: 'desc' });
-      }
-  };
-
-  const Th = ({ label, sortKey, currentSort, setSort, align="left", filterType = null, isAnaliz = false, hideSortIndicator = false, compact = false, cellStyle = {}, sortClickScope = "all", filterHitExpand = false }: any) => (
-    <th style={{ textAlign: align, ...cellStyle }}>
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', alignItems: align === 'right' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start' }}>
-        <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: align === 'center' ? 'center' : 'space-between', gap: compact ? '2px' : '4px', cursor: sortClickScope === 'all' ? 'pointer' : 'default' }} onClick={sortClickScope === 'all' ? () => handleSortClick(sortKey, currentSort, setSort) : undefined}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: compact ? '2px' : '4px', justifyContent: align === 'right' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start', flex: sortClickScope === 'label' ? '0 0 auto' : align === 'center' ? '0 1 auto' : 1, cursor: sortClickScope === 'label' ? 'pointer' : 'inherit' }} onClick={sortClickScope === 'label' ? () => handleSortClick(sortKey, currentSort, setSort) : undefined}>
-            <span>{label}</span>
-            {filterType && (
-              <span onClick={(e) => { e.stopPropagation(); setActiveFilterModal(filterType); }} style={{ fontSize: compact ? '8px' : '10px', padding: filterHitExpand && compact ? '6px 8px 6px 1px' : compact ? '1px' : '2px', margin: filterHitExpand && compact ? '-6px -8px -6px 0' : undefined, background: isAnaliz ? '#7c3aed' : '#e2e8f0', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
-                🔽
-              </span>
-            )}
-          </div>
-          <span style={{fontSize:'9px', color: isAnaliz ? '#d8b4fe' : '#94a3b8', paddingLeft: hideSortIndicator ? '0' : '2px', textAlign: 'right', visibility: hideSortIndicator ? 'hidden' : 'visible', width: hideSortIndicator ? '0' : 'auto', overflow: 'hidden'}}>
-            {currentSort.key === sortKey ? (currentSort.direction === 'asc' ? '▲' : '▼') : ''}
-          </span>
-        </div>
-      </div>
-    </th>
-  );
 
   const resetTahsilatForm = () => {
     setEditingTahsilatId(null);
@@ -2795,106 +2738,6 @@ export default function App() {
     };
   }, [session]);
 
-  const renderSatis = () => (
-    <div className="tab-fade-in main-content-area">
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', alignItems: 'center' }}>
-         <button onClick={handleYeniFisAc} className="btn-anim m-btn green-btn" style={{ margin: 0, flex: 2, fontSize: '13px' }}>➕ YENİ SATIŞ FİŞİ</button>
-         <button onClick={() => { resetTahsilatForm(); setIsTahsilatModalOpen(true); }} className="btn-anim m-btn blue-btn" style={{ margin: 0, flex: 1.2, fontSize: '13px', background: '#3b82f6' }}>💸 TAHSİLAT</button>
-         <button onClick={() => setDigerModalConfig({ isOpen: true, type: 'kasa_devir', mode: 'create', fisId: null })} className="btn-anim m-btn" style={{ margin: 0, flex: 1, fontSize: '13px', background: '#64748b', padding: '12px 0' }}>🏦 KASA DEVİR</button>
-      </div>
-
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
-         <div style={{ display: 'flex', background: '#cbd5e1', borderRadius: '6px', overflow: 'hidden', flex: 2 }}>
-            <button onClick={() => setSatisFiltreTip('tumu')} style={{ flex: 1, padding: '6px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', background: satisFiltreTip==='tumu'?'#059669':'transparent', color: satisFiltreTip==='tumu'?'#fff':'#475569' }}>Tümü</button>
-            <button onClick={() => setSatisFiltreTip('satis')} style={{ flex: 1, padding: '6px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', background: satisFiltreTip==='satis'?'#059669':'transparent', color: satisFiltreTip==='satis'?'#fff':'#475569' }}>Satış</button>
-            <button onClick={() => setSatisFiltreTip('tahsilat')} style={{ flex: 1, padding: '6px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', background: satisFiltreTip==='tahsilat'?'#059669':'transparent', color: satisFiltreTip==='tahsilat'?'#fff':'#475569' }}>Tahsilat</button>
-            <button onClick={() => setSatisFiltreTip('kasa_devir')} style={{ flex: 1.2, padding: '6px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', whiteSpace: 'nowrap', background: satisFiltreTip === 'kasa_devir' ? '#059669' : 'transparent', color: satisFiltreTip === 'kasa_devir' ? '#fff' : '#475569' }}>Kasa Devir</button>
-         </div>
-         <div style={{ display: 'flex', background: '#cbd5e1', borderRadius: '6px', overflow: 'hidden', flex: 1 }}>
-            <button onClick={() => setSatisFiltreKisi('benim')} style={{ flex: 1, padding: '6px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', background: satisFiltreKisi==='benim'?'#2563eb':'transparent', color: satisFiltreKisi==='benim'?'#fff':'#475569' }}>Benim</button>
-            <button onClick={() => setSatisFiltreKisi('herkes')} style={{ flex: 1, padding: '6px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', background: satisFiltreKisi==='herkes'?'#2563eb':'transparent', color: satisFiltreKisi==='herkes'?'#fff':'#475569' }}>Herkes</button>
-         </div>
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "0.95fr 1.45fr 1fr", gap: "6px", marginBottom: "10px", alignItems: "stretch" }}>
-        <div style={{ minWidth: 0, border: "1px solid #05966933", background: "#05966910", color: "#059669", borderRadius: "12px", padding: "6px 8px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-          <span style={{ fontSize: "9px", fontWeight: "bold", opacity: 0.85, whiteSpace: "nowrap" }}>TOPLAM SATIŞ</span>
-          <b style={{ fontSize: "14px", marginTop: "2px", whiteSpace: "normal", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{fSayiNoDec(tFisToplam)} ₺</b>
-        </div>
-        <div style={{ minWidth: 0, border: "1px solid #2563eb33", background: "#2563eb10", color: "#2563eb", borderRadius: "12px", padding: "6px 8px", display: "flex", flexDirection: "column", gap: "4px", justifyContent: "center" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "6px" }}>
-            <span style={{ fontSize: "9px", fontWeight: "bold", opacity: 0.9, whiteSpace: "nowrap" }}>TAHSİLAT</span>
-            <b style={{ fontSize: "14px", whiteSpace: "normal", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05, textAlign: "right" }}>{fSayiNoDec(tFisTahsilatRaw)} ₺</b>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "5px" }}>
-            <div style={{ borderRadius: "999px", background: "#ffffffb8", padding: "4px 6px", color: "#64748b", fontWeight: "bold", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", lineHeight: 1.1 }}>
-              <span style={{ fontSize: "8px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>GİDER</span>
-              <span style={{ fontSize: "9px", whiteSpace: "nowrap" }}>{fSayiNoDec(tKullaniciGider)}</span>
-            </div>
-            <div style={{ borderRadius: "999px", background: "#ffffffb8", padding: "4px 6px", color: "#475569", fontWeight: "bold", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", lineHeight: 1.1 }}>
-              <span style={{ fontSize: "8px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>KASAYA</span>
-              <span style={{ fontSize: "9px", whiteSpace: "nowrap" }}>{fSayiNoDec(tKasayaDevir)}</span>
-            </div>
-            <div style={{ borderRadius: "999px", background: "#ffffffd8", padding: "4px 6px", color: "#0f172a", fontWeight: "bold", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", lineHeight: 1.1 }}>
-              <span style={{ fontSize: "8px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>NET</span>
-              <span style={{ fontSize: "9px", whiteSpace: "nowrap" }}>{fSayiNoDec(tNetTahsilat)}</span>
-            </div>
-          </div>
-        </div>
-        <div style={{ minWidth: 0, border: "1px solid #dc262633", background: "#dc262610", color: "#dc2626", borderRadius: "12px", padding: "6px 8px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-          <span style={{ fontSize: "9px", fontWeight: "bold", opacity: 0.85, whiteSpace: "nowrap" }}>AÇIK HESAP</span>
-          <b style={{ fontSize: "14px", marginTop: "2px", whiteSpace: "normal", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{fSayiNoDec(tFisKalan)} ₺</b>
-        </div>
-      </div>
-
-      <div className="table-wrapper"><table className="tbl tbl-satis" style={{ tableLayout: "fixed" }}>
-        <thead><tr>
-          <Th label="TAR." sortKey="tarih" currentSort={fisSort} setSort={setFisSort} filterType="fis_tarih" hideSortIndicator={true} compact={true} sortClickScope="label" filterHitExpand={true} cellStyle={{ width: "68px" }} />
-          <Th label={satisFiltreTip === 'kasa_devir' ? "AÇIKLAMA" : "BAYİ"} sortKey={satisFiltreTip === 'kasa_devir' ? "aciklama" : "bayi"} currentSort={fisSort} setSort={setFisSort} filterType="fis_bayi" hideSortIndicator={true} compact={true} align={satisFiltreTip === 'kasa_devir' ? "left" : "center"} sortClickScope="label" cellStyle={{ width: satisFiltreTip === 'kasa_devir' ? "136px" : "112px", paddingLeft: satisFiltreTip === 'kasa_devir' ? "10px" : "4px", paddingRight: satisFiltreTip === 'kasa_devir' ? "4px" : "4px" }} />
-          <Th label="TUTAR" sortKey="toplam_tutar" currentSort={fisSort} setSort={setFisSort} align="right" />
-          <Th label="TAHS." sortKey="tahsilat" currentSort={fisSort} setSort={setFisSort} align="right" />
-          <Th label="BORÇ" sortKey="kalan_bakiye" currentSort={fisSort} setSort={setFisSort} align="right" />
-          <Th label="KİŞİ" sortKey="ekleyen" currentSort={fisSort} setSort={setFisSort} align="center" />
-          <th></th>
-        </tr></thead>
-        <tbody>{fFisList.map(f => {
-          const satirToplamBorc = f.id ? satisFisToplamBorcMap[String(f.id)] ?? 0 : 0;
-          const silinebilir = fisSilinebilirMi(f);
-          const duzenlenebilir = fisDuzenlenebilirMi(f);
-          const kasaDevirMi = fisKasayaDevirMi(f);
-          const sistemFisMi = sistemIslemiMi(satisFisBayiAdiGetir(f));
-          return (
-          <tr key={f.id}>
-            <td style={{ textAlign: "center" }}>{f.tarih.split("-").reverse().slice(0, 2).join(".")}</td>
-            <td style={{ fontWeight: "bold", minWidth: 0, maxWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: f.toplam_tutar === 0 && f.odeme_turu !== 'KASAYA DEVİR' ? "#8b5cf6" : (sistemIslemiMi(satisFisBayiAdiGetir(f)) ? "#475569" : "inherit") }}>
-               {fisGorunenBayi(f)}
-            </td>
-            <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold" }}>{f.toplam_tutar === 0 ? "-" : fSayiNoDec(f.toplam_tutar)}</td>
-            <td style={{ textAlign: "right", color: f.odeme_turu === 'KASAYA DEVİR' ? "#dc2626" : "#2563eb", fontWeight: "bold" }}>
-               {f.odeme_turu === 'KASAYA DEVİR' && f.tahsilat > 0 ? "-" : ""}{fSayiNoDec(f.tahsilat)}
-            </td>
-            <td style={{ textAlign: "right", color: satirToplamBorc > 0 ? "#dc2626" : (satirToplamBorc < 0 ? "#059669" : "#64748b"), fontWeight: "bold" }} title="Bu fiş sonundaki toplam borç">
-                {sistemIslemiMi(satisFisBayiAdiGetir(f)) ? "-" : (satirToplamBorc === 0 ? "-" : fSayiNoDec(satirToplamBorc))}
-            </td>
-            <td style={{ textAlign: "center", color: "#64748b" }}>{f.ekleyen ? f.ekleyen.split('@')[0] : "-"}</td>
-            <td className="actions-cell" style={{position: 'relative'}}>
-               <button onClick={(e) => { e.stopPropagation(); setOpenDropdown({ type: 'satis', id: f.id as string }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', padding: '0 8px', color: '#64748b' }}>⋮</button>
-               {openDropdown?.type === 'satis' && openDropdown.id === f.id && (
-                     <div className="dropdown-menu">
-                     {f.fis_gorseli && <button title="Fotoğrafı Gör" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); handleFisGorselGoster(f); }}>📷</button>}
-                     {(!sistemFisMi || kasaDevirMi) && <button title="Görüntüle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); if (kasaDevirMi) { handleKasaDevirGoruntule(f); } else { handleFisDetayGoster(f); } }}>🔍</button>}
-                     {(!sistemFisMi || kasaDevirMi || fisTahsilatMi(f)) && duzenlenebilir && <button title="Düzenle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); if (kasaDevirMi) { handleKasaDevirDuzenle(f); } else if (fisTahsilatMi(f)) { handleTahsilatDuzenle(f); } else { handleFisDuzenle(f); } }}>✏️</button>}
-                     {silinebilir && <button title="Sil" className="dropdown-item-icon" style={{ color: '#dc2626' }} onClick={() => { setOpenDropdown(null); handleFisSil(f); }}>🗑️</button>}
-                  </div>
-               )}
-            </td>
-          </tr>
-        )})}
-        </tbody>
-      </table></div>
-    </div>
-  );
-
   const renderOzetMiniDetay = () => {
     if (!ozetMiniDetay) return null;
 
@@ -3067,6 +2910,56 @@ export default function App() {
 
   const renderAktifSekme = () => {
     switch (activeTab) {
+      case "satis":
+        return (
+          <SatisPanel
+            satisFiltreTip={satisFiltreTip}
+            setSatisFiltreTip={setSatisFiltreTip}
+            satisFiltreKisi={satisFiltreKisi}
+            setSatisFiltreKisi={setSatisFiltreKisi}
+            fFisList={fFisList}
+            satisFisToplamBorcMap={satisFisToplamBorcMap}
+            fisSort={fisSort}
+            setFisSort={setFisSort}
+            fisFiltre={fisFiltre}
+            setFisFiltre={setFisFiltre}
+            tFisToplam={tFisToplam}
+            tFisTahsilatRaw={tFisTahsilatRaw}
+            tKullaniciGider={tKullaniciGider}
+            tKasayaDevir={tKasayaDevir}
+            tNetTahsilat={tNetTahsilat}
+            tFisKalan={tFisKalan}
+            bugun={bugun}
+            dun={dun}
+            temaRengi={temaRengi}
+            bayiler={bayiler}
+            actions={{
+              onOpenNewFis: handleYeniFisAc,
+              onOpenNewTahsilat: () => {
+                resetTahsilatForm();
+                setIsTahsilatModalOpen(true);
+              },
+              onOpenNewKasaDevir: () => setDigerModalConfig({ isOpen: true, type: "kasa_devir", mode: "create", fisId: null }),
+              onViewFisImage: handleFisGorselGoster,
+              onViewFisDetail: handleFisDetayGoster,
+              onViewKasaDevir: handleKasaDevirGoruntule,
+              onEditTahsilat: handleTahsilatDuzenle,
+              onEditKasaDevir: handleKasaDevirDuzenle,
+              onEditFis: handleFisDuzenle,
+              onDeleteFis: handleFisSil,
+            }}
+            visibility={{
+              fisSilinebilirMi,
+              fisDuzenlenebilirMi,
+              fisKasayaDevirMi,
+              fisTahsilatMi,
+              sistemIslemiMi,
+              satisFisBayiAdiGetir,
+              fisGorunenBayi,
+            }}
+            helpers={{ fSayiNoDec }}
+          />
+        );
       case "ozet":
         return (
           <OzetPanel
@@ -3217,7 +3110,6 @@ export default function App() {
     setIsFisModalOpen(false);
     resetTahsilatForm();
     setIsTahsilatModalOpen(false);
-    setOpenDropdown(null);
     setIsBottomMenuOpen(false);
   };
 
@@ -3302,15 +3194,11 @@ export default function App() {
       )}
 
       <main className="main-content">
-        {activeTab === "satis" ? (
-          renderSatis()
-        ) : (
-          <LazySekmeHataSiniri resetKey={activeTab}>
-            <Suspense fallback={sekmeYukleniyorFallback}>
-              {renderAktifSekme()}
-            </Suspense>
-          </LazySekmeHataSiniri>
-        )}
+        <LazySekmeHataSiniri resetKey={activeTab}>
+          <Suspense fallback={sekmeYukleniyorFallback}>
+            {renderAktifSekme()}
+          </Suspense>
+        </LazySekmeHataSiniri>
 
         {isDonemModalOpen && (
           <div style={{position: 'fixed', top:0, left:0, right:0, bottom:0, background: 'rgba(0,0,0,0.6)', zIndex: 1500, display:'flex', alignItems:'center', justifyContent:'center', padding: '10px'}}>
@@ -3473,65 +3361,6 @@ export default function App() {
                   )}
                 </div>
               </div>
-            </div>
-          </div>
-        )}
-
-        {activeFilterModal && (
-          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1400, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }} onClick={() => setActiveFilterModal(null)}>
-            <div style={{ backgroundColor: "#fff", padding: "15px", borderRadius: "10px", width: "100%", maxWidth: "260px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.2)" }} onClick={e => e.stopPropagation()}>
-              <h4 style={{marginTop: 0, marginBottom: "10px", borderBottom: "1px solid #eee", paddingBottom: "5px", color: "#1e293b"}}>{activeFilterModal.endsWith('_tarih') ? 'Tarih Aralığı Seç' : 'Filtrele'}</h4>
-              {activeFilterModal.endsWith('_tarih') && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
-                      <label style={{fontSize: "12px", color: "#64748b"}}>Başlangıç</label>
-                      {activeFilterModal === 'fis_tarih' && (
-                        <div style={{ display: "flex", gap: "6px" }}>
-                          {[
-                            { etiket: "Bugün", tarih: bugun },
-                            { etiket: "Dün", tarih: dun },
-                          ].map((secenek) => {
-                            const secili = fisFiltre.baslangic === secenek.tarih && fisFiltre.bitis === secenek.tarih;
-                            return (
-                              <button
-                                key={secenek.etiket}
-                                type="button"
-                                onClick={() =>
-                                  setFisFiltre((prev) =>
-                                    prev.baslangic === secenek.tarih && prev.bitis === secenek.tarih
-                                      ? { ...prev, baslangic: "", bitis: "" }
-                                      : { ...prev, baslangic: secenek.tarih, bitis: secenek.tarih },
-                                  )
-                                }
-                                className="btn-anim"
-                                style={{
-                                  border: "none",
-                                  borderRadius: "999px",
-                                  padding: "4px 8px",
-                                  fontSize: "11px",
-                                  fontWeight: "bold",
-                                  cursor: "pointer",
-                                  background: secili ? "#0f766e" : "#e2e8f0",
-                                  color: secili ? "#fff" : "#475569",
-                                }}
-                              >
-                                {secenek.etiket}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                    <input type="date" value={fisFiltre.baslangic} onChange={(e) => setFisFiltre({...fisFiltre, baslangic: e.target.value})} className="m-inp date-click" style={{width: "100%", marginTop: "4px"}} />
-                  </div>
-                  <div><label style={{fontSize: "12px", color: "#64748b"}}>Bitiş</label><input type="date" value={fisFiltre.bitis} onChange={(e) => setFisFiltre({...fisFiltre, bitis: e.target.value})} className="m-inp date-click" style={{width: "100%", marginTop: "4px"}} /></div>
-                </div>
-              )}
-              <div style={{ maxHeight: "250px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "10px", padding: "4px 0" }}>
-                {activeFilterModal === 'fis_bayi' && bayiler.map(b => (<label key={b.id} style={{display: "flex", alignItems: "center", gap: "8px", fontSize: "14px"}}><input type="checkbox" checked={fisFiltre.bayiler.includes(b.isim)} onChange={() => handleCheckboxToggle('bayiler', setFisFiltre, b.isim)} style={{width:"18px", height:"18px"}}/> {b.isim}</label>))}
-              </div>
-              <div style={{display: "flex", gap: "8px", marginTop: "15px"}}><button onClick={() => { if(activeFilterModal === 'fis_bayi') setFisFiltre({...fisFiltre, bayiler: []}); if(activeFilterModal?.includes('_tarih')){ setFisFiltre({...fisFiltre, baslangic: '', bitis: ''}); } }} style={{flex: 1, padding: "10px", background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: "6px", fontWeight: "bold"}}>TEMİZLE</button><button onClick={() => setActiveFilterModal(null)} style={{flex: 1, padding: "10px", background: temaRengi, color: "#fff", border: "none", borderRadius: "6px", fontWeight: "bold"}}>UYGULA</button></div>
             </div>
           </div>
         )}
