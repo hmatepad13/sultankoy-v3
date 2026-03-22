@@ -121,6 +121,7 @@ export interface SatisFis {
   aciklama: string;
   ekleyen?: string;
   fis_gorseli?: string | null;
+  created_at?: string | null;
 }
 
 export interface Gider {

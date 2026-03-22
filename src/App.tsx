@@ -231,6 +231,13 @@ const gorunenFisNoOlustur = (fis?: { id?: string | number; fis_no?: string | nul
   return "F-0000";
 };
 
+const satisFisSaatiniFormatla = (deger?: string | null) => {
+  if (!deger) return "";
+  const tarih = new Date(deger);
+  if (Number.isNaN(tarih.getTime())) return "";
+  return tarih.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+};
+
 const dosyaAdiIcinTemizle = (deger?: string | null) =>
   String(deger || "fis")
     .toLocaleLowerCase("tr-TR")
@@ -1291,6 +1298,11 @@ export default function App() {
   const periodSatisFis = useMemo(() => satisFisList.filter(f => f.tarih.startsWith(aktifDonem)), [satisFisList, aktifDonem]);
   const periodSatisList = useMemo(() => satisList.filter(s => s.tarih.startsWith(aktifDonem)), [satisList, aktifDonem]);
   const periodGider = useMemo(() => giderList.filter(g => g.tarih.startsWith(aktifDonem)), [giderList, aktifDonem]);
+  const satisFisCreatedAtBul = useCallback(
+    (fisId?: string | number | null) =>
+      periodSatisFis.find((kayit) => String(kayit.id ?? "") === String(fisId ?? ""))?.created_at || null,
+    [periodSatisFis],
+  );
   const fSayi = (num: any) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 2 }).format(Number(num) || 0).replace(/,00$/, '');
   const fSayiNoDec = (num: any) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(Number(num) || 0);
   const donemMetni = (donem: string) => donem.replace("-", " / ");
@@ -2040,6 +2052,7 @@ export default function App() {
         id: savedFisId,
         fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, aciklama: fisUst.aciklama, teslim_alan: fisUst.teslim_alan,
         fis_gorseli: fisGorselYolu,
+        created_at: sonuc?.created_at || satisFisCreatedAtBul(savedFisId) || new Date().toISOString(),
         ekleyen: aktifKullaniciEposta,
         urunler: eklenecekUrunler.map(u => {
           const adet = Number(fisDetay[u.id].adet);
@@ -2063,6 +2076,8 @@ export default function App() {
       await yeniGorseliTemizle();
       return alert("Kayıt Hatası: " + (rpcFisError.message || "Bilinmeyen RPC hatası"));
     }
+
+    let yeniFisCreatedAt: string | null = null;
 
     if (editingFisId) {
       const eskiDetaylar = satisList.filter(s => s.fis_no === ortakFisNo);
@@ -2108,6 +2123,7 @@ export default function App() {
         return alert("Kayıt Hatası: " + veritabaniHatasiMesaji("satis_fisleri", errFisIns));
       }
       savedFisId = newFisData?.id;
+      yeniFisCreatedAt = newFisData?.created_at || null;
       const insertArray = detayPayloadlari();
       const { error: errDetay } = await supabase.from("satis_giris").insert(insertArray);
       if (errDetay && savedFisId) {
@@ -2133,6 +2149,7 @@ export default function App() {
       id: savedFisId,
       fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, aciklama: fisUst.aciklama, teslim_alan: fisUst.teslim_alan,
       fis_gorseli: fisGorselYolu,
+      created_at: yeniFisCreatedAt || satisFisCreatedAtBul(savedFisId) || new Date().toISOString(),
       ekleyen: aktifKullaniciEposta,
       urunler: eklenecekUrunler.map(u => {
          const adet = Number(fisDetay[u.id].adet);
@@ -2256,7 +2273,7 @@ export default function App() {
     if (safAciklama.includes("[Sadece Tahsilat]")) safAciklama = safAciklama.replace(/\[Sadece Tahsilat\]\s*-\s*/, "").replace(/\[Sadece Tahsilat\]/, "");
 
     setSonFisData({ 
-      id: fis.id, fis_no: fis.fis_no, tarih: fis.tarih, bayi: satisFisBayiAdiGetir(fis), aciklama: safAciklama, teslim_alan: tAlan, fis_gorseli: fis.fis_gorseli, ekleyen: fis.ekleyen,
+      id: fis.id, fis_no: fis.fis_no, tarih: fis.tarih, bayi: satisFisBayiAdiGetir(fis), aciklama: safAciklama, teslim_alan: tAlan, fis_gorseli: fis.fis_gorseli, created_at: fis.created_at || satisFisCreatedAtBul(fis.id), ekleyen: fis.ekleyen,
       urunler: ilgiliUrunler.map(u => {
           let calculatedKg = 0;
           const a = Number(u.adet), t = Number(u.tutar), f = Number(u.fiyat);
@@ -3568,7 +3585,7 @@ export default function App() {
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#000", marginBottom: "2px", gap: "8px" }}>
                     <span>Tarih | Fiş No:</span>
                     <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end", textAlign: "right", flexWrap: "wrap" }}>
-                      <span>{sonFisData.tarih.split("-").reverse().join(".")}</span>
+                      <span>{sonFisData.tarih.split("-").reverse().join(".")}{satisFisSaatiniFormatla(sonFisData.created_at) ? ` ${satisFisSaatiniFormatla(sonFisData.created_at)}` : ""}</span>
                       <span style={{ color: "#334155", fontWeight: 400 }}>{gorunenFisNoOlustur(sonFisData)}</span>
                     </div>
                   </div>
