@@ -367,57 +367,92 @@ class LazySekmeHataSiniri extends Component<LazySekmeHataSiniriProps, LazySekmeH
   }
 }
 
-const ozetPanelModulunuGetir = () => import("./components/OzetPanel");
-const satisPanelModulunuGetir = () => import("./components/SatisPanel");
-const sutPanelModulunuGetir = () => import("./components/SutPanel");
-const sevkiyatPanelModulunuGetir = () => import("./components/SevkiyatPanel");
-const cekSenetPanelModulunuGetir = () => import("./components/CekSenetPanel");
-const giderPanelModulunuGetir = () => import("./components/GiderPanel");
-const uretimPanelModulunuGetir = () => import("./components/UretimPanel");
-const analizPanelModulunuGetir = () => import("./components/AnalizPanel");
-const settingsPanelModulunuGetir = () => import("./components/SettingsPanel");
-const sekmeModulYukleyicileri: Record<AppTabId, () => Promise<unknown>> = {
-  ozet: ozetPanelModulunuGetir,
-  satis: satisPanelModulunuGetir,
-  sut: sutPanelModulunuGetir,
-  sevkiyat: sevkiyatPanelModulunuGetir,
-  cek_senet: cekSenetPanelModulunuGetir,
-  gider: giderPanelModulunuGetir,
-  uretim: uretimPanelModulunuGetir,
-  analiz: analizPanelModulunuGetir,
-  ayarlar: settingsPanelModulunuGetir,
+const onYuklenebilirSekmeOlustur = (
+  yukleyici: () => Promise<{ default: any }>,
+) => {
+  let yuklenenModul: { default: any } | null = null;
+  let yuklemeSozu: Promise<{ default: any }> | null = null;
+
+  const yukle = () => {
+    if (yuklenenModul) return Promise.resolve(yuklenenModul);
+    if (!yuklemeSozu) {
+      yuklemeSozu = yukleyici()
+        .then((modul) => {
+          yuklenenModul = modul;
+          return modul;
+        })
+        .catch((error) => {
+          yuklemeSozu = null;
+          throw error;
+        });
+    }
+    return yuklemeSozu;
+  };
+
+  return {
+    LazyBilesen: lazy(yukle),
+    yukle,
+    hazirBilesen: () => yuklenenModul?.default ?? null,
+  };
 };
-const sekmeModulunuOnYukle = (tabId: AppTabId) =>
-  sekmeModulYukleyicileri[tabId]().catch((error) => {
+
+const ozetPanelSekmesi = onYuklenebilirSekmeOlustur(() =>
+  import("./components/OzetPanel").then((module) => ({ default: module.OzetPanel })),
+);
+const satisPanelSekmesi = onYuklenebilirSekmeOlustur(() =>
+  import("./components/SatisPanel").then((module) => ({ default: module.SatisPanel })),
+);
+const sutPanelSekmesi = onYuklenebilirSekmeOlustur(() =>
+  import("./components/SutPanel").then((module) => ({ default: module.SutPanel })),
+);
+const sevkiyatPanelSekmesi = onYuklenebilirSekmeOlustur(() =>
+  import("./components/SevkiyatPanel").then((module) => ({ default: module.SevkiyatPanel })),
+);
+const cekSenetPanelSekmesi = onYuklenebilirSekmeOlustur(() =>
+  import("./components/CekSenetPanel").then((module) => ({ default: module.CekSenetPanel })),
+);
+const giderPanelSekmesi = onYuklenebilirSekmeOlustur(() =>
+  import("./components/GiderPanel").then((module) => ({ default: module.GiderPanel })),
+);
+const uretimPanelSekmesi = onYuklenebilirSekmeOlustur(() =>
+  import("./components/UretimPanel").then((module) => ({ default: module.UretimPanel })),
+);
+const analizPanelSekmesi = onYuklenebilirSekmeOlustur(() =>
+  import("./components/AnalizPanel").then((module) => ({ default: module.AnalizPanel })),
+);
+const settingsPanelSekmesi = onYuklenebilirSekmeOlustur(() =>
+  import("./components/SettingsPanel").then((module) => ({ default: module.SettingsPanel })),
+);
+const sekmeModulYukleyicileri: Record<AppTabId, () => Promise<unknown>> = {
+  ozet: ozetPanelSekmesi.yukle,
+  satis: satisPanelSekmesi.yukle,
+  sut: sutPanelSekmesi.yukle,
+  sevkiyat: sevkiyatPanelSekmesi.yukle,
+  cek_senet: cekSenetPanelSekmesi.yukle,
+  gider: giderPanelSekmesi.yukle,
+  uretim: uretimPanelSekmesi.yukle,
+  analiz: analizPanelSekmesi.yukle,
+  ayarlar: settingsPanelSekmesi.yukle,
+};
+const sekmeModulunuGetir = (tabId: AppTabId) => sekmeModulYukleyicileri[tabId]();
+const sekmeModulunuOnYukle = (tabId: AppTabId) => {
+  void sekmeModulunuGetir(tabId).catch((error) => {
     console.warn(`${tabId} sekmesi arka planda hazırlanamadı:`, error);
   });
-const OzetPanel = lazy(() =>
-  ozetPanelModulunuGetir().then((module) => ({ default: module.OzetPanel })),
-);
-const SatisPanel = lazy(() =>
-  satisPanelModulunuGetir().then((module) => ({ default: module.SatisPanel })),
-);
-const SutPanel = lazy(() =>
-  sutPanelModulunuGetir().then((module) => ({ default: module.SutPanel })),
-);
-const SevkiyatPanel = lazy(() =>
-  sevkiyatPanelModulunuGetir().then((module) => ({ default: module.SevkiyatPanel })),
-);
-const CekSenetPanel = lazy(() =>
-  cekSenetPanelModulunuGetir().then((module) => ({ default: module.CekSenetPanel })),
-);
-const GiderPanel = lazy(() =>
-  giderPanelModulunuGetir().then((module) => ({ default: module.GiderPanel })),
-);
-const UretimPanel = lazy(() =>
-  uretimPanelModulunuGetir().then((module) => ({ default: module.UretimPanel })),
-);
-const AnalizPanel = lazy(() =>
-  analizPanelModulunuGetir().then((module) => ({ default: module.AnalizPanel })),
-);
-const SettingsPanel = lazy(() =>
-  settingsPanelModulunuGetir().then((module) => ({ default: module.SettingsPanel })),
-);
+};
+const sekmeBileseniniRenderEt = (hazirBilesen: any, lazyBilesen: any, props: any) => {
+  const Bilesen = hazirBilesen || lazyBilesen;
+  return <Bilesen {...props} />;
+};
+const OzetPanel = ozetPanelSekmesi.LazyBilesen;
+const SatisPanel = satisPanelSekmesi.LazyBilesen;
+const SutPanel = sutPanelSekmesi.LazyBilesen;
+const SevkiyatPanel = sevkiyatPanelSekmesi.LazyBilesen;
+const CekSenetPanel = cekSenetPanelSekmesi.LazyBilesen;
+const GiderPanel = giderPanelSekmesi.LazyBilesen;
+const UretimPanel = uretimPanelSekmesi.LazyBilesen;
+const AnalizPanel = analizPanelSekmesi.LazyBilesen;
+const SettingsPanel = settingsPanelSekmesi.LazyBilesen;
 const yedeklemeModulunuGetir = () => import("./lib/backup");
 const sekmeYukleniyorFallback = (
   <div className="card" style={{ marginTop: "6px", textAlign: "center", color: "#64748b", fontWeight: "bold" }}>
@@ -434,6 +469,17 @@ const yedeklemeHatasiniGoster = (islemAdi: string, error: unknown) => {
   }
   alert(`${islemAdi} hazırlanamadı.\n${hataMetniniGetir(error)}`);
 };
+const sekmeYuklemeHatasiniGoster = (tabId: AppTabId, error: unknown) => {
+  const sekmeEtiketi = TAB_TANIMLARI.find((tab) => tab.id === tabId)?.etiket || "Sekme";
+  console.error(`${sekmeEtiketi} sekmesi hazırlanamadı:`, error);
+  if (dinamikModulHatasiMi(error)) {
+    if (window.confirm(yenilemeOnerisiMesaji(`${sekmeEtiketi} sekmesi`))) {
+      window.location.reload();
+    }
+    return;
+  }
+  alert(`${sekmeEtiketi} sekmesi açılamadı.\n${hataMetniniGetir(error)}`);
+};
 
 export default function App() {
   const [session, setSession] = useState<any>(null);
@@ -441,7 +487,7 @@ export default function App() {
   const [password, setPassword] = useState<string>("");
   const [activeTab, setActiveTab] = useState<AppTabId>("satis");
   const [isBottomMenuOpen, setIsBottomMenuOpen] = useState(false);
-  const onYuklenenSekmelerRef = useRef<Set<AppTabId>>(new Set());
+  const sekmeGecisIstegiRef = useRef(0);
   const oturumAcilisSekmesiRef = useRef<string | null>(null);
   const bottomMenuRef = useRef<HTMLElement | null>(null);
 
@@ -805,9 +851,7 @@ export default function App() {
   );
   const sekmeleriOnYukle = useCallback((tablar: AppTabId[]) => {
     tablar.forEach((tabId) => {
-      if (onYuklenenSekmelerRef.current.has(tabId)) return;
-      onYuklenenSekmelerRef.current.add(tabId);
-      void sekmeModulunuOnYukle(tabId);
+      sekmeModulunuOnYukle(tabId);
     });
   }, []);
 
@@ -2939,218 +2983,211 @@ export default function App() {
     );
   };
 
-  const renderAyarlar = () => (
-    <SettingsPanel
-      activeAyarTab={activeAyarTab}
-      setActiveAyarTab={(tab) => {
+  const renderAyarlar = () =>
+    sekmeBileseniniRenderEt(settingsPanelSekmesi.hazirBilesen(), SettingsPanel, {
+      activeAyarTab,
+      setActiveAyarTab: (tab: any) => {
         setActiveAyarTab(tab);
         if (tab === "depolama" && !depolamaDurumu && !isDepolamaLoading && !depolamaHata) {
           void depolamaDurumunuGetir();
         }
-      }}
-      aktifKullaniciEposta={aktifKullaniciEposta}
-      bayiler={bayiler}
-      urunler={urunler}
-      tedarikciler={tedarikciler}
-      giderTuruListesi={giderTuruListesi}
-      copKutusuList={copKutusuList}
-      yeniAyarDeger={yeniAyarDeger}
-      setYeniAyarDeger={setYeniAyarDeger}
-      yeniUrunSabitle={yeniUrunSabitle}
-      setYeniUrunSabitle={setYeniUrunSabitle}
-      handleAyarEkle={handleAyarEkle}
-      onSettingEdit={(tablo, id, isim) => {
+      },
+      aktifKullaniciEposta,
+      bayiler,
+      urunler,
+      tedarikciler,
+      giderTuruListesi,
+      copKutusuList,
+      yeniAyarDeger,
+      setYeniAyarDeger,
+      yeniUrunSabitle,
+      setYeniUrunSabitle,
+      handleAyarEkle,
+      onSettingEdit: (tablo: any, id: any, isim: any) => {
         const yeniIsim = prompt("Yeni isim", isim);
         if (yeniIsim && yeniIsim.trim() && yeniIsim.trim() !== isim) {
           ayarIslem(tablo, yeniIsim.trim(), "guncelle", id);
         }
-      }}
-      onSettingToggleActive={(tablo, id, aktif) => {
+      },
+      onSettingToggleActive: (tablo: any, id: any, aktif: any) => {
         ayarIslem(tablo, !aktif, "durum", id);
-      }}
-      onSettingTogglePinned={(id, sabit) => {
+      },
+      onSettingTogglePinned: (id: any, sabit: any) => {
         ayarIslem("urunler", !sabit, "sabit", id);
-      }}
-      onSettingDelete={(tablo, id, isim) => {
+      },
+      onSettingDelete: (tablo: any, id: any, isim: any) => {
         if (confirm(`Silinecek: ${isim}`)) ayarIslem(tablo, null, "sil", id);
-      }}
-      onOpenTrash={() => verileriGetir("cop")}
-      onEmptyTrash={handleEmptyTrash}
-      onHtmlBackup={handleHtmlBackup}
-      onExcelBackup={handleExcelBackup}
-      onJsonBackup={handleJsonBackup}
-      isBackupLoading={isBackupLoading}
-      depolamaDurumu={depolamaDurumu}
-      isDepolamaLoading={isDepolamaLoading}
-      depolamaHata={depolamaHata}
-      onLoadDepolama={depolamaDurumunuGetir}
-      isAdmin={isAdmin}
-      mevcutKullanici={mevcutKullanici}
-      adminKullanicilar={adminKullanicilar}
-      isAdminKullaniciLoading={isAdminKullaniciLoading}
-      adminKullaniciHata={adminKullaniciHata}
-      kullaniciListesi={kullaniciListesi}
-      tabYetkileri={tabYetkileri}
-      sekmeSecenekleri={sekmeSecenekleri}
-      yetkiKaynak={yetkiKaynak}
-      yetkiUyari={yetkiUyari}
-      onChangeOwnPassword={handleOwnPasswordChange}
-      onLoadAdminUsers={handleAdminUsersLoad}
-      onCreateAdminUser={handleAdminCreateUser}
-      onResetAdminUserPassword={handleAdminResetUserPassword}
-      onSavePermissions={handlePermissionSave}
-    />
-  );
+      },
+      onOpenTrash: () => verileriGetir("cop"),
+      onEmptyTrash: handleEmptyTrash,
+      onHtmlBackup: handleHtmlBackup,
+      onExcelBackup: handleExcelBackup,
+      onJsonBackup: handleJsonBackup,
+      isBackupLoading,
+      depolamaDurumu,
+      isDepolamaLoading,
+      depolamaHata,
+      onLoadDepolama: depolamaDurumunuGetir,
+      isAdmin,
+      mevcutKullanici,
+      adminKullanicilar,
+      isAdminKullaniciLoading,
+      adminKullaniciHata,
+      kullaniciListesi,
+      tabYetkileri,
+      sekmeSecenekleri,
+      yetkiKaynak,
+      yetkiUyari,
+      onChangeOwnPassword: handleOwnPasswordChange,
+      onLoadAdminUsers: handleAdminUsersLoad,
+      onCreateAdminUser: handleAdminCreateUser,
+      onResetAdminUserPassword: handleAdminResetUserPassword,
+      onSavePermissions: handlePermissionSave,
+    });
 
   const renderAktifSekme = () => {
     switch (activeTab) {
       case "satis":
-        return (
-          <SatisPanel
-            satisFiltreTip={satisFiltreTip}
-            setSatisFiltreTip={setSatisFiltreTip}
-            satisFiltreKisi={satisFiltreKisi}
-            setSatisFiltreKisi={setSatisFiltreKisi}
-            fFisList={fFisList}
-            satisFisToplamBorcMap={satisFisToplamBorcMap}
-            fisSort={fisSort}
-            setFisSort={setFisSort}
-            fisFiltre={fisFiltre}
-            setFisFiltre={setFisFiltre}
-            tFisToplam={tFisToplam}
-            tFisTahsilatRaw={tFisTahsilatRaw}
-            tKullaniciGider={tKullaniciGider}
-            tKasayaDevir={tKasayaDevir}
-            tNetTahsilat={tNetTahsilat}
-            tFisKalan={tFisKalan}
-            bugun={bugun}
-            dun={dun}
-            temaRengi={temaRengi}
-            bayiler={bayiler}
-            actions={{
-              onOpenNewFis: handleYeniFisAc,
-              onOpenNewTahsilat: () => {
-                resetTahsilatForm();
-                setIsTahsilatModalOpen(true);
-              },
-              onOpenNewKasaDevir: () => setDigerModalConfig({ isOpen: true, type: "kasa_devir", mode: "create", fisId: null }),
-              onViewFisImage: handleFisGorselGoster,
-              onViewFisDetail: handleFisDetayGoster,
-              onViewKasaDevir: handleKasaDevirGoruntule,
-              onEditTahsilat: handleTahsilatDuzenle,
-              onEditKasaDevir: handleKasaDevirDuzenle,
-              onEditFis: handleFisDuzenle,
-              onDeleteFis: handleFisSil,
-            }}
-            visibility={{
-              fisSilinebilirMi,
-              fisDuzenlenebilirMi,
-              fisKasayaDevirMi,
-              fisTahsilatMi,
-              sistemIslemiMi,
-              satisFisBayiAdiGetir,
-              fisGorunenBayi,
-            }}
-            helpers={{ fSayiNoDec }}
-          />
-        );
+        return sekmeBileseniniRenderEt(satisPanelSekmesi.hazirBilesen(), SatisPanel, {
+          satisFiltreTip,
+          setSatisFiltreTip,
+          satisFiltreKisi,
+          setSatisFiltreKisi,
+          fFisList,
+          satisFisToplamBorcMap,
+          fisSort,
+          setFisSort,
+          fisFiltre,
+          setFisFiltre,
+          tFisToplam,
+          tFisTahsilatRaw,
+          tKullaniciGider,
+          tKasayaDevir,
+          tNetTahsilat,
+          tFisKalan,
+          bugun,
+          dun,
+          temaRengi,
+          bayiler,
+          actions: {
+            onOpenNewFis: handleYeniFisAc,
+            onOpenNewTahsilat: () => {
+              resetTahsilatForm();
+              setIsTahsilatModalOpen(true);
+            },
+            onOpenNewKasaDevir: () => setDigerModalConfig({ isOpen: true, type: "kasa_devir", mode: "create", fisId: null }),
+            onViewFisImage: handleFisGorselGoster,
+            onViewFisDetail: handleFisDetayGoster,
+            onViewKasaDevir: handleKasaDevirGoruntule,
+            onEditTahsilat: handleTahsilatDuzenle,
+            onEditKasaDevir: handleKasaDevirDuzenle,
+            onEditFis: handleFisDuzenle,
+            onDeleteFis: handleFisSil,
+          },
+          visibility: {
+            fisSilinebilirMi,
+            fisDuzenlenebilirMi,
+            fisKasayaDevirMi,
+            fisTahsilatMi,
+            sistemIslemiMi,
+            satisFisBayiAdiGetir,
+            fisGorunenBayi,
+          },
+          helpers: { fSayiNoDec },
+        });
       case "ozet":
-        return (
-          <OzetPanel
-            aktifDonemSatisEtiketi={aktifDonemSatisEtiketi}
-            tOzetReelSatis={tOzetReelSatis}
-            tOzetFisTahsilatRaw={tOzetFisTahsilatRaw}
-            bayiNetDurum={bayiNetDurum}
-            tOzetDevredenBakiye={tOzetDevredenBakiye}
-            tGiderNormal={tGiderNormal}
-            tHammaddeOdemeleri={tHammaddeOdemeleri}
-            tHammaddeBorcu={tHammaddeBorcu}
-            hammaddeOdemeDetaySatirlari={hammaddeOdemeDetaySatirlari}
-            hammaddeBorcDetaySatirlari={hammaddeBorcDetaySatirlari}
-            bayiBorclari={bayiBorclari}
-            ozetBorcFiltre={ozetBorcFiltre}
-            setOzetBorcFiltre={setOzetBorcFiltre}
-            ozetBorcSort={ozetBorcSort}
-            setOzetBorcSort={setOzetBorcSort}
-            personelOzetleri={personelOzetleri}
-            onOpenMiniDetay={setOzetMiniDetay}
-            onOpenMusteriEkstre={handleMusteriEkstreAc}
-            helpers={{ fSayiNoDec }}
-          />
-        );
+        return sekmeBileseniniRenderEt(ozetPanelSekmesi.hazirBilesen(), OzetPanel, {
+          aktifDonemSatisEtiketi,
+          tOzetReelSatis,
+          tOzetFisTahsilatRaw,
+          bayiNetDurum,
+          tOzetDevredenBakiye,
+          tGiderNormal,
+          tHammaddeOdemeleri,
+          tHammaddeBorcu,
+          hammaddeOdemeDetaySatirlari,
+          hammaddeBorcDetaySatirlari,
+          bayiBorclari,
+          ozetBorcFiltre,
+          setOzetBorcFiltre,
+          ozetBorcSort,
+          setOzetBorcSort,
+          personelOzetleri,
+          onOpenMiniDetay: setOzetMiniDetay,
+          onOpenMusteriEkstre: handleMusteriEkstreAc,
+          helpers: { fSayiNoDec },
+        });
       case "sut":
-        return (
-          <SutPanel
-            aktifDonem={aktifDonem}
-            aktifKullaniciEposta={aktifKullaniciEposta}
-            aktifKullaniciKisa={aktifKullaniciKisa}
-            isAdmin={isAdmin}
-            sutList={sutList}
-            tedarikciler={tedarikciler}
-            temaRengi={temaRengi}
-            onRefreshSut={() => verileriGetir("sut")}
-            onRefreshCop={() => verileriGetir("cop")}
-            helpers={{
-              fSayi,
-              fSayiNoDec,
-              veritabaniHatasiMesaji,
-            }}
-          />
-        );
+        return sekmeBileseniniRenderEt(sutPanelSekmesi.hazirBilesen(), SutPanel, {
+          aktifDonem,
+          aktifKullaniciEposta,
+          aktifKullaniciKisa,
+          isAdmin,
+          sutList,
+          tedarikciler,
+          temaRengi,
+          onRefreshSut: () => verileriGetir("sut"),
+          onRefreshCop: () => verileriGetir("cop"),
+          helpers: {
+            fSayi,
+            fSayiNoDec,
+            veritabaniHatasiMesaji,
+          },
+        });
       case "sevkiyat":
-        return <SevkiyatPanel aktifKullaniciKisa={aktifKullaniciKisa} aktifDonem={aktifDonem} />;
+        return sekmeBileseniniRenderEt(sevkiyatPanelSekmesi.hazirBilesen(), SevkiyatPanel, {
+          aktifKullaniciKisa,
+          aktifDonem,
+        });
       case "cek_senet":
-        return <CekSenetPanel aktifKullaniciKisa={aktifKullaniciKisa} aktifDonem={aktifDonem} />;
+        return sekmeBileseniniRenderEt(cekSenetPanelSekmesi.hazirBilesen(), CekSenetPanel, {
+          aktifKullaniciKisa,
+          aktifDonem,
+        });
       case "gider":
-        return (
-          <GiderPanel
-            aktifDonem={aktifDonem}
-            aktifKullaniciEposta={aktifKullaniciEposta}
-            aktifKullaniciKisa={aktifKullaniciKisa}
-            giderTurleri={giderTurleri}
-            periodGider={periodGider}
-            kaydiSilebilirMi={kaydiSilebilirMi}
-            kaydiDuzenleyebilirMi={kaydiDuzenleyebilirMi}
-            onRefreshGiderler={() => verileriGetir("gider")}
-            onOpenMiniDetay={setOzetMiniDetay}
-            onPreviewImage={setFisGorselOnizleme}
-            helpers={{
-              fSayi,
-              veritabaniHatasiMesaji,
-              kolonBulunamadiMi,
-              paraGirdisiniTemizle,
-              paraGirdisiniSayiyaCevir,
-              paraGirdisiniFormatla,
-              dosyaAdiIcinTemizle,
-              gorseliYuklemeIcinKucult,
-              fisGorselStorageYolu,
-              gorselBoyutunuGetir,
-              gorselIndirmeAdiBul,
-            }}
-          />
-        );
+        return sekmeBileseniniRenderEt(giderPanelSekmesi.hazirBilesen(), GiderPanel, {
+          aktifDonem,
+          aktifKullaniciEposta,
+          aktifKullaniciKisa,
+          giderTurleri,
+          periodGider,
+          kaydiSilebilirMi,
+          kaydiDuzenleyebilirMi,
+          onRefreshGiderler: () => verileriGetir("gider"),
+          onOpenMiniDetay: setOzetMiniDetay,
+          onPreviewImage: setFisGorselOnizleme,
+          helpers: {
+            fSayi,
+            veritabaniHatasiMesaji,
+            kolonBulunamadiMi,
+            paraGirdisiniTemizle,
+            paraGirdisiniSayiyaCevir,
+            paraGirdisiniFormatla,
+            dosyaAdiIcinTemizle,
+            gorseliYuklemeIcinKucult,
+            fisGorselStorageYolu,
+            gorselBoyutunuGetir,
+            gorselIndirmeAdiBul,
+          },
+        });
       case "uretim":
-        return (
-          <UretimPanel
-            aktifDonem={aktifDonem}
-            aktifKullaniciEposta={aktifKullaniciEposta}
-            aktifKullaniciKisa={aktifKullaniciKisa}
-            isAdmin={isAdmin}
-            uretimList={uretimList}
-            onRefreshUretim={() => verileriGetir("uretim")}
-            onRefreshCop={() => verileriGetir("cop")}
-            helpers={{ fSayi, veritabaniHatasiMesaji }}
-          />
-        );
+        return sekmeBileseniniRenderEt(uretimPanelSekmesi.hazirBilesen(), UretimPanel, {
+          aktifDonem,
+          aktifKullaniciEposta,
+          aktifKullaniciKisa,
+          isAdmin,
+          uretimList,
+          onRefreshUretim: () => verileriGetir("uretim"),
+          onRefreshCop: () => verileriGetir("cop"),
+          helpers: { fSayi, veritabaniHatasiMesaji },
+        });
       case "analiz":
-        return (
-          <AnalizPanel
-            periodSatisList={periodSatisList}
-            bayiler={bayiler}
-            urunler={urunler}
-            helpers={{ fSayi }}
-          />
-        );
+        return sekmeBileseniniRenderEt(analizPanelSekmesi.hazirBilesen(), AnalizPanel, {
+          periodSatisList,
+          bayiler,
+          urunler,
+          helpers: { fSayi },
+        });
       case "ayarlar":
         return renderAyarlar();
       default:
@@ -3199,12 +3236,28 @@ export default function App() {
     return temaRengi;
   };
 
-  const sekmeSec = (tabId: AppTabId) => {
-    setActiveTab(tabId);
+  const sekmeSec = async (tabId: AppTabId) => {
     setIsFisModalOpen(false);
     resetTahsilatForm();
     setIsTahsilatModalOpen(false);
     setIsBottomMenuOpen(false);
+
+    if (tabId === activeTab) return;
+
+    const gecisIstegi = sekmeGecisIstegiRef.current + 1;
+    sekmeGecisIstegiRef.current = gecisIstegi;
+
+    try {
+      await sekmeModulunuGetir(tabId);
+    } catch (error) {
+      if (gecisIstegi === sekmeGecisIstegiRef.current) {
+        sekmeYuklemeHatasiniGoster(tabId, error);
+      }
+      return;
+    }
+
+    if (gecisIstegi !== sekmeGecisIstegiRef.current) return;
+    setActiveTab(tabId);
   };
 
   const altMenuyuAcKapat = () => {
