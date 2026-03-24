@@ -2304,10 +2304,9 @@ export default function App() {
     setSonFisData({ 
       id: fis.id, fis_no: fis.fis_no, tarih: fis.tarih, bayi: satisFisBayiAdiGetir(fis), aciklama: safAciklama, teslim_alan: tAlan, fis_gorseli: fis.fis_gorseli, created_at: fis.created_at || satisFisCreatedAtBul(fis.id), updated_at: fis.updated_at || null, ekleyen: fis.ekleyen,
       urunler: ilgiliUrunler.map(u => {
-          let calculatedKg = 0;
+          let calculatedKg = hesaplaFisGosterimKg(String(u.urun || ""), u.adet, u.toplam_kg);
           const a = Number(u.adet), t = Number(u.tutar), f = Number(u.fiyat);
-          const isKova = String(u.urun).match(/([345])\s*kg/i);
-          if (f !== 0 && !isKova && Math.abs(t - (a * f)) > 0.01) calculatedKg = t / f;
+          if (calculatedKg === 0 && f !== 0 && Math.abs(t - (a * f)) > 0.01) calculatedKg = t / f;
           return { isim: u.urun, adet: a, kg: calculatedKg, fiyat: f, tutar: t };
       }), 
       ekstraIndirimler,
