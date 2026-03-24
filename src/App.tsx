@@ -367,32 +367,56 @@ class LazySekmeHataSiniri extends Component<LazySekmeHataSiniriProps, LazySekmeH
   }
 }
 
+const ozetPanelModulunuGetir = () => import("./components/OzetPanel");
+const satisPanelModulunuGetir = () => import("./components/SatisPanel");
+const sutPanelModulunuGetir = () => import("./components/SutPanel");
+const sevkiyatPanelModulunuGetir = () => import("./components/SevkiyatPanel");
+const cekSenetPanelModulunuGetir = () => import("./components/CekSenetPanel");
+const giderPanelModulunuGetir = () => import("./components/GiderPanel");
+const uretimPanelModulunuGetir = () => import("./components/UretimPanel");
+const analizPanelModulunuGetir = () => import("./components/AnalizPanel");
+const settingsPanelModulunuGetir = () => import("./components/SettingsPanel");
+const sekmeModulYukleyicileri: Record<AppTabId, () => Promise<unknown>> = {
+  ozet: ozetPanelModulunuGetir,
+  satis: satisPanelModulunuGetir,
+  sut: sutPanelModulunuGetir,
+  sevkiyat: sevkiyatPanelModulunuGetir,
+  cek_senet: cekSenetPanelModulunuGetir,
+  gider: giderPanelModulunuGetir,
+  uretim: uretimPanelModulunuGetir,
+  analiz: analizPanelModulunuGetir,
+  ayarlar: settingsPanelModulunuGetir,
+};
+const sekmeModulunuOnYukle = (tabId: AppTabId) =>
+  sekmeModulYukleyicileri[tabId]().catch((error) => {
+    console.warn(`${tabId} sekmesi arka planda hazırlanamadı:`, error);
+  });
 const OzetPanel = lazy(() =>
-  import("./components/OzetPanel").then((module) => ({ default: module.OzetPanel })),
+  ozetPanelModulunuGetir().then((module) => ({ default: module.OzetPanel })),
 );
 const SatisPanel = lazy(() =>
-  import("./components/SatisPanel").then((module) => ({ default: module.SatisPanel })),
+  satisPanelModulunuGetir().then((module) => ({ default: module.SatisPanel })),
 );
 const SutPanel = lazy(() =>
-  import("./components/SutPanel").then((module) => ({ default: module.SutPanel })),
+  sutPanelModulunuGetir().then((module) => ({ default: module.SutPanel })),
 );
 const SevkiyatPanel = lazy(() =>
-  import("./components/SevkiyatPanel").then((module) => ({ default: module.SevkiyatPanel })),
+  sevkiyatPanelModulunuGetir().then((module) => ({ default: module.SevkiyatPanel })),
 );
 const CekSenetPanel = lazy(() =>
-  import("./components/CekSenetPanel").then((module) => ({ default: module.CekSenetPanel })),
+  cekSenetPanelModulunuGetir().then((module) => ({ default: module.CekSenetPanel })),
 );
 const GiderPanel = lazy(() =>
-  import("./components/GiderPanel").then((module) => ({ default: module.GiderPanel })),
+  giderPanelModulunuGetir().then((module) => ({ default: module.GiderPanel })),
 );
 const UretimPanel = lazy(() =>
-  import("./components/UretimPanel").then((module) => ({ default: module.UretimPanel })),
+  uretimPanelModulunuGetir().then((module) => ({ default: module.UretimPanel })),
 );
 const AnalizPanel = lazy(() =>
-  import("./components/AnalizPanel").then((module) => ({ default: module.AnalizPanel })),
+  analizPanelModulunuGetir().then((module) => ({ default: module.AnalizPanel })),
 );
 const SettingsPanel = lazy(() =>
-  import("./components/SettingsPanel").then((module) => ({ default: module.SettingsPanel })),
+  settingsPanelModulunuGetir().then((module) => ({ default: module.SettingsPanel })),
 );
 const yedeklemeModulunuGetir = () => import("./lib/backup");
 const sekmeYukleniyorFallback = (
@@ -417,6 +441,7 @@ export default function App() {
   const [password, setPassword] = useState<string>("");
   const [activeTab, setActiveTab] = useState<AppTabId>("satis");
   const [isBottomMenuOpen, setIsBottomMenuOpen] = useState(false);
+  const onYuklenenSekmelerRef = useRef<Set<AppTabId>>(new Set());
   const oturumAcilisSekmesiRef = useRef<string | null>(null);
   const bottomMenuRef = useRef<HTMLElement | null>(null);
 
@@ -778,6 +803,13 @@ export default function App() {
     () => altMenuDigerSekmeleri.some((tab) => tab.id === activeTab),
     [activeTab, altMenuDigerSekmeleri],
   );
+  const sekmeleriOnYukle = useCallback((tablar: AppTabId[]) => {
+    tablar.forEach((tabId) => {
+      if (onYuklenenSekmelerRef.current.has(tabId)) return;
+      onYuklenenSekmelerRef.current.add(tabId);
+      void sekmeModulunuOnYukle(tabId);
+    });
+  }, []);
 
   useEffect(() => {
     if (!gorunurSekmeler.some((tab) => tab.id === activeTab)) {
@@ -806,6 +838,23 @@ export default function App() {
   useEffect(() => {
     setIsBottomMenuOpen(false);
   }, [activeTab]);
+
+  useEffect(() => {
+    if (!session?.user?.id || activeTab !== "satis" || !gorunurSekmeler.length) return;
+
+    const onYuklenecekSekmeler = (["ozet", "gider"] as AppTabId[]).filter((tabId) =>
+      gorunurSekmeler.some((tab) => tab.id === tabId),
+    );
+    if (!onYuklenecekSekmeler.length) return;
+
+    const zamanlayici = window.setTimeout(() => {
+      sekmeleriOnYukle(onYuklenecekSekmeler);
+    }, 1200);
+
+    return () => {
+      window.clearTimeout(zamanlayici);
+    };
+  }, [activeTab, gorunurSekmeler, session?.user?.id, sekmeleriOnYukle]);
 
   useEffect(() => {
     if (!isBottomMenuOpen) return;
@@ -3158,6 +3207,14 @@ export default function App() {
     setIsBottomMenuOpen(false);
   };
 
+  const altMenuyuAcKapat = () => {
+    const aciliyor = !isBottomMenuOpen;
+    if (aciliyor) {
+      sekmeleriOnYukle(altMenuDigerSekmeleri.map((tab) => tab.id));
+    }
+    setIsBottomMenuOpen(aciliyor);
+  };
+
   const sekmeButonStili = (renk: string, aktif: boolean) =>
     aktif
       ? {
@@ -3844,7 +3901,7 @@ export default function App() {
         {altMenuDigerSekmeleri.length > 0 && (
           <div style={{ position: "relative", display: "flex", flex: 1, order: -1 }}>
             <button
-              onClick={() => setIsBottomMenuOpen((prev) => !prev)}
+              onClick={altMenuyuAcKapat}
               className={`n-item btn-anim ${isBottomMenuOpen || altMenuGizliSekmeAktif ? "active" : ""}`}
               style={sekmeButonStili(sekmeRengiGetir("menu"), isBottomMenuOpen || altMenuGizliSekmeAktif)}
             >
