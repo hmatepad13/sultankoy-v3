@@ -238,6 +238,31 @@ const satisFisSaatiniFormatla = (deger?: string | null) => {
   return tarih.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
 };
 
+const satisFisSiralamaZamaniBul = (fis?: {
+  id?: string | number | null;
+  fis_no?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}) => {
+  const zamanAdaylari = [fis?.updated_at, fis?.created_at];
+  for (const zamanAdayi of zamanAdaylari) {
+    const zamanDamgasi = Date.parse(String(zamanAdayi || ""));
+    if (!Number.isNaN(zamanDamgasi)) return zamanDamgasi;
+  }
+
+  const idDegeri = Number(fis?.id);
+  if (Number.isFinite(idDegeri) && idDegeri > 0) {
+    return idDegeri;
+  }
+
+  const fisNoDegeri = Number(String(fis?.fis_no || "").replace(/\D/g, ""));
+  if (Number.isFinite(fisNoDegeri) && fisNoDegeri > 0) {
+    return fisNoDegeri;
+  }
+
+  return 0;
+};
+
 const dosyaAdiIcinTemizle = (deger?: string | null) =>
   String(deger || "fis")
     .toLocaleLowerCase("tr-TR")
@@ -1418,8 +1443,10 @@ export default function App() {
         if (strA > strB) return sortConfig.direction === 'asc' ? 1 : -1;
       }
 
-      const createdAtA = Date.parse(String(a.created_at || ""));
-      const createdAtB = Date.parse(String(b.created_at || ""));
+      const siralamaZamaniA = satisFisSiralamaZamaniBul(a);
+      const siralamaZamaniB = satisFisSiralamaZamaniBul(b);
+      const createdAtA = siralamaZamaniA;
+      const createdAtB = siralamaZamaniB;
       if (!Number.isNaN(createdAtA) && !Number.isNaN(createdAtB) && createdAtA !== createdAtB) {
         return sortConfig.direction === 'asc' ? createdAtA - createdAtB : createdAtB - createdAtA;
       }
@@ -2053,6 +2080,7 @@ export default function App() {
         fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, aciklama: fisUst.aciklama, teslim_alan: fisUst.teslim_alan,
         fis_gorseli: fisGorselYolu,
         created_at: sonuc?.created_at || satisFisCreatedAtBul(savedFisId) || new Date().toISOString(),
+        updated_at: sonuc?.updated_at || new Date().toISOString(),
         ekleyen: aktifKullaniciEposta,
         urunler: eklenecekUrunler.map(u => {
           const adet = Number(fisDetay[u.id].adet);
@@ -2150,6 +2178,7 @@ export default function App() {
       fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, aciklama: fisUst.aciklama, teslim_alan: fisUst.teslim_alan,
       fis_gorseli: fisGorselYolu,
       created_at: yeniFisCreatedAt || satisFisCreatedAtBul(savedFisId) || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
       ekleyen: aktifKullaniciEposta,
       urunler: eklenecekUrunler.map(u => {
          const adet = Number(fisDetay[u.id].adet);
@@ -2273,7 +2302,7 @@ export default function App() {
     if (safAciklama.includes("[Sadece Tahsilat]")) safAciklama = safAciklama.replace(/\[Sadece Tahsilat\]\s*-\s*/, "").replace(/\[Sadece Tahsilat\]/, "");
 
     setSonFisData({ 
-      id: fis.id, fis_no: fis.fis_no, tarih: fis.tarih, bayi: satisFisBayiAdiGetir(fis), aciklama: safAciklama, teslim_alan: tAlan, fis_gorseli: fis.fis_gorseli, created_at: fis.created_at || satisFisCreatedAtBul(fis.id), ekleyen: fis.ekleyen,
+      id: fis.id, fis_no: fis.fis_no, tarih: fis.tarih, bayi: satisFisBayiAdiGetir(fis), aciklama: safAciklama, teslim_alan: tAlan, fis_gorseli: fis.fis_gorseli, created_at: fis.created_at || satisFisCreatedAtBul(fis.id), updated_at: fis.updated_at || null, ekleyen: fis.ekleyen,
       urunler: ilgiliUrunler.map(u => {
           let calculatedKg = 0;
           const a = Number(u.adet), t = Number(u.tutar), f = Number(u.fiyat);
@@ -3585,7 +3614,7 @@ export default function App() {
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#000", marginBottom: "2px", gap: "8px" }}>
                     <span>Tarih | Fiş No:</span>
                     <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end", textAlign: "right", flexWrap: "wrap" }}>
-                      <span>{sonFisData.tarih.split("-").reverse().join(".")}{satisFisSaatiniFormatla(sonFisData.created_at) ? ` ${satisFisSaatiniFormatla(sonFisData.created_at)}` : ""}</span>
+                      <span>{sonFisData.tarih.split("-").reverse().join(".")}{satisFisSaatiniFormatla(sonFisData.updated_at || sonFisData.created_at) ? ` ${satisFisSaatiniFormatla(sonFisData.updated_at || sonFisData.created_at)}` : ""}</span>
                       <span style={{ color: "#334155", fontWeight: 400 }}>{gorunenFisNoOlustur(sonFisData)}</span>
                     </div>
                   </div>
