@@ -303,54 +303,75 @@ export function SevkiyatPanel({ aktifKullaniciKisa, aktifDonem }: SevkiyatPanelP
 
   return (
     <div className="tab-fade-in main-content-area">
-      <div className="card" style={{ borderLeft: "4px solid #ea580c", marginBottom: "8px", padding: "10px 12px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", marginBottom: "8px", flexWrap: "wrap" }}>
-          <h3 style={{ margin: 0, color: "#9a3412", fontSize: "16px" }}>Sevkiyat</h3>
-          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginLeft: "auto" }}>
-            <div style={{ minWidth: "72px", border: "1px solid #ea580c33", background: "#fff7ed", color: "#c2410c", borderRadius: "10px", padding: "4px 8px", textAlign: "center" }}>
-              <div style={{ fontSize: "9px", fontWeight: "bold" }}>TOP 3 KG</div>
-              <div style={{ fontSize: "14px", fontWeight: "bold", marginTop: "1px" }}>{fSayiNoDec(sevkiyatToplamlari.yogurt3kg)}</div>
+      <div className="card" style={{ borderLeft: "4px solid #ea580c", marginBottom: "8px", padding: "8px 10px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "6px", marginBottom: "6px", flexWrap: "wrap" }}>
+          <h3 style={{ margin: 0, color: "#9a3412", fontSize: "14px", lineHeight: 1.1 }}>Sevkiyat</h3>
+          <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", marginLeft: "auto" }}>
+            <div style={{ minWidth: "58px", border: "1px solid #ea580c33", background: "#fff7ed", color: "#c2410c", borderRadius: "8px", padding: "3px 5px", textAlign: "center" }}>
+              <div style={{ fontSize: "7px", fontWeight: "bold", lineHeight: 1.05 }}>TOP 3 KG</div>
+              <div style={{ fontSize: "11px", fontWeight: "bold", marginTop: "2px", lineHeight: 1 }}>{fSayiNoDec(sevkiyatToplamlari.yogurt3kg)}</div>
             </div>
-            <div style={{ minWidth: "72px", border: "1px solid #c2410c33", background: "#fff7ed", color: "#c2410c", borderRadius: "10px", padding: "4px 8px", textAlign: "center" }}>
-              <div style={{ fontSize: "9px", fontWeight: "bold" }}>TOP 5 KG</div>
-              <div style={{ fontSize: "14px", fontWeight: "bold", marginTop: "1px" }}>{fSayiNoDec(sevkiyatToplamlari.yogurt5kg)}</div>
+            <div style={{ minWidth: "58px", border: "1px solid #c2410c33", background: "#fff7ed", color: "#c2410c", borderRadius: "8px", padding: "3px 5px", textAlign: "center" }}>
+              <div style={{ fontSize: "7px", fontWeight: "bold", lineHeight: 1.05 }}>TOP 5 KG</div>
+              <div style={{ fontSize: "11px", fontWeight: "bold", marginTop: "2px", lineHeight: 1 }}>{fSayiNoDec(sevkiyatToplamlari.yogurt5kg)}</div>
             </div>
-            <div style={{ minWidth: "84px", border: "1px solid #9a341233", background: "#fff7ed", color: "#9a3412", borderRadius: "10px", padding: "4px 8px", textAlign: "center" }}>
-              <div style={{ fontSize: "9px", fontWeight: "bold" }}>TOP KAYMAK</div>
-              <div style={{ fontSize: "14px", fontWeight: "bold", marginTop: "1px" }}>{fSayiNoDec(sevkiyatToplamlari.kaymak)}</div>
+            <div style={{ minWidth: "66px", border: "1px solid #9a341233", background: "#fff7ed", color: "#9a3412", borderRadius: "8px", padding: "3px 5px", textAlign: "center" }}>
+              <div style={{ fontSize: "7px", fontWeight: "bold", lineHeight: 1.05 }}>TOP KAYMAK</div>
+              <div style={{ fontSize: "11px", fontWeight: "bold", marginTop: "2px", lineHeight: 1 }}>{fSayiNoDec(sevkiyatToplamlari.kaymak)}</div>
             </div>
           </div>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", marginBottom: "6px", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "6px", marginBottom: "6px", flexWrap: "wrap" }}>
           <input
             type="date"
             className="m-inp"
             value={sevkiyatForm.tarih}
             onChange={(e) => setSevkiyatForm((prev) => ({ ...prev, tarih: e.target.value }))}
-            style={{ width: "146px", flex: "0 0 146px", height: "32px", minHeight: "32px", padding: "4px 8px", fontSize: "12px" }}
+            style={{ width: "136px", flex: "0 0 136px", height: "30px", minHeight: "30px", padding: "4px 8px", fontSize: "11px" }}
           />
-          <div style={{ display: "flex", background: "#cbd5e1", borderRadius: "6px", overflow: "hidden", flex: "0 0 auto", width: "160px" }}>
-            <button onClick={() => setSevkiyatFiltreKisi("benim")} style={{ flex: 1, padding: "6px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "bold", background: sevkiyatFiltreKisi === "benim" ? "#ea580c" : "transparent", color: sevkiyatFiltreKisi === "benim" ? "#fff" : "#475569" }}>Benim</button>
-            <button onClick={() => setSevkiyatFiltreKisi("tumu")} style={{ flex: 1, padding: "6px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "bold", background: sevkiyatFiltreKisi === "tumu" ? "#ea580c" : "transparent", color: sevkiyatFiltreKisi === "tumu" ? "#fff" : "#475569" }}>Tümü</button>
+          <div style={{ display: "flex", background: "#cbd5e1", borderRadius: "6px", overflow: "hidden", flex: "0 0 auto", width: "148px" }}>
+            <button onClick={() => setSevkiyatFiltreKisi("benim")} style={{ flex: 1, padding: "5px", border: "none", cursor: "pointer", fontSize: "11px", fontWeight: "bold", background: sevkiyatFiltreKisi === "benim" ? "#ea580c" : "transparent", color: sevkiyatFiltreKisi === "benim" ? "#fff" : "#475569" }}>Benim</button>
+            <button onClick={() => setSevkiyatFiltreKisi("tumu")} style={{ flex: 1, padding: "5px", border: "none", cursor: "pointer", fontSize: "11px", fontWeight: "bold", background: sevkiyatFiltreKisi === "tumu" ? "#ea580c" : "transparent", color: sevkiyatFiltreKisi === "tumu" ? "#fff" : "#475569" }}>Tümü</button>
           </div>
-          <button onClick={() => void handleSevkiyatKaydet()} disabled={isKaydediliyor} className="p-btn btn-anim" style={{ background: "#ea580c", minWidth: "110px", height: "32px", padding: "0 14px", fontSize: "12px", marginLeft: "auto", opacity: isKaydediliyor ? 0.7 : 1, cursor: isKaydediliyor ? "wait" : "pointer" }}>
+          <button onClick={() => void handleSevkiyatKaydet()} disabled={isKaydediliyor} className="p-btn btn-anim" style={{ background: "#ea580c", minWidth: "102px", height: "30px", padding: "0 12px", fontSize: "11px", marginLeft: "auto", opacity: isKaydediliyor ? 0.7 : 1, cursor: isKaydediliyor ? "wait" : "pointer" }}>
             {isKaydediliyor ? "KAYDEDİLİYOR" : editingSevkiyatId ? "GÜNCELLE" : "KAYDET"}
           </button>
         </div>
 
-        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-          <label style={{ display: "flex", flexDirection: "column", gap: "4px", width: "136px", flex: "0 0 136px" }}>
-            <span style={{ fontSize: "12px", fontWeight: "bold", color: "#7c2d12" }}>3 KG Yoğurt</span>
-            <input type="text" inputMode="numeric" className="m-inp" style={{ flex: "0 0 auto", width: "100%", height: "34px", minHeight: "34px", padding: "4px 8px", fontSize: "12px" }} value={sevkiyatForm.yogurt3kg} onChange={(e) => handleSevkiyatInputDegistir("yogurt3kg", e.target.value)} />
+        <div style={{ display: "grid", gap: "10px", gridTemplateColumns: "repeat(3, minmax(72px, 88px))", justifyContent: "space-between" }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: "3px", minWidth: 0, alignItems: "flex-start" }}>
+            <span style={{ fontSize: "11px", fontWeight: "bold", color: "#7c2d12", lineHeight: 1.1 }}>3 KG Yoğurt</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              className="m-inp"
+              style={{ width: "88px", maxWidth: "100%", flex: "0 0 30px", height: "30px", minHeight: "30px", padding: "4px 6px", fontSize: "11px", textAlign: "center", boxSizing: "border-box" }}
+              value={sevkiyatForm.yogurt3kg}
+              onChange={(e) => handleSevkiyatInputDegistir("yogurt3kg", e.target.value)}
+            />
           </label>
-          <label style={{ display: "flex", flexDirection: "column", gap: "4px", width: "136px", flex: "0 0 136px" }}>
-            <span style={{ fontSize: "12px", fontWeight: "bold", color: "#7c2d12" }}>5 KG Yoğurt</span>
-            <input type="text" inputMode="numeric" className="m-inp" style={{ flex: "0 0 auto", width: "100%", height: "34px", minHeight: "34px", padding: "4px 8px", fontSize: "12px" }} value={sevkiyatForm.yogurt5kg} onChange={(e) => handleSevkiyatInputDegistir("yogurt5kg", e.target.value)} />
+          <label style={{ display: "flex", flexDirection: "column", gap: "3px", minWidth: 0, alignItems: "flex-start" }}>
+            <span style={{ fontSize: "11px", fontWeight: "bold", color: "#7c2d12", lineHeight: 1.1 }}>5 KG Yoğurt</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              className="m-inp"
+              style={{ width: "88px", maxWidth: "100%", flex: "0 0 30px", height: "30px", minHeight: "30px", padding: "4px 6px", fontSize: "11px", textAlign: "center", boxSizing: "border-box" }}
+              value={sevkiyatForm.yogurt5kg}
+              onChange={(e) => handleSevkiyatInputDegistir("yogurt5kg", e.target.value)}
+            />
           </label>
-          <label style={{ display: "flex", flexDirection: "column", gap: "4px", width: "136px", flex: "0 0 136px" }}>
-            <span style={{ fontSize: "12px", fontWeight: "bold", color: "#7c2d12" }}>Kaymak</span>
-            <input type="text" inputMode="numeric" className="m-inp" style={{ flex: "0 0 auto", width: "100%", height: "34px", minHeight: "34px", padding: "4px 8px", fontSize: "12px" }} value={sevkiyatForm.kaymak} onChange={(e) => handleSevkiyatInputDegistir("kaymak", e.target.value)} />
+          <label style={{ display: "flex", flexDirection: "column", gap: "3px", minWidth: 0, alignItems: "flex-start" }}>
+            <span style={{ fontSize: "11px", fontWeight: "bold", color: "#7c2d12", lineHeight: 1.1 }}>Kaymak</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              className="m-inp"
+              style={{ width: "88px", maxWidth: "100%", flex: "0 0 30px", height: "30px", minHeight: "30px", padding: "4px 6px", fontSize: "11px", textAlign: "center", boxSizing: "border-box" }}
+              value={sevkiyatForm.kaymak}
+              onChange={(e) => handleSevkiyatInputDegistir("kaymak", e.target.value)}
+            />
           </label>
         </div>
       </div>
@@ -365,38 +386,55 @@ export function SevkiyatPanel({ aktifKullaniciKisa, aktifDonem }: SevkiyatPanelP
         <table className="tbl" style={{ tableLayout: "fixed" }}>
           <thead>
             <tr>
-              <th style={{ width: "16%", textAlign: "center", background: "#5b9bd5", color: "#fff" }}>TAR.</th>
-              <th style={{ width: "22%", textAlign: "left", background: "#5b9bd5", color: "#fff" }}>KİŞİ</th>
-              <th style={{ width: "18%", textAlign: "right", background: "#5b9bd5", color: "#fff" }}>3 KG</th>
-              <th style={{ width: "18%", textAlign: "right", background: "#5b9bd5", color: "#fff" }}>5 KG</th>
-              <th style={{ width: "18%", textAlign: "right", background: "#5b9bd5", color: "#fff" }}>KAYMAK</th>
+              <th style={{ width: "34%", textAlign: "left", background: "#5b9bd5", color: "#fff" }}>TAR / KİŞİ</th>
+              <th style={{ width: "38%", textAlign: "right", background: "#5b9bd5", color: "#fff" }}>YOĞURT</th>
+              <th style={{ width: "20%", textAlign: "right", background: "#5b9bd5", color: "#fff" }}>KAYMAK</th>
               <th style={{ width: "8%", background: "#5b9bd5" }}></th>
             </tr>
           </thead>
           <tbody>
             {isYukleniyor && (
               <tr>
-                <td colSpan={6} style={{ textAlign: "center", padding: "14px", color: "#64748b", fontWeight: "bold" }}>
+                <td colSpan={4} style={{ textAlign: "center", padding: "14px", color: "#64748b", fontWeight: "bold" }}>
                   Yükleniyor...
                 </td>
               </tr>
             )}
             {!isYukleniyor && filtrelenmisSevkiyatlar.length === 0 && (
               <tr>
-                <td colSpan={6} style={{ textAlign: "center", padding: "14px", color: "#94a3b8", fontWeight: "bold" }}>
+                <td colSpan={4} style={{ textAlign: "center", padding: "14px", color: "#94a3b8", fontWeight: "bold" }}>
                   Sevkiyat kaydı bulunmuyor.
                 </td>
               </tr>
             )}
             {!isYukleniyor && filtrelenmisSevkiyatlar.map((kayit) => (
               <tr key={String(kayit.id)}>
-                <td style={{ textAlign: "center" }}>{kayit.tarih.split("-").reverse().slice(0, 2).join(".")}</td>
-                <td style={{ fontWeight: "bold", textAlign: "left" }}>{kayit.kullanici}</td>
-                <td style={{ textAlign: "right", fontWeight: "bold", color: "#ea580c" }}>{fSayiNoDec(kayit.yogurt3kg)}</td>
-                <td style={{ textAlign: "right", fontWeight: "bold", color: "#ea580c" }}>{fSayiNoDec(kayit.yogurt5kg)}</td>
+                <td style={{ textAlign: "left" }}>
+                  <div style={{ display: "grid", gap: "2px", minWidth: 0 }}>
+                    <span style={{ fontWeight: "bold", color: "#0f172a", lineHeight: 1.15 }}>{kayit.tarih.split("-").reverse().slice(0, 2).join(".")}</span>
+                    <span
+                      title={kayit.kullanici}
+                      style={{ fontSize: "10px", color: "#64748b", lineHeight: 1.15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                    >
+                      {kayit.kullanici}
+                    </span>
+                  </div>
+                </td>
+                <td style={{ textAlign: "right", fontWeight: "bold", color: "#ea580c" }}>
+                  <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "4px", flexWrap: "wrap" }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "3px", borderRadius: "999px", padding: "2px 6px", background: "#fff7ed", color: "#c2410c", fontSize: "10px", lineHeight: 1.1 }}>
+                      <span style={{ color: "#9a3412", fontWeight: 700 }}>3K</span>
+                      <span>{fSayiNoDec(kayit.yogurt3kg)}</span>
+                    </span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "3px", borderRadius: "999px", padding: "2px 6px", background: "#fff7ed", color: "#c2410c", fontSize: "10px", lineHeight: 1.1 }}>
+                      <span style={{ color: "#9a3412", fontWeight: 700 }}>5K</span>
+                      <span>{fSayiNoDec(kayit.yogurt5kg)}</span>
+                    </span>
+                  </div>
+                </td>
                 <td style={{ textAlign: "right", fontWeight: "bold", color: "#ea580c" }}>{fSayiNoDec(kayit.kaymak)}</td>
                 <td className="actions-cell" style={{ position: "relative" }}>
-                  <button onClick={(e) => { e.stopPropagation(); setOpenDropdown({ type: "sevkiyat", id: kayit.id }); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "18px", padding: "0 8px", color: "#64748b" }}>⋮</button>
+                  <button onClick={(e) => { e.stopPropagation(); setOpenDropdown({ type: "sevkiyat", id: kayit.id }); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "16px", padding: "0 4px", color: "#64748b" }}>⋮</button>
                   {openDropdown?.type === "sevkiyat" && Number(openDropdown.id) === Number(kayit.id) && (
                     <div className="dropdown-menu">
                       <button title="Detay Gör" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); setSevkiyatDetayKaydi(kayit); }}>🔍</button>

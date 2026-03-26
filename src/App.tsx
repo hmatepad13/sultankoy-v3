@@ -14,6 +14,7 @@ import {
   type ReactNode,
 } from "react";
 import { LoginScreen } from "./components/LoginScreen";
+import { SatisPanel } from "./components/SatisPanel";
 import {
   GIDER_TURLERI,
   TAB_TANIMLARI,
@@ -30,6 +31,7 @@ import {
   sutOdemesiMi,
   sutTozuOdemesiMi,
 } from "./lib/gider";
+import { installClientTelemetry, logClientError, logClientEvent, setClientTelemetryContext } from "./lib/clientTelemetry";
 import { adminMi, kullaniciYetkileriniKaydet, kullaniciYetkileriniYukle, kullaniciYetkisiniBul } from "./lib/permissions";
 import { supabase } from "./lib/supabase";
 import { uretimKaydiniNormalizeEt } from "./lib/uretim";
@@ -317,6 +319,9 @@ class LazySekmeHataSiniri extends Component<LazySekmeHataSiniriProps, LazySekmeH
 
   componentDidCatch(error: unknown, info: ErrorInfo) {
     console.error("Lazy sekme yüklenemedi:", error, info);
+    logClientError("lazy.tab.boundary", error, {
+      componentStack: info.componentStack || "",
+    });
   }
 
   componentDidUpdate(prevProps: LazySekmeHataSiniriProps) {
@@ -399,9 +404,10 @@ const onYuklenebilirSekmeOlustur = (
 const ozetPanelSekmesi = onYuklenebilirSekmeOlustur(() =>
   import("./components/OzetPanel").then((module) => ({ default: module.OzetPanel })),
 );
-const satisPanelSekmesi = onYuklenebilirSekmeOlustur(() =>
-  import("./components/SatisPanel").then((module) => ({ default: module.SatisPanel })),
-);
+const satisPanelSekmesi = {
+  yukle: () => Promise.resolve({ default: SatisPanel }),
+  hazirBilesen: () => SatisPanel,
+};
 const sutPanelSekmesi = onYuklenebilirSekmeOlustur(() =>
   import("./components/SutPanel").then((module) => ({ default: module.SutPanel })),
 );
@@ -445,7 +451,6 @@ const sekmeBileseniniRenderEt = (hazirBilesen: any, lazyBilesen: any, props: any
   return <Bilesen {...props} />;
 };
 const OzetPanel = ozetPanelSekmesi.LazyBilesen;
-const SatisPanel = satisPanelSekmesi.LazyBilesen;
 const SutPanel = sutPanelSekmesi.LazyBilesen;
 const SevkiyatPanel = sevkiyatPanelSekmesi.LazyBilesen;
 const CekSenetPanel = cekSenetPanelSekmesi.LazyBilesen;
@@ -735,6 +740,7 @@ export default function App() {
   useEffect(() => {
     const savedUser = localStorage.getItem("user");
     if (savedUser) setUsername(normalizeUsername(savedUser));
+    installClientTelemetry();
 
     let viewportMeta = document.querySelector('meta[name="viewport"]');
     if (!viewportMeta) {
@@ -756,6 +762,7 @@ export default function App() {
       .then(async ({ data: { session: s }, error }: any) => {
         if (error?.message?.toLowerCase().includes("refresh token")) {
           await yerelOturumuTemizle();
+          logClientError("auth.getSession", error, { stage: "refresh-token" });
           setAuthHata("Oturum süresi dolmuş veya bozulmuş. Lütfen tekrar giriş yapın.");
           return;
         }
@@ -764,6 +771,7 @@ export default function App() {
       .catch(async (error: Error) => {
         if (error.message?.toLowerCase().includes("refresh token")) {
           await yerelOturumuTemizle();
+          logClientError("auth.getSession", error, { stage: "catch" });
           setAuthHata("Oturum süresi dolmuş veya bozulmuş. Lütfen tekrar giriş yapın.");
         }
       });
@@ -776,6 +784,7 @@ export default function App() {
 
       if (event === "TOKEN_REFRESHED" && !s) {
         await yerelOturumuTemizle();
+        logClientError("auth.onAuthStateChange", new Error("TOKEN_REFRESHED session missing"));
         setAuthHata("Oturum yenilenemedi. Lütfen tekrar giriş yapın.");
         return;
       }
@@ -785,12 +794,16 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  useEffect(() => { if (session) verileriGetir("hepsi"); }, [session]);
-
   useEffect(() => {
     if (session?.user?.email) {
       setUsername(normalizeUsername(session.user.email));
       setAuthHata("");
+    }
+  }, [session]);
+
+  useEffect(() => {
+    if (session) {
+      void verileriGetir("hepsi");
     }
   }, [session]);
 
@@ -813,6 +826,33 @@ export default function App() {
     session?.user?.email || (username.includes("@") ? username : `${username}@sistem.local`);
   const aktifKullaniciKisa = normalizeUsername(aktifKullaniciEposta);
   const isAdmin = adminMi(mevcutKullanici);
+
+  useEffect(() => {
+    setClientTelemetryContext({
+      userId: session?.user?.id || null,
+      userEmail: aktifKullaniciEposta || null,
+      username: aktifKullaniciKisa || null,
+      activeTab,
+      aktifDonem,
+      enabled: Boolean(session?.user?.id) && isAdmin,
+    });
+  }, [activeTab, aktifDonem, aktifKullaniciEposta, aktifKullaniciKisa, isAdmin, session?.user?.id]);
+
+  useEffect(() => {
+    if (!session?.user?.id || !isAdmin) return;
+
+    logClientEvent({
+      level: "info",
+      source: "telemetry.ready",
+      message: "Client telemetry active",
+      details: {
+        activeTab,
+        aktifDonem,
+      },
+      fingerprint: `ready:${session.user.id}`,
+    });
+  }, [activeTab, aktifDonem, isAdmin, session?.user?.id]);
+
   const kaydiSilebilirMi = (ekleyen?: string | null) =>
     isAdmin || (!!normalizeUsername(ekleyen) && normalizeUsername(ekleyen) === aktifKullaniciKisa);
   const kaydiDuzenleyebilirMi = (ekleyen?: string | null) => kaydiSilebilirMi(ekleyen);
@@ -937,16 +977,34 @@ export default function App() {
     );
   };
 
-  const edgeFunctionBulunamadiMi = (hata: { message?: string; name?: string } | null | undefined, fonksiyonAdi: string) => {
+  const edgeFunctionBulunamadiMi = (
+    hata: { message?: string; name?: string } | null | undefined,
+    fonksiyonAdi: string,
+    status?: number,
+  ) => {
     const mesaj = String(hata?.message || "").toLowerCase();
-    const isim = String(hata?.name || "").toLowerCase();
     return (
-      (mesaj.includes("edge function") && !mesaj.includes("401")) ||
-      mesaj.includes("failed to send a request") ||
+      status === 404 ||
       mesaj.includes("404") ||
       mesaj.includes(`function ${fonksiyonAdi.toLowerCase()} not found`) ||
-      isim.includes("functionshttperror")
+      (mesaj.includes("edge function") && mesaj.includes("not found"))
     );
+  };
+
+  const edgeFunctionCevapMesajiniOku = async (response?: Response | null) => {
+    if (!response) return "";
+
+    try {
+      const contentType = String(response.headers.get("Content-Type") || "").toLowerCase();
+      if (contentType.includes("application/json")) {
+        const body = await response.clone().json() as { message?: string; error?: string };
+        return String(body?.message || body?.error || "").trim();
+      }
+
+      return String(await response.clone().text()).trim();
+    } catch {
+      return "";
+    }
   };
 
   const kolonBulunamadiMi = (
@@ -1017,7 +1075,7 @@ export default function App() {
         throw new Error("Kullanıcı yönetimi için oturum doğrulanamadı. Lütfen çıkış yapıp tekrar giriş yap.");
       }
 
-      const { data, error } = await supabase.functions.invoke("user-admin", {
+      const { data, error, response } = await supabase.functions.invoke("user-admin", {
         body: payload,
         headers: {
           apikey: import.meta.env.VITE_SUPABASE_ANON_KEY || "",
@@ -1026,13 +1084,29 @@ export default function App() {
       });
 
       if (error) {
-        if (edgeFunctionBulunamadiMi(error, "user-admin")) {
+        const status = response?.status;
+        const responseMesaji = await edgeFunctionCevapMesajiniOku(response);
+        const hataMesaji = responseMesaji || error.message || "Kullanıcı yönetimi çağrısı başarısız oldu.";
+        const hataAdi = String(error.name || "").toLowerCase();
+        logClientError("functions.user-admin", error, {
+          action: payload.action || "",
+          status: status || null,
+          responseMessage: responseMesaji,
+        });
+
+        if (edgeFunctionBulunamadiMi(error, "user-admin", status)) {
           throw new Error("Kullanıcı yönetimi Edge Function henüz deploy edilmemiş. Supabase Edge Function adımını tamamlaman gerekiyor.");
         }
-        if (String(error.message || "").includes("401")) {
+
+        if (status === 401 || status === 403 || responseMesaji.toLowerCase().includes("yetki")) {
           throw new Error("Kullanıcı yönetimi yetkilendirmesi başarısız oldu. Çıkış yapıp tekrar giriş yapmanı öneririm.");
         }
-        throw new Error(error.message || "Kullanıcı yönetimi çağrısı başarısız oldu.");
+
+        if (hataAdi.includes("functionsfetcherror") || hataAdi.includes("functionsrelayerror")) {
+          throw new Error("Kullanıcı yönetimi servisine ulaşılamadı. Ağ bağlantısını ve Supabase servis durumunu kontrol et.");
+        }
+
+        throw new Error(hataMesaji);
       }
 
       const sonuc = (data || {}) as { ok?: boolean; message?: string };
@@ -1135,6 +1209,28 @@ export default function App() {
     [adminKullaniciFonksiyonunuCagir],
   );
 
+  const handleAdminDeleteUser = useCallback(
+    async (payload: { userId: string; email: string }) => {
+      try {
+        setIsAdminKullaniciLoading(true);
+        setAdminKullaniciHata("");
+        const data = await adminKullaniciFonksiyonunuCagir<{ message?: string }>({
+          action: "delete-user",
+          userId: payload.userId,
+        });
+        await handleAdminUsersLoad(true);
+        await verileriGetir("ayar");
+        return { ok: true, message: data?.message || `${payload.email} kullanıcısı silindi.` };
+      } catch (error: any) {
+        setAdminKullaniciHata(error?.message || "Kullanıcı silinemedi.");
+        return { ok: false, message: error?.message || "Kullanıcı silinemedi." };
+      } finally {
+        setIsAdminKullaniciLoading(false);
+      }
+    },
+    [adminKullaniciFonksiyonunuCagir, handleAdminUsersLoad],
+  );
+
   async function coptKutusunaAt(tablo: string, veri: any) {
       const { error } = await supabase
         .from("cop_kutusu")
@@ -1146,7 +1242,9 @@ export default function App() {
       return true;
   }
 
-  async function verileriGetir(hedef: "hepsi" | "satis" | "sut" | "gider" | "uretim" | "ayar" | "cop" = "hepsi") {
+  async function verileriGetir(
+    hedef: "hepsi" | "satis" | "sut" | "gider" | "uretim" | "ayar" | "cop" = "hepsi",
+  ) {
     try {
       setVeriYuklemeHata("");
 
@@ -1220,6 +1318,10 @@ export default function App() {
 
     } catch (error: any) {
       console.error(error);
+      logClientError("app.verileriGetir", error, {
+        target: hedef,
+        online: typeof navigator !== "undefined" ? navigator.onLine : true,
+      });
       setVeriYuklemeHata(error?.message || "Veriler alinirken beklenmeyen bir hata olustu.");
     }
   }
@@ -3042,6 +3144,7 @@ export default function App() {
       onLoadAdminUsers: handleAdminUsersLoad,
       onCreateAdminUser: handleAdminCreateUser,
       onResetAdminUserPassword: handleAdminResetUserPassword,
+      onDeleteAdminUser: handleAdminDeleteUser,
       onSavePermissions: handlePermissionSave,
     });
 
@@ -3128,10 +3231,17 @@ export default function App() {
           temaRengi,
           onRefreshSut: () => verileriGetir("sut"),
           onRefreshCop: () => verileriGetir("cop"),
+          onPreviewImage: setFisGorselOnizleme,
           helpers: {
             fSayi,
             fSayiNoDec,
             veritabaniHatasiMesaji,
+            kolonBulunamadiMi,
+            dosyaAdiIcinTemizle,
+            gorseliYuklemeIcinKucult,
+            fisGorselStorageYolu,
+            gorselBoyutunuGetir,
+            gorselIndirmeAdiBul,
           },
         });
       case "sevkiyat":

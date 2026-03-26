@@ -53,6 +53,7 @@ function AnalizTh({
   currentSort,
   setSort,
   align = "left",
+  width,
   filterType = null,
   setFilterModal,
 }: {
@@ -61,11 +62,12 @@ function AnalizTh({
   currentSort: SortConfig;
   setSort: (next: SortConfig) => void;
   align?: "left" | "center" | "right";
+  width?: string;
   filterType?: AnalizFilterModal;
   setFilterModal: (value: AnalizFilterModal) => void;
 }) {
   return (
-    <th style={{ textAlign: align }}>
+    <th style={{ textAlign: align, width, minWidth: 0 }}>
       <div
         style={{
           display: "flex",
@@ -73,6 +75,7 @@ function AnalizTh({
           justifyContent: align === "center" ? "center" : "space-between",
           gap: "4px",
           cursor: "pointer",
+          minWidth: 0,
         }}
         onClick={() => handleSortClick(sortKey, currentSort, setSort)}
       >
@@ -84,9 +87,10 @@ function AnalizTh({
             justifyContent:
               align === "right" ? "flex-end" : align === "center" ? "center" : "flex-start",
             flex: align === "center" ? "0 1 auto" : 1,
+            minWidth: 0,
           }}
         >
-          <span>{label}</span>
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
           {filterType && (
             <span
               onClick={(e) => {
@@ -195,34 +199,47 @@ export function AnalizPanel({ periodSatisList, bayiler, urunler, helpers }: Anal
           ))}
         </div>
 
-        <div className="table-wrapper">
-          <table className="tbl tbl-analiz">
+        <div className="table-wrapper" style={{ overflowX: "hidden" }}>
+          <table className="tbl tbl-analiz" style={{ tableLayout: "fixed", width: "100%", minWidth: 0 }}>
             <thead>
               <tr>
-                <AnalizTh label="TARİH" sortKey="tarih" currentSort={analizSort} setSort={setAnalizSort} filterType="analiz_tarih" setFilterModal={setActiveFilterModal} />
-                <AnalizTh label="BAYİ" sortKey="bayi" currentSort={analizSort} setSort={setAnalizSort} filterType="analiz_bayi" setFilterModal={setActiveFilterModal} />
-                <AnalizTh label="ÜRÜN" sortKey="urun" currentSort={analizSort} setSort={setAnalizSort} filterType="analiz_urun" setFilterModal={setActiveFilterModal} />
-                <AnalizTh label="ADET" sortKey="adet" currentSort={analizSort} setSort={setAnalizSort} align="right" setFilterModal={setActiveFilterModal} />
-                <AnalizTh label="KG" sortKey="toplam_kg" currentSort={analizSort} setSort={setAnalizSort} align="right" setFilterModal={setActiveFilterModal} />
-                <AnalizTh label="FİYAT" sortKey="fiyat" currentSort={analizSort} setSort={setAnalizSort} align="right" setFilterModal={setActiveFilterModal} />
-                <AnalizTh label="TUTAR" sortKey="tutar" currentSort={analizSort} setSort={setAnalizSort} align="right" setFilterModal={setActiveFilterModal} />
+                <AnalizTh label="TAR." width="13%" sortKey="tarih" currentSort={analizSort} setSort={setAnalizSort} filterType="analiz_tarih" setFilterModal={setActiveFilterModal} />
+                <AnalizTh label="BAYİ" width="23%" sortKey="bayi" currentSort={analizSort} setSort={setAnalizSort} filterType="analiz_bayi" setFilterModal={setActiveFilterModal} />
+                <AnalizTh label="ÜRÜN" width="21%" sortKey="urun" currentSort={analizSort} setSort={setAnalizSort} filterType="analiz_urun" setFilterModal={setActiveFilterModal} />
+                <AnalizTh label="ADET" width="10%" sortKey="adet" currentSort={analizSort} setSort={setAnalizSort} align="right" setFilterModal={setActiveFilterModal} />
+                <AnalizTh label="KG" width="10%" sortKey="toplam_kg" currentSort={analizSort} setSort={setAnalizSort} align="right" setFilterModal={setActiveFilterModal} />
+                <AnalizTh label="FYT" width="11%" sortKey="fiyat" currentSort={analizSort} setSort={setAnalizSort} align="right" setFilterModal={setActiveFilterModal} />
+                <AnalizTh label="TTR" width="12%" sortKey="tutar" currentSort={analizSort} setSort={setAnalizSort} align="right" setFilterModal={setActiveFilterModal} />
               </tr>
             </thead>
             <tbody>
-              {fAnalizList.map((satir) => (
-                <tr key={satir.id}>
-                  <td>{satir.tarih.split("-").reverse().slice(0, 2).join(".")}</td>
-                  <td style={{ fontWeight: "bold" }}>{satisSatiriBayiAdiGetir(satir)}</td>
-                  <td>{satisSatiriUrunAdiGetir(satir)}</td>
-                  <td style={{ textAlign: "right" }}>{helpers.fSayi(satir.adet)}</td>
-                  <td style={{ textAlign: "right" }}>{helpers.fSayi(satir.toplam_kg)}</td>
-                  <td style={{ textAlign: "right" }}>{helpers.fSayi(Math.abs(Number(satir.fiyat)))}</td>
-                  <td style={{ textAlign: "right", color: Number(satir.fiyat) < 0 ? "#dc2626" : "#8b5cf6", fontWeight: "bold" }}>
-                    {Number(satir.fiyat) < 0 ? "-" : ""}
-                    {helpers.fSayi(Math.abs(Number(satir.tutar)))}
-                  </td>
-                </tr>
-              ))}
+              {fAnalizList.map((satir) => {
+                const bayiAdi = satisSatiriBayiAdiGetir(satir);
+                const urunAdi = satisSatiriUrunAdiGetir(satir);
+
+                return (
+                  <tr key={satir.id}>
+                    <td>{satir.tarih.split("-").reverse().slice(0, 2).join(".")}</td>
+                    <td title={bayiAdi} style={{ fontWeight: "bold" }}>
+                      <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {bayiAdi}
+                      </span>
+                    </td>
+                    <td title={urunAdi}>
+                      <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {urunAdi}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: "right" }}>{helpers.fSayi(satir.adet)}</td>
+                    <td style={{ textAlign: "right" }}>{helpers.fSayi(satir.toplam_kg)}</td>
+                    <td style={{ textAlign: "right" }}>{helpers.fSayi(Math.abs(Number(satir.fiyat)))}</td>
+                    <td style={{ textAlign: "right", color: Number(satir.fiyat) < 0 ? "#dc2626" : "#8b5cf6", fontWeight: "bold" }}>
+                      {Number(satir.fiyat) < 0 ? "-" : ""}
+                      {helpers.fSayi(Math.abs(Number(satir.tutar)))}
+                    </td>
+                  </tr>
+                );
+              })}
               {fAnalizList.length === 0 && (
                 <tr>
                   <td colSpan={7} style={{ textAlign: "center", color: "#94a3b8", fontSize: "12px" }}>

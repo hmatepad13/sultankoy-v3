@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { supabase } from "../lib/supabase";
 import type { Ciftlik, SortConfig, SutGiris } from "../types/app";
 import { getLocalDateString } from "../utils/date";
 import { normalizeUsername } from "../utils/format";
 
 type SutFilterModal = "sut_ciftlik" | "sut_tarih" | null;
+type GorselOnizleme = { url: string; baslik: string; boyut?: string; indirmeAdi?: string } | null;
 
 type SutPanelProps = {
   aktifDonem: string;
@@ -16,10 +17,17 @@ type SutPanelProps = {
   temaRengi: string;
   onRefreshSut: () => void | Promise<void>;
   onRefreshCop: () => void | Promise<void>;
+  onPreviewImage: (payload: GorselOnizleme) => void;
   helpers: {
     fSayi: (num: unknown) => string;
     fSayiNoDec: (num: unknown) => string;
     veritabaniHatasiMesaji: (tablo: string, hata: { message?: string } | null) => string;
+    kolonBulunamadiMi: (hata: { message?: string } | null | undefined, tabloAdi: string, kolonAdi: string) => boolean;
+    dosyaAdiIcinTemizle: (deger?: string | null) => string;
+    gorseliYuklemeIcinKucult: (dosya: File) => Promise<File>;
+    fisGorselStorageYolu: (raw?: string | null) => string;
+    gorselBoyutunuGetir: (url: string) => Promise<string>;
+    gorselIndirmeAdiBul: (kaynak?: string | null, varsayilan?: string) => string;
   };
 };
 
@@ -171,12 +179,15 @@ export function SutPanel({
   temaRengi,
   onRefreshSut,
   onRefreshCop,
+  onPreviewImage,
   helpers,
 }: SutPanelProps) {
   const [isSutModalOpen, setIsSutModalOpen] = useState(false);
   const [sutModalMode, setSutModalMode] = useState<"create" | "edit" | "view">("create");
   const [editingSutId, setEditingSutId] = useState<string | null>(null);
   const [sutForm, setSutForm] = useState<SutGiris>(() => varsayilanSutFormu(aktifDonem));
+  const [sutGorselDosya, setSutGorselDosya] = useState<File | null>(null);
+  const [sutGorselMevcutYol, setSutGorselMevcutYol] = useState("");
   const [sutFiltre, setSutFiltre] = useState<{ ciftlikler: string[]; baslangic: string; bitis: string }>(
     { ciftlikler: [], baslangic: "", bitis: "" },
   );
@@ -184,6 +195,8 @@ export function SutPanel({
   const [activeFilterModal, setActiveFilterModal] = useState<SutFilterModal>(null);
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [detayNot, setDetayNot] = useState<string | null>(null);
+  const sutGorselKameraInputRef = useRef<HTMLInputElement | null>(null);
+  const sutGorselGaleriInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (isSutModalOpen || editingSutId) return;
@@ -218,6 +231,10 @@ export function SutPanel({
   const sutCiftlikFiltreSecenekleri = useMemo(
     () => tedarikciler.map((item) => item.isim).filter(Boolean),
     [tedarikciler],
+  );
+  const sutGorselDosyaAdi = useMemo(
+    () => sutGorselDosya?.name || (sutGorselMevcutYol.split("/").pop() || ""),
+    [sutGorselDosya, sutGorselMevcutYol],
   );
 
   const sutCiftlikAdiGetir = (kayit?: Partial<SutGiris> | null) =>
@@ -299,6 +316,8 @@ export function SutPanel({
 
   const resetSutFormu = () => {
     setSutForm(varsayilanSutFormu(aktifDonem));
+    setSutGorselDosya(null);
+    setSutGorselMevcutYol("");
     setEditingSutId(null);
     setSutModalMode("create");
   };
@@ -325,6 +344,8 @@ export function SutPanel({
   const handleSutGoruntule = (kayit: SutGiris) => {
     setEditingSutId(String(kayit.id || ""));
     setSutForm({ ...kayit, ciftlik: sutCiftlikAdiGetir(kayit) });
+    setSutGorselDosya(null);
+    setSutGorselMevcutYol(kayit.gorsel || "");
     setSutModalMode("view");
     setIsSutModalOpen(true);
   };
@@ -332,8 +353,82 @@ export function SutPanel({
   const handleSutDuzenle = (kayit: SutGiris) => {
     setEditingSutId(String(kayit.id || ""));
     setSutForm({ ...kayit, ciftlik: sutCiftlikAdiGetir(kayit) });
+    setSutGorselDosya(null);
+    setSutGorselMevcutYol(kayit.gorsel || "");
     setSutModalMode("edit");
     setIsSutModalOpen(true);
+  };
+
+  const handleSutGorselSec = (event: ChangeEvent<HTMLInputElement>) => {
+    const secilen = event.target.files?.[0];
+    event.target.value = "";
+    if (!secilen) return;
+    if (!secilen.type.startsWith("image/")) {
+      alert("Lütfen sadece görsel dosyası seçin.");
+      return;
+    }
+    setSutGorselDosya(secilen);
+  };
+
+  const handleSutGorselTemizle = () => {
+    setSutGorselDosya(null);
+    setSutGorselMevcutYol("");
+  };
+
+  const handleSutKameraAc = () => sutGorselKameraInputRef.current?.click();
+  const handleSutGaleriAc = () => sutGorselGaleriInputRef.current?.click();
+
+  const sutGorseliniSil = async (yol?: string | null) => {
+    const storageYolu = helpers.fisGorselStorageYolu(yol);
+    if (!storageYolu) return;
+    await supabase.storage.from("fis_gorselleri").remove([storageYolu]);
+  };
+
+  const sutGorseliYukle = async () => {
+    if (!sutGorselDosya) return sutGorselMevcutYol || null;
+
+    const optimizeDosya = await helpers.gorseliYuklemeIcinKucult(sutGorselDosya);
+    const tarihParcasi = String(sutForm.tarih || getLocalDateString()).replace(/-/g, "");
+    const ciftlikSlug = helpers.dosyaAdiIcinTemizle(sutForm.ciftlik || "ciftlik");
+    const kullaniciSlug = helpers.dosyaAdiIcinTemizle(aktifKullaniciKisa || aktifKullaniciEposta || "kullanici");
+    const rastgeleEk = Math.random().toString(36).slice(2, 8).toUpperCase();
+    const dosyaYolu = `sut-fisleri/${ciftlikSlug}/${tarihParcasi}-${ciftlikSlug}-${kullaniciSlug}-${rastgeleEk}.jpg`;
+
+    const { error } = await supabase.storage.from("fis_gorselleri").upload(dosyaYolu, optimizeDosya, {
+      contentType: optimizeDosya.type,
+      upsert: false,
+    });
+
+    if (error) throw error;
+    return dosyaYolu;
+  };
+
+  const handleSutGorselGoster = async (kayit: SutGiris) => {
+    const raw = kayit.gorsel || sutGorselMevcutYol;
+    if (!raw) return;
+
+    const storageYolu = helpers.fisGorselStorageYolu(raw);
+    const baslik = `${sutCiftlikAdiGetir(kayit) || "Süt fişi"} • ${kayit.tarih ? kayit.tarih.split("-").reverse().join(".") : ""}`;
+
+    if (!storageYolu && (raw.startsWith("http://") || raw.startsWith("https://"))) {
+      const boyut = await helpers.gorselBoyutunuGetir(raw);
+      onPreviewImage({ url: raw, baslik, boyut, indirmeAdi: helpers.gorselIndirmeAdiBul(raw, `${helpers.dosyaAdiIcinTemizle(baslik) || "sut-fisi"}.jpg`) });
+      return;
+    }
+
+    if (!storageYolu) {
+      alert("Süt fişi görseli açılamadı.");
+      return;
+    }
+
+    const { data, error } = await supabase.storage.from("fis_gorselleri").createSignedUrl(storageYolu, 60 * 10);
+    if (error || !data?.signedUrl) {
+      alert(`Süt fişi görseli açılamadı: ${error?.message || "Bilinmeyen hata"}`);
+      return;
+    }
+
+    const boyut = await helpers.gorselBoyutunuGetir(data.signedUrl);
+    onPreviewImage({ url: data.signedUrl, baslik, boyut, indirmeAdi: helpers.gorselIndirmeAdiBul(raw, `${helpers.dosyaAdiIcinTemizle(baslik) || "sut-fisi"}.jpg`) });
   };
 
   const handleCheckboxToggle = (deger: string) => {
@@ -356,6 +451,16 @@ export function SutPanel({
       return;
     }
 
+    const oncekiGorsel = duzenlenenKayit?.gorsel || sutGorselMevcutYol || "";
+    let yuklenenGorselYolu = sutGorselMevcutYol || null;
+
+    try {
+      yuklenenGorselYolu = await sutGorseliYukle();
+    } catch (error: any) {
+      alert(`Süt fişi görseli yüklenemedi: ${error?.message || "Bilinmeyen hata"}`);
+      return;
+    }
+
     const payload = {
       ...sutForm,
       ciftlik_id: seciliCiftlikId(sutForm.ciftlik),
@@ -363,15 +468,36 @@ export function SutPanel({
       fiyat: Number(sutForm.fiyat),
       toplam_tl: Number(sutForm.kg) * Number(sutForm.fiyat),
       ekleyen: aktifKullaniciEposta,
+      gorsel: yuklenenGorselYolu,
     };
 
-    const { error } = editingSutId
-      ? await supabase.from("sut_giris").update(payload).eq("id", editingSutId)
-      : await supabase.from("sut_giris").insert(payload);
+    const kaydet = (body: typeof payload) =>
+      editingSutId
+        ? supabase.from("sut_giris").update(body).eq("id", editingSutId)
+        : supabase.from("sut_giris").insert(body);
+
+    let { error } = await kaydet(payload);
+    if (error && helpers.kolonBulunamadiMi(error, "sut_giris", "gorsel")) {
+      if (sutGorselDosya || sutGorselMevcutYol) {
+        if (sutGorselDosya && yuklenenGorselYolu && yuklenenGorselYolu !== oncekiGorsel) {
+          await sutGorseliniSil(yuklenenGorselYolu);
+        }
+        alert("Süt fişi görseli kolonu veritabanında yok. Önce SQL dosyasını çalıştırın: sql/add-sut-gorseli-column.sql");
+        return;
+      }
+      ({ error } = await kaydet({ ...payload, gorsel: undefined } as any));
+    }
 
     if (error) {
+      if (sutGorselDosya && yuklenenGorselYolu && yuklenenGorselYolu !== oncekiGorsel) {
+        await sutGorseliniSil(yuklenenGorselYolu);
+      }
       alert(`Hata: ${helpers.veritabaniHatasiMesaji("sut_giris", error)}`);
       return;
+    }
+
+    if (editingSutId && oncekiGorsel && oncekiGorsel !== yuklenenGorselYolu) {
+      await sutGorseliniSil(oncekiGorsel);
     }
 
     handleSutModalKapat();
@@ -498,6 +624,11 @@ export function SutPanel({
                           <button title="Detay Gör" className="dropdown-item-icon" onClick={() => { setOpenDropdownId(null); handleSutGoruntule(kayit); }}>
                             🔍
                           </button>
+                          {kayit.gorsel && (
+                            <button title="Fotoğrafı Gör" className="dropdown-item-icon" onClick={() => { setOpenDropdownId(null); void handleSutGorselGoster(kayit); }}>
+                              📷
+                            </button>
+                          )}
                           {duzenlenebilir && (
                             <button title="Düzenle" className="dropdown-item-icon" onClick={() => { setOpenDropdownId(null); handleSutDuzenle(kayit); }}>
                               ✏️
@@ -618,6 +749,34 @@ export function SutPanel({
                 <label style={{ fontSize: "11px", color: "#64748b" }}>Açıklama / Not</label>
                 <input placeholder="Opsiyonel..." value={sutForm.aciklama} onChange={(e) => setSutForm((prev) => ({ ...prev, aciklama: e.target.value }))} disabled={sutModalMode === "view"} className="m-inp" style={{ width: "100%", background: sutModalMode === "view" ? "#f8fafc" : undefined }} />
               </div>
+              {sutModalMode === "view" ? (
+                sutGorselMevcutYol ? (
+                  <button type="button" onClick={() => void handleSutGorselGoster({ ...sutForm, ciftlik: sutForm.ciftlik || "", gorsel: sutGorselMevcutYol })} className="btn-anim" style={{ width: "100%", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "8px", padding: "10px 12px", fontSize: "12px", fontWeight: "bold", color: "#2563eb", cursor: "pointer" }}>
+                    📷 FİŞ FOTOĞRAFINI GÖR
+                  </button>
+                ) : null
+              ) : (
+                <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+                  <input ref={sutGorselKameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleSutGorselSec} style={{ display: "none" }} />
+                  <input ref={sutGorselGaleriInputRef} type="file" accept="image/*" onChange={handleSutGorselSec} style={{ display: "none" }} />
+                  <button type="button" onClick={handleSutKameraAc} className="btn-anim" style={{ background: "#e2e8f0", border: "1px solid #cbd5e1", borderRadius: "6px", padding: "8px 10px", fontSize: "11px", fontWeight: "bold", color: "#334155", cursor: "pointer", flex: "0 0 auto", whiteSpace: "nowrap" }}>
+                    {sutGorselDosyaAdi ? "Fiş Fotoğrafını Değiştir" : "Fiş Fotoğrafı Ekle"}
+                  </button>
+                  <button type="button" onClick={handleSutGaleriAc} className="btn-anim" style={{ background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", padding: "8px 9px", fontSize: "10px", fontWeight: "bold", color: "#475569", cursor: "pointer", flex: "0 0 auto", whiteSpace: "nowrap" }}>
+                    Galeri
+                  </button>
+                  {sutGorselDosyaAdi && (
+                    <>
+                      <span style={{ fontSize: "11px", color: "#64748b", maxWidth: "170px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {sutGorselDosyaAdi}
+                      </span>
+                      <button type="button" onClick={handleSutGorselTemizle} className="btn-anim" style={{ background: "transparent", border: "1px solid #fecaca", color: "#dc2626", borderRadius: "6px", padding: "6px 8px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}>
+                        Temizle
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
             <div style={{ padding: "12px 15px", borderTop: "1px solid #e2e8f0", background: "#f8fafc", borderRadius: "0 0 12px 12px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>

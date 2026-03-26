@@ -88,6 +88,8 @@ export interface SutGiris {
   toplam_tl?: number;
   aciklama: string;
   ekleyen?: string;
+  gorsel?: string | null;
+  created_at?: string | null;
 }
 
 export interface SatisGiris {

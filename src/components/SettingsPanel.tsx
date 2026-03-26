@@ -57,6 +57,7 @@ interface SettingsPanelProps {
   onLoadAdminUsers: (force?: boolean) => Promise<void> | void;
   onCreateAdminUser: (payload: { email: string; password: string; displayName: string }) => Promise<{ ok: boolean; message: string }>;
   onResetAdminUserPassword: (payload: { userId: string; newPassword: string }) => Promise<{ ok: boolean; message: string }>;
+  onDeleteAdminUser: (payload: { userId: string; email: string }) => Promise<{ ok: boolean; message: string }>;
   onSavePermissions: (next: KullaniciSekmeYetkisi[]) => Promise<void> | void;
 }
 
@@ -220,6 +221,7 @@ export function SettingsPanel({
   onLoadAdminUsers,
   onCreateAdminUser,
   onResetAdminUserPassword,
+  onDeleteAdminUser,
   onSavePermissions,
 }: SettingsPanelProps) {
   const [hedefKullanici, setHedefKullanici] = useState("");
@@ -362,6 +364,31 @@ export function SettingsPanel({
     setAdminMesaji({ tip: sonuc.ok ? "success" : "error", metin: sonuc.message });
     if (sonuc.ok) {
       setSifreSifirlamaForm((prev) => ({ ...prev, newPassword: "" }));
+    }
+  };
+
+  const handleAdminKullaniciSil = async (kullanici: AdminKullanici) => {
+    const hedefEposta = kullanici.email.trim().toLowerCase();
+    const aktifEposta = aktifKullaniciEposta.trim().toLowerCase();
+
+    if (hedefEposta && aktifEposta && hedefEposta === aktifEposta) {
+      setAdminMesaji({ tip: "error", metin: "Açık olan admin oturumu silinemez." });
+      return;
+    }
+
+    if (!window.confirm(`${kullanici.email} kullanıcısı silinsin mi? Bu işlem geri alınamaz.`)) {
+      return;
+    }
+
+    const sonuc = await onDeleteAdminUser({ userId: kullanici.id, email: kullanici.email });
+    setAdminMesaji({ tip: sonuc.ok ? "success" : "error", metin: sonuc.message });
+
+    if (sonuc.ok) {
+      setSifreSifirlamaForm((prev) => (
+        prev.userId === kullanici.id
+          ? { userId: "", newPassword: "" }
+          : prev
+      ));
     }
   };
 
@@ -523,7 +550,7 @@ export function SettingsPanel({
                 <div>
                   <h3 style={{ margin: "0 0 6px", fontSize: "15px", color: "#0f172a" }}>Kullanıcı Yönetimi</h3>
                   <p style={{ margin: 0, color: "#64748b", fontSize: "12px", lineHeight: 1.5 }}>
-                    Yeni kullanıcı ekleme ve mevcut kullanıcı şifresi değiştirme işlemleri güvenli backend üzerinden yapılır.
+                    Admin burada mevcut kullanıcıları görebilir, yeni kullanıcı ekleyebilir, şifre değiştirebilir ve kullanıcı silebilir.
                   </p>
                 </div>
                 <button
@@ -683,8 +710,43 @@ export function SettingsPanel({
                         {(item.displayName || item.username || "-")}{item.role ? ` • ${item.role}` : ""}
                       </div>
                     </div>
-                    <div style={{ color: "#94a3b8", whiteSpace: "nowrap" }}>
-                      {item.createdAt ? new Date(item.createdAt).toLocaleDateString("tr-TR") : "-"}
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", justifyContent: "flex-end" }}>
+                      <div style={{ color: "#94a3b8", whiteSpace: "nowrap" }}>
+                        {item.createdAt ? new Date(item.createdAt).toLocaleDateString("tr-TR") : "-"}
+                      </div>
+                      <button
+                        onClick={() => setSifreSifirlamaForm((prev) => ({ ...prev, userId: item.id }))}
+                        disabled={isAdminKullaniciLoading}
+                        style={{
+                          background: "#e0f2fe",
+                          color: "#0369a1",
+                          border: "1px solid #bae6fd",
+                          borderRadius: "7px",
+                          padding: "6px 9px",
+                          fontWeight: "bold",
+                          cursor: isAdminKullaniciLoading ? "wait" : "pointer",
+                          fontSize: "11px",
+                        }}
+                      >
+                        Şifre
+                      </button>
+                      <button
+                        onClick={() => void handleAdminKullaniciSil(item)}
+                        disabled={isAdminKullaniciLoading || item.email.trim().toLowerCase() === aktifKullaniciEposta.trim().toLowerCase()}
+                        style={{
+                          background: item.email.trim().toLowerCase() === aktifKullaniciEposta.trim().toLowerCase() ? "#e2e8f0" : "#fee2e2",
+                          color: item.email.trim().toLowerCase() === aktifKullaniciEposta.trim().toLowerCase() ? "#64748b" : "#b91c1c",
+                          border: `1px solid ${item.email.trim().toLowerCase() === aktifKullaniciEposta.trim().toLowerCase() ? "#cbd5e1" : "#fecaca"}`,
+                          borderRadius: "7px",
+                          padding: "6px 9px",
+                          fontWeight: "bold",
+                          cursor: isAdminKullaniciLoading || item.email.trim().toLowerCase() === aktifKullaniciEposta.trim().toLowerCase() ? "not-allowed" : "pointer",
+                          fontSize: "11px",
+                        }}
+                        title={item.email.trim().toLowerCase() === aktifKullaniciEposta.trim().toLowerCase() ? "Açık olan hesabı silemezsiniz." : "Kullanıcıyı sil"}
+                      >
+                        Sil
+                      </button>
                     </div>
                   </div>
                 ))}

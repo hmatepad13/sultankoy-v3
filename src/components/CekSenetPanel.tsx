@@ -363,18 +363,18 @@ export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem }: CekSenetPanelP
       </div>
 
       <div className="table-wrapper table-wrapper-fixed">
-        <table className="tbl" style={{ tableLayout: "fixed" }}>
+        <table className="tbl tbl-cek-senet" style={{ tableLayout: "fixed", width: "100%", minWidth: 0 }}>
           <thead>
             <tr>
-              <th style={{ width: "11%", textAlign: "center", background: "#5b9bd5", color: "#fff" }}>TAR.</th>
-              <th style={{ width: "16%", textAlign: "left", background: "#5b9bd5", color: "#fff" }}>TÜR</th>
-              <th style={{ width: "13%", textAlign: "center", background: "#5b9bd5", color: "#fff" }}>DURUM</th>
-              <th style={{ width: "18%", textAlign: "left", background: "#5b9bd5", color: "#fff" }}>DÜZENLEYEN</th>
-              <th style={{ width: "13%", textAlign: "center", background: "#5b9bd5", color: "#fff" }}>TAHSİLAT TAR.</th>
-              <th style={{ width: "12%", textAlign: "right", background: "#5b9bd5", color: "#fff" }}>MİKTAR</th>
-              <th style={{ width: "12%", textAlign: "left", background: "#5b9bd5", color: "#fff" }}>BANKA</th>
-              <th style={{ width: "7%", textAlign: "center", background: "#5b9bd5", color: "#fff" }}>KİŞİ</th>
-              <th style={{ width: "8%", background: "#5b9bd5" }}></th>
+              <th style={{ width: "10%", textAlign: "center", background: "#5b9bd5", color: "#fff" }}>TAR.</th>
+              <th style={{ width: "15%", textAlign: "left", background: "#5b9bd5", color: "#fff" }}>TÜR</th>
+              <th style={{ width: "13%", textAlign: "center", background: "#5b9bd5", color: "#fff" }}>DUR.</th>
+              <th style={{ width: "16%", textAlign: "left", background: "#5b9bd5", color: "#fff" }}>DÜZ.</th>
+              <th style={{ width: "12%", textAlign: "center", background: "#5b9bd5", color: "#fff" }}>TAH.</th>
+              <th style={{ width: "12%", textAlign: "right", background: "#5b9bd5", color: "#fff" }}>TUT.</th>
+              <th style={{ width: "10%", textAlign: "left", background: "#5b9bd5", color: "#fff" }}>BNK.</th>
+              <th style={{ width: "7%", textAlign: "center", background: "#5b9bd5", color: "#fff" }}>EKL.</th>
+              <th style={{ width: "5%", background: "#5b9bd5" }}></th>
             </tr>
           </thead>
           <tbody>
@@ -392,22 +392,64 @@ export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem }: CekSenetPanelP
                 <tr key={kayit.id}>
                   <td style={{ textAlign: "center" }}>{kisaTarih(kayit.tarih)}</td>
                   <td>
-                    <span style={{ display: "inline-flex", alignItems: "center", borderRadius: "999px", padding: "4px 7px", background: tur.arkaPlan, color: tur.renk, fontWeight: "bold", fontSize: "10px" }}>
-                      {tur.etiket}
+                    <span
+                      title={tur.etiket}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        maxWidth: "100%",
+                        borderRadius: "999px",
+                        padding: "3px 5px",
+                        background: tur.arkaPlan,
+                        color: tur.renk,
+                        fontWeight: "bold",
+                        fontSize: "9px",
+                        lineHeight: 1.15,
+                      }}
+                    >
+                      <span style={{ display: "block", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {tur.etiket}
+                      </span>
                     </span>
                   </td>
                   <td style={{ textAlign: "center" }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", borderRadius: "999px", padding: "4px 7px", background: durum.arkaPlan, color: durum.renk, fontWeight: "bold", fontSize: "10px" }}>
-                      {durum.etiket}
+                    <span
+                      title={durum.etiket}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        maxWidth: "100%",
+                        borderRadius: "999px",
+                        padding: "3px 5px",
+                        background: durum.arkaPlan,
+                        color: durum.renk,
+                        fontWeight: "bold",
+                        fontSize: "9px",
+                        lineHeight: 1.15,
+                      }}
+                    >
+                      <span style={{ display: "block", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {durum.etiket}
+                      </span>
                     </span>
                   </td>
-                  <td style={{ fontWeight: "bold" }}>{kayit.duzenleyen}</td>
+                  <td title={kayit.duzenleyen}>
+                    <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: "bold" }}>
+                      {kayit.duzenleyen}
+                    </span>
+                  </td>
                   <td style={{ textAlign: "center" }}>{kisaTarih(kayit.tahTarihi)}</td>
                   <td style={{ textAlign: "right", fontWeight: "bold", color: "#0f766e" }}>{fSayi(kayit.miktar)}</td>
-                  <td>{kayit.banka}</td>
+                  <td title={kayit.banka}>
+                    <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {kayit.banka}
+                    </span>
+                  </td>
                   <td style={{ textAlign: "center", color: "#64748b" }}>{normalizeUsername(kayit.ekleyen) || "-"}</td>
                   <td className="actions-cell" style={{ position: "relative" }}>
-                    <button onClick={(e) => { e.stopPropagation(); setOpenDropdownId(kayit.id); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "18px", padding: "0 8px", color: "#64748b" }}>⋮</button>
+                    <button onClick={(e) => { e.stopPropagation(); setOpenDropdownId(kayit.id); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "16px", padding: "0 4px", color: "#64748b" }}>⋮</button>
                     {openDropdownId === kayit.id && (
                       <div className="dropdown-menu">
                         <button title="Detay Gör" className="dropdown-item-icon" onClick={() => { setOpenDropdownId(null); setDetayKaydi(kayit); }}>🔍</button>

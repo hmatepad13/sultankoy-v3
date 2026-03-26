@@ -20,7 +20,7 @@ import {
 } from "../lib/uretim";
 import type { SortConfig, Uretim } from "../types/app";
 import { getLocalDateString } from "../utils/date";
-import { normalizeUsername } from "../utils/format";
+import { fSayiNoDec, normalizeUsername } from "../utils/format";
 
 type UretimMiniDetay = {
   baslik: string;
@@ -194,6 +194,8 @@ export function UretimPanel({
   const kaydiSilebilirMi = (ekleyen?: string | null) =>
     isAdmin || (!!normalizeUsername(ekleyen) && normalizeUsername(ekleyen) === normalizeUsername(aktifKullaniciKisa));
   const kaydiDuzenleyebilirMi = (ekleyen?: string | null) => kaydiSilebilirMi(ekleyen);
+  const tabloTamSayi = (deger: unknown) =>
+    fSayiNoDec(typeof deger === "number" || typeof deger === "string" ? deger : 0);
 
   const periodUretim = useMemo(
     () => uretimList.filter((kayit) => kayit.tarih.startsWith(aktifDonem)),
@@ -613,12 +615,12 @@ export function UretimPanel({
                   return (
                     <tr key={kayit.id}>
                       <td>{kayit.tarih.split("-").reverse().slice(0, 2).join(".")}</td>
-                      <td style={{ textAlign: "right", fontWeight: "bold", color: "#1d4ed8" }}>{helpers.fSayi(uretimGirenToplamKg(kayit))}</td>
-                      <td style={{ textAlign: "right", color: renk, fontWeight: "bold" }}>{helpers.fSayi(cikanKg)}</td>
-                      <td style={{ textAlign: "right", color: renk, fontWeight: "bold" }}>{helpers.fSayi(ilkPaketAdet)}</td>
-                      <td style={{ textAlign: "right", color: renk, fontWeight: "bold" }}>{helpers.fSayi(ikinciPaketAdet)}</td>
-                      <td style={{ textAlign: "right", color: "#dc2626" }}>{helpers.fSayi(kayit.toplam_maliyet)}</td>
-                      <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold" }}>{helpers.fSayi(kayit.kar)}</td>
+                      <td style={{ textAlign: "right", fontWeight: "bold", color: "#1d4ed8" }}>{tabloTamSayi(uretimGirenToplamKg(kayit))}</td>
+                      <td style={{ textAlign: "right", color: renk, fontWeight: "bold" }}>{tabloTamSayi(cikanKg)}</td>
+                      <td style={{ textAlign: "right", color: renk, fontWeight: "bold" }}>{tabloTamSayi(ilkPaketAdet)}</td>
+                      <td style={{ textAlign: "right", color: renk, fontWeight: "bold" }}>{tabloTamSayi(ikinciPaketAdet)}</td>
+                      <td style={{ textAlign: "right", color: "#dc2626" }}>{tabloTamSayi(kayit.toplam_maliyet)}</td>
+                      <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold" }}>{tabloTamSayi(kayit.kar)}</td>
                       <td className="truncate-text-td" style={{ maxWidth: "68px" }} title={kayit.aciklama || "-"}>
                         {uretimNotunuKisalt(kayit.aciklama, 8)}
                       </td>

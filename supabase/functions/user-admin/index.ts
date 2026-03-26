@@ -178,5 +178,44 @@ Deno.serve(async (req) => {
     return json({ ok: true, message: "Kullanıcı şifresi güncellendi." });
   }
 
+  if (payload.action === "delete-user") {
+    const userId = String(payload.userId || "").trim();
+
+    if (!userId) {
+      return json({ ok: false, message: "Silinecek kullanıcı zorunludur." });
+    }
+
+    if (userId === callerUser.id) {
+      return json({ ok: false, message: "Açık olan admin hesabı silinemez." });
+    }
+
+    const {
+      data: { user: hedefUser },
+      error: hedefUserError,
+    } = await adminClient.auth.admin.getUserById(userId);
+
+    if (hedefUserError || !hedefUser) {
+      return json({ ok: false, message: hedefUserError?.message || "Kullanıcı bulunamadı." });
+    }
+
+    const silinecekEmail = normalize(hedefUser.email);
+    const { error: deleteError } = await adminClient.auth.admin.deleteUser(userId);
+
+    if (deleteError) {
+      return json({ ok: false, message: deleteError.message || "Kullanıcı silinemedi." });
+    }
+
+    const { error: profileDeleteError } = await adminClient
+      .from("profiles")
+      .delete()
+      .eq("id", userId);
+
+    if (profileDeleteError) {
+      return json({ ok: false, message: profileDeleteError.message || "Kullanıcı profili temizlenemedi." });
+    }
+
+    return json({ ok: true, message: `${silinecekEmail || "Kullanıcı"} silindi.` });
+  }
+
   return json({ ok: false, message: "Geçersiz işlem tipi." });
 });
