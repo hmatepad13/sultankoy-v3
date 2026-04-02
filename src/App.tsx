@@ -39,6 +39,7 @@ import { uretimKaydiniNormalizeEt } from "./lib/uretim";
 import type {
   ActiveAyarTab,
   AdminKullanici,
+  AppConfirmOptions,
   AppTabId,
   Bayi,
   Ciftlik,
@@ -757,7 +758,9 @@ export default function App() {
   const fisGorselKameraInputRef = useRef<HTMLInputElement | null>(null);
   const fisGorselGaleriInputRef = useRef<HTMLInputElement | null>(null);
   const html2canvasYuklemeRef = useRef<Promise<any> | null>(null);
+  const confirmCozumRef = useRef<((value: boolean) => void) | null>(null);
   const [sonFisData, setSonFisData] = useState<any>(null);
+  const [confirmDialog, setConfirmDialog] = useState<(AppConfirmOptions & { confirmText: string; cancelText: string; tone: "primary" | "warning" | "danger" }) | null>(null);
   const [musteriEkstreData, setMusteriEkstreData] = useState<null | {
     musteri: string;
     donem: string;
@@ -971,6 +974,31 @@ export default function App() {
   const handleIdleLogout = useEffectEvent(() => {
     void cikisYap("10 dakika işlem yapılmadığı için güvenlik amacıyla oturum kapatıldı.");
   });
+
+  const confirmDialogKapat = useCallback((sonuc: boolean) => {
+    const coz = confirmCozumRef.current;
+    confirmCozumRef.current = null;
+    setConfirmDialog(null);
+    coz?.(sonuc);
+  }, []);
+
+  const confirmDialogAc = useCallback((options: AppConfirmOptions) => new Promise<boolean>((resolve) => {
+    confirmCozumRef.current = resolve;
+    setConfirmDialog({
+      title: options.title,
+      message: options.message,
+      confirmText: options.confirmText || "Tamam",
+      cancelText: options.cancelText || "İptal",
+      tone: options.tone || "warning",
+    });
+  }), []);
+
+  useEffect(() => () => {
+    if (confirmCozumRef.current) {
+      confirmCozumRef.current(false);
+      confirmCozumRef.current = null;
+    }
+  }, []);
 
   const html2canvasYukle = useCallback(async () => {
     if (typeof window === "undefined") {
@@ -2380,7 +2408,16 @@ export default function App() {
     if (tMiktar <= 0) return alert("Geçerli bir tahsilat tutarı girin.");
 
     const donemDisiOnayMesaji = aktifDonemDisiKayitOnayMetni(tahsilatForm.tarih, aktifDonem);
-    if (donemDisiOnayMesaji && !window.confirm(donemDisiOnayMesaji)) return;
+    if (
+      donemDisiOnayMesaji &&
+      !(await confirmDialogAc({
+        title: "Dönem Dışı Kayıt",
+        message: donemDisiOnayMesaji,
+        confirmText: "Evet, Kaydet",
+        cancelText: "Vazgeç",
+        tone: "warning",
+      }))
+    ) return;
 
     const ortakData = {
       tarih: tahsilatForm.tarih,
@@ -2466,7 +2503,16 @@ export default function App() {
     if (!digerForm.tutar || paraGirdisiniSayiyaCevir(digerForm.tutar) <= 0) return alert("Geçerli bir tutar girin.");
 
     const donemDisiOnayMesaji = aktifDonemDisiKayitOnayMetni(digerForm.tarih, aktifDonem);
-    if (donemDisiOnayMesaji && !window.confirm(donemDisiOnayMesaji)) return;
+    if (
+      donemDisiOnayMesaji &&
+      !(await confirmDialogAc({
+        title: "Dönem Dışı Kayıt",
+        message: donemDisiOnayMesaji,
+        confirmText: "Evet, Kaydet",
+        cancelText: "Vazgeç",
+        tone: "warning",
+      }))
+    ) return;
 
     const tahsilat = paraGirdisiniSayiyaCevir(digerForm.tutar);
     const ortakData = {
@@ -2823,7 +2869,16 @@ export default function App() {
     if (eklenecekUrunler.length === 0 && iadeMiktar === 0 && kovaMiktar === 0) return alert("Fişte işlem yok! Ürün, iade veya kova girin.");
 
     const donemDisiOnayMesaji = aktifDonemDisiKayitOnayMetni(fisUst.tarih, aktifDonem);
-    if (donemDisiOnayMesaji && !window.confirm(donemDisiOnayMesaji)) return;
+    if (
+      donemDisiOnayMesaji &&
+      !(await confirmDialogAc({
+        title: "Dönem Dışı Kayıt",
+        message: donemDisiOnayMesaji,
+        confirmText: "Evet, Kaydet",
+        cancelText: "Vazgeç",
+        tone: "warning",
+      }))
+    ) return;
 
     let ortakFisNo = editingFisNo || benzersizFisNoOlustur("F");
     const tahsilat = paraGirdisiniSayiyaCevir(fisUst.tahsilat || "");
@@ -3258,7 +3313,15 @@ export default function App() {
       alert("Bu fişi sadece ekleyen kullanıcı veya admin silebilir.");
       return;
     }
-    if (!confirm(`Bu işlemi (${fis.fis_no || fis.id}) silmek istediğinize emin misiniz?`)) return;
+    if (
+      !(await confirmDialogAc({
+        title: "Satış Fişini Sil",
+        message: `Bu işlemi (${fis.fis_no || fis.id}) silmek istediğinize emin misiniz?`,
+        confirmText: "Evet, Sil",
+        cancelText: "İptal",
+        tone: "danger",
+      }))
+    ) return;
 
     const { error: rpcSilError } = await supabase.rpc("app_delete_satis_fisi", {
       p_fis_id: fis.id,
@@ -3654,7 +3717,15 @@ export default function App() {
   const handleEmptyTrash = async () => {
     if (!isAdmin) return;
     if (copKutusuList.length === 0) return;
-    if (!confirm(`Çöp kutusundaki ${copKutusuList.length} kayıt kalıcı olarak silinecek. Devam edilsin mi?`)) return;
+    if (
+      !(await confirmDialogAc({
+        title: "Çöp Kutusunu Boşalt",
+        message: `Çöp kutusundaki ${copKutusuList.length} kayıt kalıcı olarak silinecek. Devam edilsin mi?`,
+        confirmText: "Evet, Sil",
+        cancelText: "İptal",
+        tone: "danger",
+      }))
+    ) return;
 
     const { error } = await supabase.from("cop_kutusu").delete().not("id", "is", null);
     if (error) {
@@ -3704,7 +3775,15 @@ export default function App() {
 
   const handleDeleteTrashItem = async (trashId: string) => {
     if (!isAdmin || !trashId) return;
-    if (!confirm("Bu çöp kaydı kalıcı olarak silinsin mi?")) return;
+    if (
+      !(await confirmDialogAc({
+        title: "Çöp Kaydını Sil",
+        message: "Bu çöp kaydı kalıcı olarak silinsin mi?",
+        confirmText: "Evet, Sil",
+        cancelText: "İptal",
+        tone: "danger",
+      }))
+    ) return;
 
     setDeletingTrashId(trashId);
     try {
@@ -3899,7 +3978,19 @@ export default function App() {
         ayarIslem("urunler", !sabit, "sabit", id);
       },
       onSettingDelete: (tablo: any, id: any, isim: any) => {
-        if (confirm(`Silinecek: ${isim}`)) ayarIslem(tablo, null, "sil", id);
+        void (async () => {
+          if (
+            await confirmDialogAc({
+              title: "Kaydı Sil",
+              message: `Silinecek: ${isim}`,
+              confirmText: "Evet, Sil",
+              cancelText: "İptal",
+              tone: "danger",
+            })
+          ) {
+            ayarIslem(tablo, null, "sil", id);
+          }
+        })();
       },
       onOpenTrash: () => verileriGetir("cop"),
       onEmptyTrash: handleEmptyTrash,
@@ -3935,6 +4026,7 @@ export default function App() {
       onResetAdminUserPassword: handleAdminResetUserPassword,
       onDeleteAdminUser: handleAdminDeleteUser,
       onSavePermissions: handlePermissionSave,
+      onConfirm: confirmDialogAc,
     });
 
   const renderAktifSekme = () => {
@@ -4022,6 +4114,7 @@ export default function App() {
           onRefreshSut: () => verileriGetir("sut"),
           onRefreshCop: () => verileriGetir("cop"),
           onPreviewImage: setFisGorselOnizleme,
+          onConfirm: confirmDialogAc,
           helpers: {
             fSayi,
             fSayiNoDec,
@@ -4041,11 +4134,13 @@ export default function App() {
           aktifKullaniciKisa,
           aktifDonem,
           onRefreshCop: () => verileriGetir("cop"),
+          onConfirm: confirmDialogAc,
         });
       case "cek_senet":
         return sekmeBileseniniRenderEt(cekSenetPanelSekmesi.hazirBilesen(), CekSenetPanel, {
           aktifKullaniciKisa,
           aktifDonem,
+          onConfirm: confirmDialogAc,
         });
       case "gider":
         return sekmeBileseniniRenderEt(giderPanelSekmesi.hazirBilesen(), GiderPanel, {
@@ -4061,6 +4156,7 @@ export default function App() {
           onRefreshCop: () => verileriGetir("cop"),
           onOpenMiniDetay: setOzetMiniDetay,
           onPreviewImage: setFisGorselOnizleme,
+          onConfirm: confirmDialogAc,
           helpers: {
             fSayi,
             veritabaniHatasiMesaji,
@@ -4085,6 +4181,7 @@ export default function App() {
           uretimList,
           onRefreshUretim: () => verileriGetir("uretim"),
           onRefreshCop: () => verileriGetir("cop"),
+          onConfirm: confirmDialogAc,
           helpers: { fSayi, veritabaniHatasiMesaji },
         });
       case "analiz":
@@ -4250,6 +4347,76 @@ export default function App() {
             >
               ×
             </button>
+          </div>
+        </div>
+      )}
+
+      {confirmDialog && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15, 23, 42, 0.52)",
+            zIndex: 1550,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "14px",
+          }}
+          onClick={() => confirmDialogKapat(false)}
+        >
+          <div
+            style={{
+              width: "100%",
+              maxWidth: "360px",
+              background: "#fff",
+              borderRadius: "16px",
+              border: `1px solid ${confirmDialog.tone === "danger" ? "#fecaca" : confirmDialog.tone === "warning" ? "#fde68a" : "#bfdbfe"}`,
+              boxShadow: "0 24px 60px -24px rgba(15,23,42,0.45)",
+              overflow: "hidden",
+            }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div style={{ padding: "16px 16px 12px", borderBottom: "1px solid #e2e8f0", background: "#f8fafc" }}>
+              <div style={{ fontSize: "15px", fontWeight: "bold", color: "#0f172a" }}>
+                {confirmDialog.title || "Onay Gerekli"}
+              </div>
+            </div>
+            <div style={{ padding: "16px", color: "#334155", fontSize: "13px", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+              {confirmDialog.message}
+            </div>
+            <div style={{ display: "flex", gap: "8px", padding: "0 16px 16px" }}>
+              <button
+                onClick={() => confirmDialogKapat(false)}
+                style={{
+                  flex: 1,
+                  padding: "11px 12px",
+                  background: "#f8fafc",
+                  color: "#475569",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "10px",
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                }}
+              >
+                {confirmDialog.cancelText}
+              </button>
+              <button
+                onClick={() => confirmDialogKapat(true)}
+                style={{
+                  flex: 1,
+                  padding: "11px 12px",
+                  background: confirmDialog.tone === "danger" ? "#dc2626" : confirmDialog.tone === "warning" ? "#d97706" : "#2563eb",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "10px",
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                }}
+              >
+                {confirmDialog.confirmText}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -4699,7 +4866,7 @@ export default function App() {
                 </div>
                 <div style={{ display: "flex", gap: "6px", marginTop: "4px" }}>
                   {fisDuzenlenebilirMi(sonFisData as Partial<SatisFis>) && <button onClick={() => { const fakeFis = { id: sonFisData.id, fis_no: sonFisData.fis_no, tarih: sonFisData.tarih, bayi: sonFisData.bayi, odeme_turu: sonFisData.odeme, aciklama: sonFisData.aciklama || "", tahsilat: sonFisData.tahsilat, kalan_bakiye: sonFisData.kalanBakiye, toplam_tutar: sonFisData.genelToplam, fis_gorseli: sonFisData.fis_gorseli, ekleyen: sonFisData.ekleyen }; setSonFisData(null); handleFisDuzenle(fakeFis as any); }} className="btn-anim" style={{ flex: 1, padding: "8px", background: "#f59e0b", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", fontSize: "12px" }}>✏️ DÜZENLE</button>}
-                  {fisSilinebilirMi(sonFisData as Partial<SatisFis>) && <button onClick={() => { if(confirm("Silinecek?")) { handleFisSil({ id: sonFisData.id, fis_no: sonFisData.fis_no, fis_gorseli: sonFisData.fis_gorseli, ekleyen: sonFisData.ekleyen } as any); setSonFisData(null); } }} className="btn-anim" style={{ flex: 1, padding: "8px", background: "#dc2626", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", fontSize: "12px" }}>🗑️ SİL</button>}
+                  {fisSilinebilirMi(sonFisData as Partial<SatisFis>) && <button onClick={() => { void handleFisSil({ id: sonFisData.id, fis_no: sonFisData.fis_no, fis_gorseli: sonFisData.fis_gorseli, ekleyen: sonFisData.ekleyen } as any); setSonFisData(null); }} className="btn-anim" style={{ flex: 1, padding: "8px", background: "#dc2626", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", fontSize: "12px" }}>🗑️ SİL</button>}
                 </div>
                 <button onClick={() => setSonFisData(null)} className="btn-anim" style={{ width: "100%", padding: "8px", background: "transparent", color: "#64748b", border: "1px solid #cbd5e1", borderRadius: "8px", fontWeight: "bold", fontSize: "11px", marginTop: "2px" }}>KAPAT</button>
               </div>

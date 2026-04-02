@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DonemDisiTarihUyarisi } from "./DonemDisiTarihUyarisi";
 import { supabase } from "../lib/supabase";
-import type { SevkiyatKaydi } from "../types/app";
+import type { AppConfirmOptions, SevkiyatKaydi } from "../types/app";
 import { aktifDonemDisiKayitOnayMetni, getLocalDateString } from "../utils/date";
 import { fSayiNoDec, normalizeUsername } from "../utils/format";
 
@@ -11,6 +11,7 @@ type SevkiyatPanelProps = {
   aktifKullaniciKisa: string;
   aktifDonem: string;
   onRefreshCop: () => void | Promise<void>;
+  onConfirm: (options: AppConfirmOptions) => Promise<boolean>;
 };
 
 type SevkiyatDbRow = {
@@ -91,7 +92,7 @@ const sevkiyatTablosuEksikMi = (hata: BasitSupabaseHatasi) => {
 const sevkiyatKurulumMesaji = () =>
   `Sevkiyat tablosu bulunamadı. Önce ${SEVKIYAT_SQL_DOSYASI} dosyasını Supabase SQL Editor'da çalıştırın.`;
 
-export function SevkiyatPanel({ aktifKullaniciEposta, aktifKullaniciId, aktifKullaniciKisa, aktifDonem, onRefreshCop }: SevkiyatPanelProps) {
+export function SevkiyatPanel({ aktifKullaniciEposta, aktifKullaniciId, aktifKullaniciKisa, aktifDonem, onRefreshCop, onConfirm }: SevkiyatPanelProps) {
   const [sevkiyatList, setSevkiyatList] = useState<SevkiyatKaydi[]>([]);
   const [sevkiyatFiltreKisi, setSevkiyatFiltreKisi] = useState<"benim" | "tumu">("benim");
   const [sevkiyatForm, setSevkiyatForm] = useState({
@@ -217,7 +218,16 @@ export function SevkiyatPanel({ aktifKullaniciEposta, aktifKullaniciId, aktifKul
     }
 
     const donemDisiOnayMesaji = aktifDonemDisiKayitOnayMetni(sevkiyatForm.tarih, aktifDonem);
-    if (donemDisiOnayMesaji && !window.confirm(donemDisiOnayMesaji)) return;
+    if (
+      donemDisiOnayMesaji &&
+      !(await onConfirm({
+        title: "Dönem Dışı Kayıt",
+        message: donemDisiOnayMesaji,
+        confirmText: "Evet, Kaydet",
+        cancelText: "Vazgeç",
+        tone: "warning",
+      }))
+    ) return;
 
     setIsKaydediliyor(true);
 
@@ -269,7 +279,15 @@ export function SevkiyatPanel({ aktifKullaniciEposta, aktifKullaniciId, aktifKul
       return;
     }
 
-    if (!confirm("Sevkiyat kaydı silinsin mi?")) return;
+    if (
+      !(await onConfirm({
+        title: "Sevkiyat Kaydını Sil",
+        message: "Sevkiyat kaydı silinsin mi?",
+        confirmText: "Evet, Sil",
+        cancelText: "İptal",
+        tone: "danger",
+      }))
+    ) return;
 
     if (!kayit) {
       alert("Silinecek sevkiyat kaydı bulunamadı.");

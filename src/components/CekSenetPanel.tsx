@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DonemDisiTarihUyarisi } from "./DonemDisiTarihUyarisi";
-import type { CekSenetDurum, CekSenetKaydi, CekSenetTur } from "../types/app";
+import type { AppConfirmOptions, CekSenetDurum, CekSenetKaydi, CekSenetTur } from "../types/app";
 import { aktifDonemDisiKayitOnayMetni, getLocalDateString } from "../utils/date";
 import { fSayi, normalizeUsername } from "../utils/format";
 
 type CekSenetPanelProps = {
   aktifKullaniciKisa: string;
   aktifDonem: string;
+  onConfirm: (options: AppConfirmOptions) => Promise<boolean>;
 };
 
 type CekSenetForm = {
@@ -117,7 +118,7 @@ const dosyaDataUrlGetir = (file: File) =>
     reader.readAsDataURL(file);
   });
 
-export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem }: CekSenetPanelProps) {
+export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem, onConfirm }: CekSenetPanelProps) {
   const [kayitlar, setKayitlar] = useState<CekSenetKaydi[]>(() => localStorageOku());
   const [formAcik, setFormAcik] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -214,7 +215,7 @@ export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem }: CekSenetPanelP
     }
   };
 
-  const handleKaydet = () => {
+  const handleKaydet = async () => {
     if (!form.tarih) return alert("Tarih seçin.");
     if (!form.duzenleyen.trim()) return alert("Düzenleyen girin.");
     if (!form.tahTarihi) return alert("Tahsilat tarihi seçin.");
@@ -227,7 +228,16 @@ export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem }: CekSenetPanelP
     }
 
     const donemDisiOnayMesaji = aktifDonemDisiKayitOnayMetni(form.tarih, aktifDonem);
-    if (donemDisiOnayMesaji && !window.confirm(donemDisiOnayMesaji)) return;
+    if (
+      donemDisiOnayMesaji &&
+      !(await onConfirm({
+        title: "Dönem Dışı Kayıt",
+        message: donemDisiOnayMesaji,
+        confirmText: "Evet, Kaydet",
+        cancelText: "Vazgeç",
+        tone: "warning",
+      }))
+    ) return;
 
     const yeniKayit: CekSenetKaydi = {
       id: editingId || `cs-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
@@ -253,12 +263,20 @@ export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem }: CekSenetPanelP
     formKapat();
   };
 
-  const handleSil = (kayit: CekSenetKaydi) => {
+  const handleSil = async (kayit: CekSenetKaydi) => {
     if (!kayitSahibiMi(kayit)) {
       alert("Bu kaydı sadece ekleyen kullanıcı silebilir.");
       return;
     }
-    if (!confirm("Kayıt silinsin mi?")) return;
+    if (
+      !(await onConfirm({
+        title: "Kaydı Sil",
+        message: "Kayıt silinsin mi?",
+        confirmText: "Evet, Sil",
+        cancelText: "İptal",
+        tone: "danger",
+      }))
+    ) return;
 
     const sonrakiKayitlar = kayitlar.filter((item) => item.id !== kayit.id);
     if (!kayitlariKaydet(sonrakiKayitlar)) return;

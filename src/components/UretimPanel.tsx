@@ -19,7 +19,7 @@ import {
   uretimSatisToplami,
   type UretimTipi,
 } from "../lib/uretim";
-import type { SortConfig, Uretim } from "../types/app";
+import type { AppConfirmOptions, SortConfig, Uretim } from "../types/app";
 import { aktifDonemDisiKayitOnayMetni, getLocalDateString } from "../utils/date";
 import { fSayiNoDec, normalizeUsername } from "../utils/format";
 
@@ -38,6 +38,7 @@ type UretimPanelProps = {
   uretimList: Uretim[];
   onRefreshUretim: () => void | Promise<void>;
   onRefreshCop: () => void | Promise<void>;
+  onConfirm: (options: AppConfirmOptions) => Promise<boolean>;
   helpers: {
     fSayi: (num: unknown) => string;
     veritabaniHatasiMesaji: (tablo: string, hata: { message?: string } | null) => string;
@@ -158,6 +159,7 @@ export function UretimPanel({
   uretimList,
   onRefreshUretim,
   onRefreshCop,
+  onConfirm,
   helpers,
 }: UretimPanelProps) {
   const [isUretimModalOpen, setIsUretimModalOpen] = useState(false);
@@ -252,7 +254,15 @@ export function UretimPanel({
       return;
     }
 
-    if (!window.confirm("Sil?")) return;
+    if (
+      !(await onConfirm({
+        title: "Üretim Kaydını Sil",
+        message: "Bu üretim kaydı silinsin mi?",
+        confirmText: "Evet, Sil",
+        cancelText: "İptal",
+        tone: "danger",
+      }))
+    ) return;
 
     const copBasarili = await coptKutusunaAt("uretim", kayit);
     if (!copBasarili) {
@@ -279,7 +289,16 @@ export function UretimPanel({
     }
 
     const donemDisiOnayMesaji = aktifDonemDisiKayitOnayMetni(uretimForm.tarih, aktifDonem);
-    if (donemDisiOnayMesaji && !window.confirm(donemDisiOnayMesaji)) return;
+    if (
+      donemDisiOnayMesaji &&
+      !(await onConfirm({
+        title: "Dönem Dışı Kayıt",
+        message: donemDisiOnayMesaji,
+        confirmText: "Evet, Kaydet",
+        cancelText: "Vazgeç",
+        tone: "warning",
+      }))
+    ) return;
 
     const maliyet = uretimMaliyetToplami(uretimForm);
     const satisDegeri = uretimSatisToplami(uretimForm);

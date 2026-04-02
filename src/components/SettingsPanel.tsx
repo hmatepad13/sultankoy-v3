@@ -4,6 +4,7 @@ import { fSayi, normalizeUsername } from "../utils/format";
 import type {
   ActiveAyarTab,
   AdminKullanici,
+  AppConfirmOptions,
   AppTabId,
   Bayi,
   Ciftlik,
@@ -69,6 +70,7 @@ interface SettingsPanelProps {
   onResetAdminUserPassword: (payload: { userId: string; newPassword: string }) => Promise<{ ok: boolean; message: string }>;
   onDeleteAdminUser: (payload: { userId: string; email: string }) => Promise<{ ok: boolean; message: string }>;
   onSavePermissions: (next: KullaniciSekmeYetkisi[]) => Promise<void> | void;
+  onConfirm: (options: AppConfirmOptions) => Promise<boolean>;
 }
 
 const kartStili = {
@@ -283,6 +285,7 @@ export function SettingsPanel({
   onResetAdminUserPassword,
   onDeleteAdminUser,
   onSavePermissions,
+  onConfirm,
 }: SettingsPanelProps) {
   const [hedefKullanici, setHedefKullanici] = useState("");
   const [taslakYetkiler, setTaslakYetkiler] = useState<SekmeYetkiMap | null>(null);
@@ -461,7 +464,15 @@ export function SettingsPanel({
       return;
     }
 
-    if (!window.confirm(`${kullanici.email} kullanıcısı silinsin mi? Bu işlem geri alınamaz.`)) {
+    if (
+      !(await onConfirm({
+        title: "Kullanıcıyı Sil",
+        message: `${kullanici.email} kullanıcısı silinsin mi? Bu işlem geri alınamaz.`,
+        confirmText: "Evet, Sil",
+        cancelText: "İptal",
+        tone: "danger",
+      }))
+    ) {
       return;
     }
 

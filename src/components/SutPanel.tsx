@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { DonemDisiTarihUyarisi } from "./DonemDisiTarihUyarisi";
 import { supabase } from "../lib/supabase";
-import type { Ciftlik, SortConfig, SutGiris } from "../types/app";
+import type { AppConfirmOptions, Ciftlik, SortConfig, SutGiris } from "../types/app";
 import { aktifDonemDisiKayitOnayMetni, getLocalDateString } from "../utils/date";
 import { normalizeUsername } from "../utils/format";
 
@@ -20,6 +20,7 @@ type SutPanelProps = {
   onRefreshSut: () => void | Promise<void>;
   onRefreshCop: () => void | Promise<void>;
   onPreviewImage: (payload: GorselOnizleme) => void;
+  onConfirm: (options: AppConfirmOptions) => Promise<boolean>;
   helpers: {
     fSayi: (num: unknown) => string;
     fSayiNoDec: (num: unknown) => string;
@@ -183,6 +184,7 @@ export function SutPanel({
   onRefreshSut,
   onRefreshCop,
   onPreviewImage,
+  onConfirm,
   helpers,
 }: SutPanelProps) {
   const [isSutModalOpen, setIsSutModalOpen] = useState(false);
@@ -455,7 +457,16 @@ export function SutPanel({
     }
 
     const donemDisiOnayMesaji = aktifDonemDisiKayitOnayMetni(sutForm.tarih, aktifDonem);
-    if (donemDisiOnayMesaji && !window.confirm(donemDisiOnayMesaji)) {
+    if (
+      donemDisiOnayMesaji &&
+      !(await onConfirm({
+        title: "Dönem Dışı Kayıt",
+        message: donemDisiOnayMesaji,
+        confirmText: "Evet, Kaydet",
+        cancelText: "Vazgeç",
+        tone: "warning",
+      }))
+    ) {
       return;
     }
 
@@ -537,7 +548,15 @@ export function SutPanel({
       return;
     }
 
-    if (!confirm("Sil?")) return;
+    if (
+      !(await onConfirm({
+        title: "Süt Kaydını Sil",
+        message: "Bu süt kaydı silinsin mi?",
+        confirmText: "Evet, Sil",
+        cancelText: "İptal",
+        tone: "danger",
+      }))
+    ) return;
 
     const copBasarili = await coptKutusunaAt("sut_giris", kayit);
     if (!copBasarili) {

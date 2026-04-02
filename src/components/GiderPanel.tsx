@@ -10,7 +10,7 @@ import {
   sutOdemesiMi,
   sutTozuOdemesiMi,
 } from "../lib/gider";
-import type { Gider, SortConfig } from "../types/app";
+import type { AppConfirmOptions, Gider, SortConfig } from "../types/app";
 import { aktifDonemDisiKayitOnayMetni, getLocalDateString } from "../utils/date";
 import { normalizeUsername } from "../utils/format";
 
@@ -35,6 +35,7 @@ type GiderPanelProps = {
   onRefreshCop: () => void | Promise<void>;
   onOpenMiniDetay: (detay: MiniDetay) => void;
   onPreviewImage: (payload: GorselOnizleme) => void;
+  onConfirm: (options: AppConfirmOptions) => Promise<boolean>;
   helpers: {
     fSayi: (num: any) => string;
     veritabaniHatasiMesaji: (tablo: string, hata: { message?: string } | null) => string;
@@ -123,6 +124,7 @@ export function GiderPanel({
   onRefreshCop,
   onOpenMiniDetay,
   onPreviewImage,
+  onConfirm,
   helpers,
 }: GiderPanelProps) {
   const [giderFiltreKisi, setGiderFiltreKisi] = useState<"benim" | "tumu">("benim");
@@ -256,7 +258,16 @@ export function GiderPanel({
     const duzenlenenKayit = periodGider.find((item) => item.id === editingGiderId);
     if (editingGiderId && !kaydiDuzenleyebilirMi(duzenlenenKayit?.ekleyen)) return alert("Bu gider kaydını sadece ekleyen kullanıcı veya admin düzenleyebilir.");
     const donemDisiOnayMesaji = aktifDonemDisiKayitOnayMetni(giderForm.tarih, aktifDonem);
-    if (donemDisiOnayMesaji && !window.confirm(donemDisiOnayMesaji)) return;
+    if (
+      donemDisiOnayMesaji &&
+      !(await onConfirm({
+        title: "Dönem Dışı Kayıt",
+        message: donemDisiOnayMesaji,
+        confirmText: "Evet, Kaydet",
+        cancelText: "Vazgeç",
+        tone: "warning",
+      }))
+    ) return;
     const oncekiGorsel = duzenlenenKayit?.gorsel || giderGorselMevcutYol || "";
     let yuklenenGorselYolu = giderGorselMevcutYol || null;
     try { yuklenenGorselYolu = await giderGorseliYukle(); } catch (error: any) { return alert(`Gider görseli yüklenemedi: ${error?.message || "Bilinmeyen hata"}`); }
@@ -282,7 +293,15 @@ export function GiderPanel({
 
   const handleGiderSil = async (gider: Gider) => {
     if (!kaydiSilebilirMi(gider.ekleyen)) return alert("Bu kaydı sadece ekleyen kullanıcı veya admin silebilir.");
-    if (!window.confirm("Bu gider kaydı silinsin mi?")) return;
+    if (
+      !(await onConfirm({
+        title: "Gider Kaydını Sil",
+        message: "Bu gider kaydı silinsin mi?",
+        confirmText: "Evet, Sil",
+        cancelText: "İptal",
+        tone: "danger",
+      }))
+    ) return;
     const { error: copError } = await supabase.from("cop_kutusu").insert({
       tablo_adi: "giderler",
       veri: gider,

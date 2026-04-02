@@ -202,6 +202,14 @@ export interface CopKutusu {
   geri_yukleyen_email?: string | null;
 }
 
+export type AppConfirmOptions = {
+  title?: string;
+  message: string;
+  confirmText?: string;
+  cancelText?: string;
+  tone?: "primary" | "warning" | "danger";
+};
+
 export interface SortConfig {
   key: string;
   direction: "asc" | "desc";
