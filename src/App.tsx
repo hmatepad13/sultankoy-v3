@@ -756,6 +756,7 @@ export default function App() {
   const digerUrunMenuRef = useRef<HTMLDivElement | null>(null);
   const fisGorselKameraInputRef = useRef<HTMLInputElement | null>(null);
   const fisGorselGaleriInputRef = useRef<HTMLInputElement | null>(null);
+  const html2canvasYuklemeRef = useRef<Promise<any> | null>(null);
   const [sonFisData, setSonFisData] = useState<any>(null);
   const [musteriEkstreData, setMusteriEkstreData] = useState<null | {
     musteri: string;
@@ -971,6 +972,69 @@ export default function App() {
     void cikisYap("10 dakika işlem yapılmadığı için güvenlik amacıyla oturum kapatıldı.");
   });
 
+  const html2canvasYukle = useCallback(async () => {
+    if (typeof window === "undefined") {
+      throw new Error("Tarayıcı ortamı bulunamadı.");
+    }
+
+    if (typeof (window as any).html2canvas !== "undefined") {
+      return (window as any).html2canvas;
+    }
+
+    if (!html2canvasYuklemeRef.current) {
+      html2canvasYuklemeRef.current = new Promise((resolve, reject) => {
+        const mevcutScript = document.getElementById("html2canvas-script") as HTMLScriptElement | null;
+        const script = mevcutScript || document.createElement("script");
+
+        const handleLoad = () => {
+          script.dataset.loaded = "true";
+          temizle();
+          if (typeof (window as any).html2canvas !== "undefined") {
+            resolve((window as any).html2canvas);
+            return;
+          }
+          html2canvasYuklemeRef.current = null;
+          reject(new Error("html2canvas hazır değil."));
+        };
+
+        const handleError = () => {
+          temizle();
+          html2canvasYuklemeRef.current = null;
+          reject(new Error("html2canvas yüklenemedi."));
+        };
+
+        const temizle = () => {
+          script.removeEventListener("load", handleLoad);
+          script.removeEventListener("error", handleError);
+        };
+
+        script.addEventListener("load", handleLoad);
+        script.addEventListener("error", handleError);
+
+        if (!mevcutScript) {
+          script.id = "html2canvas-script";
+          script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+          document.head.appendChild(script);
+          return;
+        }
+
+        if (script.dataset.loaded === "true") {
+          handleLoad();
+        }
+      }).catch((error) => {
+        html2canvasYuklemeRef.current = null;
+        throw error;
+      });
+    }
+
+    return html2canvasYuklemeRef.current;
+  }, []);
+
+  useEffect(() => {
+    if (!sonFisData && !musteriEkstreData) return;
+    void html2canvasYukle().catch(() => {});
+  }, [html2canvasYukle, musteriEkstreData, sonFisData]);
+
   useEffect(() => {
     const savedUser = localStorage.getItem("user");
     if (savedUser) setUsername(normalizeUsername(savedUser));
@@ -984,13 +1048,6 @@ export default function App() {
       document.head.appendChild(viewportMeta);
     }
     viewportMeta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0');
-
-    if (!document.getElementById("html2canvas-script")) {
-      const script = document.createElement("script");
-      script.id = "html2canvas-script";
-      script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
-      document.head.appendChild(script);
-    }
 
     supabase.auth
       .getSession()
@@ -3250,12 +3307,15 @@ export default function App() {
   const goruntuyuJpegOlarakPaylas = async (elementId: string, dosyaAdi: string, baslik: string) => {
     const hedefElement = document.getElementById(elementId);
     if (!hedefElement) return;
-    if (typeof (window as any).html2canvas === "undefined") {
-      alert("Yukleniyor, tekrar deneyin.");
+    let html2canvasFn: any;
+    try {
+      html2canvasFn = await html2canvasYukle();
+    } catch {
+      alert("Görsel paylaşım aracı yüklenemedi. Lütfen tekrar deneyin.");
       return;
     }
 
-    const canvas = await (window as any).html2canvas(hedefElement, { scale: 3, backgroundColor: "#ffffff" });
+    const canvas = await html2canvasFn(hedefElement, { scale: 3, backgroundColor: "#ffffff" });
     canvas.toBlob((blob: Blob | null) => {
       if (!blob) return;
       const file = new File([blob], dosyaAdi, { type: "image/jpeg" });
