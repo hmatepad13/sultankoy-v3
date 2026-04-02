@@ -1,0 +1,115 @@
+name: Nightly Full Backup
+
+on:
+  schedule:
+    - cron: "17 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  full-backup:
+    if: ${{ secrets.BACKUP_REPO != '' && secrets.BACKUP_REPO_TOKEN != '' && secrets.SUPABASE_DB_URL != '' && secrets.SUPABASE_URL != '' && secrets.SUPABASE_SERVICE_ROLE_KEY != '' && secrets.VERCEL_TOKEN != '' && secrets.BACKUP_ENV_PASSPHRASE != '' }}
+    runs-on: ubuntu-latest
+    env:
+      BACKUP_BUCKETS: fis_gorselleri
+      BACKUP_KEEP_DAYS: "7"
+      BACKUP_REPO: ${{ secrets.BACKUP_REPO }}
+      BACKUP_ENV_PASSPHRASE: ${{ secrets.BACKUP_ENV_PASSPHRASE }}
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - name: Checkout app repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Prepare backup workspace
+        run: |
+          BACKUP_DATE="$(date -u +%F)"
+          BACKUP_DIR="$RUNNER_TEMP/backup/$BACKUP_DATE"
+          echo "BACKUP_DATE=$BACKUP_DATE" >> "$GITHUB_ENV"
+          echo "BACKUP_DIR=$BACKUP_DIR" >> "$GITHUB_ENV"
+          mkdir -p "$BACKUP_DIR/db" "$BACKUP_DIR/storage" "$BACKUP_DIR/env"
+
+      - name: Dump database roles
+        run: pg_dumpall --dbname="$SUPABASE_DB_URL" --roles-only --quote-all-identifiers --no-role-passwords > "$BACKUP_DIR/db/roles.sql"
+
+      - name: Dump database schema
+        run: pg_dump --dbname="$SUPABASE_DB_URL" --schema-only --quote-all-identifiers --no-owner --no-privileges --file="$BACKUP_DIR/db/schema.sql"
+
+      - name: Dump database data
+        run: pg_dump --dbname="$SUPABASE_DB_URL" --data-only --quote-all-identifiers --disable-triggers --no-owner --no-privileges --file="$BACKUP_DIR/db/data.sql"
+
+      - name: Backup storage buckets
+        run: node scripts/backup/download-storage.mjs
+
+      - name: Backup Vercel production env
+        run: npx vercel@latest env pull "$BACKUP_DIR/env/vercel-production.env" --environment=production --yes --token "$VERCEL_TOKEN"
+
+      - name: Encrypt Vercel env snapshot
+        run: node scripts/backup/encrypt-file.mjs "$BACKUP_DIR/env/vercel-production.env" "$BACKUP_DIR/env/vercel-production.env.enc"
+
+      - name: Remove plain env snapshot
+        run: rm -f "$BACKUP_DIR/env/vercel-production.env"
+
+      - name: Copy Vercel project metadata
+        run: cp .vercel/project.json "$BACKUP_DIR/env/vercel-project.json"
+
+      - name: Write restore notes
+        run: |
+          cat > "$BACKUP_DIR/restore-notes.md" <<'EOF'
+          # Restore Notes
+
+          1. Create a new Supabase project.
+          2. Restore database roles from `db/roles.sql`.
+          3. Restore schema from `db/schema.sql`.
+          4. Restore data from `db/data.sql`.
+          5. Re-upload storage files under `storage/`.
+          6. Decrypt `env/vercel-production.env.enc` with the backup passphrase and restore the variables in Vercel.
+          7. Deploy the current application code from the main repository.
+          8. If session continuity is important, reuse the original JWT secret in the new Supabase project before opening the app.
+          EOF
+
+      - name: Write backup manifest
+        run: node scripts/backup/write-manifest.mjs
+
+      - name: Clone backup repository
+        env:
+          BACKUP_REPO_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+        run: |
+          git clone "https://x-access-token:${BACKUP_REPO_TOKEN}@github.com/${BACKUP_REPO}.git" "$RUNNER_TEMP/backup-repo"
+
+      - name: Copy backup into repository
+        run: |
+          mkdir -p "$RUNNER_TEMP/backup-repo/$BACKUP_DATE"
+          cp -R "$BACKUP_DIR/." "$RUNNER_TEMP/backup-repo/$BACKUP_DATE/"
+
+      - name: Prune old backups
+        run: node scripts/backup/prune-backups.mjs "$RUNNER_TEMP/backup-repo" "$BACKUP_KEEP_DAYS"
+
+      - name: Commit and push backup
+        run: |
+          cd "$RUNNER_TEMP/backup-repo"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No backup changes to commit."
+            exit 0
+          fi
+          git commit -m "Backup $BACKUP_DATE from $GITHUB_REPOSITORY@$GITHUB_SHA"
+          git push origin HEAD:main
