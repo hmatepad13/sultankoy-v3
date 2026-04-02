@@ -722,6 +722,14 @@ export default function App() {
   });
   const acilisVerisiYuklenenKullaniciRef = useRef<string | null>(null);
   const acilisVerisiYukleniyorKullaniciRef = useRef<string | null>(null);
+  const ertelenenVeriYuklemeRef = useRef({
+    giderTurleriYuklenenKullanici: null as string | null,
+    giderTurleriYukleniyorKullanici: null as string | null,
+    profillerYuklenenKullanici: null as string | null,
+    profillerYukleniyorKullanici: null as string | null,
+    copYuklenenKullanici: null as string | null,
+    copYukleniyorKullanici: null as string | null,
+  });
   const logRetentionCalisiyorRef = useRef(false);
   const [startupVeriHazir, setStartupVeriHazir] = useState(false);
 
@@ -1239,6 +1247,17 @@ export default function App() {
   }, [session?.user?.id]);
 
   useEffect(() => {
+    ertelenenVeriYuklemeRef.current = {
+      giderTurleriYuklenenKullanici: null,
+      giderTurleriYukleniyorKullanici: null,
+      profillerYuklenenKullanici: null,
+      profillerYukleniyorKullanici: null,
+      copYuklenenKullanici: null,
+      copYukleniyorKullanici: null,
+    };
+  }, [session?.user?.id]);
+
+  useEffect(() => {
     if (!session?.user?.id) return;
 
     kullaniciYetkileriniYukle().then(({ kayitlar, kaynak, uyari }) => {
@@ -1497,6 +1516,69 @@ export default function App() {
       window.clearTimeout(zamanlayici);
     };
   }, [activeTab, gorunurSekmeler, session?.user?.id, sekmeleriOnYukle]);
+
+  useEffect(() => {
+    const kullaniciId = session?.user?.id || null;
+    if (!kullaniciId) return;
+
+    const giderTurleriGerekli =
+      activeTab === "gider" || (activeTab === "ayarlar" && activeAyarTab === "gider_turleri");
+    if (
+      giderTurleriGerekli &&
+      ertelenenVeriYuklemeRef.current.giderTurleriYuklenenKullanici !== kullaniciId &&
+      ertelenenVeriYuklemeRef.current.giderTurleriYukleniyorKullanici !== kullaniciId
+    ) {
+      ertelenenVeriYuklemeRef.current.giderTurleriYukleniyorKullanici = kullaniciId;
+      void (async () => {
+        const basarili = await verileriGetir("gider_turleri");
+        if (basarili) {
+          ertelenenVeriYuklemeRef.current.giderTurleriYuklenenKullanici = kullaniciId;
+        }
+      })().finally(() => {
+        if (ertelenenVeriYuklemeRef.current.giderTurleriYukleniyorKullanici === kullaniciId) {
+          ertelenenVeriYuklemeRef.current.giderTurleriYukleniyorKullanici = null;
+        }
+      });
+    }
+
+    const profillerGerekli = activeTab === "ayarlar" && activeAyarTab === "yetkiler";
+    if (
+      profillerGerekli &&
+      ertelenenVeriYuklemeRef.current.profillerYuklenenKullanici !== kullaniciId &&
+      ertelenenVeriYuklemeRef.current.profillerYukleniyorKullanici !== kullaniciId
+    ) {
+      ertelenenVeriYuklemeRef.current.profillerYukleniyorKullanici = kullaniciId;
+      void (async () => {
+        const basarili = await verileriGetir("profiller");
+        if (basarili) {
+          ertelenenVeriYuklemeRef.current.profillerYuklenenKullanici = kullaniciId;
+        }
+      })().finally(() => {
+        if (ertelenenVeriYuklemeRef.current.profillerYukleniyorKullanici === kullaniciId) {
+          ertelenenVeriYuklemeRef.current.profillerYukleniyorKullanici = null;
+        }
+      });
+    }
+
+    const copGerekli = activeTab === "ayarlar" && activeAyarTab === "cop_kutusu";
+    if (
+      copGerekli &&
+      ertelenenVeriYuklemeRef.current.copYuklenenKullanici !== kullaniciId &&
+      ertelenenVeriYuklemeRef.current.copYukleniyorKullanici !== kullaniciId
+    ) {
+      ertelenenVeriYuklemeRef.current.copYukleniyorKullanici = kullaniciId;
+      void (async () => {
+        const basarili = await verileriGetir("cop");
+        if (basarili) {
+          ertelenenVeriYuklemeRef.current.copYuklenenKullanici = kullaniciId;
+        }
+      })().finally(() => {
+        if (ertelenenVeriYuklemeRef.current.copYukleniyorKullanici === kullaniciId) {
+          ertelenenVeriYuklemeRef.current.copYukleniyorKullanici = null;
+        }
+      });
+    }
+  }, [activeAyarTab, activeTab, session?.user?.id]);
 
   useEffect(() => {
     if (!isBottomMenuOpen) return;
@@ -1825,7 +1907,7 @@ export default function App() {
           displayName: payload.displayName,
         });
         await handleAdminUsersLoad(true);
-        await verileriGetir("ayar");
+        await verileriGetir("profiller");
         return { ok: true, message: data?.message || "Kullanıcı oluşturuldu." };
       } catch (error: any) {
         setAdminKullaniciHata(error?.message || "Kullanıcı oluşturulamadı.");
@@ -1868,7 +1950,7 @@ export default function App() {
           userId: payload.userId,
         });
         await handleAdminUsersLoad(true);
-        await verileriGetir("ayar");
+        await verileriGetir("profiller");
         return { ok: true, message: data?.message || `${payload.email} kullanıcısı silindi.` };
       } catch (error: any) {
         setAdminKullaniciHata(error?.message || "Kullanıcı silinemedi.");
@@ -1898,9 +1980,19 @@ export default function App() {
   }
 
   async function verileriGetir(
-    hedef: "hepsi" | "satis" | "sut" | "gider" | "uretim" | "ayar" | "cop" = "hepsi",
+    hedef:
+      | "hepsi"
+      | "satis"
+      | "sut"
+      | "gider"
+      | "uretim"
+      | "ayar"
+      | "gider_turleri"
+      | "profiller"
+      | "cop" = "hepsi",
   ) {
     const startupEtkin = hedef === "hepsi" && !startupTelemetriRef.current.fetchLoglandi;
+    const kullaniciId = session?.user?.id || null;
     const startupSorguyuCalistir = async <T,>(
       tablo: string,
       istek: PromiseLike<{ data: T[] | null; error: any }>,
@@ -1946,17 +2038,14 @@ export default function App() {
       }
 
       if (hedef === "hepsi" || hedef === "ayar") {
-        const [{ data: c, error: cErr }, { data: b, error: bErr }, { data: u, error: uErr }, { data: p, error: pErr }, { data: gt, error: gtErr }] = await Promise.all([
+        const [{ data: c, error: cErr }, { data: b, error: bErr }, { data: u, error: uErr }] = await Promise.all([
           startupSorguyuCalistir<Ciftlik>("ciftlikler", supabase.from("ciftlikler").select("*").order("isim")),
           startupSorguyuCalistir<Bayi>("bayiler", supabase.from("bayiler").select("*").order("isim")),
           startupSorguyuCalistir<Urun>("urunler", supabase.from("urunler").select("*").order("isim")),
-          startupSorguyuCalistir<{ username?: string | null }>("profiles", supabase.from("profiles").select("username").order("username")),
-          startupSorguyuCalistir<GiderTuru>("gider_turleri", supabase.from("gider_turleri").select("*").order("isim")),
         ]);
-        if (cErr || bErr || uErr || pErr || gtErr) throw cErr || bErr || uErr || pErr || gtErr;
+        if (cErr || bErr || uErr) throw cErr || bErr || uErr;
         if (c) setTedarikciler(c);
         if (b) setBayiler(b);
-        if (gt) setGiderTuruListesi(gt);
         if (u) {
           setUrunler(u);
           setFisDetay(prev => {
@@ -1967,6 +2056,26 @@ export default function App() {
             return yeniDetay;
           });
         }
+      }
+
+      if (hedef === "ayar" || hedef === "gider_turleri" || (hedef === "hepsi" && !startupEtkin)) {
+        const { data: gt, error: gtErr } = await startupSorguyuCalistir<GiderTuru>(
+          "gider_turleri",
+          supabase.from("gider_turleri").select("*").order("isim"),
+        );
+        if (gtErr) throw gtErr;
+        if (gt) setGiderTuruListesi(gt);
+        if (kullaniciId) {
+          ertelenenVeriYuklemeRef.current.giderTurleriYuklenenKullanici = kullaniciId;
+        }
+      }
+
+      if (hedef === "ayar" || hedef === "profiller" || (hedef === "hepsi" && !startupEtkin)) {
+        const { data: p, error: pErr } = await startupSorguyuCalistir<{ username?: string | null }>(
+          "profiles",
+          supabase.from("profiles").select("username").order("username"),
+        );
+        if (pErr) throw pErr;
         if (p) {
           const kullanicilar = Array.from(
             new Set(
@@ -1976,6 +2085,9 @@ export default function App() {
             ),
           ).sort((a, b) => a.localeCompare(b, "tr"));
           setProfilKullaniciListesi(kullanicilar);
+        }
+        if (kullaniciId) {
+          ertelenenVeriYuklemeRef.current.profillerYuklenenKullanici = kullaniciId;
         }
       }
 
@@ -2022,13 +2134,16 @@ export default function App() {
         if (ur) setUretimList(ur.map((kayit) => uretimKaydiniNormalizeEt(kayit as Uretim)));
       }
 
-      if (hedef === "hepsi" || hedef === "cop") {
+      if (hedef === "cop" || (hedef === "hepsi" && !startupEtkin)) {
         const { data: cop, error: copErr } = await startupSorguyuCalistir<CopKutusu>(
           "cop_kutusu",
           supabase.from("cop_kutusu").select("*").order("silinme_tarihi", { ascending: false }),
         );
         if (copErr) throw copErr;
         if (cop) setCopKutusuList(cop);
+        if (kullaniciId) {
+          ertelenenVeriYuklemeRef.current.copYuklenenKullanici = kullaniciId;
+        }
       }
 
       if (startupEtkin) {
