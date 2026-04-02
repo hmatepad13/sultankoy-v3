@@ -608,6 +608,9 @@ export function SettingsPanel({
                   <p style={{ margin: 0, color: "#64748b", fontSize: "12px", lineHeight: 1.5 }}>
                     Bu ekran Supabase CLI yerine admin RPC özeti kullanır. Son 2 günün startup logları hızlıca okunur.
                   </p>
+                  <p style={{ margin: "6px 0 0", color: "#64748b", fontSize: "11px", lineHeight: 1.5 }}>
+                    Saklama kuralı: `client/startup` ve `işlem performansı` 14 gün, `hata logları` 60 gün. Temizlik girişlerden sonra arka planda çalışır.
+                  </p>
                 </div>
                 <button
                   onClick={() => void onLoadStartupDiagnostics(true)}

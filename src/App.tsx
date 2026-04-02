@@ -504,6 +504,11 @@ const sureyiYuvarla = (baslangicMs?: number | null, bitisMs = performansSimdi())
   baslangicMs == null ? 0 : Math.max(0, Math.round(bitisMs - baslangicMs));
 
 const startupDenemeIdOlustur = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+const LOG_RETENTION_CLIENT_DAYS = 14;
+const LOG_RETENTION_PERFORMANCE_DAYS = 14;
+const LOG_RETENTION_ERROR_DAYS = 60;
+const LOG_RETENTION_LAST_RUN_KEY = "app-log-retention-last-run";
+const LOG_RETENTION_MIN_INTERVAL_MS = 12 * 60 * 60 * 1000;
 
 const startupLogDiziyeCevir = (deger: unknown) => (Array.isArray(deger) ? deger : []);
 
@@ -668,6 +673,7 @@ export default function App() {
   });
   const acilisVerisiYuklenenKullaniciRef = useRef<string | null>(null);
   const acilisVerisiYukleniyorKullaniciRef = useRef<string | null>(null);
+  const logRetentionCalisiyorRef = useRef(false);
   const [startupVeriHazir, setStartupVeriHazir] = useState(false);
 
   // DÖNEM YÖNETİMİ (Kalıcı)
@@ -1480,6 +1486,55 @@ export default function App() {
     setStartupDiagnosticsError("");
     setIsStartupDiagnosticsLoading(false);
   }, [isAdmin]);
+
+  useEffect(() => {
+    if (!session?.user?.id) {
+      logRetentionCalisiyorRef.current = false;
+      return;
+    }
+
+    const sonCalisma = Number(window.localStorage.getItem(LOG_RETENTION_LAST_RUN_KEY) || 0);
+    if (sonCalisma && Date.now() - sonCalisma < LOG_RETENTION_MIN_INTERVAL_MS) {
+      return;
+    }
+
+    if (logRetentionCalisiyorRef.current) return;
+
+    let iptal = false;
+    const zamanlayici = window.setTimeout(() => {
+      if (iptal || logRetentionCalisiyorRef.current) return;
+
+      logRetentionCalisiyorRef.current = true;
+
+      void (async () => {
+        try {
+          const { error } = await supabase.rpc("app_apply_log_retention", {
+            p_client_days: LOG_RETENTION_CLIENT_DAYS,
+            p_perf_days: LOG_RETENTION_PERFORMANCE_DAYS,
+            p_error_days: LOG_RETENTION_ERROR_DAYS,
+          });
+
+          if (error) {
+            if (!rpcBulunamadiMi(error, "app_apply_log_retention")) {
+              console.warn("Log retention temizliği çalıştırılamadı:", error.message || error);
+            }
+            return;
+          }
+
+          window.localStorage.setItem(LOG_RETENTION_LAST_RUN_KEY, String(Date.now()));
+        } catch (error) {
+          console.warn("Log retention temizliği beklenmeyen hataya düştü:", error);
+        } finally {
+          logRetentionCalisiyorRef.current = false;
+        }
+      })();
+    }, 8000);
+
+    return () => {
+      iptal = true;
+      window.clearTimeout(zamanlayici);
+    };
+  }, [session?.user?.id]);
 
   const yerelOturumuTemizle = async () => {
     await supabase.auth.signOut({ scope: "local" });
