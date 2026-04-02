@@ -630,7 +630,7 @@ export function SettingsPanel({
         )}
 
         {activeAyarTab === "performans" && isAdmin && (
-          <div style={{ display: "grid", gap: "12px", overflowY: "auto", alignContent: "start", minHeight: 0, paddingRight: "2px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px", overflowY: "auto", minHeight: 0, paddingRight: "2px" }}>
             <div style={kartStili}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
                 <div>
@@ -783,7 +783,7 @@ export function SettingsPanel({
                   </div>
                 </div>
 
-                <div style={{ ...kartStili, overflow: isDarEkran ? "visible" : "auto" }}>
+                <div style={{ ...kartStili, overflowX: isDarEkran ? "visible" : "auto", overflowY: "visible", flexShrink: 0 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: "8px", alignItems: "center", marginBottom: "10px" }}>
                     <h4 style={{ margin: 0, fontSize: "14px", color: "#0f172a" }}>Tablo Bazlı Fetch Süresi</h4>
                     <span style={{ fontSize: "11px", color: "#64748b" }}>Ortalamaya göre sıralı</span>
@@ -858,7 +858,7 @@ export function SettingsPanel({
                   )}
                 </div>
 
-                <div style={{ ...kartStili, overflow: isDarEkran ? "visible" : "auto" }}>
+                <div style={{ ...kartStili, overflowX: isDarEkran ? "visible" : "auto", overflowY: "visible", flexShrink: 0 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: "8px", alignItems: "center", marginBottom: "10px" }}>
                     <h4 style={{ margin: 0, fontSize: "14px", color: "#0f172a" }}>Son Açılış Oturumları</h4>
                     <span style={{ fontSize: "11px", color: "#64748b" }}>En yeni oturumlar</span>
@@ -951,7 +951,7 @@ export function SettingsPanel({
                   </div>
                 </div>
 
-                <div style={{ ...kartStili, overflow: isDarEkran ? "visible" : "auto" }}>
+                <div style={{ ...kartStili, overflowX: isDarEkran ? "visible" : "auto", overflowY: "visible", flexShrink: 0 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: "8px", alignItems: "center", marginBottom: "10px" }}>
                     <h4 style={{ margin: 0, fontSize: "14px", color: "#0f172a" }}>İşlem Performansı</h4>
                     <span style={{ fontSize: "11px", color: "#64748b" }}>Eski app_performans_loglari özeti</span>
@@ -1038,7 +1038,7 @@ export function SettingsPanel({
                   )}
                 </div>
 
-                <div style={{ ...kartStili, overflow: isDarEkran ? "visible" : "auto" }}>
+                <div style={{ ...kartStili, overflowX: isDarEkran ? "visible" : "auto", overflowY: "visible", flexShrink: 0 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: "8px", alignItems: "center", marginBottom: "10px" }}>
                     <h4 style={{ margin: 0, fontSize: "14px", color: "#0f172a" }}>Son İşlem Performans Kayıtları</h4>
                     <span style={{ fontSize: "11px", color: "#64748b" }}>En yeni kayıtlar</span>
@@ -1113,7 +1113,7 @@ export function SettingsPanel({
                   )}
                 </div>
 
-                <div style={{ ...kartStili, overflow: isDarEkran ? "visible" : "auto" }}>
+                <div style={{ ...kartStili, overflowX: isDarEkran ? "visible" : "auto", overflowY: "visible", flexShrink: 0 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: "8px", alignItems: "center", marginBottom: "10px" }}>
                     <h4 style={{ margin: 0, fontSize: "14px", color: "#0f172a" }}>Hata Grupları</h4>
                     <span style={{ fontSize: "11px", color: "#64748b" }}>Eski app_hata_loglari özeti</span>
@@ -1190,7 +1190,7 @@ export function SettingsPanel({
                   )}
                 </div>
 
-                <div style={{ ...kartStili, overflow: isDarEkran ? "visible" : "auto" }}>
+                <div style={{ ...kartStili, overflowX: isDarEkran ? "visible" : "auto", overflowY: "visible", flexShrink: 0 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: "8px", alignItems: "center", marginBottom: "10px" }}>
                     <h4 style={{ margin: 0, fontSize: "14px", color: "#0f172a" }}>Son Hata Kayıtları</h4>
                     <span style={{ fontSize: "11px", color: "#64748b" }}>En yeni hata kayıtları</span>
