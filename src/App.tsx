@@ -723,6 +723,14 @@ export default function App() {
   const acilisVerisiYuklenenKullaniciRef = useRef<string | null>(null);
   const acilisVerisiYukleniyorKullaniciRef = useRef<string | null>(null);
   const ertelenenVeriYuklemeRef = useRef({
+    ciftliklerYuklenenKullanici: null as string | null,
+    ciftliklerYukleniyorKullanici: null as string | null,
+    giderYuklenenKullanici: null as string | null,
+    giderYukleniyorKullanici: null as string | null,
+    sutYuklenenKullanici: null as string | null,
+    sutYukleniyorKullanici: null as string | null,
+    uretimYuklenenKullanici: null as string | null,
+    uretimYukleniyorKullanici: null as string | null,
     giderTurleriYuklenenKullanici: null as string | null,
     giderTurleriYukleniyorKullanici: null as string | null,
     profillerYuklenenKullanici: null as string | null,
@@ -1235,7 +1243,7 @@ export default function App() {
 
     acilisVerisiYukleniyorKullaniciRef.current = kullaniciId;
     void (async () => {
-      const basarili = await verileriGetir("hepsi");
+      const basarili = await verileriGetir("acilis");
       if (basarili) {
         acilisVerisiYuklenenKullaniciRef.current = kullaniciId;
       }
@@ -1248,6 +1256,14 @@ export default function App() {
 
   useEffect(() => {
     ertelenenVeriYuklemeRef.current = {
+      ciftliklerYuklenenKullanici: null,
+      ciftliklerYukleniyorKullanici: null,
+      giderYuklenenKullanici: null,
+      giderYukleniyorKullanici: null,
+      sutYuklenenKullanici: null,
+      sutYukleniyorKullanici: null,
+      uretimYuklenenKullanici: null,
+      uretimYukleniyorKullanici: null,
       giderTurleriYuklenenKullanici: null,
       giderTurleriYukleniyorKullanici: null,
       profillerYuklenenKullanici: null,
@@ -1501,82 +1517,130 @@ export default function App() {
   }, [activeTab]);
 
   useEffect(() => {
-    if (!session?.user?.id || activeTab !== "satis" || !gorunurSekmeler.length) return;
+    const kullaniciId = session?.user?.id || null;
+    if (!kullaniciId || activeTab !== "satis" || !gorunurSekmeler.length) return;
 
-    const onYuklenecekSekmeler = (["ozet", "gider"] as AppTabId[]).filter((tabId) =>
-      gorunurSekmeler.some((tab) => tab.id === tabId),
-    );
-    if (!onYuklenecekSekmeler.length) return;
+    const giderGorunur = gorunurSekmeler.some((tab) => tab.id === "gider");
+    const ozetGorunur = gorunurSekmeler.some((tab) => tab.id === "ozet");
 
-    const zamanlayici = window.setTimeout(() => {
-      sekmeleriOnYukle(onYuklenecekSekmeler);
-    }, 1200);
+    const giderZamanlayici = window.setTimeout(() => {
+      if (giderGorunur) {
+        sekmeModulunuOnYukle("gider");
+      }
+      if (
+        ertelenenVeriYuklemeRef.current.giderTurleriYuklenenKullanici !== kullaniciId &&
+        ertelenenVeriYuklemeRef.current.giderTurleriYukleniyorKullanici !== kullaniciId
+      ) {
+        ertelenenVeriYuklemeRef.current.giderTurleriYukleniyorKullanici = kullaniciId;
+        void (async () => {
+          const basarili = await verileriGetir("gider_turleri");
+          if (basarili) {
+            ertelenenVeriYuklemeRef.current.giderTurleriYuklenenKullanici = kullaniciId;
+          }
+        })().finally(() => {
+          if (ertelenenVeriYuklemeRef.current.giderTurleriYukleniyorKullanici === kullaniciId) {
+            ertelenenVeriYuklemeRef.current.giderTurleriYukleniyorKullanici = null;
+          }
+        });
+      }
+    }, 350);
+
+    const ozetZamanlayici = window.setTimeout(() => {
+      if (ozetGorunur) {
+        sekmeModulunuOnYukle("ozet");
+      }
+      if (
+        ertelenenVeriYuklemeRef.current.sutYuklenenKullanici !== kullaniciId &&
+        ertelenenVeriYuklemeRef.current.sutYukleniyorKullanici !== kullaniciId
+      ) {
+        ertelenenVeriYuklemeRef.current.sutYukleniyorKullanici = kullaniciId;
+        void (async () => {
+          const basarili = await verileriGetir("ozet");
+          if (basarili) {
+            ertelenenVeriYuklemeRef.current.sutYuklenenKullanici = kullaniciId;
+          }
+        })().finally(() => {
+          if (ertelenenVeriYuklemeRef.current.sutYukleniyorKullanici === kullaniciId) {
+            ertelenenVeriYuklemeRef.current.sutYukleniyorKullanici = null;
+          }
+        });
+      }
+    }, 950);
 
     return () => {
-      window.clearTimeout(zamanlayici);
+      window.clearTimeout(giderZamanlayici);
+      window.clearTimeout(ozetZamanlayici);
     };
-  }, [activeTab, gorunurSekmeler, session?.user?.id, sekmeleriOnYukle]);
+  }, [activeTab, gorunurSekmeler, session?.user?.id]);
 
   useEffect(() => {
     const kullaniciId = session?.user?.id || null;
     if (!kullaniciId) return;
 
-    const giderTurleriGerekli =
-      activeTab === "gider" || (activeTab === "ayarlar" && activeAyarTab === "gider_turleri");
-    if (
-      giderTurleriGerekli &&
-      ertelenenVeriYuklemeRef.current.giderTurleriYuklenenKullanici !== kullaniciId &&
-      ertelenenVeriYuklemeRef.current.giderTurleriYukleniyorKullanici !== kullaniciId
-    ) {
-      ertelenenVeriYuklemeRef.current.giderTurleriYukleniyorKullanici = kullaniciId;
+    const yuklemeBaslat = <
+      YuklenenKey extends keyof typeof ertelenenVeriYuklemeRef.current,
+      YukleniyorKey extends keyof typeof ertelenenVeriYuklemeRef.current,
+    >(
+      yuklenenKey: YuklenenKey,
+      yukleniyorKey: YukleniyorKey,
+      hedef: "ciftlikler" | "gider" | "sut" | "ozet" | "uretim" | "gider_turleri" | "profiller" | "cop",
+    ) => {
+      if (
+        ertelenenVeriYuklemeRef.current[yuklenenKey] === kullaniciId ||
+        ertelenenVeriYuklemeRef.current[yukleniyorKey] === kullaniciId
+      ) {
+        return;
+      }
+
+      ertelenenVeriYuklemeRef.current[yukleniyorKey] = kullaniciId;
       void (async () => {
-        const basarili = await verileriGetir("gider_turleri");
+        const basarili = await verileriGetir(hedef);
         if (basarili) {
-          ertelenenVeriYuklemeRef.current.giderTurleriYuklenenKullanici = kullaniciId;
+          ertelenenVeriYuklemeRef.current[yuklenenKey] = kullaniciId;
         }
       })().finally(() => {
-        if (ertelenenVeriYuklemeRef.current.giderTurleriYukleniyorKullanici === kullaniciId) {
-          ertelenenVeriYuklemeRef.current.giderTurleriYukleniyorKullanici = null;
+        if (ertelenenVeriYuklemeRef.current[yukleniyorKey] === kullaniciId) {
+          ertelenenVeriYuklemeRef.current[yukleniyorKey] = null;
         }
       });
+    };
+
+    if (activeTab === "gider") {
+      yuklemeBaslat("giderYuklenenKullanici", "giderYukleniyorKullanici", "gider");
+    }
+
+    if (activeTab === "ozet") {
+      yuklemeBaslat("sutYuklenenKullanici", "sutYukleniyorKullanici", "ozet");
+    }
+
+    if (activeTab === "sut") {
+      yuklemeBaslat("sutYuklenenKullanici", "sutYukleniyorKullanici", "sut");
+      yuklemeBaslat("ciftliklerYuklenenKullanici", "ciftliklerYukleniyorKullanici", "ciftlikler");
+    }
+
+    if (activeTab === "uretim") {
+      yuklemeBaslat("uretimYuklenenKullanici", "uretimYukleniyorKullanici", "uretim");
+    }
+
+    const giderTurleriGerekli =
+      activeTab === "gider" || (activeTab === "ayarlar" && activeAyarTab === "gider_turleri");
+    if (giderTurleriGerekli) {
+      yuklemeBaslat("giderTurleriYuklenenKullanici", "giderTurleriYukleniyorKullanici", "gider_turleri");
     }
 
     const profillerGerekli = activeTab === "ayarlar" && activeAyarTab === "yetkiler";
-    if (
-      profillerGerekli &&
-      ertelenenVeriYuklemeRef.current.profillerYuklenenKullanici !== kullaniciId &&
-      ertelenenVeriYuklemeRef.current.profillerYukleniyorKullanici !== kullaniciId
-    ) {
-      ertelenenVeriYuklemeRef.current.profillerYukleniyorKullanici = kullaniciId;
-      void (async () => {
-        const basarili = await verileriGetir("profiller");
-        if (basarili) {
-          ertelenenVeriYuklemeRef.current.profillerYuklenenKullanici = kullaniciId;
-        }
-      })().finally(() => {
-        if (ertelenenVeriYuklemeRef.current.profillerYukleniyorKullanici === kullaniciId) {
-          ertelenenVeriYuklemeRef.current.profillerYukleniyorKullanici = null;
-        }
-      });
+    if (profillerGerekli) {
+      yuklemeBaslat("profillerYuklenenKullanici", "profillerYukleniyorKullanici", "profiller");
+    }
+
+    const ciftliklerGerekli = activeTab === "ayarlar" && activeAyarTab === "ciftlikler";
+    if (ciftliklerGerekli) {
+      yuklemeBaslat("ciftliklerYuklenenKullanici", "ciftliklerYukleniyorKullanici", "ciftlikler");
     }
 
     const copGerekli = activeTab === "ayarlar" && activeAyarTab === "cop_kutusu";
-    if (
-      copGerekli &&
-      ertelenenVeriYuklemeRef.current.copYuklenenKullanici !== kullaniciId &&
-      ertelenenVeriYuklemeRef.current.copYukleniyorKullanici !== kullaniciId
-    ) {
-      ertelenenVeriYuklemeRef.current.copYukleniyorKullanici = kullaniciId;
-      void (async () => {
-        const basarili = await verileriGetir("cop");
-        if (basarili) {
-          ertelenenVeriYuklemeRef.current.copYuklenenKullanici = kullaniciId;
-        }
-      })().finally(() => {
-        if (ertelenenVeriYuklemeRef.current.copYukleniyorKullanici === kullaniciId) {
-          ertelenenVeriYuklemeRef.current.copYukleniyorKullanici = null;
-        }
-      });
+    if (copGerekli) {
+      yuklemeBaslat("copYuklenenKullanici", "copYukleniyorKullanici", "cop");
     }
   }, [activeAyarTab, activeTab, session?.user?.id]);
 
@@ -1981,17 +2045,20 @@ export default function App() {
 
   async function verileriGetir(
     hedef:
+      | "acilis"
       | "hepsi"
       | "satis"
+      | "ozet"
       | "sut"
       | "gider"
       | "uretim"
       | "ayar"
+      | "ciftlikler"
       | "gider_turleri"
       | "profiller"
       | "cop" = "hepsi",
   ) {
-    const startupEtkin = hedef === "hepsi" && !startupTelemetriRef.current.fetchLoglandi;
+    const startupEtkin = hedef === "acilis" && !startupTelemetriRef.current.fetchLoglandi;
     const kullaniciId = session?.user?.id || null;
     const startupSorguyuCalistir = async <T,>(
       tablo: string,
@@ -2037,14 +2104,12 @@ export default function App() {
         setStartupVeriHazir(false);
       }
 
-      if (hedef === "hepsi" || hedef === "ayar") {
-        const [{ data: c, error: cErr }, { data: b, error: bErr }, { data: u, error: uErr }] = await Promise.all([
-          startupSorguyuCalistir<Ciftlik>("ciftlikler", supabase.from("ciftlikler").select("*").order("isim")),
+      if (hedef === "acilis" || hedef === "hepsi" || hedef === "ayar") {
+        const [{ data: b, error: bErr }, { data: u, error: uErr }] = await Promise.all([
           startupSorguyuCalistir<Bayi>("bayiler", supabase.from("bayiler").select("*").order("isim")),
           startupSorguyuCalistir<Urun>("urunler", supabase.from("urunler").select("*").order("isim")),
         ]);
-        if (cErr || bErr || uErr) throw cErr || bErr || uErr;
-        if (c) setTedarikciler(c);
+        if (bErr || uErr) throw bErr || uErr;
         if (b) setBayiler(b);
         if (u) {
           setUrunler(u);
@@ -2055,6 +2120,18 @@ export default function App() {
             if (!yeniDetay["v_bos_kova"]) yeniDetay["v_bos_kova"] = { adet: "", kg: "", fiyat: "" };
             return yeniDetay;
           });
+        }
+      }
+
+      if (hedef === "hepsi" || hedef === "ayar" || hedef === "sut" || hedef === "ciftlikler") {
+        const { data: c, error: cErr } = await startupSorguyuCalistir<Ciftlik>(
+          "ciftlikler",
+          supabase.from("ciftlikler").select("*").order("isim"),
+        );
+        if (cErr) throw cErr;
+        if (c) setTedarikciler(c);
+        if (kullaniciId) {
+          ertelenenVeriYuklemeRef.current.ciftliklerYuklenenKullanici = kullaniciId;
         }
       }
 
@@ -2091,7 +2168,7 @@ export default function App() {
         }
       }
 
-      if (hedef === "hepsi" || hedef === "satis") {
+      if (hedef === "acilis" || hedef === "hepsi" || hedef === "satis") {
         const [{ data: f, error: fErr }, { data: st, error: stErr }] = await Promise.all([
           startupSorguyuCalistir<SatisFis>(
             "satis_fisleri",
@@ -2107,22 +2184,28 @@ export default function App() {
         if (st) setSatisList(st);
       }
 
-      if (hedef === "hepsi" || hedef === "sut") {
+      if (hedef === "hepsi" || hedef === "sut" || hedef === "ozet") {
         const { data: s, error: sErr } = await startupSorguyuCalistir<SutGiris>(
           "sut_giris",
           supabase.from("sut_giris").select("*").order("tarih", { ascending: true }).order("id", { ascending: true }),
         );
         if (sErr) throw sErr;
         if (s) setSutList(s);
+        if (kullaniciId) {
+          ertelenenVeriYuklemeRef.current.sutYuklenenKullanici = kullaniciId;
+        }
       }
 
-      if (hedef === "hepsi" || hedef === "gider") {
+      if (hedef === "acilis" || hedef === "hepsi" || hedef === "gider") {
         const { data: g, error: gErr } = await startupSorguyuCalistir<Gider>(
           "giderler",
           supabase.from("giderler").select("*").order("tarih", { ascending: true }).order("id", { ascending: true }),
         );
         if (gErr) throw gErr;
         if (g) setGiderList(g);
+        if (kullaniciId) {
+          ertelenenVeriYuklemeRef.current.giderYuklenenKullanici = kullaniciId;
+        }
       }
 
       if (hedef === "hepsi" || hedef === "uretim") {
@@ -2132,6 +2215,9 @@ export default function App() {
         );
         if (urErr) throw urErr;
         if (ur) setUretimList(ur.map((kayit) => uretimKaydiniNormalizeEt(kayit as Uretim)));
+        if (kullaniciId) {
+          ertelenenVeriYuklemeRef.current.uretimYuklenenKullanici = kullaniciId;
+        }
       }
 
       if (hedef === "cop" || (hedef === "hepsi" && !startupEtkin)) {
