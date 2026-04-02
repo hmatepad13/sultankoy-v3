@@ -65,6 +65,7 @@ import { normalizeUsername } from "./utils/format";
 
 const SUPABASE_FREE_DATABASE_LIMIT_BYTES = 500_000_000;
 const SUPABASE_FREE_STORAGE_LIMIT_BYTES = 1_000_000_000;
+const DONEM_SECENEK_SAYISI = 24;
 const ODEME_TURU_SECENEKLERI = [
   { value: "PEŞİN", label: "💵 PEŞİN" },
   { value: "VADE", label: "⏳ VADE" },
@@ -175,6 +176,50 @@ const donemSatisEtiketiGetir = (donem?: string | null) => {
   return `${new Date(yil, ay - 1, 1)
     .toLocaleDateString("tr-TR", { month: "long" })
     .toLocaleUpperCase("tr-TR")} SATIŞ`;
+};
+
+const donemAraliginiGetir = (donem?: string | null) => {
+  const [yilStr, ayStr] = String(donem || "").split("-");
+  const yil = Number(yilStr);
+  const ay = Number(ayStr);
+  if (!Number.isInteger(yil) || !Number.isInteger(ay) || ay < 1 || ay > 12) {
+    const varsayilanDonem = getLocalDateString().substring(0, 7);
+    return {
+      baslangic: `${varsayilanDonem}-01`,
+      bitis: `${varsayilanDonem}-32`,
+    };
+  }
+
+  const sonrakiAy = ay === 12 ? 1 : ay + 1;
+  const sonrakiYil = ay === 12 ? yil + 1 : yil;
+  return {
+    baslangic: `${String(yil).padStart(4, "0")}-${String(ay).padStart(2, "0")}-01`,
+    bitis: `${String(sonrakiYil).padStart(4, "0")}-${String(sonrakiAy).padStart(2, "0")}-01`,
+  };
+};
+
+const donemSecenekleriniOlustur = (merkezDonem?: string | null, adet = DONEM_SECENEK_SAYISI) => {
+  const [yilStr, ayStr] = String(merkezDonem || getLocalDateString().substring(0, 7)).split("-");
+  let yil = Number(yilStr);
+  let ay = Number(ayStr);
+
+  if (!Number.isInteger(yil) || !Number.isInteger(ay) || ay < 1 || ay > 12) {
+    const bugun = new Date();
+    yil = bugun.getFullYear();
+    ay = bugun.getMonth() + 1;
+  }
+
+  const secenekler: string[] = [];
+  for (let index = 0; index < adet; index += 1) {
+    secenekler.push(`${String(yil).padStart(4, "0")}-${String(ay).padStart(2, "0")}`);
+    ay -= 1;
+    if (ay < 1) {
+      ay = 12;
+      yil -= 1;
+    }
+  }
+
+  return secenekler;
 };
 
 const fisPersonelDevirMi = (fis: Partial<SatisFis>) => {
@@ -1274,6 +1319,26 @@ export default function App() {
   }, [session?.user?.id]);
 
   useEffect(() => {
+    ertelenenVeriYuklemeRef.current.giderYuklenenKullanici = null;
+    ertelenenVeriYuklemeRef.current.giderYukleniyorKullanici = null;
+    ertelenenVeriYuklemeRef.current.sutYuklenenKullanici = null;
+    ertelenenVeriYuklemeRef.current.sutYukleniyorKullanici = null;
+    ertelenenVeriYuklemeRef.current.uretimYuklenenKullanici = null;
+    ertelenenVeriYuklemeRef.current.uretimYukleniyorKullanici = null;
+
+    if (!session?.user?.id || !acilisVerisiYuklenenKullaniciRef.current) return;
+
+    void verileriGetir("satis");
+    void verileriGetir("gider");
+    if (activeTab === "ozet" || activeTab === "sut") {
+      void verileriGetir("ozet");
+    }
+    if (activeTab === "uretim") {
+      void verileriGetir("uretim");
+    }
+  }, [aktifDonem, session?.user?.id]);
+
+  useEffect(() => {
     if (!session?.user?.id) return;
 
     kullaniciYetkileriniYukle().then(({ kayitlar, kaynak, uyari }) => {
@@ -2060,6 +2125,7 @@ export default function App() {
   ) {
     const startupEtkin = hedef === "acilis" && !startupTelemetriRef.current.fetchLoglandi;
     const kullaniciId = session?.user?.id || null;
+    const { baslangic: donemBaslangici, bitis: donemBitisi } = donemAraliginiGetir(aktifDonem);
     const startupSorguyuCalistir = async <T,>(
       tablo: string,
       istek: PromiseLike<{ data: T[] | null; error: any }>,
@@ -2172,11 +2238,23 @@ export default function App() {
         const [{ data: f, error: fErr }, { data: st, error: stErr }] = await Promise.all([
           startupSorguyuCalistir<SatisFis>(
             "satis_fisleri",
-            supabase.from("satis_fisleri").select("*").order("tarih", { ascending: true }).order("id", { ascending: true }),
+            supabase
+              .from("satis_fisleri")
+              .select("*")
+              .gte("tarih", donemBaslangici)
+              .lt("tarih", donemBitisi)
+              .order("tarih", { ascending: true })
+              .order("id", { ascending: true }),
           ),
           startupSorguyuCalistir<SatisGiris>(
             "satis_giris",
-            supabase.from("satis_giris").select("*").order("tarih", { ascending: true }).order("id", { ascending: true }),
+            supabase
+              .from("satis_giris")
+              .select("*")
+              .gte("tarih", donemBaslangici)
+              .lt("tarih", donemBitisi)
+              .order("tarih", { ascending: true })
+              .order("id", { ascending: true }),
           ),
         ]);
         if (fErr || stErr) throw fErr || stErr;
@@ -2187,7 +2265,13 @@ export default function App() {
       if (hedef === "hepsi" || hedef === "sut" || hedef === "ozet") {
         const { data: s, error: sErr } = await startupSorguyuCalistir<SutGiris>(
           "sut_giris",
-          supabase.from("sut_giris").select("*").order("tarih", { ascending: true }).order("id", { ascending: true }),
+          supabase
+            .from("sut_giris")
+            .select("*")
+            .gte("tarih", donemBaslangici)
+            .lt("tarih", donemBitisi)
+            .order("tarih", { ascending: true })
+            .order("id", { ascending: true }),
         );
         if (sErr) throw sErr;
         if (s) setSutList(s);
@@ -2199,7 +2283,13 @@ export default function App() {
       if (hedef === "acilis" || hedef === "hepsi" || hedef === "gider") {
         const { data: g, error: gErr } = await startupSorguyuCalistir<Gider>(
           "giderler",
-          supabase.from("giderler").select("*").order("tarih", { ascending: true }).order("id", { ascending: true }),
+          supabase
+            .from("giderler")
+            .select("*")
+            .gte("tarih", donemBaslangici)
+            .lt("tarih", donemBitisi)
+            .order("tarih", { ascending: true })
+            .order("id", { ascending: true }),
         );
         if (gErr) throw gErr;
         if (g) setGiderList(g);
@@ -2211,7 +2301,13 @@ export default function App() {
       if (hedef === "hepsi" || hedef === "uretim") {
         const { data: ur, error: urErr } = await startupSorguyuCalistir<Uretim>(
           "uretim",
-          supabase.from("uretim").select("*").order("tarih", { ascending: true }).order("id", { ascending: true }),
+          supabase
+            .from("uretim")
+            .select("*")
+            .gte("tarih", donemBaslangici)
+            .lt("tarih", donemBitisi)
+            .order("tarih", { ascending: true })
+            .order("id", { ascending: true }),
         );
         if (urErr) throw urErr;
         if (ur) setUretimList(ur.map((kayit) => uretimKaydiniNormalizeEt(kayit as Uretim)));
@@ -2298,7 +2394,7 @@ export default function App() {
 
   // DÖNEM GEÇİŞ LİSTESİ OLUŞTURUCU
   const aylar = useMemo(() => {
-     const set = new Set<string>();
+     const set = new Set(donemSecenekleriniOlustur(aktifDonem));
      [...sutList, ...satisFisList, ...giderList, ...uretimList].forEach(item => {
          if(item.tarih) set.add(item.tarih.substring(0, 7)); 
      });
@@ -2453,9 +2549,16 @@ export default function App() {
      }
 
      const hedefDevirTarihi = `${nextDonem}-01`;
-     const devirZatenOlusmus = satisFisList.some((fis) =>
-       fis.tarih === hedefDevirTarihi &&
-       fisDevirMi(fis) &&
+     const { data: mevcutDevirler, error: mevcutDevirErr } = await supabase
+       .from("satis_fisleri")
+       .select("id, odeme_turu, aciklama, tarih")
+       .eq("tarih", hedefDevirTarihi)
+       .or("odeme_turu.eq.DEVİR,odeme_turu.eq.DEVIR,odeme_turu.eq.PERSONEL DEVİR,odeme_turu.eq.PERSONEL DEVIR");
+     if (mevcutDevirErr) {
+       alert("Dönem kapatma ön kontrolü yapılamadı: " + (mevcutDevirErr.message || "Bilinmeyen hata"));
+       return;
+     }
+     const devirZatenOlusmus = (mevcutDevirler || []).some((fis) =>
        String(fis.aciklama || "").includes(aktifDonem),
      );
 
