@@ -467,26 +467,74 @@ const sekmeYukleniyorFallback = (
     Sekme yükleniyor...
   </div>
 );
+type AppDialogTone = "primary" | "warning" | "danger";
+type AppAlertOptions = {
+  title?: string;
+  message: string;
+  buttonText?: string;
+  tone?: AppDialogTone;
+};
+
+let uygulamaIciConfirmKoprusu: ((options: AppConfirmOptions) => Promise<boolean>) | null = null;
+let uygulamaIciAlertKoprusu: ((options: AppAlertOptions) => void) | null = null;
+
+const uygulamaIciConfirmGoster = (options: AppConfirmOptions) => (
+  uygulamaIciConfirmKoprusu
+    ? uygulamaIciConfirmKoprusu(options)
+    : Promise.resolve(window.confirm(options.message))
+);
+
+const uygulamaIciAlertGoster = (message: string, options?: Omit<AppAlertOptions, "message">) => {
+  if (uygulamaIciAlertKoprusu) {
+    uygulamaIciAlertKoprusu({
+      title: options?.title,
+      message,
+      buttonText: options?.buttonText,
+      tone: options?.tone,
+    });
+    return;
+  }
+  window.alert(message);
+};
+
 const yedeklemeHatasiniGoster = (islemAdi: string, error: unknown) => {
   console.error(`${islemAdi} hazırlanamadı:`, error);
   if (dinamikModulHatasiMi(error)) {
-    if (window.confirm(yenilemeOnerisiMesaji(islemAdi))) {
-      window.location.reload();
-    }
+    void uygulamaIciConfirmGoster({
+      title: "Sayfa Yenilensin mi?",
+      message: yenilemeOnerisiMesaji(islemAdi),
+      confirmText: "Evet, Yenile",
+      cancelText: "İptal",
+      tone: "warning",
+    }).then((yenile) => {
+      if (yenile) window.location.reload();
+    });
     return;
   }
-  alert(`${islemAdi} hazırlanamadı.\n${hataMetniniGetir(error)}`);
+  uygulamaIciAlertGoster(`${islemAdi} hazırlanamadı.\n${hataMetniniGetir(error)}`, {
+    title: "İşlem Hatası",
+    tone: "danger",
+  });
 };
 const sekmeYuklemeHatasiniGoster = (tabId: AppTabId, error: unknown) => {
   const sekmeEtiketi = TAB_TANIMLARI.find((tab) => tab.id === tabId)?.etiket || "Sekme";
   console.error(`${sekmeEtiketi} sekmesi hazırlanamadı:`, error);
   if (dinamikModulHatasiMi(error)) {
-    if (window.confirm(yenilemeOnerisiMesaji(`${sekmeEtiketi} sekmesi`))) {
-      window.location.reload();
-    }
+    void uygulamaIciConfirmGoster({
+      title: "Sayfa Yenilensin mi?",
+      message: yenilemeOnerisiMesaji(`${sekmeEtiketi} sekmesi`),
+      confirmText: "Evet, Yenile",
+      cancelText: "İptal",
+      tone: "warning",
+    }).then((yenile) => {
+      if (yenile) window.location.reload();
+    });
     return;
   }
-  alert(`${sekmeEtiketi} sekmesi açılamadı.\n${hataMetniniGetir(error)}`);
+  uygulamaIciAlertGoster(`${sekmeEtiketi} sekmesi açılamadı.\n${hataMetniniGetir(error)}`, {
+    title: "Sekme Hatası",
+    tone: "danger",
+  });
 };
 
 type StartupTabloOlcumu = {
@@ -760,7 +808,8 @@ export default function App() {
   const html2canvasYuklemeRef = useRef<Promise<any> | null>(null);
   const confirmCozumRef = useRef<((value: boolean) => void) | null>(null);
   const [sonFisData, setSonFisData] = useState<any>(null);
-  const [confirmDialog, setConfirmDialog] = useState<(AppConfirmOptions & { confirmText: string; cancelText: string; tone: "primary" | "warning" | "danger" }) | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<(AppConfirmOptions & { confirmText: string; cancelText: string; tone: AppDialogTone }) | null>(null);
+  const [alertDialog, setAlertDialog] = useState<(AppAlertOptions & { buttonText: string; tone: AppDialogTone }) | null>(null);
   const [musteriEkstreData, setMusteriEkstreData] = useState<null | {
     musteri: string;
     donem: string;
@@ -982,6 +1031,10 @@ export default function App() {
     coz?.(sonuc);
   }, []);
 
+  const alertDialogKapat = useCallback(() => {
+    setAlertDialog(null);
+  }, []);
+
   const confirmDialogAc = useCallback((options: AppConfirmOptions) => new Promise<boolean>((resolve) => {
     confirmCozumRef.current = resolve;
     setConfirmDialog({
@@ -993,12 +1046,44 @@ export default function App() {
     });
   }), []);
 
+  const alertDialogAc = useCallback((options: AppAlertOptions) => {
+    setAlertDialog({
+      title: options.title,
+      message: options.message,
+      buttonText: options.buttonText || "Tamam",
+      tone: options.tone || "warning",
+    });
+  }, []);
+
   useEffect(() => () => {
     if (confirmCozumRef.current) {
       confirmCozumRef.current(false);
       confirmCozumRef.current = null;
     }
   }, []);
+
+  useEffect(() => {
+    uygulamaIciConfirmKoprusu = confirmDialogAc;
+    uygulamaIciAlertKoprusu = alertDialogAc;
+
+    const oncekiAlert = window.alert.bind(window);
+    window.alert = (message?: unknown) => {
+      alertDialogAc({
+        message: String(message ?? ""),
+        tone: "warning",
+      });
+    };
+
+    return () => {
+      if (uygulamaIciConfirmKoprusu === confirmDialogAc) {
+        uygulamaIciConfirmKoprusu = null;
+      }
+      if (uygulamaIciAlertKoprusu === alertDialogAc) {
+        uygulamaIciAlertKoprusu = null;
+      }
+      window.alert = oncekiAlert;
+    };
+  }, [alertDialogAc, confirmDialogAc]);
 
   const html2canvasYukle = useCallback(async () => {
     if (typeof window === "undefined") {
@@ -4387,6 +4472,21 @@ export default function App() {
             </div>
             <div style={{ display: "flex", gap: "8px", padding: "0 16px 16px" }}>
               <button
+                onClick={() => confirmDialogKapat(true)}
+                style={{
+                  flex: 1,
+                  padding: "11px 12px",
+                  background: confirmDialog.tone === "danger" ? "#dc2626" : confirmDialog.tone === "warning" ? "#d97706" : "#2563eb",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "10px",
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                }}
+              >
+                {confirmDialog.confirmText}
+              </button>
+              <button
                 onClick={() => confirmDialogKapat(false)}
                 style={{
                   flex: 1,
@@ -4401,12 +4501,50 @@ export default function App() {
               >
                 {confirmDialog.cancelText}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {alertDialog && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15, 23, 42, 0.52)",
+            zIndex: 1560,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "14px",
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              maxWidth: "360px",
+              background: "#fff",
+              borderRadius: "16px",
+              border: `1px solid ${alertDialog.tone === "danger" ? "#fecaca" : alertDialog.tone === "warning" ? "#fde68a" : "#bfdbfe"}`,
+              boxShadow: "0 24px 60px -24px rgba(15,23,42,0.45)",
+              overflow: "hidden",
+            }}
+          >
+            <div style={{ padding: "16px 16px 12px", borderBottom: "1px solid #e2e8f0", background: "#f8fafc" }}>
+              <div style={{ fontSize: "15px", fontWeight: "bold", color: "#0f172a" }}>
+                {alertDialog.title || "Uyarı"}
+              </div>
+            </div>
+            <div style={{ padding: "16px", color: "#334155", fontSize: "13px", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+              {alertDialog.message}
+            </div>
+            <div style={{ padding: "0 16px 16px" }}>
               <button
-                onClick={() => confirmDialogKapat(true)}
+                onClick={alertDialogKapat}
                 style={{
-                  flex: 1,
+                  width: "100%",
                   padding: "11px 12px",
-                  background: confirmDialog.tone === "danger" ? "#dc2626" : confirmDialog.tone === "warning" ? "#d97706" : "#2563eb",
+                  background: alertDialog.tone === "danger" ? "#dc2626" : alertDialog.tone === "warning" ? "#d97706" : "#2563eb",
                   color: "#fff",
                   border: "none",
                   borderRadius: "10px",
@@ -4414,7 +4552,7 @@ export default function App() {
                   cursor: "pointer",
                 }}
               >
-                {confirmDialog.confirmText}
+                {alertDialog.buttonText}
               </button>
             </div>
           </div>
@@ -4434,7 +4572,7 @@ export default function App() {
                  <h3 style={{margin:'0 0 10px', color:'#dc2626', fontSize: '16px'}}>Dönemi Kapat</h3>
                  <p style={{fontSize:'13px', color:'#475569', lineHeight:'1.4'}}>Mevcut dönemi kapatıp yeni aya geçmek istediğinize emin misiniz?<br/><br/><span style={{fontSize: '11px', color: '#94a3b8'}}>(Yeni dönemde bakiyeler sıfırdan başlar, içerideki açık hesaplar yeni döneme otomatik olarak "Devir" fişi şeklinde aktarılır.)</span></p>
                  <label style={{display:'flex', alignItems:'center', gap:'8px', fontSize:'13px', fontWeight:'bold', marginTop:'15px', cursor:'pointer', color: '#0f172a'}}><input type="checkbox" checked={donemOnay} onChange={e=>setDonemOnay(e.target.checked)} style={{width:'18px', height:'18px'}} /> Onaylıyorum</label>
-                 <div style={{display:'flex', gap:'8px', marginTop:'20px'}}><button onClick={()=>{setIsDonemModalOpen(false); setDonemOnay(false);}} style={{flex:1, padding:'10px', background:'#f1f5f9', border:'1px solid #cbd5e1', borderRadius:'6px', fontWeight:'bold', color:'#475569', cursor: 'pointer'}}>VAZGEÇ</button><button onClick={handleDonemKapat} disabled={!donemOnay} style={{flex:1, padding:'10px', background: donemOnay ? '#dc2626' : '#fca5a5', border:'none', borderRadius:'6px', fontWeight:'bold', color:'#fff', cursor: donemOnay ? 'pointer' : 'not-allowed'}}>EVET, KAPAT</button></div>
+                 <div style={{display:'flex', gap:'8px', marginTop:'20px'}}><button onClick={handleDonemKapat} disabled={!donemOnay} style={{flex:1, padding:'10px', background: donemOnay ? '#dc2626' : '#fca5a5', border:'none', borderRadius:'6px', fontWeight:'bold', color:'#fff', cursor: donemOnay ? 'pointer' : 'not-allowed'}}>EVET, KAPAT</button><button onClick={()=>{setIsDonemModalOpen(false); setDonemOnay(false);}} style={{flex:1, padding:'10px', background:'#f1f5f9', border:'1px solid #cbd5e1', borderRadius:'6px', fontWeight:'bold', color:'#475569', cursor: 'pointer'}}>VAZGEÇ</button></div>
              </div>
           </div>
         )}
