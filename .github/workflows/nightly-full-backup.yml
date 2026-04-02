@@ -20,6 +20,9 @@ jobs:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: team_GYqXUh6X3VrdTnz37MPjk1Fo
+      VERCEL_PROJECT_ID: prj_TbmVaEg0PMRKNgNmzUhzbeGnTf2I
+      VERCEL_PROJECT_NAME: sultankoy-v3
     steps:
       - name: Checkout app repo
         uses: actions/checkout@v4
@@ -43,6 +46,11 @@ jobs:
           echo "BACKUP_DATE=$BACKUP_DATE" >> "$GITHUB_ENV"
           echo "BACKUP_DIR=$BACKUP_DIR" >> "$GITHUB_ENV"
           mkdir -p "$BACKUP_DIR/db" "$BACKUP_DIR/storage" "$BACKUP_DIR/env"
+
+      - name: Restore Vercel project link for CI
+        run: |
+          mkdir -p .vercel
+          printf '{"projectId":"%s","orgId":"%s","projectName":"%s"}' "$VERCEL_PROJECT_ID" "$VERCEL_ORG_ID" "$VERCEL_PROJECT_NAME" > .vercel/project.json
 
       - name: Dump database roles
         run: |
@@ -72,7 +80,7 @@ jobs:
         run: node scripts/backup/download-storage.mjs
 
       - name: Backup Vercel production env
-        run: npx vercel@latest env pull "$BACKUP_DIR/env/vercel-production.env" --environment=production --yes --token "$VERCEL_TOKEN"
+        run: npx vercel@latest env pull "$BACKUP_DIR/env/vercel-production.env" --environment=production --scope "$VERCEL_ORG_ID" --yes --token "$VERCEL_TOKEN"
 
       - name: Encrypt Vercel env snapshot
         run: node scripts/backup/encrypt-file.mjs "$BACKUP_DIR/env/vercel-production.env" "$BACKUP_DIR/env/vercel-production.env.enc"
