@@ -293,7 +293,7 @@ export function SettingsPanel({
   const [sifreSifirlamaForm, setSifreSifirlamaForm] = useState({ userId: "", newPassword: "" });
   const [adminMesaji, setAdminMesaji] = useState<{ tip: "success" | "error"; metin: string } | null>(null);
   const [ayarArama, setAyarArama] = useState("");
-  const [isDarEkran, setIsDarEkran] = useState(() => (typeof window !== "undefined" ? window.innerWidth <= 980 : false));
+  const [isDarEkran, setIsDarEkran] = useState(() => (typeof window !== "undefined" ? window.innerWidth <= 720 : false));
 
   const gosterilecekAyarTablari = useMemo(
     () =>
@@ -375,7 +375,7 @@ export function SettingsPanel({
   }, [activeAyarTab, isAdmin, onLoadStartupDiagnostics]);
 
   useEffect(() => {
-    const handleResize = () => setIsDarEkran(window.innerWidth <= 980);
+    const handleResize = () => setIsDarEkran(window.innerWidth <= 720);
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
