@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { DonemDisiTarihUyarisi } from "./DonemDisiTarihUyarisi";
 import { supabase } from "../lib/supabase";
 import {
   katkiOdemesiMi,
@@ -10,7 +11,7 @@ import {
   sutTozuOdemesiMi,
 } from "../lib/gider";
 import type { Gider, SortConfig } from "../types/app";
-import { getLocalDateString } from "../utils/date";
+import { aktifDonemDisiKayitOnayMetni, getLocalDateString } from "../utils/date";
 import { normalizeUsername } from "../utils/format";
 
 type MiniDetay = {
@@ -24,12 +25,14 @@ type GorselOnizleme = { url: string; baslik: string; boyut?: string; indirmeAdi?
 type GiderPanelProps = {
   aktifDonem: string;
   aktifKullaniciEposta: string;
+  aktifKullaniciId: string | null;
   aktifKullaniciKisa: string;
   giderTurleri: string[];
   periodGider: Gider[];
   kaydiSilebilirMi: (ekleyen?: string | null) => boolean;
   kaydiDuzenleyebilirMi: (ekleyen?: string | null) => boolean;
   onRefreshGiderler: () => void | Promise<void>;
+  onRefreshCop: () => void | Promise<void>;
   onOpenMiniDetay: (detay: MiniDetay) => void;
   onPreviewImage: (payload: GorselOnizleme) => void;
   helpers: {
@@ -110,12 +113,14 @@ const GiderTh = ({
 export function GiderPanel({
   aktifDonem,
   aktifKullaniciEposta,
+  aktifKullaniciId,
   aktifKullaniciKisa,
   giderTurleri,
   periodGider,
   kaydiSilebilirMi,
   kaydiDuzenleyebilirMi,
   onRefreshGiderler,
+  onRefreshCop,
   onOpenMiniDetay,
   onPreviewImage,
   helpers,
@@ -250,6 +255,8 @@ export function GiderPanel({
     if (!giderForm.tarih || !giderForm.tur || !giderForm.tutar) return alert("Tarih, Tür ve Tutar zorunludur!");
     const duzenlenenKayit = periodGider.find((item) => item.id === editingGiderId);
     if (editingGiderId && !kaydiDuzenleyebilirMi(duzenlenenKayit?.ekleyen)) return alert("Bu gider kaydını sadece ekleyen kullanıcı veya admin düzenleyebilir.");
+    const donemDisiOnayMesaji = aktifDonemDisiKayitOnayMetni(giderForm.tarih, aktifDonem);
+    if (donemDisiOnayMesaji && !window.confirm(donemDisiOnayMesaji)) return;
     const oncekiGorsel = duzenlenenKayit?.gorsel || giderGorselMevcutYol || "";
     let yuklenenGorselYolu = giderGorselMevcutYol || null;
     try { yuklenenGorselYolu = await giderGorseliYukle(); } catch (error: any) { return alert(`Gider görseli yüklenemedi: ${error?.message || "Bilinmeyen hata"}`); }
@@ -276,10 +283,18 @@ export function GiderPanel({
   const handleGiderSil = async (gider: Gider) => {
     if (!kaydiSilebilirMi(gider.ekleyen)) return alert("Bu kaydı sadece ekleyen kullanıcı veya admin silebilir.");
     if (!window.confirm("Bu gider kaydı silinsin mi?")) return;
+    const { error: copError } = await supabase.from("cop_kutusu").insert({
+      tablo_adi: "giderler",
+      veri: gider,
+      silinme_tarihi: new Date().toISOString(),
+      silen_user_id: aktifKullaniciId,
+      silen_email: aktifKullaniciEposta,
+    });
+    if (copError) return alert(`Çöp kutusu hatası: ${copError.message}`);
     const { error } = await supabase.from("giderler").delete().eq("id", gider.id);
     if (error) return alert(`Silme hatası: ${helpers.veritabaniHatasiMesaji("Gider", error)}`);
-    if (gider.gorsel) await giderGorseliniSil(gider.gorsel);
     await onRefreshGiderler();
+    await onRefreshCop();
   };
 
   const giderDetayTarih = giderForm.tarih ? giderForm.tarih.split("-").reverse().join(".") : "-";
@@ -291,14 +306,14 @@ export function GiderPanel({
     <>
       <div className="tab-fade-in main-content-area">
         <div className="gider-ust-satir" style={{ display: "flex", gap: "8px", flexWrap: "nowrap", alignItems: "center", marginBottom: "10px" }}>
-          <div className="gider-filtre-grup" style={{ display: "flex", background: "#cbd5e1", borderRadius: "8px", overflow: "hidden", flex: "0 0 auto", minWidth: "110px" }}>
-            <button onClick={() => setGiderFiltreKisi("benim")} style={{ flex: 1, padding: "8px 10px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "bold", background: giderFiltreKisi === "benim" ? "#dc2626" : "transparent", color: giderFiltreKisi === "benim" ? "#fff" : "#475569" }}>Benim</button>
-            <button onClick={() => setGiderFiltreKisi("tumu")} style={{ flex: 1, padding: "8px 10px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "bold", background: giderFiltreKisi === "tumu" ? "#dc2626" : "transparent", color: giderFiltreKisi === "tumu" ? "#fff" : "#475569" }}>Tümü</button>
-          </div>
           <button onClick={handleYeniGiderModalAc} className="btn-anim m-btn inline-mobile-btn" style={{ background: "#dc2626", margin: 0, width: "auto", minWidth: "136px", flex: "0 0 auto", fontSize: "13px", padding: "10px 12px" }}>➕ YENİ GİDER EKLE</button>
           <div style={{ display: "flex", gap: "6px", flex: "1 1 auto", minWidth: "0", flexWrap: "wrap" }}>
             <div className="gider-ust-ozet" style={{ border: "1px solid #dc262633", background: "#dc262610", color: "#dc2626", borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", flex: "1 1 120px", minWidth: "100px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>GİDERLER: {helpers.fSayi(fGGiderNormal)} ₺</div>
             <div className="gider-ust-ozet" onClick={() => onOpenMiniDetay({ baslik: "Hammadde Ödemeleri", renk: "#7c3aed", satirlar: [{ etiket: "Süt Ödemesi", deger: `${helpers.fSayi(fGSutOdemesi)} TL`, vurgu: true }, { etiket: "Krema Ödemesi", deger: `${helpers.fSayi(fGKremaOdemesi)} TL`, vurgu: true }, { etiket: "Kova Ödemesi", deger: `${helpers.fSayi(fGKovaOdemesi)} TL`, vurgu: true }, { etiket: "Katkı Ödemesi", deger: `${helpers.fSayi(fGKatkiOdemesi)} TL`, vurgu: true }, { etiket: "Süt Tozu Ödemesi", deger: `${helpers.fSayi(fGSutTozuOdemesi)} TL`, vurgu: true }] })} style={{ border: "1px solid #8b5cf633", background: "#8b5cf610", color: "#7c3aed", borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", flex: "1 1 145px", minWidth: "125px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", cursor: "pointer" }}>HAMMADDE ÖDEMELERİ: {helpers.fSayi(fGHammaddeOdemeleri)} ₺</div>
+          </div>
+          <div className="gider-filtre-grup" style={{ display: "flex", background: "#cbd5e1", borderRadius: "8px", overflow: "hidden", flex: "0 0 auto", minWidth: "110px", marginLeft: "auto" }}>
+            <button onClick={() => setGiderFiltreKisi("benim")} style={{ flex: 1, padding: "8px 10px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "bold", background: giderFiltreKisi === "benim" ? "#dc2626" : "transparent", color: giderFiltreKisi === "benim" ? "#fff" : "#475569" }}>Benim</button>
+            <button onClick={() => setGiderFiltreKisi("tumu")} style={{ flex: 1, padding: "8px 10px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "bold", background: giderFiltreKisi === "tumu" ? "#dc2626" : "transparent", color: giderFiltreKisi === "tumu" ? "#fff" : "#475569" }}>Tümü</button>
           </div>
         </div>
 
@@ -400,6 +415,7 @@ export function GiderPanel({
                   <input type="date" value={giderForm.tarih} onChange={(e) => setGiderForm({ ...giderForm, tarih: e.target.value })} className="m-inp date-click" style={{ flex: "0 0 118px", minWidth: "118px" }} />
                   <select value={giderForm.tur} onChange={(e) => setGiderForm({ ...giderForm, tur: e.target.value })} className="m-inp" style={{ flex: "1 1 170px", minWidth: 0, width: "100%", fontWeight: "bold" }}>{giderTurleri.map((t) => <option key={t} value={t}>{t}</option>)}</select>
                 </div>
+                <DonemDisiTarihUyarisi tarih={giderForm.tarih} aktifDonem={aktifDonem} />
                 <div><label style={{ fontSize: "11px", color: "#64748b" }}>Tutar (₺)</label><div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
                   <input type="text" inputMode="decimal" value={helpers.paraGirdisiniFormatla(String(giderForm.tutar || ""))} onChange={(e) => setGiderForm({ ...giderForm, tutar: helpers.paraGirdisiniTemizle(e.target.value) })} className="m-inp" style={{ flex: "1 1 120px", minWidth: "120px", textAlign: "right", color: "#dc2626", fontWeight: "bold" }} />
                   <input ref={giderGorselKameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleGiderGorselSec} style={{ display: "none" }} />

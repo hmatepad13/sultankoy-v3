@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { DonemDisiTarihUyarisi } from "./DonemDisiTarihUyarisi";
 import { supabase } from "../lib/supabase";
 import type { Ciftlik, SortConfig, SutGiris } from "../types/app";
-import { getLocalDateString } from "../utils/date";
+import { aktifDonemDisiKayitOnayMetni, getLocalDateString } from "../utils/date";
 import { normalizeUsername } from "../utils/format";
 
 type SutFilterModal = "sut_ciftlik" | "sut_tarih" | null;
@@ -10,6 +11,7 @@ type GorselOnizleme = { url: string; baslik: string; boyut?: string; indirmeAdi?
 type SutPanelProps = {
   aktifDonem: string;
   aktifKullaniciEposta: string;
+  aktifKullaniciId: string | null;
   aktifKullaniciKisa: string;
   isAdmin: boolean;
   sutList: SutGiris[];
@@ -172,6 +174,7 @@ function SutTh({
 export function SutPanel({
   aktifDonem,
   aktifKullaniciEposta,
+  aktifKullaniciId,
   aktifKullaniciKisa,
   isAdmin,
   sutList,
@@ -451,6 +454,11 @@ export function SutPanel({
       return;
     }
 
+    const donemDisiOnayMesaji = aktifDonemDisiKayitOnayMetni(sutForm.tarih, aktifDonem);
+    if (donemDisiOnayMesaji && !window.confirm(donemDisiOnayMesaji)) {
+      return;
+    }
+
     const oncekiGorsel = duzenlenenKayit?.gorsel || sutGorselMevcutYol || "";
     let yuklenenGorselYolu = sutGorselMevcutYol || null;
 
@@ -507,7 +515,13 @@ export function SutPanel({
   const coptKutusunaAt = async (tablo: string, veri: SutGiris) => {
     const { error } = await supabase
       .from("cop_kutusu")
-      .insert({ tablo_adi: tablo, veri, silinme_tarihi: new Date().toISOString() });
+      .insert({
+        tablo_adi: tablo,
+        veri,
+        silinme_tarihi: new Date().toISOString(),
+        silen_user_id: aktifKullaniciId,
+        silen_email: aktifKullaniciEposta,
+      });
 
     if (error) {
       console.warn("Çöp kutusuna atılamadı:", error.message);
@@ -735,6 +749,7 @@ export function SutPanel({
                   ))}
                 </select>
               </div>
+              {sutModalMode !== "view" && <DonemDisiTarihUyarisi tarih={sutForm.tarih} aktifDonem={aktifDonem} />}
               <div style={{ display: "flex", gap: "8px" }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ fontSize: "11px", color: "#64748b" }}>Miktar (KG)</label>

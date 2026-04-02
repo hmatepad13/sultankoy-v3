@@ -1,0 +1,7 @@
+.codex-temp
+backups
+dist
+.cursor
+*.zip
+*.diff
+vite-dev.log

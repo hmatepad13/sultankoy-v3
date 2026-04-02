@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { DonemDisiTarihUyarisi } from "./DonemDisiTarihUyarisi";
 import type { CekSenetDurum, CekSenetKaydi, CekSenetTur } from "../types/app";
-import { getLocalDateString } from "../utils/date";
+import { aktifDonemDisiKayitOnayMetni, getLocalDateString } from "../utils/date";
 import { fSayi, normalizeUsername } from "../utils/format";
 
 type CekSenetPanelProps = {
@@ -224,6 +225,9 @@ export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem }: CekSenetPanelP
     if (editingId && !kayitSahibiMi(oncekiKayit)) {
       return alert("Bu kaydı sadece ekleyen kullanıcı düzenleyebilir.");
     }
+
+    const donemDisiOnayMesaji = aktifDonemDisiKayitOnayMetni(form.tarih, aktifDonem);
+    if (donemDisiOnayMesaji && !window.confirm(donemDisiOnayMesaji)) return;
 
     const yeniKayit: CekSenetKaydi = {
       id: editingId || `cs-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
@@ -515,6 +519,7 @@ export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem }: CekSenetPanelP
                   <input type="date" className="m-inp date-click" value={form.tarih} onChange={(e) => setForm((prev) => ({ ...prev, tarih: e.target.value }))} />
                 </label>
               </div>
+              <DonemDisiTarihUyarisi tarih={form.tarih} aktifDonem={aktifDonem} />
 
               <div style={{ display: "grid", gap: "10px", gridTemplateColumns: "1fr 1fr" }}>
                 <label style={{ display: "grid", gap: "4px" }}>

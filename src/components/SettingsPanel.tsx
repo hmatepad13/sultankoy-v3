@@ -30,11 +30,16 @@ interface SettingsPanelProps {
   setYeniUrunSabitle: (value: boolean) => void;
   handleAyarEkle: () => void;
   onSettingEdit: (tablo: string, id: string, isim: string) => void;
+  onSettingEditGroup: (tablo: string, id: string, isim: string, hesapGrubu?: string | null) => void;
   onSettingToggleActive: (tablo: string, id: string, aktif: boolean) => void;
   onSettingTogglePinned: (id: string, sabit: boolean) => void;
   onSettingDelete: (tablo: string, id: string, isim: string) => void;
   onOpenTrash: () => void;
   onEmptyTrash: () => Promise<void> | void;
+  onRestoreTrashItem: (trashId: string) => Promise<void> | void;
+  restoringTrashId: string | null;
+  onDeleteTrashItem: (trashId: string) => Promise<void> | void;
+  deletingTrashId: string | null;
   onExcelBackup: () => void;
   onJsonBackup: () => void;
   onHtmlBackup: () => void;
@@ -99,6 +104,14 @@ const byteMetni = (bytes: number) => {
   const fractionDigits = deger >= 100 ? 0 : deger >= 10 ? 1 : 2;
   return `${new Intl.NumberFormat("tr-TR", { maximumFractionDigits: fractionDigits }).format(deger)} ${birimler[index]}`;
 };
+
+const RESTORE_DESTEKLI_TABLOLAR = new Set([
+  "satis_fisleri",
+  "sut_giris",
+  "giderler",
+  "uretim",
+  "sevkiyatlar",
+]);
 
 const copKutusuOzetiniGetir = (tabloAdi: string, veri: unknown) => {
   const kayit = kayitObjesi(veri);
@@ -194,11 +207,16 @@ export function SettingsPanel({
   setYeniUrunSabitle,
   handleAyarEkle,
   onSettingEdit,
+  onSettingEditGroup,
   onSettingToggleActive,
   onSettingTogglePinned,
   onSettingDelete,
   onOpenTrash,
   onEmptyTrash,
+  onRestoreTrashItem,
+  restoringTrashId,
+  onDeleteTrashItem,
+  deletingTrashId,
   onExcelBackup,
   onJsonBackup,
   onHtmlBackup,
@@ -260,6 +278,17 @@ export function SettingsPanel({
       return a.isim.localeCompare(b.isim, "tr");
     });
   }, [activeAyarTab, bayiler, giderTuruListesi, urunler, tedarikciler]);
+
+  const gorunenCopKutusuList = useMemo(() => {
+    if (isAdmin) return copKutusuList;
+    const aktifKullanici = normalizeUsername(aktifKullaniciEposta);
+    return copKutusuList.filter((kayit) => {
+      const kayitVerisi = kayitObjesi(kayit.veri);
+      const silen = normalizeUsername(kayit.silen_email || "");
+      const ekleyen = normalizeUsername(metinDegeri(kayitVerisi, "ekleyen"));
+      return silen === aktifKullanici || (!silen && ekleyen === aktifKullanici);
+    });
+  }, [aktifKullaniciEposta, copKutusuList, isAdmin]);
 
   const filtrelenmisAyarListesi = useMemo(() => {
     const arama = ayarArama.trim().toLocaleLowerCase("tr-TR");
@@ -878,6 +907,23 @@ export function SettingsPanel({
                         {(item as Urun).sabit ? "Sabit" : "Normal"}
                       </span>
                     )}
+                    {activeAyarTab === "musteriler" && Boolean((item as Bayi).hesap_grubu) && (
+                      <span
+                        style={{
+                          background: "#fff7ed",
+                          color: "#c2410c",
+                          border: "1px solid #fdba74",
+                          borderRadius: "999px",
+                          padding: "1px 6px",
+                          fontSize: "10px",
+                          fontWeight: "bold",
+                          whiteSpace: "nowrap",
+                        }}
+                        title={`Hesap grubu: ${(item as Bayi).hesap_grubu}`}
+                      >
+                        {(item as Bayi).hesap_grubu}
+                      </span>
+                    )}
                     {pasifDestekli && (
                       <span
                         style={{
@@ -941,6 +987,30 @@ export function SettingsPanel({
                     >
                       ✎
                     </button>
+                    {activeAyarTab === "musteriler" && (
+                      <button
+                        onClick={() => onSettingEditGroup(aktifTabloAdi, item.id, item.isim, (item as Bayi).hesap_grubu)}
+                        style={{
+                          background: "#fff7ed",
+                          border: "1px solid #fdba74",
+                          color: "#c2410c",
+                          borderRadius: "6px",
+                          minWidth: "48px",
+                          height: "24px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          cursor: "pointer",
+                          fontSize: "11px",
+                          fontWeight: "bold",
+                          padding: "0 8px",
+                          whiteSpace: "nowrap",
+                        }}
+                        title="Hesap grubunu düzenle"
+                      >
+                        Grup
+                      </button>
+                    )}
                     {pasifDestekli ? (
                       <button
                         onClick={() => onSettingToggleActive(aktifTabloAdi, item.id, aktif)}
@@ -1243,15 +1313,15 @@ export function SettingsPanel({
               {isAdmin && (
                 <button
                   onClick={() => void onEmptyTrash()}
-                  disabled={copKutusuList.length === 0}
+                  disabled={gorunenCopKutusuList.length === 0}
                   style={{
-                    background: copKutusuList.length === 0 ? "#e2e8f0" : "#dc2626",
-                    color: copKutusuList.length === 0 ? "#64748b" : "#fff",
+                    background: gorunenCopKutusuList.length === 0 ? "#e2e8f0" : "#dc2626",
+                    color: gorunenCopKutusuList.length === 0 ? "#64748b" : "#fff",
                     border: "none",
                     borderRadius: "8px",
                     padding: "7px 12px",
                     fontWeight: "bold",
-                    cursor: copKutusuList.length === 0 ? "not-allowed" : "pointer",
+                    cursor: gorunenCopKutusuList.length === 0 ? "not-allowed" : "pointer",
                     fontSize: "12px",
                   }}
                 >
@@ -1259,9 +1329,16 @@ export function SettingsPanel({
                 </button>
               )}
             </div>
-            {copKutusuList.map((kayit) => (
+            {gorunenCopKutusuList.map((kayit) => (
               (() => {
                 const ozet = copKutusuOzetiniGetir(kayit.tablo_adi, kayit.veri);
+                const kayitVerisi = kayitObjesi(kayit.veri);
+                const silenBilgisi = kayit.silen_email || metinDegeri(kayitVerisi, "ekleyen");
+                const destekleniyor = RESTORE_DESTEKLI_TABLOLAR.has(kayit.tablo_adi);
+                const geriYuklendi = kayit.geri_yuklendi === true;
+                const geriYuklenebilir = destekleniyor && !geriYuklendi && Boolean(kayit.id);
+                const restoreLoading = Boolean(kayit.id && restoringTrashId === kayit.id);
+                const deleteLoading = Boolean(kayit.id && deletingTrashId === kayit.id);
                 return (
                   <div
                     key={kayit.id}
@@ -1280,15 +1357,64 @@ export function SettingsPanel({
                         {kayit.silinme_tarihi ? new Date(kayit.silinme_tarihi).toLocaleString("tr-TR") : ""}
                       </span>
                     </div>
-                    <div style={{ background: "#fff", padding: "7px 8px", borderRadius: "6px", border: "1px solid #fee2e2" }}>
-                      <div style={{ fontWeight: 700, color: "#0f172a", marginBottom: "4px" }}>{ozet.baslik}</div>
-                      <div style={{ color: "#475569", lineHeight: 1.45 }}>{ozet.detay}</div>
+                    <div style={{ background: "#fff", padding: "7px 8px", borderRadius: "6px", border: "1px solid #fee2e2", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                      <div style={{ flex: "1 1 280px", minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, color: "#0f172a", marginBottom: "4px" }}>{ozet.baslik}</div>
+                        <div style={{ color: "#475569", lineHeight: 1.45 }}>{ozet.detay}</div>
+                        {(silenBilgisi || geriYuklendi) && (
+                          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "6px", fontSize: "10px", color: "#64748b" }}>
+                            {silenBilgisi && <span>Silen: {silenBilgisi}</span>}
+                            {geriYuklendi && (
+                              <span style={{ color: "#059669", fontWeight: 700 }}>
+                                Geri yüklendi
+                                {kayit.geri_yukleme_tarihi ? ` • ${new Date(kayit.geri_yukleme_tarihi).toLocaleString("tr-TR")}` : ""}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", flex: "0 0 auto", gap: "6px", flexWrap: "wrap" }}>
+                        <button
+                          onClick={() => kayit.id && void onRestoreTrashItem(kayit.id)}
+                          disabled={!geriYuklenebilir || restoreLoading || deleteLoading}
+                          style={{
+                            border: "none",
+                            borderRadius: "8px",
+                            padding: "6px 10px",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            background: !geriYuklenebilir ? "#e2e8f0" : "#0f766e",
+                            color: !geriYuklenebilir ? "#64748b" : "#fff",
+                            cursor: !geriYuklenebilir ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          {restoreLoading ? "Geri yukleniyor..." : geriYuklendi ? "Geri Yuklendi" : destekleniyor ? "Geri Yukle" : "Desteklenmiyor"}
+                        </button>
+                        {isAdmin && (
+                          <button
+                            onClick={() => kayit.id && void onDeleteTrashItem(kayit.id)}
+                            disabled={!kayit.id || deleteLoading || restoreLoading}
+                            style={{
+                              border: "none",
+                              borderRadius: "8px",
+                              padding: "6px 10px",
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              background: !kayit.id || deleteLoading ? "#e2e8f0" : "#dc2626",
+                              color: !kayit.id || deleteLoading ? "#64748b" : "#fff",
+                              cursor: !kayit.id || deleteLoading ? "not-allowed" : "pointer",
+                            }}
+                          >
+                            {deleteLoading ? "Siliniyor..." : "Kalici Sil"}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
               })()
             ))}
-            {copKutusuList.length === 0 && (
+            {gorunenCopKutusuList.length === 0 && (
               <div style={{ textAlign: "center", color: "#94a3b8", marginTop: "20px", fontSize: "12px" }}>
                 Çöp kutusu boş. Eğer Supabase tablosu yoksa silinenler buraya düşmez.
               </div>

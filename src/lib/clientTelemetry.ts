@@ -17,6 +17,7 @@ type TelemetryLogInput = {
   message: string;
   details?: Record<string, unknown>;
   fingerprint?: string;
+  allowWhenDisabled?: boolean;
 };
 
 type TelemetryLogRow = {
@@ -146,7 +147,7 @@ const supabaseRequestMi = (url: string) => url.includes(".supabase.co/") || url.
 const clientLogsRequestMi = (url: string) => url.includes("/rest/v1/client_logs");
 
 const logSatiriHazirla = (girdi: TelemetryLogInput): TelemetryLogRow | null => {
-  if (!telemetryContext.enabled) return null;
+  if (!telemetryContext.enabled && !girdi.allowWhenDisabled) return null;
   if (!telemetryContext.userId || !telemetryContext.userEmail) return null;
 
   const message = String(girdi.message || "").trim().slice(0, 1000);

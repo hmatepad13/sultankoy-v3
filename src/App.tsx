@@ -14,6 +14,7 @@ import {
   type ReactNode,
 } from "react";
 import { LoginScreen } from "./components/LoginScreen";
+import { DonemDisiTarihUyarisi } from "./components/DonemDisiTarihUyarisi";
 import { SatisPanel } from "./components/SatisPanel";
 import {
   GIDER_TURLERI,
@@ -57,7 +58,7 @@ import type {
   Urun,
   YedekVerisi,
 } from "./types/app";
-import { getLocalDateString } from "./utils/date";
+import { aktifDonemDisiKayitOnayMetni, getLocalDateString } from "./utils/date";
 import { normalizeUsername } from "./utils/format";
 
 const SUPABASE_FREE_DATABASE_LIMIT_BYTES = 500_000_000;
@@ -486,6 +487,23 @@ const sekmeYuklemeHatasiniGoster = (tabId: AppTabId, error: unknown) => {
   alert(`${sekmeEtiketi} sekmesi açılamadı.\n${hataMetniniGetir(error)}`);
 };
 
+type StartupTabloOlcumu = {
+  table: string;
+  target: string;
+  durationMs: number;
+  rowCount: number;
+  status: "success" | "error";
+  errorMessage?: string;
+};
+
+const performansSimdi = () =>
+  typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now();
+
+const sureyiYuvarla = (baslangicMs?: number | null, bitisMs = performansSimdi()) =>
+  baslangicMs == null ? 0 : Math.max(0, Math.round(bitisMs - baslangicMs));
+
+const startupDenemeIdOlustur = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
 export default function App() {
   const [session, setSession] = useState<any>(null);
   const [username, setUsername] = useState<string>("");
@@ -495,6 +513,25 @@ export default function App() {
   const sekmeGecisIstegiRef = useRef(0);
   const oturumAcilisSekmesiRef = useRef<string | null>(null);
   const bottomMenuRef = useRef<HTMLElement | null>(null);
+  const startupTelemetriRef = useRef({
+    denemeId: startupDenemeIdOlustur(),
+    uygulamaBaslangicMs: performansSimdi(),
+    oturumBazMs: null as number | null,
+    authBaslangicMs: null as number | null,
+    authCozumMs: null as number | null,
+    authAcilistaBulundu: false,
+    authLoglandi: false,
+    authDurationMs: null as number | null,
+    ilkFetchBaslangicMs: null as number | null,
+    ilkFetchBitisMs: null as number | null,
+    fetchDurationMs: null as number | null,
+    fetchLoglandi: false,
+    ilkEtkilesimLoglandi: false,
+    tabloOlcumleri: [] as StartupTabloOlcumu[],
+  });
+  const acilisVerisiYuklenenKullaniciRef = useRef<string | null>(null);
+  const acilisVerisiYukleniyorKullaniciRef = useRef<string | null>(null);
+  const [startupVeriHazir, setStartupVeriHazir] = useState(false);
 
   // DÖNEM YÖNETİMİ (Kalıcı)
   const [aktifDonem, setAktifDonem] = useState<string>(() => {
@@ -523,6 +560,8 @@ export default function App() {
   const [yetkiKaynak, setYetkiKaynak] = useState<"supabase" | "local">("local");
   const [yetkiUyari, setYetkiUyari] = useState("");
   const [isBackupLoading, setIsBackupLoading] = useState(false);
+  const [restoringTrashId, setRestoringTrashId] = useState<string | null>(null);
+  const [deletingTrashId, setDeletingTrashId] = useState<string | null>(null);
   const [depolamaDurumu, setDepolamaDurumu] = useState<DepolamaDurumu | null>(null);
   const [isDepolamaLoading, setIsDepolamaLoading] = useState(false);
   const [depolamaHata, setDepolamaHata] = useState("");
@@ -632,6 +671,16 @@ export default function App() {
   const aktifUrunler = useMemo(() => urunler.filter(kayitAktifMi), [urunler]);
   const tumBayiler = useMemo(() => [...bayiler], [bayiler]);
   const bayiMap = useMemo(() => new Map(bayiler.map((item) => [item.id, item.isim])), [bayiler]);
+  const bayiKayitMap = useMemo(() => new Map(bayiler.map((item) => [item.id, item])), [bayiler]);
+  const hesapGrubuEtiketMap = useMemo(() => {
+    const map = new Map<string, string>();
+    bayiler.forEach((item) => {
+      const grup = String(item.hesap_grubu || "").trim();
+      if (!grup) return;
+      map.set(masterKayitIsminiNormalizeEt(grup), grup);
+    });
+    return map;
+  }, [bayiler, masterKayitIsminiNormalizeEt]);
   const urunMap = useMemo(() => new Map(urunler.map((item) => [item.id, item.isim])), [urunler]);
 
   const satisFisBayiAdiGetir = useCallback(
@@ -642,9 +691,47 @@ export default function App() {
     (satir?: Partial<SatisGiris> | null) => (satir?.urun_id ? urunMap.get(satir.urun_id) : undefined) || satir?.urun || "",
     [urunMap],
   );
-  const satisFisBayiAnahtariGetir = useCallback(
-    (fis?: Partial<SatisFis> | null) => (fis?.bayi_id ? `id:${fis.bayi_id}` : `isim:${masterKayitIsminiNormalizeEt(fis?.bayi)}`),
+  const bayiKaydiniBul = useCallback(
+    (bayiId?: string | null, bayiAdi?: string | null) => {
+      if (bayiId && bayiKayitMap.has(bayiId)) {
+        return bayiKayitMap.get(bayiId) || null;
+      }
+      const normalizeEdilenBayiAdi = masterKayitIsminiNormalizeEt(bayiAdi);
+      if (!normalizeEdilenBayiAdi) return null;
+      return bayiler.find((item) => masterKayitIsminiNormalizeEt(item.isim) === normalizeEdilenBayiAdi) || null;
+    },
+    [bayiKayitMap, bayiler, masterKayitIsminiNormalizeEt],
+  );
+  const bayiHesapEtiketiGetir = useCallback(
+    (bayiId?: string | null, bayiAdi?: string | null) => {
+      const bayiKaydi = bayiKaydiniBul(bayiId, bayiAdi);
+      const grupEtiketi = String(bayiKaydi?.hesap_grubu || "").trim();
+      if (grupEtiketi) return grupEtiketi;
+
+      const gosterimAdi = bayiKaydi?.isim || String(bayiAdi || "").trim();
+      const normalizeEdilenGosterimAdi = masterKayitIsminiNormalizeEt(gosterimAdi);
+      if (normalizeEdilenGosterimAdi && hesapGrubuEtiketMap.has(normalizeEdilenGosterimAdi)) {
+        return hesapGrubuEtiketMap.get(normalizeEdilenGosterimAdi) || gosterimAdi;
+      }
+      return gosterimAdi;
+    },
+    [bayiKaydiniBul, hesapGrubuEtiketMap, masterKayitIsminiNormalizeEt],
+  );
+  const hesapAnahtariOlustur = useCallback(
+    (hesapEtiketi?: string | null) => `hesap:${masterKayitIsminiNormalizeEt(hesapEtiketi)}`,
     [masterKayitIsminiNormalizeEt],
+  );
+  const satisFisHesapEtiketiGetir = useCallback(
+    (fis?: Partial<SatisFis> | null) => bayiHesapEtiketiGetir(fis?.bayi_id, satisFisBayiAdiGetir(fis)),
+    [bayiHesapEtiketiGetir, satisFisBayiAdiGetir],
+  );
+  const satisFisHesapAnahtariGetir = useCallback(
+    (fis?: Partial<SatisFis> | null) => hesapAnahtariOlustur(satisFisHesapEtiketiGetir(fis)),
+    [hesapAnahtariOlustur, satisFisHesapEtiketiGetir],
+  );
+  const satisSatiriHesapAnahtariGetir = useCallback(
+    (satir?: Partial<SatisGiris> | null) => hesapAnahtariOlustur(bayiHesapEtiketiGetir(satir?.bayi_id, satir?.bayi)),
+    [bayiHesapEtiketiGetir, hesapAnahtariOlustur],
   );
   const satisSatiriBayiAnahtariGetir = useCallback(
     (satir?: Partial<SatisGiris> | null) => (satir?.bayi_id ? `id:${satir.bayi_id}` : `isim:${masterKayitIsminiNormalizeEt(satir?.bayi)}`),
@@ -655,7 +742,7 @@ export default function App() {
     [masterKayitIsminiNormalizeEt],
   );
 
-  const hesaplaMusteriBakiyeleri = useCallback((kayitlar: SatisFis[], sonDonem?: string) => {
+  const hesaplaMusteriBakiyeleri = useCallback((kayitlar: Array<Partial<SatisFis>>, sonDonem?: string) => {
     const bakiyeler: Record<string, number> = {};
     const labels: Record<string, string> = {};
     const map: Record<string, number> = {};
@@ -665,23 +752,24 @@ export default function App() {
       if (sonDonem && donem > sonDonem) return;
 
       const bayiAdi = satisFisBayiAdiGetir(fis);
-      const bayiAnahtar = satisFisBayiAnahtariGetir(fis);
-      if (!bayiAdi || bayiAdi === "SİSTEM İŞLEMİ") return;
+      const hesapEtiketi = satisFisHesapEtiketiGetir(fis);
+      const hesapAnahtari = satisFisHesapAnahtariGetir(fis);
+      if (!bayiAdi || bayiAdi === "SİSTEM İŞLEMİ" || !hesapEtiketi) return;
 
-      labels[bayiAnahtar] = bayiAdi;
+      labels[hesapAnahtari] = hesapEtiketi;
       if (fisDonemDevirMi(fis)) {
-        bakiyeler[bayiAnahtar] = Number(fis.kalan_bakiye || 0);
+        bakiyeler[hesapAnahtari] = Number(fis.kalan_bakiye || 0);
       } else {
-        bakiyeler[bayiAnahtar] = (bakiyeler[bayiAnahtar] || 0) + Number(fis.kalan_bakiye || 0);
+        bakiyeler[hesapAnahtari] = (bakiyeler[hesapAnahtari] || 0) + Number(fis.kalan_bakiye || 0);
       }
 
       if (fis.id) {
-        map[String(fis.id)] = bakiyeler[bayiAnahtar];
+        map[String(fis.id)] = bakiyeler[hesapAnahtari];
       }
     });
 
     return { bakiyeler, labels, map };
-  }, [satisFisBayiAdiGetir, satisFisBayiAnahtariGetir]);
+  }, [satisFisBayiAdiGetir, satisFisHesapAnahtariGetir, satisFisHesapEtiketiGetir]);
 
   const bayiSecimModalAc = (hedef: "fis" | "tahsilat") => {
     setBayiSecimModal({ hedef, arama: "" });
@@ -741,6 +829,7 @@ export default function App() {
     const savedUser = localStorage.getItem("user");
     if (savedUser) setUsername(normalizeUsername(savedUser));
     installClientTelemetry();
+    startupTelemetriRef.current.authBaslangicMs = performansSimdi();
 
     let viewportMeta = document.querySelector('meta[name="viewport"]');
     if (!viewportMeta) {
@@ -760,6 +849,9 @@ export default function App() {
     supabase.auth
       .getSession()
       .then(async ({ data: { session: s }, error }: any) => {
+        const authCozumMs = performansSimdi();
+        startupTelemetriRef.current.authAcilistaBulundu = Boolean(s?.user?.id);
+        startupTelemetriRef.current.authCozumMs = s?.user?.id ? authCozumMs : null;
         if (error?.message?.toLowerCase().includes("refresh token")) {
           await yerelOturumuTemizle();
           logClientError("auth.getSession", error, { stage: "refresh-token" });
@@ -769,6 +861,8 @@ export default function App() {
         setSession(s);
       })
       .catch(async (error: Error) => {
+        startupTelemetriRef.current.authAcilistaBulundu = false;
+        startupTelemetriRef.current.authCozumMs = null;
         if (error.message?.toLowerCase().includes("refresh token")) {
           await yerelOturumuTemizle();
           logClientError("auth.getSession", error, { stage: "catch" });
@@ -799,23 +893,44 @@ export default function App() {
       setUsername(normalizeUsername(session.user.email));
       setAuthHata("");
     }
-  }, [session]);
+  }, [session?.user?.email]);
 
   useEffect(() => {
-    if (session) {
-      void verileriGetir("hepsi");
+    const kullaniciId = session?.user?.id || null;
+    if (!kullaniciId) {
+      acilisVerisiYuklenenKullaniciRef.current = null;
+      acilisVerisiYukleniyorKullaniciRef.current = null;
+      return;
     }
-  }, [session]);
+    if (
+      acilisVerisiYuklenenKullaniciRef.current === kullaniciId ||
+      acilisVerisiYukleniyorKullaniciRef.current === kullaniciId
+    ) {
+      return;
+    }
+
+    acilisVerisiYukleniyorKullaniciRef.current = kullaniciId;
+    void (async () => {
+      const basarili = await verileriGetir("hepsi");
+      if (basarili) {
+        acilisVerisiYuklenenKullaniciRef.current = kullaniciId;
+      }
+    })().finally(() => {
+      if (acilisVerisiYukleniyorKullaniciRef.current === kullaniciId) {
+        acilisVerisiYukleniyorKullaniciRef.current = null;
+      }
+    });
+  }, [session?.user?.id]);
 
   useEffect(() => {
-    if (!session) return;
+    if (!session?.user?.id) return;
 
     kullaniciYetkileriniYukle().then(({ kayitlar, kaynak, uyari }) => {
       setTabYetkileri(kayitlar);
       setYetkiKaynak(kaynak);
       setYetkiUyari(uyari || "");
     });
-  }, [session]);
+  }, [session?.user?.id]);
 
   useEffect(() => {
       localStorage.setItem("aktifDonem", aktifDonem);
@@ -826,6 +941,40 @@ export default function App() {
     session?.user?.email || (username.includes("@") ? username : `${username}@sistem.local`);
   const aktifKullaniciKisa = normalizeUsername(aktifKullaniciEposta);
   const isAdmin = adminMi(mevcutKullanici);
+  const startupLog = useCallback(
+    (source: string, message: string, details: Record<string, unknown> = {}, fingerprintSuffix = "") => {
+      const fingerprintParcalari = ["startup", startupTelemetriRef.current.denemeId, source];
+      if (fingerprintSuffix) fingerprintParcalari.push(fingerprintSuffix);
+      logClientEvent({
+        level: "info",
+        source,
+        message,
+        details,
+        fingerprint: fingerprintParcalari.join(":"),
+        allowWhenDisabled: true,
+      });
+    },
+    [],
+  );
+  const startupTabloOlcumuKaydet = useCallback(
+    (olcum: StartupTabloOlcumu) => {
+      startupTelemetriRef.current.tabloOlcumleri.push(olcum);
+      startupLog(
+        "startup.fetch_table",
+        "Startup table loaded",
+        {
+          table: olcum.table,
+          target: olcum.target,
+          duration_ms: olcum.durationMs,
+          row_count: olcum.rowCount,
+          status: olcum.status,
+          ...(olcum.errorMessage ? { error_message: olcum.errorMessage } : {}),
+        },
+        `${olcum.target}:${olcum.table}`,
+      );
+    },
+    [startupLog],
+  );
 
   useEffect(() => {
     setClientTelemetryContext({
@@ -837,6 +986,99 @@ export default function App() {
       enabled: Boolean(session?.user?.id) && isAdmin,
     });
   }, [activeTab, aktifDonem, aktifKullaniciEposta, aktifKullaniciKisa, isAdmin, session?.user?.id]);
+
+  useEffect(() => {
+    if (!session?.user?.id) return;
+
+    const simdi = performansSimdi();
+    if (startupTelemetriRef.current.oturumBazMs == null) {
+      startupTelemetriRef.current.oturumBazMs = startupTelemetriRef.current.authCozumMs ?? simdi;
+    }
+
+    if (!startupTelemetriRef.current.authAcilistaBulundu || startupTelemetriRef.current.authLoglandi) return;
+
+    const authCozumMs = startupTelemetriRef.current.authCozumMs ?? simdi;
+    const durationMs = sureyiYuvarla(
+      startupTelemetriRef.current.authBaslangicMs ?? startupTelemetriRef.current.oturumBazMs ?? simdi,
+      authCozumMs,
+    );
+    startupTelemetriRef.current.authLoglandi = true;
+    startupTelemetriRef.current.authDurationMs = durationMs;
+    startupLog(
+      "startup.auth_session",
+      "Startup auth session resolved",
+      {
+        duration_ms: durationMs,
+        has_session: true,
+        resolved_via: "getSession",
+      },
+      "auth",
+    );
+  }, [session?.user?.id, startupLog]);
+
+  useEffect(() => {
+    if (!startupVeriHazir || !session?.user?.id || startupTelemetriRef.current.ilkEtkilesimLoglandi) return;
+
+    let frameBir = 0;
+    let frameIki = 0;
+    frameBir = window.requestAnimationFrame(() => {
+      frameIki = window.requestAnimationFrame(() => {
+        if (startupTelemetriRef.current.ilkEtkilesimLoglandi) return;
+
+        const simdi = performansSimdi();
+        const renderMs = sureyiYuvarla(startupTelemetriRef.current.ilkFetchBitisMs, simdi);
+        const bazMs =
+          startupTelemetriRef.current.oturumBazMs ??
+          startupTelemetriRef.current.ilkFetchBaslangicMs ??
+          startupTelemetriRef.current.uygulamaBaslangicMs;
+        const ilkEtkilesimMs = sureyiYuvarla(bazMs, simdi);
+
+        startupTelemetriRef.current.ilkEtkilesimLoglandi = true;
+        startupLog(
+          "startup.initial_compute",
+          "Startup render settled",
+          {
+            duration_ms: renderMs,
+            satis_fis_count: satisFisList.length,
+            satis_satir_count: satisList.length,
+            gider_count: giderList.length,
+            sut_count: sutList.length,
+            uretim_count: uretimList.length,
+            cop_count: copKutusuList.length,
+          },
+          "initial_compute",
+        );
+        startupLog(
+          "startup.first_interactive",
+          "Startup first interactive ready",
+          {
+            duration_ms: ilkEtkilesimMs,
+            auth_ms: startupTelemetriRef.current.authDurationMs,
+            fetch_ms: startupTelemetriRef.current.fetchDurationMs,
+            post_fetch_render_ms: renderMs,
+            active_tab: activeTab,
+          },
+          "first_interactive",
+        );
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameBir);
+      window.cancelAnimationFrame(frameIki);
+    };
+  }, [
+    activeTab,
+    copKutusuList.length,
+    giderList.length,
+    satisFisList.length,
+    satisList.length,
+    session?.user?.id,
+    startupLog,
+    startupVeriHazir,
+    sutList.length,
+    uretimList.length,
+  ]);
 
   useEffect(() => {
     if (!session?.user?.id || !isAdmin) return;
@@ -1234,7 +1476,13 @@ export default function App() {
   async function coptKutusunaAt(tablo: string, veri: any) {
       const { error } = await supabase
         .from("cop_kutusu")
-        .insert({ tablo_adi: tablo, veri, silinme_tarihi: new Date().toISOString() });
+        .insert({
+          tablo_adi: tablo,
+          veri,
+          silinme_tarihi: new Date().toISOString(),
+          silen_user_id: session?.user?.id || null,
+          silen_email: aktifKullaniciEposta || null,
+        });
       if (error) {
         console.warn("Çöp kutusuna atılamadı:", error.message);
         return false;
@@ -1245,16 +1493,58 @@ export default function App() {
   async function verileriGetir(
     hedef: "hepsi" | "satis" | "sut" | "gider" | "uretim" | "ayar" | "cop" = "hepsi",
   ) {
+    const startupEtkin = hedef === "hepsi" && !startupTelemetriRef.current.fetchLoglandi;
+    const startupSorguyuCalistir = async <T,>(
+      tablo: string,
+      istek: PromiseLike<{ data: T[] | null; error: any }>,
+    ) => {
+      if (!startupEtkin) return istek;
+
+      const baslangicMs = performansSimdi();
+      try {
+        const sonuc = await istek;
+        startupTabloOlcumuKaydet({
+          table: tablo,
+          target: hedef,
+          durationMs: sureyiYuvarla(baslangicMs),
+          rowCount: Array.isArray(sonuc.data) ? sonuc.data.length : 0,
+          status: sonuc.error ? "error" : "success",
+          ...(sonuc.error?.message ? { errorMessage: sonuc.error.message } : {}),
+        });
+        return sonuc;
+      } catch (error: any) {
+        startupTabloOlcumuKaydet({
+          table: tablo,
+          target: hedef,
+          durationMs: sureyiYuvarla(baslangicMs),
+          rowCount: 0,
+          status: "error",
+          errorMessage: error?.message || "İstek başarısız oldu.",
+        });
+        throw error;
+      }
+    };
+
     try {
       setVeriYuklemeHata("");
+      if (startupEtkin) {
+        if (startupTelemetriRef.current.oturumBazMs == null) {
+          startupTelemetriRef.current.oturumBazMs = performansSimdi();
+        }
+        startupTelemetriRef.current.ilkFetchBaslangicMs = performansSimdi();
+        startupTelemetriRef.current.ilkFetchBitisMs = null;
+        startupTelemetriRef.current.fetchDurationMs = null;
+        startupTelemetriRef.current.tabloOlcumleri = [];
+        setStartupVeriHazir(false);
+      }
 
       if (hedef === "hepsi" || hedef === "ayar") {
         const [{ data: c, error: cErr }, { data: b, error: bErr }, { data: u, error: uErr }, { data: p, error: pErr }, { data: gt, error: gtErr }] = await Promise.all([
-          supabase.from("ciftlikler").select("*").order("isim"),
-          supabase.from("bayiler").select("*").order("isim"),
-          supabase.from("urunler").select("*").order("isim"),
-          supabase.from("profiles").select("username").order("username"),
-          supabase.from("gider_turleri").select("*").order("isim"),
+          startupSorguyuCalistir<Ciftlik>("ciftlikler", supabase.from("ciftlikler").select("*").order("isim")),
+          startupSorguyuCalistir<Bayi>("bayiler", supabase.from("bayiler").select("*").order("isim")),
+          startupSorguyuCalistir<Urun>("urunler", supabase.from("urunler").select("*").order("isim")),
+          startupSorguyuCalistir<{ username?: string | null }>("profiles", supabase.from("profiles").select("username").order("username")),
+          startupSorguyuCalistir<GiderTuru>("gider_turleri", supabase.from("gider_turleri").select("*").order("isim")),
         ]);
         if (cErr || bErr || uErr || pErr || gtErr) throw cErr || bErr || uErr || pErr || gtErr;
         if (c) setTedarikciler(c);
@@ -1284,8 +1574,14 @@ export default function App() {
 
       if (hedef === "hepsi" || hedef === "satis") {
         const [{ data: f, error: fErr }, { data: st, error: stErr }] = await Promise.all([
-          supabase.from("satis_fisleri").select("*").order("tarih", { ascending: true }).order("id", { ascending: true }),
-          supabase.from("satis_giris").select("*").order("tarih", { ascending: true }).order("id", { ascending: true })
+          startupSorguyuCalistir<SatisFis>(
+            "satis_fisleri",
+            supabase.from("satis_fisleri").select("*").order("tarih", { ascending: true }).order("id", { ascending: true }),
+          ),
+          startupSorguyuCalistir<SatisGiris>(
+            "satis_giris",
+            supabase.from("satis_giris").select("*").order("tarih", { ascending: true }).order("id", { ascending: true }),
+          ),
         ]);
         if (fErr || stErr) throw fErr || stErr;
         if (f) setSatisFisList(f);
@@ -1293,36 +1589,102 @@ export default function App() {
       }
 
       if (hedef === "hepsi" || hedef === "sut") {
-        const { data: s, error: sErr } = await supabase.from("sut_giris").select("*").order("tarih", { ascending: true }).order("id", { ascending: true });
+        const { data: s, error: sErr } = await startupSorguyuCalistir<SutGiris>(
+          "sut_giris",
+          supabase.from("sut_giris").select("*").order("tarih", { ascending: true }).order("id", { ascending: true }),
+        );
         if (sErr) throw sErr;
         if (s) setSutList(s);
       }
 
       if (hedef === "hepsi" || hedef === "gider") {
-        const { data: g, error: gErr } = await supabase.from("giderler").select("*").order("tarih", { ascending: true }).order("id", { ascending: true });
+        const { data: g, error: gErr } = await startupSorguyuCalistir<Gider>(
+          "giderler",
+          supabase.from("giderler").select("*").order("tarih", { ascending: true }).order("id", { ascending: true }),
+        );
         if (gErr) throw gErr;
         if (g) setGiderList(g);
       }
 
       if (hedef === "hepsi" || hedef === "uretim") {
-        const { data: ur, error: urErr } = await supabase.from("uretim").select("*").order("tarih", { ascending: true }).order("id", { ascending: true });
+        const { data: ur, error: urErr } = await startupSorguyuCalistir<Uretim>(
+          "uretim",
+          supabase.from("uretim").select("*").order("tarih", { ascending: true }).order("id", { ascending: true }),
+        );
         if (urErr) throw urErr;
         if (ur) setUretimList(ur.map((kayit) => uretimKaydiniNormalizeEt(kayit as Uretim)));
       }
 
       if (hedef === "hepsi" || hedef === "cop") {
-          const { data: cop, error: copErr } = await supabase.from("cop_kutusu").select("*").order("silinme_tarihi", { ascending: false });
-          if (copErr) throw copErr;
-          if(cop) setCopKutusuList(cop);
+        const { data: cop, error: copErr } = await startupSorguyuCalistir<CopKutusu>(
+          "cop_kutusu",
+          supabase.from("cop_kutusu").select("*").order("silinme_tarihi", { ascending: false }),
+        );
+        if (copErr) throw copErr;
+        if (cop) setCopKutusuList(cop);
       }
 
+      if (startupEtkin) {
+        const bitisMs = performansSimdi();
+        const durationMs = sureyiYuvarla(startupTelemetriRef.current.ilkFetchBaslangicMs, bitisMs);
+        startupTelemetriRef.current.ilkFetchBitisMs = bitisMs;
+        startupTelemetriRef.current.fetchDurationMs = durationMs;
+        startupTelemetriRef.current.fetchLoglandi = true;
+        startupLog(
+          "startup.fetch_all",
+          "Startup data load completed",
+          {
+            target: hedef,
+            duration_ms: durationMs,
+            table_count: startupTelemetriRef.current.tabloOlcumleri.length,
+            status: "success",
+            tables: startupTelemetriRef.current.tabloOlcumleri.map((olcum) => ({
+              table: olcum.table,
+              row_count: olcum.rowCount,
+              duration_ms: olcum.durationMs,
+              status: olcum.status,
+            })),
+          },
+          "fetch_all",
+        );
+        setStartupVeriHazir(true);
+      }
+
+      return true;
+
     } catch (error: any) {
+      if (startupEtkin && !startupTelemetriRef.current.fetchLoglandi) {
+        const bitisMs = performansSimdi();
+        const durationMs = sureyiYuvarla(startupTelemetriRef.current.ilkFetchBaslangicMs, bitisMs);
+        startupTelemetriRef.current.ilkFetchBitisMs = bitisMs;
+        startupTelemetriRef.current.fetchDurationMs = durationMs;
+        startupTelemetriRef.current.fetchLoglandi = true;
+        startupLog(
+          "startup.fetch_all",
+          "Startup data load failed",
+          {
+            target: hedef,
+            duration_ms: durationMs,
+            table_count: startupTelemetriRef.current.tabloOlcumleri.length,
+            status: "error",
+            error_message: error?.message || "Veri yükleme başarısız oldu.",
+            tables: startupTelemetriRef.current.tabloOlcumleri.map((olcum) => ({
+              table: olcum.table,
+              row_count: olcum.rowCount,
+              duration_ms: olcum.durationMs,
+              status: olcum.status,
+            })),
+          },
+          "fetch_all_error",
+        );
+      }
       console.error(error);
       logClientError("app.verileriGetir", error, {
         target: hedef,
         online: typeof navigator !== "undefined" ? navigator.onLine : true,
       });
       setVeriYuklemeHata(error?.message || "Veriler alinirken beklenmeyen bir hata olustu.");
+      return false;
     }
   }
 
@@ -1346,10 +1708,10 @@ export default function App() {
         .sort((a, b) => b.borc - a.borc);
   }, [aktifDonem, hesaplaMusteriBakiyeleri, satisFisList]);
 
-  const musteriEkstreHesapla = useCallback((bayiAnahtar: string, musteriAdi: string) => {
+  const musteriEkstreHesapla = useCallback((hesapAnahtari: string, musteriAdi: string) => {
     const ilgiliFisler = [...satisFisList]
       .filter((fis) => {
-        if (satisFisBayiAnahtariGetir(fis) !== bayiAnahtar) return false;
+        if (satisFisHesapAnahtariGetir(fis) !== hesapAnahtari) return false;
         if (fisKasayaDevirMi(fis)) return false;
         return !sistemIslemiMi(satisFisBayiAdiGetir(fis)) || fisDonemDevirMi(fis);
       })
@@ -1373,7 +1735,7 @@ export default function App() {
             ? []
             : satisList.filter(
                 (satir) =>
-                  satisSatiriBayiAnahtariGetir(satir) === bayiAnahtar &&
+                  satisSatiriHesapAnahtariGetir(satir) === hesapAnahtari &&
                   String(satir.tarih || "") === String(fis.tarih || ""),
               );
         const urunSatirlari = (eslesenFisSatirlari.length > 0 ? eslesenFisSatirlari : yedekFisSatirlari)
@@ -1402,7 +1764,7 @@ export default function App() {
       donem: aktifDonem,
       hareketler,
     };
-  }, [aktifDonem, satisFisBayiAdiGetir, satisFisBayiAnahtariGetir, satisList, satisSatiriBayiAnahtariGetir, satisSatiriUrunAdiGetir, satisFisList]);
+  }, [aktifDonem, satisFisBayiAdiGetir, satisFisHesapAnahtariGetir, satisList, satisSatiriHesapAnahtariGetir, satisSatiriUrunAdiGetir, satisFisList]);
 
   const handleMusteriEkstreAc = useCallback((bayiAnahtar: string, musteriAdi: string) => {
     setMusteriEkstreData(musteriEkstreHesapla(bayiAnahtar, musteriAdi));
@@ -1427,6 +1789,32 @@ export default function App() {
   const satisFisToplamBorcMap = useMemo(() => {
     return hesaplaMusteriBakiyeleri(satisFisList).map;
   }, [hesaplaMusteriBakiyeleri, satisFisList]);
+
+  const fisKaydiniListeyeUygula = useCallback(
+    (hedefFis: Partial<SatisFis>, kayitlar: Array<Partial<SatisFis>> = satisFisList) => {
+      const hedefId = hedefFis.id == null ? null : String(hedefFis.id);
+      const digerKayitlar = hedefId
+        ? kayitlar.filter((kayit) => String(kayit.id ?? "") !== hedefId)
+        : [...kayitlar];
+      return [...digerKayitlar, hedefFis];
+    },
+    [satisFisList],
+  );
+
+  const fisBorcBilgisiniGetir = useCallback(
+    (hedefFis: Partial<SatisFis>, kayitlar: Array<Partial<SatisFis>> = satisFisList) => {
+      const { map } = hesaplaMusteriBakiyeleri(kayitlar);
+      const genelBorc =
+        hedefFis.id == null
+          ? Number(hedefFis.kalan_bakiye || 0)
+          : map[String(hedefFis.id)] ?? Number(hedefFis.kalan_bakiye || 0);
+      return {
+        eskiBorc: genelBorc - Number(hedefFis.kalan_bakiye || 0),
+        genelBorc,
+      };
+    },
+    [hesaplaMusteriBakiyeleri, satisFisList],
+  );
 
   const handleDonemKapat = async () => {
      if(!donemOnay) return;
@@ -1604,6 +1992,11 @@ export default function App() {
         return alert("Sabitle ozelligi icin once sql/add-sabit-column-to-urunler.sql dosyasini Supabase SQL Editor'da calistir.");
       }
       if (error) return alert(`Hata: ${error.message}`);
+    } else if (islemTip === "hesap_grubu") {
+      if (!id) return;
+      const temizDeger = typeof isim === "string" ? isim.trim() : "";
+      const { error } = await supabase.from(tablo).update({ hesap_grubu: temizDeger || null }).eq("id", id);
+      if (error) return alert(`Hata: ${error.message}`);
     } else if (islemTip === "sil") {
       await supabase.from(tablo).delete().eq("id", id);
     }
@@ -1692,6 +2085,9 @@ export default function App() {
     const tMiktar = paraGirdisiniSayiyaCevir(tahsilatForm.miktar);
     if (tMiktar <= 0) return alert("Geçerli bir tahsilat tutarı girin.");
 
+    const donemDisiOnayMesaji = aktifDonemDisiKayitOnayMetni(tahsilatForm.tarih, aktifDonem);
+    if (donemDisiOnayMesaji && !window.confirm(donemDisiOnayMesaji)) return;
+
     const ortakData = {
       tarih: tahsilatForm.tarih,
       bayi: tahsilatForm.bayi,
@@ -1774,6 +2170,9 @@ export default function App() {
 
   async function handleKasaDevirKaydet() {
     if (!digerForm.tutar || paraGirdisiniSayiyaCevir(digerForm.tutar) <= 0) return alert("Geçerli bir tutar girin.");
+
+    const donemDisiOnayMesaji = aktifDonemDisiKayitOnayMetni(digerForm.tarih, aktifDonem);
+    if (donemDisiOnayMesaji && !window.confirm(donemDisiOnayMesaji)) return;
 
     const tahsilat = paraGirdisiniSayiyaCevir(digerForm.tutar);
     const ortakData = {
@@ -1897,21 +2296,6 @@ export default function App() {
 
   const aktifBayi = fisUst.bayi;
   const aktifBayiId = useMemo(() => seciliBayiId(aktifBayi), [aktifBayi, seciliBayiId]);
-  const aktifBayiAnahtari = useMemo(
-    () => (aktifBayiId ? `id:${aktifBayiId}` : `isim:${masterKayitIsminiNormalizeEt(aktifBayi)}`),
-    [aktifBayi, aktifBayiId, masterKayitIsminiNormalizeEt],
-  );
-  
-  const eskiBorc = useMemo(() => {
-      if (!aktifBayi) return 0;
-      const bayiFisleri = periodSatisFis.filter(
-        (f) =>
-          satisFisBayiAnahtariGetir(f) === aktifBayiAnahtari &&
-          f.id !== editingFisId &&
-          !sistemIslemiMi(satisFisBayiAdiGetir(f)),
-      );
-      return bayiFisleri.reduce((toplam, f) => toplam + Number(f.kalan_bakiye || 0), 0);
-  }, [aktifBayi, aktifBayiAnahtari, editingFisId, periodSatisFis, satisFisBayiAdiGetir, satisFisBayiAnahtariGetir]);
 
   const fisCanliToplam = useMemo(() => {
     const urunToplami = urunler.reduce((toplam, u) => {
@@ -1936,7 +2320,37 @@ export default function App() {
     return urunToplami - (iMiktar * iFiyat) - (kMiktar * kFiyat);
   }, [urunler, fisDetay]);
 
-  const toplamGenelBorc = eskiBorc + (fisCanliToplam - paraGirdisiniSayiyaCevir(fisUst.tahsilat || ""));
+  const { eskiBorc, genelBorc: toplamGenelBorc } = useMemo(() => {
+      if (!aktifBayi) return { eskiBorc: 0, genelBorc: 0 };
+      const tahsilat = paraGirdisiniSayiyaCevir(fisUst.tahsilat || "");
+      const onizlemeFis: Partial<SatisFis> = {
+        id: editingFisId ?? String(Number.MAX_SAFE_INTEGER),
+        fis_no: editingFisNo || "ONIZLEME",
+        tarih: fisUst.tarih,
+        bayi: fisUst.bayi,
+        bayi_id: aktifBayiId,
+        toplam_tutar: fisCanliToplam,
+        tahsilat,
+        kalan_bakiye: fisCanliToplam - tahsilat,
+        odeme_turu: fisUst.odeme_turu,
+        ekleyen: aktifKullaniciEposta,
+      };
+      const simuleFisler = fisKaydiniListeyeUygula(onizlemeFis);
+      return fisBorcBilgisiniGetir(onizlemeFis, simuleFisler);
+  }, [
+    aktifBayi,
+    aktifBayiId,
+    aktifKullaniciEposta,
+    editingFisId,
+    editingFisNo,
+    fisBorcBilgisiniGetir,
+    fisCanliToplam,
+    fisKaydiniListeyeUygula,
+    fisUst.bayi,
+    fisUst.odeme_turu,
+    fisUst.tahsilat,
+    fisUst.tarih,
+  ]);
 
   const fisGorselDosyaAdi = useMemo(() => {
     if (fisGorselDosya?.name) return fisGorselDosya.name;
@@ -2114,6 +2528,9 @@ export default function App() {
 
     if (eklenecekUrunler.length === 0 && iadeMiktar === 0 && kovaMiktar === 0) return alert("Fişte işlem yok! Ürün, iade veya kova girin.");
 
+    const donemDisiOnayMesaji = aktifDonemDisiKayitOnayMetni(fisUst.tarih, aktifDonem);
+    if (donemDisiOnayMesaji && !window.confirm(donemDisiOnayMesaji)) return;
+
     let ortakFisNo = editingFisNo || benzersizFisNoOlustur("F");
     const tahsilat = paraGirdisiniSayiyaCevir(fisUst.tahsilat || "");
     const kalanBakiye = fisCanliToplam - tahsilat;
@@ -2270,6 +2687,25 @@ export default function App() {
       if (iadeMiktar > 0) ekstraIndirimler.push({ isim: "İade", adet: iadeAdet, kg: iadeKg, fiyat: iadeFiyat, tutar: -(iadeMiktar * iadeFiyat) });
       if (kovaMiktar > 0) ekstraIndirimler.push({ isim: "Boş Kova", adet: kovaAdet, kg: kovaKg, fiyat: kovaFiyat, tutar: -(kovaMiktar * kovaFiyat) });
 
+      const kaydedilenFis: Partial<SatisFis> = {
+        id: savedFisId ?? undefined,
+        fis_no: ortakFisNo,
+        tarih: fisUst.tarih,
+        bayi: fisUst.bayi,
+        bayi_id: secilenBayiId,
+        toplam_tutar: fisCanliToplam,
+        tahsilat,
+        kalan_bakiye: fisCanliToplam - tahsilat,
+        odeme_turu: fisUst.odeme_turu,
+        aciklama: genelNot,
+        ekleyen: aktifKullaniciEposta,
+        fis_gorseli: fisGorselYolu,
+      };
+      const kaydedilenFisBorc = fisBorcBilgisiniGetir(
+        kaydedilenFis,
+        fisKaydiniListeyeUygula(kaydedilenFis),
+      );
+
       const fisGosterimData = {
         id: savedFisId,
         fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, aciklama: fisUst.aciklama, teslim_alan: fisUst.teslim_alan,
@@ -2287,7 +2723,7 @@ export default function App() {
         }),
         ekstraIndirimler,
         genelToplam: fisCanliToplam, tahsilat: tahsilat, kalanBakiye: (fisCanliToplam - tahsilat), odeme: fisUst.odeme_turu,
-        eskiBorc: eskiBorc, genelBorc: toplamGenelBorc,
+        eskiBorc: kaydedilenFisBorc.eskiBorc, genelBorc: kaydedilenFisBorc.genelBorc,
         gosterBakiye: false
       };
 
@@ -2368,6 +2804,25 @@ export default function App() {
     if (iadeMiktar > 0) ekstraIndirimler.push({ isim: "İade", adet: iadeAdet, kg: iadeKg, fiyat: iadeFiyat, tutar: -(iadeMiktar * iadeFiyat) });
     if (kovaMiktar > 0) ekstraIndirimler.push({ isim: "Boş Kova", adet: kovaAdet, kg: kovaKg, fiyat: kovaFiyat, tutar: -(kovaMiktar * kovaFiyat) });
 
+    const kaydedilenFis: Partial<SatisFis> = {
+      id: savedFisId ?? undefined,
+      fis_no: ortakFisNo,
+      tarih: fisUst.tarih,
+      bayi: fisUst.bayi,
+      bayi_id: secilenBayiId,
+      toplam_tutar: fisCanliToplam,
+      tahsilat,
+      kalan_bakiye: fisCanliToplam - tahsilat,
+      odeme_turu: fisUst.odeme_turu,
+      aciklama: genelNot,
+      ekleyen: aktifKullaniciEposta,
+      fis_gorseli: fisGorselYolu,
+    };
+    const kaydedilenFisBorc = fisBorcBilgisiniGetir(
+      kaydedilenFis,
+      fisKaydiniListeyeUygula(kaydedilenFis),
+    );
+
     const fisGosterimData = {
       id: savedFisId,
       fis_no: ortakFisNo, tarih: fisUst.tarih, bayi: fisUst.bayi, aciklama: fisUst.aciklama, teslim_alan: fisUst.teslim_alan,
@@ -2382,10 +2837,10 @@ export default function App() {
          const isKova = u.isim.match(/([345])\s*kg/i);
          const miktar = isKova ? adet : (kg > 0 ? kg : adet);
          return { isim: u.isim, adet: adet, kg: kg, fiyat: fiyat, tutar: miktar * fiyat };
-      }),
+       }),
       ekstraIndirimler,
       genelToplam: fisCanliToplam, tahsilat: tahsilat, kalanBakiye: (fisCanliToplam - tahsilat), odeme: fisUst.odeme_turu,
-      eskiBorc: eskiBorc, genelBorc: toplamGenelBorc,
+      eskiBorc: kaydedilenFisBorc.eskiBorc, genelBorc: kaydedilenFisBorc.genelBorc,
       gosterBakiye: false
     };
     
@@ -2476,14 +2931,7 @@ export default function App() {
         (satisSatiriUrunAdiGetir(s) === "İade Kova" || satisSatiriUrunAdiGetir(s) === "Boş Kova"),
     );
     
-    const fisBayiAnahtari = satisFisBayiAnahtariGetir(fis);
-    const bayiFisleri = periodSatisFis.filter(
-      (f) =>
-        satisFisBayiAnahtariGetir(f) === fisBayiAnahtari &&
-        !sistemIslemiMi(satisFisBayiAdiGetir(f)) &&
-        (f.tarih < fis.tarih || (f.tarih === fis.tarih && Number(f.id) < Number(fis.id))),
-    );
-    const oGunkuEskiBorc = bayiFisleri.reduce((toplam, f) => toplam + Number(f.kalan_bakiye || 0), 0);
+    const fisBorcBilgisi = fisBorcBilgisiniGetir(fis);
     
     const ekstraIndirimler = [];
     if (iadeUrun) ekstraIndirimler.push({ isim: "İade", adet: iadeUrun.adet, kg: iadeUrun.toplam_kg, fiyat: Math.abs(Number(iadeUrun.fiyat)), tutar: -Math.abs(Number(iadeUrun.tutar)) });
@@ -2506,7 +2954,7 @@ export default function App() {
       }), 
       ekstraIndirimler,
       genelToplam: fis.toplam_tutar, tahsilat: fis.tahsilat, kalanBakiye: fis.kalan_bakiye, odeme: fis.odeme_turu || "Bilinmiyor",
-      eskiBorc: oGunkuEskiBorc, genelBorc: oGunkuEskiBorc + fis.kalan_bakiye,
+      eskiBorc: fisBorcBilgisi.eskiBorc, genelBorc: fisBorcBilgisi.genelBorc,
       gosterBakiye: false 
     });
   };
@@ -2518,23 +2966,10 @@ export default function App() {
     }
     if (!confirm(`Bu işlemi (${fis.fis_no || fis.id}) silmek istediğinize emin misiniz?`)) return;
 
-    const { data: rpcSilData, error: rpcSilError } = await supabase.rpc("app_delete_satis_fisi", {
+    const { error: rpcSilError } = await supabase.rpc("app_delete_satis_fisi", {
       p_fis_id: fis.id,
     });
     if (!rpcSilError) {
-      const sonuc = Array.isArray(rpcSilData) ? rpcSilData[0] : rpcSilData;
-      if (sonuc?.fis_gorseli) {
-        const key = fisGorselStorageYolu(sonuc.fis_gorseli);
-        if (key) {
-          const { error: removeError } = await supabase
-            .storage
-            .from("fis_gorselleri")
-            .remove([key]);
-          if (removeError) {
-            console.warn("Fiş görseli silinemedi:", removeError.message);
-          }
-        }
-      }
       verileriGetir("satis"); verileriGetir("cop");
       return;
     }
@@ -2570,19 +3005,6 @@ export default function App() {
       }
       alert("Silme Hatası: " + veritabaniHatasiMesaji("satis_fisleri", fisSilError));
       return;
-    }
-
-    if (fis.fis_gorseli) {
-      const key = fisGorselStorageYolu(fis.fis_gorseli);
-      if (key) {
-        const { error: removeError } = await supabase
-          .storage
-          .from("fis_gorselleri")
-          .remove([key]);
-        if (removeError) {
-          console.warn("Fiş görseli silinemedi:", removeError.message);
-        }
-      }
     }
 
     verileriGetir("satis"); verileriGetir("cop");
@@ -2947,6 +3369,60 @@ export default function App() {
     alert("Çöp kutusu boşaltıldı.");
   };
 
+  const handleRestoreTrashItem = async (trashId: string) => {
+    if (!trashId) return;
+    setRestoringTrashId(trashId);
+    try {
+      const { data, error } = await supabase.rpc("app_restore_trash_item", {
+        p_trash_id: trashId,
+      });
+      if (error) {
+        if (rpcBulunamadiMi(error, "app_restore_trash_item")) {
+          alert("Geri yükleme özelliği için yeni SQL migration henüz uygulanmamış görünüyor.");
+          return;
+        }
+        alert("Geri yükleme hatası: " + (error.message || "Bilinmeyen hata"));
+        return;
+      }
+
+      const sonuc = Array.isArray(data) ? data[0] : data;
+      const geriYuklenenTablo = String(sonuc?.tablo_adi || "");
+
+      if (geriYuklenenTablo === "satis_fisleri") {
+        await verileriGetir("satis");
+      } else if (geriYuklenenTablo === "sut_giris") {
+        await verileriGetir("sut");
+      } else if (geriYuklenenTablo === "giderler") {
+        await verileriGetir("gider");
+      } else if (geriYuklenenTablo === "uretim") {
+        await verileriGetir("uretim");
+      }
+
+      await verileriGetir("cop");
+      alert(sonuc?.already_restored ? "Kayıt daha önce geri yüklenmiş." : "Kayıt geri yüklendi.");
+    } finally {
+      setRestoringTrashId(null);
+    }
+  };
+
+  const handleDeleteTrashItem = async (trashId: string) => {
+    if (!isAdmin || !trashId) return;
+    if (!confirm("Bu çöp kaydı kalıcı olarak silinsin mi?")) return;
+
+    setDeletingTrashId(trashId);
+    try {
+      const { error } = await supabase.from("cop_kutusu").delete().eq("id", trashId);
+      if (error) {
+        alert("Çöp kaydı silinemedi: " + (error.message || "Bilinmeyen hata"));
+        return;
+      }
+
+      await verileriGetir("cop");
+    } finally {
+      setDeletingTrashId(null);
+    }
+  };
+
   const cikisYap = async (mesaj?: string) => {
     await yerelOturumuTemizle();
     setUsername(normalizeUsername(username || session?.user?.email || ""));
@@ -2956,7 +3432,7 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (!session) return;
+    if (!session?.user?.id) return;
 
     const IDLE_LIMIT_MS = 10 * 60 * 1000;
     let timeoutId: number | null = null;
@@ -2976,7 +3452,7 @@ export default function App() {
       if (timeoutId) window.clearTimeout(timeoutId);
       olaylar.forEach((olay) => window.removeEventListener(olay, resetIdleTimer));
     };
-  }, [session]);
+  }, [session?.user?.id]);
 
   const renderOzetMiniDetay = () => {
     if (!ozetMiniDetay) return null;
@@ -3111,6 +3587,11 @@ export default function App() {
           ayarIslem(tablo, yeniIsim.trim(), "guncelle", id);
         }
       },
+      onSettingEditGroup: (_tablo: any, id: any, isim: any, hesapGrubu: any) => {
+        const yeniGrup = prompt(`${isim} için hesap grubu (boş bırakılırsa bağ kaldırılır)`, hesapGrubu || "");
+        if (yeniGrup === null) return;
+        ayarIslem("bayiler", yeniGrup.trim(), "hesap_grubu", id);
+      },
       onSettingToggleActive: (tablo: any, id: any, aktif: any) => {
         ayarIslem(tablo, !aktif, "durum", id);
       },
@@ -3122,6 +3603,10 @@ export default function App() {
       },
       onOpenTrash: () => verileriGetir("cop"),
       onEmptyTrash: handleEmptyTrash,
+      onRestoreTrashItem: handleRestoreTrashItem,
+      restoringTrashId,
+      onDeleteTrashItem: handleDeleteTrashItem,
+      deletingTrashId,
       onHtmlBackup: handleHtmlBackup,
       onExcelBackup: handleExcelBackup,
       onJsonBackup: handleJsonBackup,
@@ -3224,6 +3709,7 @@ export default function App() {
         return sekmeBileseniniRenderEt(sutPanelSekmesi.hazirBilesen(), SutPanel, {
           aktifDonem,
           aktifKullaniciEposta,
+          aktifKullaniciId: session?.user?.id || null,
           aktifKullaniciKisa,
           isAdmin,
           sutList,
@@ -3246,8 +3732,11 @@ export default function App() {
         });
       case "sevkiyat":
         return sekmeBileseniniRenderEt(sevkiyatPanelSekmesi.hazirBilesen(), SevkiyatPanel, {
+          aktifKullaniciEposta,
+          aktifKullaniciId: session?.user?.id || null,
           aktifKullaniciKisa,
           aktifDonem,
+          onRefreshCop: () => verileriGetir("cop"),
         });
       case "cek_senet":
         return sekmeBileseniniRenderEt(cekSenetPanelSekmesi.hazirBilesen(), CekSenetPanel, {
@@ -3258,12 +3747,14 @@ export default function App() {
         return sekmeBileseniniRenderEt(giderPanelSekmesi.hazirBilesen(), GiderPanel, {
           aktifDonem,
           aktifKullaniciEposta,
+          aktifKullaniciId: session?.user?.id || null,
           aktifKullaniciKisa,
           giderTurleri,
           periodGider,
           kaydiSilebilirMi,
           kaydiDuzenleyebilirMi,
           onRefreshGiderler: () => verileriGetir("gider"),
+          onRefreshCop: () => verileriGetir("cop"),
           onOpenMiniDetay: setOzetMiniDetay,
           onPreviewImage: setFisGorselOnizleme,
           helpers: {
@@ -3284,6 +3775,7 @@ export default function App() {
         return sekmeBileseniniRenderEt(uretimPanelSekmesi.hazirBilesen(), UretimPanel, {
           aktifDonem,
           aktifKullaniciEposta,
+          aktifKullaniciId: session?.user?.id || null,
           aktifKullaniciKisa,
           isAdmin,
           uretimList,
@@ -3488,6 +3980,7 @@ export default function App() {
                     <div style={{flex: 1}}><label style={{fontSize: "11px", color: "#64748b"}}>Tarih</label><input type="date" value={digerForm.tarih} onChange={e => setDigerForm({...digerForm, tarih: e.target.value})} readOnly={digerModalConfig.mode === "view"} disabled={digerModalConfig.mode === "view"} className="m-inp date-click" style={{ width: "100%", opacity: digerModalConfig.mode === "view" ? 0.85 : 1 }} /></div>
                     <div style={{flex: 1}}><label style={{fontSize: "11px", color: "#64748b"}}>Tutar (₺)</label><input type="text" inputMode="decimal" value={paraGirdisiniFormatla(digerForm.tutar)} onChange={e => setDigerForm({...digerForm, tutar: paraGirdisiniTemizle(e.target.value)})} readOnly={digerModalConfig.mode === "view"} disabled={digerModalConfig.mode === "view"} className="m-inp" style={{width: "100%", textAlign: "right", color: "#0f172a", fontWeight: "bold", opacity: digerModalConfig.mode === "view" ? 0.85 : 1}} /></div>
                  </div>
+                 {digerModalConfig.mode !== "view" && <DonemDisiTarihUyarisi tarih={digerForm.tarih} aktifDonem={aktifDonem} />}
                  <div><label style={{fontSize: "11px", color: "#64748b"}}>Açıklama / Not</label><input placeholder="Opsiyonel..." value={digerForm.aciklama} onChange={e => setDigerForm({...digerForm, aciklama: e.target.value})} readOnly={digerModalConfig.mode === "view"} disabled={digerModalConfig.mode === "view"} className="m-inp" style={{width: "100%", opacity: digerModalConfig.mode === "view" ? 0.85 : 1}} /></div>
                </div>
                <div style={{ padding: "12px 15px", borderTop: "1px solid #e2e8f0", background: "#f8fafc", borderRadius: "0 0 12px 12px" }}>
@@ -3645,6 +4138,7 @@ export default function App() {
                     <span style={{ marginLeft: "8px", color: "#64748b", fontSize: "11px" }}>SEÇ</span>
                   </button>
                 </div>
+                <DonemDisiTarihUyarisi tarih={fisUst.tarih} aktifDonem={aktifDonem} />
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px' }}>
                   {urunler
                     .filter((u) => {
@@ -3911,8 +4405,9 @@ export default function App() {
 
         {musteriEkstreData && (
           <div className="print-modal-wrapper" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1300, padding: "10px" }} onClick={() => setMusteriEkstreData(null)}>
-            <div className="print-modal-content" style={{ backgroundColor: "#fff", width: "95vw", maxWidth: "430px", borderRadius: "12px", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }} onClick={(e) => e.stopPropagation()}>
-              <div id="print-customer-statement" style={{ background: "#fff", padding: "14px" }}>
+            <div className="print-modal-content" style={{ backgroundColor: "#fff", width: "95vw", maxWidth: "430px", maxHeight: "min(94vh, calc(100dvh - 20px))", borderRadius: "12px", display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0, boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }} onClick={(e) => e.stopPropagation()}>
+              <div style={{ padding: "14px", overflowY: "auto", flex: 1, minHeight: 0 }}>
+              <div id="print-customer-statement" style={{ background: "#fff" }}>
                 <div style={{ textAlign: "center", borderBottom: "1px dashed #cbd5e1", paddingBottom: "10px", marginBottom: "10px" }}>
                   <div style={{ fontSize: "20px", fontWeight: "bold", color: "#0f172a" }}>Müşteri Ekstresi</div>
                   <div style={{ fontSize: "14px", color: "#475569", marginTop: "4px" }}>{musteriEkstreData.musteri}</div>
@@ -3990,6 +4485,7 @@ export default function App() {
                   </tbody>
                 </table>
               </div>
+              </div>
               <div className="no-print" style={{ padding: "12px", display: "flex", flexDirection: "column", gap: "8px", background: "#f8fafc", borderTop: "1px solid #cbd5e1" }}>
                 <div style={{ display: "flex", gap: "8px" }}>
                   <button onClick={() => window.print()} className="btn-anim" style={{ flex: 1, padding: "10px", background: "#475569", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", fontSize: "12px" }}>
@@ -4022,6 +4518,7 @@ export default function App() {
                       <span style={{ marginLeft: "8px", color: "#64748b", fontSize: "11px" }}>SEÇ</span>
                     </button>
                  </div>
+                 <DonemDisiTarihUyarisi tarih={tahsilatForm.tarih} aktifDonem={aktifDonem} />
                  <div style={{ display: "flex", gap: "8px" }}>
                     <div style={{flex: 1}}><label style={{fontSize: "11px", color: "#64748b"}}>Tutar (₺)</label><input type="text" inputMode="decimal" value={paraGirdisiniFormatla(tahsilatForm.miktar)} onChange={e => setTahsilatForm({ ...tahsilatForm, miktar: paraGirdisiniTemizle(e.target.value) })} className="m-inp" style={{width: "100%", textAlign: "right", color: "#059669", fontWeight: "bold"}} /></div>
                     <div style={{flex: 1}}>
@@ -4265,7 +4762,7 @@ export default function App() {
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: #fff !important; overflow: visible !important; width: auto !important; max-width: none !important; }
           .main-content-area, header, footer { display: none !important; }
           .print-modal-wrapper { position: static !important; display: block !important; background: transparent !important; padding: 0 !important; }
-          .print-modal-content { max-width: 100% !important; border-radius: 0 !important; box-shadow: none !important; }
+          .print-modal-content { max-width: 100% !important; max-height: none !important; overflow: visible !important; border-radius: 0 !important; box-shadow: none !important; }
           #print-receipt { border: none !important; padding: 0 !important; width: 55mm; margin: 0 auto; display: block !important; }
           #print-customer-statement { border: none !important; padding: 0 !important; width: 100%; max-width: 180mm; margin: 0 auto; display: block !important; }
           .no-print { display: none !important; }

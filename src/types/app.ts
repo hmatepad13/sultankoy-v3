@@ -31,6 +31,7 @@ export interface Ciftlik {
 export interface Bayi {
   id: string;
   isim: string;
+  hesap_grubu?: string | null;
   aktif?: boolean | null;
 }
 
@@ -192,6 +193,12 @@ export interface CopKutusu {
   tablo_adi: string;
   veri: unknown;
   silinme_tarihi?: string;
+  silen_user_id?: string | null;
+  silen_email?: string | null;
+  geri_yuklendi?: boolean;
+  geri_yukleme_tarihi?: string | null;
+  geri_yukleyen_user_id?: string | null;
+  geri_yukleyen_email?: string | null;
 }
 
 export interface SortConfig {

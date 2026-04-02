@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { DonemDisiTarihUyarisi } from "./DonemDisiTarihUyarisi";
 import { supabase } from "../lib/supabase";
 import {
   adettenKg,
@@ -19,7 +20,7 @@ import {
   type UretimTipi,
 } from "../lib/uretim";
 import type { SortConfig, Uretim } from "../types/app";
-import { getLocalDateString } from "../utils/date";
+import { aktifDonemDisiKayitOnayMetni, getLocalDateString } from "../utils/date";
 import { fSayiNoDec, normalizeUsername } from "../utils/format";
 
 type UretimMiniDetay = {
@@ -31,6 +32,7 @@ type UretimMiniDetay = {
 type UretimPanelProps = {
   aktifDonem: string;
   aktifKullaniciEposta: string;
+  aktifKullaniciId: string | null;
   aktifKullaniciKisa: string;
   isAdmin: boolean;
   uretimList: Uretim[];
@@ -150,6 +152,7 @@ function UretimTh({
 export function UretimPanel({
   aktifDonem,
   aktifKullaniciEposta,
+  aktifKullaniciId,
   aktifKullaniciKisa,
   isAdmin,
   uretimList,
@@ -221,7 +224,13 @@ export function UretimPanel({
   const coptKutusunaAt = async (tablo: string, veri: Uretim) => {
     const { error } = await supabase
       .from("cop_kutusu")
-      .insert({ tablo_adi: tablo, veri, silinme_tarihi: new Date().toISOString() });
+      .insert({
+        tablo_adi: tablo,
+        veri,
+        silinme_tarihi: new Date().toISOString(),
+        silen_user_id: aktifKullaniciId,
+        silen_email: aktifKullaniciEposta,
+      });
 
     if (error) {
       console.warn("Çöp kutusuna atılamadı:", error.message);
@@ -268,6 +277,9 @@ export function UretimPanel({
     if (editingUretimId && !kaydiDuzenleyebilirMi(duzenlenenKayit?.ekleyen)) {
       return alert("Bu üretim kaydını sadece ekleyen kullanıcı veya admin düzenleyebilir.");
     }
+
+    const donemDisiOnayMesaji = aktifDonemDisiKayitOnayMetni(uretimForm.tarih, aktifDonem);
+    if (donemDisiOnayMesaji && !window.confirm(donemDisiOnayMesaji)) return;
 
     const maliyet = uretimMaliyetToplami(uretimForm);
     const satisDegeri = uretimSatisToplami(uretimForm);
@@ -674,6 +686,7 @@ export function UretimPanel({
               </div>
             </div>
             <div style={{ padding: "8px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "6px" }}>
+              <DonemDisiTarihUyarisi tarih={uretimForm.tarih} aktifDonem={aktifDonem} />
               <div style={{ border: "1px solid #e2e8f0", borderRadius: "8px", padding: "6px", background: "#f8fafc", display: "grid", gap: "4px" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "minmax(70px,1fr) 52px 52px 58px", gap: "4px", fontSize: "8px", color: "#94a3b8", fontWeight: "bold" }}>
                   <span>GİREN HAMMADDE</span>

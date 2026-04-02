@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { DonemDisiTarihUyarisi } from "./DonemDisiTarihUyarisi";
 import { supabase } from "../lib/supabase";
 import type { SevkiyatKaydi } from "../types/app";
-import { getLocalDateString } from "../utils/date";
+import { aktifDonemDisiKayitOnayMetni, getLocalDateString } from "../utils/date";
 import { fSayiNoDec, normalizeUsername } from "../utils/format";
 
 type SevkiyatPanelProps = {
+  aktifKullaniciEposta: string;
+  aktifKullaniciId: string | null;
   aktifKullaniciKisa: string;
   aktifDonem: string;
+  onRefreshCop: () => void | Promise<void>;
 };
 
 type SevkiyatDbRow = {
@@ -87,7 +91,7 @@ const sevkiyatTablosuEksikMi = (hata: BasitSupabaseHatasi) => {
 const sevkiyatKurulumMesaji = () =>
   `Sevkiyat tablosu bulunamadı. Önce ${SEVKIYAT_SQL_DOSYASI} dosyasını Supabase SQL Editor'da çalıştırın.`;
 
-export function SevkiyatPanel({ aktifKullaniciKisa, aktifDonem }: SevkiyatPanelProps) {
+export function SevkiyatPanel({ aktifKullaniciEposta, aktifKullaniciId, aktifKullaniciKisa, aktifDonem, onRefreshCop }: SevkiyatPanelProps) {
   const [sevkiyatList, setSevkiyatList] = useState<SevkiyatKaydi[]>([]);
   const [sevkiyatFiltreKisi, setSevkiyatFiltreKisi] = useState<"benim" | "tumu">("benim");
   const [sevkiyatForm, setSevkiyatForm] = useState({
@@ -212,6 +216,9 @@ export function SevkiyatPanel({ aktifKullaniciKisa, aktifDonem }: SevkiyatPanelP
       return alert("Bu sevkiyati sadece kaydı giren kullanıcı düzenleyebilir.");
     }
 
+    const donemDisiOnayMesaji = aktifDonemDisiKayitOnayMetni(sevkiyatForm.tarih, aktifDonem);
+    if (donemDisiOnayMesaji && !window.confirm(donemDisiOnayMesaji)) return;
+
     setIsKaydediliyor(true);
 
     const payload = {
@@ -264,6 +271,35 @@ export function SevkiyatPanel({ aktifKullaniciKisa, aktifDonem }: SevkiyatPanelP
 
     if (!confirm("Sevkiyat kaydı silinsin mi?")) return;
 
+    if (!kayit) {
+      alert("Silinecek sevkiyat kaydı bulunamadı.");
+      return;
+    }
+
+    const copVerisi = {
+      id: Number(kayit.id),
+      tarih: kayit.tarih,
+      kullanici: kayit.kullanici,
+      yogurt3kg: sayiDegeri(kayit.yogurt3kg),
+      yogurt5kg: sayiDegeri(kayit.yogurt5kg),
+      kaymak: sayiDegeri(kayit.kaymak),
+      ekleyen: kayit.ekleyen || kayit.kullanici || aktifKullaniciKisa,
+      created_by: kayit.createdBy || null,
+      created_at: kayit.createdAt || null,
+    };
+
+    const { error: copError } = await supabase.from("cop_kutusu").insert({
+      tablo_adi: SEVKIYAT_TABLE,
+      veri: copVerisi,
+      silinme_tarihi: new Date().toISOString(),
+      silen_user_id: aktifKullaniciId,
+      silen_email: aktifKullaniciEposta || null,
+    });
+    if (copError) {
+      const mesaj = veritabaniHataMesaji(copError);
+      return alert(`Çöp kutusuna taşınamadı: ${mesaj}`);
+    }
+
     const { error } = await supabase.from(SEVKIYAT_TABLE).delete().eq("id", Number(id));
     if (error) {
       const mesaj = veritabaniHataMesaji(error);
@@ -277,6 +313,7 @@ export function SevkiyatPanel({ aktifKullaniciKisa, aktifDonem }: SevkiyatPanelP
       resetSevkiyatForm();
     }
     await sevkiyatlariYukle();
+    await onRefreshCop();
   };
 
   const filtrelenmisSevkiyatlar = useMemo(
@@ -334,45 +371,46 @@ export function SevkiyatPanel({ aktifKullaniciKisa, aktifDonem }: SevkiyatPanelP
             <button onClick={() => setSevkiyatFiltreKisi("benim")} style={{ flex: 1, padding: "5px", border: "none", cursor: "pointer", fontSize: "11px", fontWeight: "bold", background: sevkiyatFiltreKisi === "benim" ? "#ea580c" : "transparent", color: sevkiyatFiltreKisi === "benim" ? "#fff" : "#475569" }}>Benim</button>
             <button onClick={() => setSevkiyatFiltreKisi("tumu")} style={{ flex: 1, padding: "5px", border: "none", cursor: "pointer", fontSize: "11px", fontWeight: "bold", background: sevkiyatFiltreKisi === "tumu" ? "#ea580c" : "transparent", color: sevkiyatFiltreKisi === "tumu" ? "#fff" : "#475569" }}>Tümü</button>
           </div>
-          <button onClick={() => void handleSevkiyatKaydet()} disabled={isKaydediliyor} className="p-btn btn-anim" style={{ background: "#ea580c", minWidth: "102px", height: "30px", padding: "0 12px", fontSize: "11px", marginLeft: "auto", opacity: isKaydediliyor ? 0.7 : 1, cursor: isKaydediliyor ? "wait" : "pointer" }}>
-            {isKaydediliyor ? "KAYDEDİLİYOR" : editingSevkiyatId ? "GÜNCELLE" : "KAYDET"}
-          </button>
         </div>
+        <DonemDisiTarihUyarisi tarih={sevkiyatForm.tarih} aktifDonem={aktifDonem} />
 
-        <div style={{ display: "grid", gap: "10px", gridTemplateColumns: "repeat(3, minmax(72px, 88px))", justifyContent: "space-between" }}>
-          <label style={{ display: "flex", flexDirection: "column", gap: "3px", minWidth: 0, alignItems: "flex-start" }}>
-            <span style={{ fontSize: "11px", fontWeight: "bold", color: "#7c2d12", lineHeight: 1.1 }}>3 KG Yoğurt</span>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr)) auto", gap: "6px", alignItems: "end" }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0 }}>
+            <span style={{ fontSize: "10px", fontWeight: "bold", color: "#7c2d12", whiteSpace: "nowrap" }}>3 KG</span>
             <input
               type="text"
               inputMode="numeric"
               className="m-inp"
-              style={{ width: "88px", maxWidth: "100%", flex: "0 0 30px", height: "30px", minHeight: "30px", padding: "4px 6px", fontSize: "11px", textAlign: "center", boxSizing: "border-box" }}
+              style={{ width: "100%", height: "30px", minHeight: "30px", flex: "0 0 30px", padding: "4px 6px", fontSize: "11px", textAlign: "center", boxSizing: "border-box" }}
               value={sevkiyatForm.yogurt3kg}
               onChange={(e) => handleSevkiyatInputDegistir("yogurt3kg", e.target.value)}
             />
           </label>
-          <label style={{ display: "flex", flexDirection: "column", gap: "3px", minWidth: 0, alignItems: "flex-start" }}>
-            <span style={{ fontSize: "11px", fontWeight: "bold", color: "#7c2d12", lineHeight: 1.1 }}>5 KG Yoğurt</span>
+          <label style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0 }}>
+            <span style={{ fontSize: "10px", fontWeight: "bold", color: "#7c2d12", whiteSpace: "nowrap" }}>5 KG</span>
             <input
               type="text"
               inputMode="numeric"
               className="m-inp"
-              style={{ width: "88px", maxWidth: "100%", flex: "0 0 30px", height: "30px", minHeight: "30px", padding: "4px 6px", fontSize: "11px", textAlign: "center", boxSizing: "border-box" }}
+              style={{ width: "100%", height: "30px", minHeight: "30px", flex: "0 0 30px", padding: "4px 6px", fontSize: "11px", textAlign: "center", boxSizing: "border-box" }}
               value={sevkiyatForm.yogurt5kg}
               onChange={(e) => handleSevkiyatInputDegistir("yogurt5kg", e.target.value)}
             />
           </label>
-          <label style={{ display: "flex", flexDirection: "column", gap: "3px", minWidth: 0, alignItems: "flex-start" }}>
-            <span style={{ fontSize: "11px", fontWeight: "bold", color: "#7c2d12", lineHeight: 1.1 }}>Kaymak</span>
+          <label style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0 }}>
+            <span style={{ fontSize: "10px", fontWeight: "bold", color: "#7c2d12", whiteSpace: "nowrap" }}>Kaymak</span>
             <input
               type="text"
               inputMode="numeric"
               className="m-inp"
-              style={{ width: "88px", maxWidth: "100%", flex: "0 0 30px", height: "30px", minHeight: "30px", padding: "4px 6px", fontSize: "11px", textAlign: "center", boxSizing: "border-box" }}
+              style={{ width: "100%", height: "30px", minHeight: "30px", flex: "0 0 30px", padding: "4px 6px", fontSize: "11px", textAlign: "center", boxSizing: "border-box" }}
               value={sevkiyatForm.kaymak}
               onChange={(e) => handleSevkiyatInputDegistir("kaymak", e.target.value)}
             />
           </label>
+          <button onClick={() => void handleSevkiyatKaydet()} disabled={isKaydediliyor} className="p-btn btn-anim" style={{ background: "#ea580c", minWidth: "96px", height: "30px", padding: "0 10px", fontSize: "11px", opacity: isKaydediliyor ? 0.7 : 1, cursor: isKaydediliyor ? "wait" : "pointer", alignSelf: "end" }}>
+            {isKaydediliyor ? "KAYDEDİLİYOR" : editingSevkiyatId ? "GÜNCELLE" : "KAYDET"}
+          </button>
         </div>
       </div>
 
