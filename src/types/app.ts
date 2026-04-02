@@ -2,6 +2,7 @@ export type AppTabId = "ozet" | "sut" | "uretim" | "sevkiyat" | "cek_senet" | "s
 
 export type ActiveAyarTab =
   | "hesap"
+  | "performans"
   | "musteriler"
   | "urunler"
   | "ciftlikler"
@@ -273,4 +274,69 @@ export interface DepolamaDurumu {
   imageRemainingBytes: number;
   imageCount: number;
   updatedAt: string;
+}
+
+export interface StartupGunOzeti {
+  gun: string;
+  sessionCount: number;
+  userCount: number;
+  avgMs: number;
+  p50Ms: number;
+  p95Ms: number;
+  maxMs: number;
+  slow5sCount: number;
+}
+
+export interface StartupFetchPattern {
+  fetchTableCount: number;
+  fetchAllCount: number;
+  firstInteractiveCount: number;
+  sessionCount: number;
+}
+
+export interface StartupTableMetric {
+  table: string;
+  sampleCount: number;
+  avgMs: number;
+  p50Ms: number;
+  p95Ms: number;
+  maxMs: number;
+  avgRowCount: number;
+  maxRowCount: number;
+}
+
+export interface StartupRecentSession {
+  createdAt: string;
+  userEmail: string;
+  sessionId: string;
+  activeTab: string;
+  aktifDonem: string;
+  durationMs: number;
+  fetchMs: number;
+  renderMs: number;
+  authMs: number | null;
+}
+
+export interface StartupLogDiagnostics {
+  generatedAt: string;
+  since: string;
+  sessionCount: number;
+  userCount: number;
+  avgMs: number;
+  p50Ms: number;
+  p95Ms: number;
+  maxMs: number;
+  avgFetchMs: number;
+  p50FetchMs: number;
+  p95FetchMs: number;
+  maxFetchMs: number;
+  avgRenderMs: number;
+  p50RenderMs: number;
+  maxRenderMs: number;
+  slow5sCount: number;
+  slow10sCount: number;
+  daily: StartupGunOzeti[];
+  fetchPatterns: StartupFetchPattern[];
+  tableMetrics: StartupTableMetric[];
+  recentSessions: StartupRecentSession[];
 }

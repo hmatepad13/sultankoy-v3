@@ -53,6 +53,7 @@ import type {
   SatisFis,
   SatisGiris,
   SortConfig,
+  StartupLogDiagnostics,
   SutGiris,
   Uretim,
   Urun,
@@ -504,6 +505,85 @@ const sureyiYuvarla = (baslangicMs?: number | null, bitisMs = performansSimdi())
 
 const startupDenemeIdOlustur = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
+const startupLogDiziyeCevir = (deger: unknown) => (Array.isArray(deger) ? deger : []);
+
+const startupLogKaydiniNormalizeEt = (deger: unknown) =>
+  deger && typeof deger === "object" && !Array.isArray(deger) ? deger as Record<string, unknown> : {};
+
+const startupLogOzetiniNormalizeEt = (deger: unknown): StartupLogDiagnostics => {
+  const kayit = startupLogKaydiniNormalizeEt(deger);
+
+  return {
+    generatedAt: String(kayit.generatedAt || new Date().toISOString()),
+    since: String(kayit.since || new Date().toISOString()),
+    sessionCount: sayiDegeri(kayit.sessionCount),
+    userCount: sayiDegeri(kayit.userCount),
+    avgMs: sayiDegeri(kayit.avgMs),
+    p50Ms: sayiDegeri(kayit.p50Ms),
+    p95Ms: sayiDegeri(kayit.p95Ms),
+    maxMs: sayiDegeri(kayit.maxMs),
+    avgFetchMs: sayiDegeri(kayit.avgFetchMs),
+    p50FetchMs: sayiDegeri(kayit.p50FetchMs),
+    p95FetchMs: sayiDegeri(kayit.p95FetchMs),
+    maxFetchMs: sayiDegeri(kayit.maxFetchMs),
+    avgRenderMs: sayiDegeri(kayit.avgRenderMs),
+    p50RenderMs: sayiDegeri(kayit.p50RenderMs),
+    maxRenderMs: sayiDegeri(kayit.maxRenderMs),
+    slow5sCount: sayiDegeri(kayit.slow5sCount),
+    slow10sCount: sayiDegeri(kayit.slow10sCount),
+    daily: startupLogDiziyeCevir(kayit.daily).map((item) => {
+      const satir = startupLogKaydiniNormalizeEt(item);
+      return {
+        gun: String(satir.gun || ""),
+        sessionCount: sayiDegeri(satir.sessionCount),
+        userCount: sayiDegeri(satir.userCount),
+        avgMs: sayiDegeri(satir.avgMs),
+        p50Ms: sayiDegeri(satir.p50Ms),
+        p95Ms: sayiDegeri(satir.p95Ms),
+        maxMs: sayiDegeri(satir.maxMs),
+        slow5sCount: sayiDegeri(satir.slow5sCount),
+      };
+    }),
+    fetchPatterns: startupLogDiziyeCevir(kayit.fetchPatterns).map((item) => {
+      const satir = startupLogKaydiniNormalizeEt(item);
+      return {
+        fetchTableCount: sayiDegeri(satir.fetchTableCount),
+        fetchAllCount: sayiDegeri(satir.fetchAllCount),
+        firstInteractiveCount: sayiDegeri(satir.firstInteractiveCount),
+        sessionCount: sayiDegeri(satir.sessionCount),
+      };
+    }),
+    tableMetrics: startupLogDiziyeCevir(kayit.tableMetrics).map((item) => {
+      const satir = startupLogKaydiniNormalizeEt(item);
+      return {
+        table: String(satir.table || ""),
+        sampleCount: sayiDegeri(satir.sampleCount),
+        avgMs: sayiDegeri(satir.avgMs),
+        p50Ms: sayiDegeri(satir.p50Ms),
+        p95Ms: sayiDegeri(satir.p95Ms),
+        maxMs: sayiDegeri(satir.maxMs),
+        avgRowCount: sayiDegeri(satir.avgRowCount),
+        maxRowCount: sayiDegeri(satir.maxRowCount),
+      };
+    }),
+    recentSessions: startupLogDiziyeCevir(kayit.recentSessions).map((item) => {
+      const satir = startupLogKaydiniNormalizeEt(item);
+      const authMs = satir.authMs;
+      return {
+        createdAt: String(satir.createdAt || ""),
+        userEmail: String(satir.userEmail || ""),
+        sessionId: String(satir.sessionId || ""),
+        activeTab: String(satir.activeTab || ""),
+        aktifDonem: String(satir.aktifDonem || ""),
+        durationMs: sayiDegeri(satir.durationMs),
+        fetchMs: sayiDegeri(satir.fetchMs),
+        renderMs: sayiDegeri(satir.renderMs),
+        authMs: authMs == null || authMs === "" ? null : sayiDegeri(authMs),
+      };
+    }),
+  };
+};
+
 export default function App() {
   const [session, setSession] = useState<any>(null);
   const [username, setUsername] = useState<string>("");
@@ -565,6 +645,9 @@ export default function App() {
   const [depolamaDurumu, setDepolamaDurumu] = useState<DepolamaDurumu | null>(null);
   const [isDepolamaLoading, setIsDepolamaLoading] = useState(false);
   const [depolamaHata, setDepolamaHata] = useState("");
+  const [startupDiagnostics, setStartupDiagnostics] = useState<StartupLogDiagnostics | null>(null);
+  const [isStartupDiagnosticsLoading, setIsStartupDiagnosticsLoading] = useState(false);
+  const [startupDiagnosticsError, setStartupDiagnosticsError] = useState("");
   const [veriYuklemeHata, setVeriYuklemeHata] = useState("");
   const [authHata, setAuthHata] = useState("");
   const [adminKullanicilar, setAdminKullanicilar] = useState<AdminKullanici[]>([]);
@@ -1298,6 +1381,48 @@ export default function App() {
     });
     setIsDepolamaLoading(false);
   };
+
+  const startupTaniOzetiniGetir = useCallback(async (force = false) => {
+    if (!isAdmin) return;
+    if (isStartupDiagnosticsLoading) return;
+    if (!force && startupDiagnostics) return;
+
+    setIsStartupDiagnosticsLoading(true);
+    setStartupDiagnosticsError("");
+
+    const { data, error } = await supabase.rpc("app_get_startup_log_summary", {
+      p_days: 2,
+      p_recent_limit: 12,
+    });
+
+    if (error) {
+      const mesaj = String(error?.message || "").toLowerCase();
+      const rpcEksik =
+        error?.code === "PGRST202" ||
+        error?.code === "42883" ||
+        (mesaj.includes("public.app_get_startup_log_summary") &&
+          (mesaj.includes("schema cache") || mesaj.includes("not find") || mesaj.includes("does not exist")));
+
+      if (rpcEksik) {
+        setStartupDiagnosticsError("Performans özeti için yeni SQL migration henüz uygulanmamış görünüyor.");
+      } else {
+        setStartupDiagnosticsError(`Performans özeti alınamadı: ${error.message || "Bilinmeyen hata"}`);
+      }
+      setIsStartupDiagnosticsLoading(false);
+      return;
+    }
+
+    const kayit = Array.isArray(data) ? data[0] : data;
+    setStartupDiagnostics(startupLogOzetiniNormalizeEt(kayit));
+    setIsStartupDiagnosticsLoading(false);
+  }, [isAdmin, isStartupDiagnosticsLoading, startupDiagnostics]);
+
+  useEffect(() => {
+    if (isAdmin) return;
+    setStartupDiagnostics(null);
+    setStartupDiagnosticsError("");
+    setIsStartupDiagnosticsLoading(false);
+  }, [isAdmin]);
 
   const yerelOturumuTemizle = async () => {
     await supabase.auth.signOut({ scope: "local" });
@@ -3569,6 +3694,9 @@ export default function App() {
         if (tab === "depolama" && !depolamaDurumu && !isDepolamaLoading && !depolamaHata) {
           void depolamaDurumunuGetir();
         }
+        if (tab === "performans" && isAdmin && !startupDiagnostics && !isStartupDiagnosticsLoading && !startupDiagnosticsError) {
+          void startupTaniOzetiniGetir();
+        }
       },
       aktifKullaniciEposta,
       bayiler,
@@ -3607,6 +3735,10 @@ export default function App() {
       restoringTrashId,
       onDeleteTrashItem: handleDeleteTrashItem,
       deletingTrashId,
+      startupDiagnostics,
+      isStartupDiagnosticsLoading,
+      startupDiagnosticsError,
+      onLoadStartupDiagnostics: startupTaniOzetiniGetir,
       onHtmlBackup: handleHtmlBackup,
       onExcelBackup: handleExcelBackup,
       onJsonBackup: handleJsonBackup,

@@ -12,6 +12,7 @@ import type {
   GiderTuru,
   KullaniciSekmeYetkisi,
   SekmeYetkiMap,
+  StartupLogDiagnostics,
   Urun,
 } from "../types/app";
 
@@ -40,6 +41,10 @@ interface SettingsPanelProps {
   restoringTrashId: string | null;
   onDeleteTrashItem: (trashId: string) => Promise<void> | void;
   deletingTrashId: string | null;
+  startupDiagnostics: StartupLogDiagnostics | null;
+  isStartupDiagnosticsLoading: boolean;
+  startupDiagnosticsError: string;
+  onLoadStartupDiagnostics: (force?: boolean) => Promise<void> | void;
   onExcelBackup: () => void;
   onJsonBackup: () => void;
   onHtmlBackup: () => void;
@@ -103,6 +108,17 @@ const byteMetni = (bytes: number) => {
   }
   const fractionDigits = deger >= 100 ? 0 : deger >= 10 ? 1 : 2;
   return `${new Intl.NumberFormat("tr-TR", { maximumFractionDigits: fractionDigits }).format(deger)} ${birimler[index]}`;
+};
+
+const sayiMetni = (deger: number) =>
+  new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0 }).format(Number.isFinite(deger) ? deger : 0);
+
+const msMetni = (deger: number) => `${sayiMetni(deger)} ms`;
+
+const tarihSaatMetni = (deger?: string | null) => {
+  const tarih = deger ? new Date(deger) : null;
+  if (!tarih || Number.isNaN(tarih.getTime())) return "-";
+  return tarih.toLocaleString("tr-TR");
 };
 
 const RESTORE_DESTEKLI_TABLOLAR = new Set([
@@ -217,6 +233,10 @@ export function SettingsPanel({
   restoringTrashId,
   onDeleteTrashItem,
   deletingTrashId,
+  startupDiagnostics,
+  isStartupDiagnosticsLoading,
+  startupDiagnosticsError,
+  onLoadStartupDiagnostics,
   onExcelBackup,
   onJsonBackup,
   onHtmlBackup,
@@ -255,7 +275,7 @@ export function SettingsPanel({
   const gosterilecekAyarTablari = useMemo(
     () =>
       AYAR_TAB_TANIMLARI.filter((item) => {
-        if (item.id === "yetkiler" || item.id === "kullanici_yonetimi") return isAdmin;
+        if (item.id === "performans" || item.id === "yetkiler" || item.id === "kullanici_yonetimi") return isAdmin;
         return true;
       }),
     [isAdmin],
@@ -314,7 +334,7 @@ export function SettingsPanel({
   }, [activeAyarTab]);
 
   useEffect(() => {
-    if (!isAdmin && (activeAyarTab === "yetkiler" || activeAyarTab === "kullanici_yonetimi")) {
+    if (!isAdmin && (activeAyarTab === "performans" || activeAyarTab === "yetkiler" || activeAyarTab === "kullanici_yonetimi")) {
       setActiveAyarTab("hesap");
     }
   }, [activeAyarTab, isAdmin, setActiveAyarTab]);
@@ -324,6 +344,12 @@ export function SettingsPanel({
       void onLoadAdminUsers();
     }
   }, [activeAyarTab, isAdmin, onLoadAdminUsers]);
+
+  useEffect(() => {
+    if (isAdmin && activeAyarTab === "performans") {
+      void onLoadStartupDiagnostics();
+    }
+  }, [activeAyarTab, isAdmin, onLoadStartupDiagnostics]);
 
   const handleSifreDegistir = async () => {
     const eskiSifre = sifreForm.eski.trim();
@@ -482,6 +508,7 @@ export function SettingsPanel({
               onClick={() => {
                 setActiveAyarTab(tab.id);
                 if (tab.id === "cop_kutusu") onOpenTrash();
+                if (tab.id === "performans") void onLoadStartupDiagnostics();
               }}
               style={{
                 padding: "8px 4px",
@@ -569,6 +596,245 @@ export function SettingsPanel({
                 {isSifreKayitLoading ? "Kaydediliyor..." : "Şifreyi Değiştir"}
               </button>
             </div>
+          </div>
+        )}
+
+        {activeAyarTab === "performans" && isAdmin && (
+          <div style={{ display: "grid", gap: "12px", overflowY: "auto" }}>
+            <div style={kartStili}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                <div>
+                  <h3 style={{ margin: "0 0 6px", fontSize: "15px", color: "#0f172a" }}>Açılış Performansı</h3>
+                  <p style={{ margin: 0, color: "#64748b", fontSize: "12px", lineHeight: 1.5 }}>
+                    Bu ekran Supabase CLI yerine admin RPC özeti kullanır. Son 2 günün startup logları hızlıca okunur.
+                  </p>
+                </div>
+                <button
+                  onClick={() => void onLoadStartupDiagnostics(true)}
+                  disabled={isStartupDiagnosticsLoading}
+                  style={{
+                    background: "#0f766e",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "8px",
+                    padding: "8px 12px",
+                    fontWeight: "bold",
+                    cursor: isStartupDiagnosticsLoading ? "wait" : "pointer",
+                    fontSize: "12px",
+                  }}
+                >
+                  {isStartupDiagnosticsLoading ? "Yükleniyor..." : "Özeti Yenile"}
+                </button>
+              </div>
+            </div>
+
+            {startupDiagnosticsError && (
+              <div
+                style={{
+                  ...kartStili,
+                  background: "#fff7ed",
+                  borderColor: "#fdba74",
+                  color: "#9a3412",
+                  fontSize: "12px",
+                }}
+              >
+                {startupDiagnosticsError}
+              </div>
+            )}
+
+            {startupDiagnostics && (
+              <>
+                <div style={{ display: "grid", gap: "10px", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))" }}>
+                  {[
+                    { etiket: "Oturum", deger: sayiMetni(startupDiagnostics.sessionCount), renk: "#0f172a" },
+                    { etiket: "Kullanıcı", deger: sayiMetni(startupDiagnostics.userCount), renk: "#2563eb" },
+                    { etiket: "Medyan Açılış", deger: msMetni(startupDiagnostics.p50Ms), renk: "#0f766e" },
+                    { etiket: "P95 Açılış", deger: msMetni(startupDiagnostics.p95Ms), renk: "#b45309" },
+                    { etiket: "En Kötü", deger: msMetni(startupDiagnostics.maxMs), renk: "#dc2626" },
+                    { etiket: "5 sn Üstü", deger: sayiMetni(startupDiagnostics.slow5sCount), renk: "#7c3aed" },
+                  ].map((item) => (
+                    <div key={item.etiket} style={{ ...kartStili, padding: "12px", display: "grid", gap: "5px" }}>
+                      <div style={{ fontSize: "11px", fontWeight: "bold", color: "#64748b" }}>{item.etiket}</div>
+                      <div style={{ fontSize: "20px", fontWeight: "bold", color: item.renk }}>{item.deger}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ display: "grid", gap: "10px", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
+                  <div style={{ ...kartStili, display: "grid", gap: "8px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: "8px", alignItems: "center" }}>
+                      <h4 style={{ margin: 0, fontSize: "14px", color: "#0f172a" }}>Gün Özeti</h4>
+                      <span style={{ fontSize: "11px", color: "#94a3b8" }}>
+                        {tarihSaatMetni(startupDiagnostics.generatedAt)}
+                      </span>
+                    </div>
+                    <div style={{ display: "grid", gap: "8px" }}>
+                      {startupDiagnostics.daily.map((gun) => (
+                        <div
+                          key={gun.gun}
+                          style={{
+                            display: "grid",
+                            gap: "4px",
+                            padding: "8px 10px",
+                            borderRadius: "8px",
+                            background: "#f8fafc",
+                            border: "1px solid #e2e8f0",
+                            fontSize: "12px",
+                          }}
+                        >
+                          <div style={{ display: "flex", justifyContent: "space-between", gap: "8px", alignItems: "center" }}>
+                            <span style={{ fontWeight: "bold", color: "#0f172a" }}>{gun.gun}</span>
+                            <span style={{ color: "#64748b" }}>{sayiMetni(gun.sessionCount)} oturum</span>
+                          </div>
+                          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", color: "#475569" }}>
+                            <span>Medyan: {msMetni(gun.p50Ms)}</span>
+                            <span>P95: {msMetni(gun.p95Ms)}</span>
+                            <span>Kötü: {msMetni(gun.maxMs)}</span>
+                            <span>Yavaş: {sayiMetni(gun.slow5sCount)}</span>
+                          </div>
+                        </div>
+                      ))}
+                      {startupDiagnostics.daily.length === 0 && (
+                        <div style={{ textAlign: "center", color: "#94a3b8", fontSize: "12px" }}>
+                          Son 2 gün için startup kaydı bulunamadı.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ ...kartStili, display: "grid", gap: "8px" }}>
+                    <h4 style={{ margin: 0, fontSize: "14px", color: "#0f172a" }}>Fetch Deseni</h4>
+                    <div style={{ display: "grid", gap: "8px" }}>
+                      {startupDiagnostics.fetchPatterns.map((pattern) => (
+                        <div
+                          key={`${pattern.fetchTableCount}-${pattern.fetchAllCount}-${pattern.firstInteractiveCount}`}
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            gap: "8px",
+                            padding: "8px 10px",
+                            borderRadius: "8px",
+                            background: "#f8fafc",
+                            border: "1px solid #e2e8f0",
+                            fontSize: "12px",
+                          }}
+                        >
+                          <div style={{ display: "grid", gap: "4px" }}>
+                            <span style={{ fontWeight: "bold", color: "#0f172a" }}>
+                              {pattern.fetchTableCount} tablo / {pattern.fetchAllCount} toplam / {pattern.firstInteractiveCount} final
+                            </span>
+                            <span style={{ color: "#64748b" }}>
+                              {sayiMetni(pattern.sessionCount)} oturum
+                            </span>
+                          </div>
+                          <span
+                            style={{
+                              alignSelf: "center",
+                              fontWeight: "bold",
+                              color:
+                                pattern.fetchTableCount === 11 && pattern.fetchAllCount === 1 && pattern.firstInteractiveCount === 1
+                                  ? "#059669"
+                                  : "#b45309",
+                            }}
+                          >
+                            {pattern.fetchTableCount === 11 && pattern.fetchAllCount === 1 && pattern.firstInteractiveCount === 1 ? "Normal" : "İncele"}
+                          </span>
+                        </div>
+                      ))}
+                      {startupDiagnostics.fetchPatterns.length === 0 && (
+                        <div style={{ textAlign: "center", color: "#94a3b8", fontSize: "12px" }}>
+                          Fetch paterni bulunamadı.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ ...kartStili, overflowX: "auto" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: "8px", alignItems: "center", marginBottom: "10px" }}>
+                    <h4 style={{ margin: 0, fontSize: "14px", color: "#0f172a" }}>Tablo Bazlı Fetch Süresi</h4>
+                    <span style={{ fontSize: "11px", color: "#64748b" }}>Ortalamaya göre sıralı</span>
+                  </div>
+                  <table className="tbl" style={{ minWidth: "100%", tableLayout: "fixed" }}>
+                    <thead>
+                      <tr>
+                        <th style={{ width: "22%" }}>Tablo</th>
+                        <th style={{ width: "12%" }}>Örnek</th>
+                        <th style={{ width: "16%" }}>Ort.</th>
+                        <th style={{ width: "16%" }}>P50</th>
+                        <th style={{ width: "16%" }}>P95</th>
+                        <th style={{ width: "18%" }}>Satır Ort.</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {startupDiagnostics.tableMetrics.map((item) => (
+                        <tr key={item.table}>
+                          <td style={{ fontWeight: "bold", color: "#0f172a" }}>{item.table}</td>
+                          <td>{sayiMetni(item.sampleCount)}</td>
+                          <td>{msMetni(item.avgMs)}</td>
+                          <td>{msMetni(item.p50Ms)}</td>
+                          <td>{msMetni(item.p95Ms)}</td>
+                          <td>{sayiMetni(item.avgRowCount)}</td>
+                        </tr>
+                      ))}
+                      {startupDiagnostics.tableMetrics.length === 0 && (
+                        <tr>
+                          <td colSpan={6} style={{ textAlign: "center", color: "#94a3b8" }}>
+                            Tablo bazlı startup verisi yok.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div style={{ ...kartStili, overflowX: "auto" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: "8px", alignItems: "center", marginBottom: "10px" }}>
+                    <h4 style={{ margin: 0, fontSize: "14px", color: "#0f172a" }}>Son Açılış Oturumları</h4>
+                    <span style={{ fontSize: "11px", color: "#64748b" }}>En yeni oturumlar</span>
+                  </div>
+                  <table className="tbl" style={{ minWidth: "100%", tableLayout: "fixed" }}>
+                    <thead>
+                      <tr>
+                        <th style={{ width: "24%" }}>Zaman</th>
+                        <th style={{ width: "18%" }}>Kullanıcı</th>
+                        <th style={{ width: "10%" }}>Dönem</th>
+                        <th style={{ width: "12%" }}>Toplam</th>
+                        <th style={{ width: "12%" }}>Fetch</th>
+                        <th style={{ width: "12%" }}>Render</th>
+                        <th style={{ width: "12%" }}>Sekme</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {startupDiagnostics.recentSessions.map((oturum) => (
+                        <tr key={`${oturum.sessionId}-${oturum.createdAt}`}>
+                          <td>{tarihSaatMetni(oturum.createdAt)}</td>
+                          <td style={{ fontWeight: "bold", color: "#0f172a" }}>{oturum.userEmail || "-"}</td>
+                          <td>{oturum.aktifDonem || "-"}</td>
+                          <td>{msMetni(oturum.durationMs)}</td>
+                          <td>{msMetni(oturum.fetchMs)}</td>
+                          <td>{msMetni(oturum.renderMs)}</td>
+                          <td>{oturum.activeTab || "-"}</td>
+                        </tr>
+                      ))}
+                      {startupDiagnostics.recentSessions.length === 0 && (
+                        <tr>
+                          <td colSpan={7} style={{ textAlign: "center", color: "#94a3b8" }}>
+                            Görüntülenecek startup oturumu yok.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+
+            {isStartupDiagnosticsLoading && !startupDiagnostics && (
+              <div style={{ ...kartStili, textAlign: "center", color: "#64748b", fontSize: "12px" }}>
+                Startup performans özeti yükleniyor...
+              </div>
+            )}
           </div>
         )}
 

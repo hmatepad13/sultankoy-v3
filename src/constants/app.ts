@@ -90,6 +90,7 @@ export const TAB_TANIMLARI: Array<{ id: AppTabId; ikon: string; etiket: string }
 
 export const AYAR_TAB_TANIMLARI: Array<{ id: ActiveAyarTab; etiket: string; renk?: string }> = [
   { id: "hesap", etiket: "Şifre", renk: "#2563eb" },
+  { id: "performans", etiket: "Performans", renk: "#0f766e" },
   { id: "musteriler", etiket: "Müşteriler" },
   { id: "urunler", etiket: "Ürünler" },
   { id: "ciftlikler", etiket: "Çiftlikler" },
