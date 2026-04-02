@@ -1834,7 +1834,7 @@ export function SettingsPanel({
                   <div><strong>Hedef:</strong> {backupDurumu?.destinationLabel || "GitHub bulut yedek deposu"}</div>
                   <div><strong>Son başarılı yedek:</strong> {tarihSaatMetni(backupDurumu?.lastSuccessfulAt || null)}</div>
                 </div>
-                {(backupDurumu?.backupRepoUrl || backupDurumu?.lastSuccessfulRunUrl) && (
+                {isAdmin && (backupDurumu?.backupRepoUrl || backupDurumu?.lastSuccessfulRunUrl) && (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", fontSize: "12px" }}>
                     {backupDurumu?.backupRepoUrl && (
                       <a href={backupDurumu.backupRepoUrl} target="_blank" rel="noreferrer" style={{ color: "#0f766e", fontWeight: 700 }}>
