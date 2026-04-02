@@ -767,11 +767,9 @@ export default function App() {
   const [startupVeriHazir, setStartupVeriHazir] = useState(false);
 
   // DÖNEM YÖNETİMİ (Kalıcı)
-  const [aktifDonem, setAktifDonem] = useState<string>(() => {
-      const saved = localStorage.getItem("aktifDonem");
-      return saved || getLocalDateString().substring(0, 7);
-  });
+  const [aktifDonem, setAktifDonem] = useState<string>(() => getLocalDateString().substring(0, 7));
   const [donemSecenekleri, setDonemSecenekleri] = useState<string[]>(() => [getLocalDateString().substring(0, 7)]);
+  const [donemSecenekleriHazir, setDonemSecenekleriHazir] = useState(false);
   const [isDonemModalOpen, setIsDonemModalOpen] = useState(false);
   const [donemOnay, setDonemOnay] = useState(false);
 
@@ -1254,10 +1252,17 @@ export default function App() {
   }, [session?.user?.email]);
 
   useEffect(() => {
+    setDonemSecenekleriHazir(false);
+  }, [session?.user?.id]);
+
+  useEffect(() => {
     const kullaniciId = session?.user?.id || null;
     if (!kullaniciId) {
       acilisVerisiYuklenenKullaniciRef.current = null;
       acilisVerisiYukleniyorKullaniciRef.current = null;
+      return;
+    }
+    if (!donemSecenekleriHazir) {
       return;
     }
     if (
@@ -1278,7 +1283,7 @@ export default function App() {
         acilisVerisiYukleniyorKullaniciRef.current = null;
       }
     });
-  }, [session?.user?.id]);
+  }, [donemSecenekleriHazir, session?.user?.id]);
 
   useEffect(() => {
     ertelenenVeriYuklemeRef.current = {
@@ -1329,10 +1334,6 @@ export default function App() {
     });
   }, [session?.user?.id]);
 
-  useEffect(() => {
-      localStorage.setItem("aktifDonem", aktifDonem);
-  }, [aktifDonem]);
-
   const mevcutKullanici = normalizeUsername(session?.user?.email || username);
   const aktifKullaniciEposta =
     session?.user?.email || (username.includes("@") ? username : `${username}@sistem.local`);
@@ -1373,8 +1374,11 @@ export default function App() {
     [startupLog],
   );
   const donemSecenekleriniYukle = useCallback(async () => {
+    const bugunDonemi = getLocalDateString().substring(0, 7);
     if (!session?.user?.id) {
-      setDonemSecenekleri([getLocalDateString().substring(0, 7)]);
+      setDonemSecenekleri([bugunDonemi]);
+      setAktifDonem(bugunDonemi);
+      setDonemSecenekleriHazir(true);
       return;
     }
 
@@ -1385,7 +1389,7 @@ export default function App() {
       supabase.from("uretim").select("tarih"),
     ]);
 
-    const secenekler = new Set<string>([getLocalDateString().substring(0, 7)]);
+    const secenekler = new Set<string>();
 
     sorgular.forEach((sonuc) => {
       if (sonuc.status !== "fulfilled") {
@@ -1404,7 +1408,11 @@ export default function App() {
       });
     });
 
-    setDonemSecenekleri(Array.from(secenekler).sort().reverse());
+    const siraliSecenekler = Array.from(secenekler).sort().reverse();
+    const varsayilanDonem = siraliSecenekler[0] || bugunDonemi;
+    setDonemSecenekleri(siraliSecenekler.length > 0 ? siraliSecenekler : [bugunDonemi]);
+    setAktifDonem(varsayilanDonem);
+    setDonemSecenekleriHazir(true);
   }, [session?.user?.id]);
 
   useEffect(() => {
