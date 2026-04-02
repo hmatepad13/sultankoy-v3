@@ -65,7 +65,6 @@ import { normalizeUsername } from "./utils/format";
 
 const SUPABASE_FREE_DATABASE_LIMIT_BYTES = 500_000_000;
 const SUPABASE_FREE_STORAGE_LIMIT_BYTES = 1_000_000_000;
-const DONEM_SECENEK_SAYISI = 24;
 const ODEME_TURU_SECENEKLERI = [
   { value: "PEŞİN", label: "💵 PEŞİN" },
   { value: "VADE", label: "⏳ VADE" },
@@ -198,28 +197,9 @@ const donemAraliginiGetir = (donem?: string | null) => {
   };
 };
 
-const donemSecenekleriniOlustur = (merkezDonem?: string | null, adet = DONEM_SECENEK_SAYISI) => {
-  const [yilStr, ayStr] = String(merkezDonem || getLocalDateString().substring(0, 7)).split("-");
-  let yil = Number(yilStr);
-  let ay = Number(ayStr);
-
-  if (!Number.isInteger(yil) || !Number.isInteger(ay) || ay < 1 || ay > 12) {
-    const bugun = new Date();
-    yil = bugun.getFullYear();
-    ay = bugun.getMonth() + 1;
-  }
-
-  const secenekler: string[] = [];
-  for (let index = 0; index < adet; index += 1) {
-    secenekler.push(`${String(yil).padStart(4, "0")}-${String(ay).padStart(2, "0")}`);
-    ay -= 1;
-    if (ay < 1) {
-      ay = 12;
-      yil -= 1;
-    }
-  }
-
-  return secenekler;
+const donemiTarihtenAyikla = (tarih?: string | null) => {
+  const eslesen = String(tarih || "").match(/^\d{4}-\d{2}/);
+  return eslesen ? eslesen[0] : "";
 };
 
 const fisPersonelDevirMi = (fis: Partial<SatisFis>) => {
@@ -791,6 +771,7 @@ export default function App() {
       const saved = localStorage.getItem("aktifDonem");
       return saved || getLocalDateString().substring(0, 7);
   });
+  const [donemSecenekleri, setDonemSecenekleri] = useState<string[]>(() => [getLocalDateString().substring(0, 7)]);
   const [isDonemModalOpen, setIsDonemModalOpen] = useState(false);
   const [donemOnay, setDonemOnay] = useState(false);
 
@@ -1391,6 +1372,44 @@ export default function App() {
     },
     [startupLog],
   );
+  const donemSecenekleriniYukle = useCallback(async () => {
+    if (!session?.user?.id) {
+      setDonemSecenekleri([getLocalDateString().substring(0, 7)]);
+      return;
+    }
+
+    const sorgular = await Promise.allSettled([
+      supabase.from("satis_fisleri").select("tarih"),
+      supabase.from("giderler").select("tarih"),
+      supabase.from("sut_giris").select("tarih"),
+      supabase.from("uretim").select("tarih"),
+    ]);
+
+    const secenekler = new Set<string>([getLocalDateString().substring(0, 7)]);
+
+    sorgular.forEach((sonuc) => {
+      if (sonuc.status !== "fulfilled") {
+        console.error("Dönem seçenekleri yüklenemedi:", sonuc.reason);
+        return;
+      }
+
+      if (sonuc.value.error) {
+        console.error("Dönem seçenekleri yüklenemedi:", sonuc.value.error);
+        return;
+      }
+
+      (sonuc.value.data || []).forEach((kayit) => {
+        const donem = donemiTarihtenAyikla(kayit.tarih);
+        if (donem) secenekler.add(donem);
+      });
+    });
+
+    setDonemSecenekleri(Array.from(secenekler).sort().reverse());
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    void donemSecenekleriniYukle();
+  }, [donemSecenekleriniYukle]);
 
   useEffect(() => {
     setClientTelemetryContext({
@@ -2394,14 +2413,15 @@ export default function App() {
 
   // DÖNEM GEÇİŞ LİSTESİ OLUŞTURUCU
   const aylar = useMemo(() => {
-     const set = new Set(donemSecenekleriniOlustur(aktifDonem));
+     const set = new Set(donemSecenekleri);
      [...sutList, ...satisFisList, ...giderList, ...uretimList].forEach(item => {
-         if(item.tarih) set.add(item.tarih.substring(0, 7)); 
+         const donem = donemiTarihtenAyikla(item.tarih);
+         if(donem) set.add(donem);
      });
      set.add(getLocalDateString().substring(0, 7)); 
      set.add(aktifDonem);
      return Array.from(set).sort().reverse(); 
-  }, [sutList, satisFisList, giderList, uretimList, aktifDonem]);
+  }, [donemSecenekleri, sutList, satisFisList, giderList, uretimList, aktifDonem]);
 
   // Tüm Fişlerden Müşteri Borç Durumu Hesaplama
   const bayiBorclari = useMemo(() => {
