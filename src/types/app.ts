@@ -317,6 +317,53 @@ export interface StartupRecentSession {
   authMs: number | null;
 }
 
+export interface AppPerformanceMetric {
+  olay: string;
+  kategori: string;
+  sonuc: string;
+  sampleCount: number;
+  avgMs: number;
+  p50Ms: number;
+  p95Ms: number;
+  maxMs: number;
+  avgKayitMs: number;
+  avgYenilemeMs: number;
+  avgImageMs: number;
+  avgDetaySayisi: number;
+}
+
+export interface AppPerformanceRecent {
+  createdAt: string;
+  userEmail: string;
+  olay: string;
+  kategori: string;
+  sonuc: string;
+  toplamMs: number;
+  kayitMs: number;
+  yenilemeMs: number;
+  gorselYuklemeMs: number;
+  detaySayisi: number;
+  hataMesaji: string;
+}
+
+export interface AppErrorMetric {
+  islem: string;
+  kategori: string;
+  seviye: string;
+  count: number;
+  latestAt: string;
+}
+
+export interface AppErrorRecent {
+  createdAt: string;
+  userEmail: string;
+  islem: string;
+  kategori: string;
+  seviye: string;
+  mesaj: string;
+  kayitRef: string;
+}
+
 export interface StartupLogDiagnostics {
   generatedAt: string;
   since: string;
@@ -339,4 +386,10 @@ export interface StartupLogDiagnostics {
   fetchPatterns: StartupFetchPattern[];
   tableMetrics: StartupTableMetric[];
   recentSessions: StartupRecentSession[];
+  appPerformanceMetrics: AppPerformanceMetric[];
+  appPerformanceRecent: AppPerformanceRecent[];
+  appPerformanceCount: number;
+  appErrorMetrics: AppErrorMetric[];
+  appErrorRecent: AppErrorRecent[];
+  appErrorCount: number;
 }

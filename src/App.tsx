@@ -581,6 +581,63 @@ const startupLogOzetiniNormalizeEt = (deger: unknown): StartupLogDiagnostics => 
         authMs: authMs == null || authMs === "" ? null : sayiDegeri(authMs),
       };
     }),
+    appPerformanceMetrics: startupLogDiziyeCevir(kayit.appPerformanceMetrics).map((item) => {
+      const satir = startupLogKaydiniNormalizeEt(item);
+      return {
+        olay: String(satir.olay || ""),
+        kategori: String(satir.kategori || ""),
+        sonuc: String(satir.sonuc || ""),
+        sampleCount: sayiDegeri(satir.sampleCount),
+        avgMs: sayiDegeri(satir.avgMs),
+        p50Ms: sayiDegeri(satir.p50Ms),
+        p95Ms: sayiDegeri(satir.p95Ms),
+        maxMs: sayiDegeri(satir.maxMs),
+        avgKayitMs: sayiDegeri(satir.avgKayitMs),
+        avgYenilemeMs: sayiDegeri(satir.avgYenilemeMs),
+        avgImageMs: sayiDegeri(satir.avgImageMs),
+        avgDetaySayisi: sayiDegeri(satir.avgDetaySayisi),
+      };
+    }),
+    appPerformanceRecent: startupLogDiziyeCevir(kayit.appPerformanceRecent).map((item) => {
+      const satir = startupLogKaydiniNormalizeEt(item);
+      return {
+        createdAt: String(satir.createdAt || ""),
+        userEmail: String(satir.userEmail || ""),
+        olay: String(satir.olay || ""),
+        kategori: String(satir.kategori || ""),
+        sonuc: String(satir.sonuc || ""),
+        toplamMs: sayiDegeri(satir.toplamMs),
+        kayitMs: sayiDegeri(satir.kayitMs),
+        yenilemeMs: sayiDegeri(satir.yenilemeMs),
+        gorselYuklemeMs: sayiDegeri(satir.gorselYuklemeMs),
+        detaySayisi: sayiDegeri(satir.detaySayisi),
+        hataMesaji: String(satir.hataMesaji || ""),
+      };
+    }),
+    appPerformanceCount: sayiDegeri(kayit.appPerformanceCount),
+    appErrorMetrics: startupLogDiziyeCevir(kayit.appErrorMetrics).map((item) => {
+      const satir = startupLogKaydiniNormalizeEt(item);
+      return {
+        islem: String(satir.islem || ""),
+        kategori: String(satir.kategori || ""),
+        seviye: String(satir.seviye || ""),
+        count: sayiDegeri(satir.count),
+        latestAt: String(satir.latestAt || ""),
+      };
+    }),
+    appErrorRecent: startupLogDiziyeCevir(kayit.appErrorRecent).map((item) => {
+      const satir = startupLogKaydiniNormalizeEt(item);
+      return {
+        createdAt: String(satir.createdAt || ""),
+        userEmail: String(satir.userEmail || ""),
+        islem: String(satir.islem || ""),
+        kategori: String(satir.kategori || ""),
+        seviye: String(satir.seviye || ""),
+        mesaj: String(satir.mesaj || ""),
+        kayitRef: String(satir.kayitRef || ""),
+      };
+    }),
+    appErrorCount: sayiDegeri(kayit.appErrorCount),
   };
 };
 

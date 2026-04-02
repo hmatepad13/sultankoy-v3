@@ -827,6 +827,175 @@ export function SettingsPanel({
                     </tbody>
                   </table>
                 </div>
+
+                <div style={{ display: "grid", gap: "10px", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))" }}>
+                  <div style={{ ...kartStili, padding: "12px", display: "grid", gap: "5px" }}>
+                    <div style={{ fontSize: "11px", fontWeight: "bold", color: "#64748b" }}>İşlem Performans Logu</div>
+                    <div style={{ fontSize: "20px", fontWeight: "bold", color: "#2563eb" }}>{sayiMetni(startupDiagnostics.appPerformanceCount)}</div>
+                    <div style={{ fontSize: "11px", color: "#64748b" }}>Son {startupDiagnostics.daily.length > 0 ? "2 gün" : "dönem"} performans kaydı</div>
+                  </div>
+                  <div style={{ ...kartStili, padding: "12px", display: "grid", gap: "5px" }}>
+                    <div style={{ fontSize: "11px", fontWeight: "bold", color: "#64748b" }}>Hata Logu</div>
+                    <div style={{ fontSize: "20px", fontWeight: "bold", color: "#dc2626" }}>{sayiMetni(startupDiagnostics.appErrorCount)}</div>
+                    <div style={{ fontSize: "11px", color: "#64748b" }}>Son 30 gün hata kaydı</div>
+                  </div>
+                </div>
+
+                <div style={{ ...kartStili, overflowX: "auto" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: "8px", alignItems: "center", marginBottom: "10px" }}>
+                    <h4 style={{ margin: 0, fontSize: "14px", color: "#0f172a" }}>İşlem Performansı</h4>
+                    <span style={{ fontSize: "11px", color: "#64748b" }}>Eski app_performans_loglari özeti</span>
+                  </div>
+                  <table className="tbl" style={{ minWidth: "100%", tableLayout: "fixed" }}>
+                    <thead>
+                      <tr>
+                        <th style={{ width: "22%" }}>Olay</th>
+                        <th style={{ width: "10%" }}>Kategori</th>
+                        <th style={{ width: "10%" }}>Sonuç</th>
+                        <th style={{ width: "10%" }}>Adet</th>
+                        <th style={{ width: "12%" }}>Ort.</th>
+                        <th style={{ width: "12%" }}>P50</th>
+                        <th style={{ width: "12%" }}>P95</th>
+                        <th style={{ width: "12%" }}>Yenileme</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {startupDiagnostics.appPerformanceMetrics.map((item) => (
+                        <tr key={`${item.olay}-${item.kategori}-${item.sonuc}`}>
+                          <td style={{ fontWeight: "bold", color: "#0f172a" }}>{item.olay}</td>
+                          <td>{item.kategori || "-"}</td>
+                          <td>{item.sonuc || "-"}</td>
+                          <td>{sayiMetni(item.sampleCount)}</td>
+                          <td>{msMetni(item.avgMs)}</td>
+                          <td>{msMetni(item.p50Ms)}</td>
+                          <td>{msMetni(item.p95Ms)}</td>
+                          <td>{msMetni(item.avgYenilemeMs)}</td>
+                        </tr>
+                      ))}
+                      {startupDiagnostics.appPerformanceMetrics.length === 0 && (
+                        <tr>
+                          <td colSpan={8} style={{ textAlign: "center", color: "#94a3b8" }}>
+                            İşlem performans kaydı bulunamadı.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div style={{ ...kartStili, overflowX: "auto" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: "8px", alignItems: "center", marginBottom: "10px" }}>
+                    <h4 style={{ margin: 0, fontSize: "14px", color: "#0f172a" }}>Son İşlem Performans Kayıtları</h4>
+                    <span style={{ fontSize: "11px", color: "#64748b" }}>En yeni kayıtlar</span>
+                  </div>
+                  <table className="tbl" style={{ minWidth: "100%", tableLayout: "fixed" }}>
+                    <thead>
+                      <tr>
+                        <th style={{ width: "22%" }}>Zaman</th>
+                        <th style={{ width: "18%" }}>Kullanıcı</th>
+                        <th style={{ width: "18%" }}>Olay</th>
+                        <th style={{ width: "10%" }}>Sonuç</th>
+                        <th style={{ width: "10%" }}>Toplam</th>
+                        <th style={{ width: "10%" }}>Kayıt</th>
+                        <th style={{ width: "12%" }}>Yenileme</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {startupDiagnostics.appPerformanceRecent.map((item) => (
+                        <tr key={`${item.createdAt}-${item.olay}-${item.userEmail}`}>
+                          <td>{tarihSaatMetni(item.createdAt)}</td>
+                          <td style={{ fontWeight: "bold", color: "#0f172a" }}>{item.userEmail || "-"}</td>
+                          <td>{item.olay}</td>
+                          <td>{item.sonuc || "-"}</td>
+                          <td>{msMetni(item.toplamMs)}</td>
+                          <td>{msMetni(item.kayitMs)}</td>
+                          <td>{msMetni(item.yenilemeMs)}</td>
+                        </tr>
+                      ))}
+                      {startupDiagnostics.appPerformanceRecent.length === 0 && (
+                        <tr>
+                          <td colSpan={7} style={{ textAlign: "center", color: "#94a3b8" }}>
+                            Gösterilecek işlem performans kaydı yok.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div style={{ ...kartStili, overflowX: "auto" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: "8px", alignItems: "center", marginBottom: "10px" }}>
+                    <h4 style={{ margin: 0, fontSize: "14px", color: "#0f172a" }}>Hata Grupları</h4>
+                    <span style={{ fontSize: "11px", color: "#64748b" }}>Eski app_hata_loglari özeti</span>
+                  </div>
+                  <table className="tbl" style={{ minWidth: "100%", tableLayout: "fixed" }}>
+                    <thead>
+                      <tr>
+                        <th style={{ width: "22%" }}>İşlem</th>
+                        <th style={{ width: "16%" }}>Kategori</th>
+                        <th style={{ width: "12%" }}>Seviye</th>
+                        <th style={{ width: "10%" }}>Adet</th>
+                        <th style={{ width: "20%" }}>Son Kayıt</th>
+                        <th style={{ width: "20%" }}>Durum</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {startupDiagnostics.appErrorMetrics.map((item) => (
+                        <tr key={`${item.islem}-${item.kategori}-${item.seviye}`}>
+                          <td style={{ fontWeight: "bold", color: "#0f172a" }}>{item.islem || "-"}</td>
+                          <td>{item.kategori || "-"}</td>
+                          <td>{item.seviye || "-"}</td>
+                          <td>{sayiMetni(item.count)}</td>
+                          <td>{tarihSaatMetni(item.latestAt)}</td>
+                          <td style={{ color: item.count > 0 ? "#dc2626" : "#059669", fontWeight: "bold" }}>{item.count > 0 ? "İncele" : "Temiz"}</td>
+                        </tr>
+                      ))}
+                      {startupDiagnostics.appErrorMetrics.length === 0 && (
+                        <tr>
+                          <td colSpan={6} style={{ textAlign: "center", color: "#94a3b8" }}>
+                            Hata özeti bulunamadı.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div style={{ ...kartStili, overflowX: "auto" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: "8px", alignItems: "center", marginBottom: "10px" }}>
+                    <h4 style={{ margin: 0, fontSize: "14px", color: "#0f172a" }}>Son Hata Kayıtları</h4>
+                    <span style={{ fontSize: "11px", color: "#64748b" }}>En yeni hata kayıtları</span>
+                  </div>
+                  <table className="tbl" style={{ minWidth: "100%", tableLayout: "fixed" }}>
+                    <thead>
+                      <tr>
+                        <th style={{ width: "22%" }}>Zaman</th>
+                        <th style={{ width: "16%" }}>Kullanıcı</th>
+                        <th style={{ width: "16%" }}>İşlem</th>
+                        <th style={{ width: "12%" }}>Kategori</th>
+                        <th style={{ width: "34%" }}>Mesaj</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {startupDiagnostics.appErrorRecent.map((item) => (
+                        <tr key={`${item.createdAt}-${item.islem}-${item.userEmail}`}>
+                          <td>{tarihSaatMetni(item.createdAt)}</td>
+                          <td style={{ fontWeight: "bold", color: "#0f172a" }}>{item.userEmail || "-"}</td>
+                          <td>{item.islem || "-"}</td>
+                          <td>{item.kategori || "-"}</td>
+                          <td title={item.mesaj} style={{ color: "#475569" }}>{item.mesaj || "-"}</td>
+                        </tr>
+                      ))}
+                      {startupDiagnostics.appErrorRecent.length === 0 && (
+                        <tr>
+                          <td colSpan={5} style={{ textAlign: "center", color: "#94a3b8" }}>
+                            Son hata kaydı bulunamadı.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </>
             )}
 
