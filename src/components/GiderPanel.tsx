@@ -138,6 +138,7 @@ export function GiderPanel({
   const [giderSort, setGiderSort] = useState<SortConfig>({ key: "tarih", direction: "desc" });
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [activeFilterModal, setActiveFilterModal] = useState<"gider_tur" | "gider_kisi" | null>(null);
+  const [isExcelLoading, setIsExcelLoading] = useState(false);
   const giderGorselKameraInputRef = useRef<HTMLInputElement | null>(null);
   const giderGorselGaleriInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -316,6 +317,40 @@ export function GiderPanel({
     await onRefreshCop();
   };
 
+  const handleExcelIndir = async () => {
+    setIsExcelLoading(true);
+    try {
+      const { excelDosyasiIndir } = await import("../lib/excelExport");
+      excelDosyasiIndir(`sultankoy-gider-${aktifDonem}.xlsx`, [
+        {
+          name: "Ozet",
+          rows: [
+            {
+              Donem: aktifDonem,
+              "Kisi Filtresi": giderFiltreKisi,
+              Giderler: fGGiderNormal,
+              "Hammadde Odemeleri": fGHammaddeOdemeleri,
+            },
+          ],
+        },
+        {
+          name: "Giderler",
+          rows: fGiderList.map((gider) => ({
+            Tarih: gider.tarih,
+            Tur: gider.tur,
+            Tutar: Number(gider.tutar || 0),
+            Aciklama: gider.aciklama || "",
+            Kisi: normalizeUsername(gider.ekleyen),
+          })),
+        },
+      ]);
+    } catch (error: any) {
+      alert(`Excel indirilemedi: ${error?.message || "Bilinmeyen hata"}`);
+    } finally {
+      setIsExcelLoading(false);
+    }
+  };
+
   const giderDetayTarih = giderForm.tarih ? giderForm.tarih.split("-").reverse().join(".") : "-";
   const giderDetaySaat = giderSaatiFormatla(giderForm.created_at);
   const giderDetayKisi = normalizeUsername(giderForm.ekleyen) || "-";
@@ -330,6 +365,7 @@ export function GiderPanel({
             <div className="gider-ust-ozet" style={{ border: "1px solid #dc262633", background: "#dc262610", color: "#dc2626", borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", flex: "1 1 120px", minWidth: "100px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>GİDERLER: {helpers.fSayi(fGGiderNormal)} ₺</div>
             <div className="gider-ust-ozet" onClick={() => onOpenMiniDetay({ baslik: "Hammadde Ödemeleri", renk: "#7c3aed", satirlar: [{ etiket: "Süt Ödemesi", deger: `${helpers.fSayi(fGSutOdemesi)} TL`, vurgu: true }, { etiket: "Krema Ödemesi", deger: `${helpers.fSayi(fGKremaOdemesi)} TL`, vurgu: true }, { etiket: "Kova Ödemesi", deger: `${helpers.fSayi(fGKovaOdemesi)} TL`, vurgu: true }, { etiket: "Katkı Ödemesi", deger: `${helpers.fSayi(fGKatkiOdemesi)} TL`, vurgu: true }, { etiket: "Süt Tozu Ödemesi", deger: `${helpers.fSayi(fGSutTozuOdemesi)} TL`, vurgu: true }] })} style={{ border: "1px solid #8b5cf633", background: "#8b5cf610", color: "#7c3aed", borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", flex: "1 1 145px", minWidth: "125px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", cursor: "pointer" }}>HAMMADDE ÖDEMELERİ: {helpers.fSayi(fGHammaddeOdemeleri)} ₺</div>
           </div>
+          <button onClick={() => void handleExcelIndir()} disabled={isExcelLoading} className="btn-anim m-btn inline-mobile-btn" style={{ background: "#0f766e", margin: 0, width: "auto", minWidth: "112px", flex: "0 0 auto", fontSize: "12px", padding: "10px 12px", opacity: isExcelLoading ? 0.75 : 1, cursor: isExcelLoading ? "wait" : "pointer" }}>{isExcelLoading ? "Hazır..." : "📥 EXCEL"}</button>
           <div className="gider-filtre-grup" style={{ display: "flex", background: "#cbd5e1", borderRadius: "8px", overflow: "hidden", flex: "0 0 auto", minWidth: "110px", marginLeft: "auto" }}>
             <button onClick={() => setGiderFiltreKisi("benim")} style={{ flex: 1, padding: "8px 10px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "bold", background: giderFiltreKisi === "benim" ? "#dc2626" : "transparent", color: giderFiltreKisi === "benim" ? "#fff" : "#475569" }}>Benim</button>
             <button onClick={() => setGiderFiltreKisi("tumu")} style={{ flex: 1, padding: "8px 10px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "bold", background: giderFiltreKisi === "tumu" ? "#dc2626" : "transparent", color: giderFiltreKisi === "tumu" ? "#fff" : "#475569" }}>Tümü</button>

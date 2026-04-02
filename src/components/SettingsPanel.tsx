@@ -46,10 +46,6 @@ interface SettingsPanelProps {
   isStartupDiagnosticsLoading: boolean;
   startupDiagnosticsError: string;
   onLoadStartupDiagnostics: (force?: boolean) => Promise<void> | void;
-  onExcelBackup: () => void;
-  onJsonBackup: () => void;
-  onHtmlBackup: () => void;
-  isBackupLoading: boolean;
   depolamaDurumu: DepolamaDurumu | null;
   isDepolamaLoading: boolean;
   depolamaHata: string;
@@ -261,10 +257,6 @@ export function SettingsPanel({
   isStartupDiagnosticsLoading,
   startupDiagnosticsError,
   onLoadStartupDiagnostics,
-  onExcelBackup,
-  onJsonBackup,
-  onHtmlBackup,
-  isBackupLoading,
   depolamaDurumu,
   isDepolamaLoading,
   depolamaHata,
@@ -1793,64 +1785,6 @@ export function SettingsPanel({
           </>
         )}
 
-        {activeAyarTab === "yedekleme" && (
-          <div style={{ display: "grid", gap: "12px", overflowY: "auto" }}>
-            <div style={kartStili}>
-              <h3 style={{ margin: "0 0 8px", fontSize: "15px", color: "#0f172a" }}>Veri Yedekleme</h3>
-              <p style={{ margin: 0, color: "#64748b", fontSize: "13px", lineHeight: 1.5 }}>
-                Excel yedeği kullanıcının ekranda gördüğü sade tablo görünümünü ayrı sayfalara böler. JSON yedeği ise tam veri dökümünü alır.
-              </p>
-            </div>
-            <div style={{ ...kartStili, display: "grid", gap: "10px" }}>
-              <button
-                onClick={onHtmlBackup}
-                disabled={isBackupLoading}
-                style={{
-                  background: "#7c3aed",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "10px",
-                  padding: "12px 14px",
-                  fontWeight: "bold",
-                  cursor: isBackupLoading ? "wait" : "pointer",
-                }}
-              >
-                {isBackupLoading ? "Hazirlaniyor..." : "HTML Rapor Yedegi Indir"}
-              </button>
-              <button
-                onClick={onExcelBackup}
-                disabled={isBackupLoading}
-                style={{
-                  background: "#0f766e",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "10px",
-                  padding: "12px 14px",
-                  fontWeight: "bold",
-                  cursor: isBackupLoading ? "wait" : "pointer",
-                }}
-              >
-                {isBackupLoading ? "Hazırlanıyor..." : "Excel Yedeği İndir"}
-              </button>
-              <button
-                onClick={onJsonBackup}
-                disabled={isBackupLoading}
-                style={{
-                  background: "#1d4ed8",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "10px",
-                  padding: "12px 14px",
-                  fontWeight: "bold",
-                  cursor: isBackupLoading ? "wait" : "pointer",
-                }}
-              >
-                {isBackupLoading ? "Hazırlanıyor..." : "JSON Yedeği İndir"}
-              </button>
-            </div>
-          </div>
-        )}
-
         {activeAyarTab === "depolama" && (
           <div style={{ display: "grid", gap: "12px", overflowY: "auto" }}>
             <div style={kartStili}>
@@ -1875,6 +1809,9 @@ export function SettingsPanel({
               </div>
               <p style={{ margin: 0, color: "#64748b", fontSize: "12px", lineHeight: 1.5 }}>
                 Bu veri sadece bu sekme acildiginda cekilir. Toplam alan bilgisi mevcut Free plan limitlerine gore gosterilir.
+              </p>
+              <p style={{ margin: "8px 0 0", color: "#0f766e", fontSize: "12px", lineHeight: 1.5, fontWeight: "bold" }}>
+                Tam sistem yedeği GitHub tarafında her gün otomatik alınır. Uygulama içindeki Excel butonları ise yalnızca açık sekmenin dışa aktarımı içindir.
               </p>
             </div>
 

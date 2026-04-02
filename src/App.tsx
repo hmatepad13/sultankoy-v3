@@ -49,7 +49,6 @@ import type {
   Gider,
   GiderTuru,
   KullaniciSekmeYetkisi,
-  OzetKart,
   PersonelOzeti,
   SatisFis,
   SatisGiris,
@@ -58,7 +57,6 @@ import type {
   SutGiris,
   Uretim,
   Urun,
-  YedekVerisi,
 } from "./types/app";
 import { aktifDonemDisiKayitOnayMetni, getLocalDateString } from "./utils/date";
 import { normalizeUsername } from "./utils/format";
@@ -508,7 +506,6 @@ const GiderPanel = giderPanelSekmesi.LazyBilesen;
 const UretimPanel = uretimPanelSekmesi.LazyBilesen;
 const AnalizPanel = analizPanelSekmesi.LazyBilesen;
 const SettingsPanel = settingsPanelSekmesi.LazyBilesen;
-const yedeklemeModulunuGetir = () => import("./lib/backup");
 const sekmeYukleniyorFallback = (
   <div className="card" style={{ marginTop: "6px", textAlign: "center", color: "#64748b", fontWeight: "bold" }}>
     Sekme yükleniyor...
@@ -544,25 +541,6 @@ const uygulamaIciAlertGoster = (message: string, options?: Omit<AppAlertOptions,
   window.alert(message);
 };
 
-const yedeklemeHatasiniGoster = (islemAdi: string, error: unknown) => {
-  console.error(`${islemAdi} hazırlanamadı:`, error);
-  if (dinamikModulHatasiMi(error)) {
-    void uygulamaIciConfirmGoster({
-      title: "Sayfa Yenilensin mi?",
-      message: yenilemeOnerisiMesaji(islemAdi),
-      confirmText: "Evet, Yenile",
-      cancelText: "İptal",
-      tone: "warning",
-    }).then((yenile) => {
-      if (yenile) window.location.reload();
-    });
-    return;
-  }
-  uygulamaIciAlertGoster(`${islemAdi} hazırlanamadı.\n${hataMetniniGetir(error)}`, {
-    title: "İşlem Hatası",
-    tone: "danger",
-  });
-};
 const sekmeYuklemeHatasiniGoster = (tabId: AppTabId, error: unknown) => {
   const sekmeEtiketi = TAB_TANIMLARI.find((tab) => tab.id === tabId)?.etiket || "Sekme";
   console.error(`${sekmeEtiketi} sekmesi hazırlanamadı:`, error);
@@ -813,7 +791,6 @@ export default function App() {
   const [tabYetkileri, setTabYetkileri] = useState<KullaniciSekmeYetkisi[]>([]);
   const [yetkiKaynak, setYetkiKaynak] = useState<"supabase" | "local">("local");
   const [yetkiUyari, setYetkiUyari] = useState("");
-  const [isBackupLoading, setIsBackupLoading] = useState(false);
   const [restoringTrashId, setRestoringTrashId] = useState<string | null>(null);
   const [deletingTrashId, setDeletingTrashId] = useState<string | null>(null);
   const [depolamaDurumu, setDepolamaDurumu] = useState<DepolamaDurumu | null>(null);
@@ -4060,100 +4037,6 @@ export default function App() {
     username,
   ]);
 
-  const ozetKartlari = useMemo<OzetKart[]>(
-    () => [
-      { baslik: aktifDonemSatisEtiketi, deger: tOzetReelSatis },
-      { baslik: "Devreden Bakiye", deger: tOzetDevredenBakiye },
-      { baslik: "Gider", deger: tGiderNormal },
-      { baslik: "Tahsilat", deger: tOzetFisTahsilatRaw },
-      { baslik: "Açık Hesap", deger: bayiNetDurum },
-      { baslik: "Süt Borcu", deger: sutcuyeBorcumuz },
-    ],
-    [
-      aktifDonemSatisEtiketi,
-      bayiNetDurum,
-      sutcuyeBorcumuz,
-      tGiderNormal,
-      tOzetDevredenBakiye,
-      tOzetFisTahsilatRaw,
-      tOzetReelSatis,
-    ],
-  );
-
-  const yedekVerisi = useMemo<YedekVerisi>(
-    () => ({
-      alindiTarih: new Date().toISOString(),
-      aktifDonem,
-      kaynak: yetkiKaynak,
-      ozetKartlari,
-      bayiBorclari: bayiBorclari.map((item) => ({ isim: item.isim, deger: item.borc })),
-      personelOzetleri,
-      sutList,
-      satisFisList,
-      satisList,
-      giderList,
-      uretimList,
-      bayiler,
-      urunler,
-      ciftlikler: tedarikciler,
-      copKutusuList,
-      tabYetkileri,
-    }),
-    [
-      aktifDonem,
-      bayiBorclari,
-      bayiler,
-      copKutusuList,
-      giderList,
-      ozetKartlari,
-      personelOzetleri,
-      satisFisList,
-      satisList,
-      sutList,
-      tabYetkileri,
-      tedarikciler,
-      uretimList,
-      urunler,
-      yetkiKaynak,
-    ],
-  );
-
-  const handleExcelBackup = async () => {
-    setIsBackupLoading(true);
-    try {
-      const { yedegiExcelIndir } = await yedeklemeModulunuGetir();
-      yedegiExcelIndir(yedekVerisi);
-    } catch (error) {
-      yedeklemeHatasiniGoster("Excel yedeği", error);
-    } finally {
-      setIsBackupLoading(false);
-    }
-  };
-
-  const handleJsonBackup = async () => {
-    setIsBackupLoading(true);
-    try {
-      const { yedegiJsonIndir } = await yedeklemeModulunuGetir();
-      yedegiJsonIndir(yedekVerisi);
-    } catch (error) {
-      yedeklemeHatasiniGoster("JSON yedeği", error);
-    } finally {
-      setIsBackupLoading(false);
-    }
-  };
-
-  const handleHtmlBackup = async () => {
-    setIsBackupLoading(true);
-    try {
-      const { yedegiHtmlIndir } = await yedeklemeModulunuGetir();
-      yedegiHtmlIndir(yedekVerisi);
-    } catch (error) {
-      yedeklemeHatasiniGoster("HTML rapor yedeği", error);
-    } finally {
-      setIsBackupLoading(false);
-    }
-  };
-
   const handlePermissionSave = async (next: KullaniciSekmeYetkisi[]) => {
     const { kayitlar, kaynak, uyari } = await kullaniciYetkileriniKaydet(next);
     setTabYetkileri(kayitlar);
@@ -4449,10 +4332,6 @@ export default function App() {
       isStartupDiagnosticsLoading,
       startupDiagnosticsError,
       onLoadStartupDiagnostics: startupTaniOzetiniGetir,
-      onHtmlBackup: handleHtmlBackup,
-      onExcelBackup: handleExcelBackup,
-      onJsonBackup: handleJsonBackup,
-      isBackupLoading,
       depolamaDurumu,
       isDepolamaLoading,
       depolamaHata,
@@ -4480,6 +4359,7 @@ export default function App() {
     switch (activeTab) {
       case "satis":
         return sekmeBileseniniRenderEt(satisPanelSekmesi.hazirBilesen(), SatisPanel, {
+          aktifDonem,
           satisFiltreTip,
           setSatisFiltreTip,
           satisFiltreKisi,
@@ -4528,6 +4408,7 @@ export default function App() {
         });
       case "ozet":
         return sekmeBileseniniRenderEt(ozetPanelSekmesi.hazirBilesen(), OzetPanel, {
+          aktifDonem,
           aktifDonemSatisEtiketi,
           tOzetReelSatis,
           tOzetFisTahsilatRaw,
@@ -4633,6 +4514,7 @@ export default function App() {
         });
       case "analiz":
         return sekmeBileseniniRenderEt(analizPanelSekmesi.hazirBilesen(), AnalizPanel, {
+          aktifDonem,
           periodSatisList,
           bayiler,
           urunler,

@@ -200,6 +200,7 @@ export function SutPanel({
   const [activeFilterModal, setActiveFilterModal] = useState<SutFilterModal>(null);
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [detayNot, setDetayNot] = useState<string | null>(null);
+  const [isExcelLoading, setIsExcelLoading] = useState(false);
   const sutGorselKameraInputRef = useRef<HTMLInputElement | null>(null);
   const sutGorselGaleriInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -595,6 +596,45 @@ export function SutPanel({
     );
   };
 
+  const handleExcelIndir = async () => {
+    setIsExcelLoading(true);
+    try {
+      const { excelDosyasiIndir } = await import("../lib/excelExport");
+      excelDosyasiIndir(`sultankoy-sut-${aktifDonem}.xlsx`, [
+        {
+          name: "Ozet",
+          rows: [
+            {
+              Donem: aktifDonem,
+              "Toplam KG": tSutKg,
+              "Toplam Tutar": tSutTl,
+            },
+          ],
+        },
+        {
+          name: "Sut Girisleri",
+          rows: fSutList.map((kayit) => {
+            const toplamTutar =
+              Number(kayit.toplam_tl || 0) || Number(kayit.kg || 0) * Number(kayit.fiyat || 0);
+            return {
+              Tarih: kayit.tarih,
+              Ciftlik: sutCiftlikAdiGetir(kayit),
+              KG: Number(kayit.kg || 0),
+              Fiyat: Number(kayit.fiyat || 0),
+              Tutar: toplamTutar,
+              Aciklama: kayit.aciklama || "",
+              Kisi: normalizeUsername(kayit.ekleyen),
+            };
+          }),
+        },
+      ]);
+    } catch (error: any) {
+      alert(`Excel indirilemedi: ${error?.message || "Bilinmeyen hata"}`);
+    } finally {
+      setIsExcelLoading(false);
+    }
+  };
+
   return (
     <>
       <div className="tab-fade-in main-content-area">
@@ -607,6 +647,9 @@ export function SutPanel({
               TUTAR: {helpers.fSayiNoDec(tSutTl)} ₺
             </div>
           </div>
+          <button onClick={() => void handleExcelIndir()} disabled={isExcelLoading} className="btn-anim m-btn inline-mobile-btn" style={{ margin: 0, minWidth: "112px", width: "auto", fontSize: "12px", flex: "0 0 auto", background: "#0f766e", opacity: isExcelLoading ? 0.75 : 1, cursor: isExcelLoading ? "wait" : "pointer" }}>
+            {isExcelLoading ? "Hazırlanıyor..." : "📥 EXCEL"}
+          </button>
           <button onClick={handleYeniSutModalAc} className="btn-anim m-btn blue-btn inline-mobile-btn" style={{ margin: 0, minWidth: "150px", width: "auto", fontSize: "13px", flex: "0 0 auto" }}>
             ➕ YENİ SÜT GİRİŞİ
           </button>

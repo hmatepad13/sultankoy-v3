@@ -96,7 +96,6 @@ export const AYAR_TAB_TANIMLARI: Array<{ id: ActiveAyarTab; etiket: string; renk
   { id: "ciftlikler", etiket: "Çiftlikler" },
   { id: "gider_turleri", etiket: "Gider Türleri" },
   { id: "depolama", etiket: "Depolama", renk: "#0369a1" },
-  { id: "yedekleme", etiket: "Yedekleme", renk: "#0f766e" },
   { id: "kullanici_yonetimi", etiket: "Kullanıcılar", renk: "#0f766e" },
   { id: "yetkiler", etiket: "Yetkiler", renk: "#7c3aed" },
   { id: "cop_kutusu", etiket: "Çöp Kutusu", renk: "#dc2626" },

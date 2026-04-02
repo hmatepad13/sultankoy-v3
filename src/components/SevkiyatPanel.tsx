@@ -106,6 +106,7 @@ export function SevkiyatPanel({ aktifKullaniciEposta, aktifKullaniciId, aktifKul
   const [openDropdown, setOpenDropdown] = useState<{ type: string; id: string | number } | null>(null);
   const [isYukleniyor, setIsYukleniyor] = useState(false);
   const [isKaydediliyor, setIsKaydediliyor] = useState(false);
+  const [isExcelLoading, setIsExcelLoading] = useState(false);
   const [kurulumUyarisi, setKurulumUyarisi] = useState("");
 
   useEffect(() => {
@@ -356,12 +357,50 @@ export function SevkiyatPanel({ aktifKullaniciEposta, aktifKullaniciId, aktifKul
     [filtrelenmisSevkiyatlar],
   );
 
+  const handleExcelIndir = async () => {
+    setIsExcelLoading(true);
+    try {
+      const { excelDosyasiIndir } = await import("../lib/excelExport");
+      excelDosyasiIndir(`sultankoy-sevkiyat-${aktifDonem}.xlsx`, [
+        {
+          name: "Ozet",
+          rows: [
+            {
+              Donem: aktifDonem,
+              "Kisi Filtresi": sevkiyatFiltreKisi,
+              "Toplam 3 KG": sevkiyatToplamlari.yogurt3kg,
+              "Toplam 5 KG": sevkiyatToplamlari.yogurt5kg,
+              "Toplam Kaymak": sevkiyatToplamlari.kaymak,
+            },
+          ],
+        },
+        {
+          name: "Sevkiyatlar",
+          rows: filtrelenmisSevkiyatlar.map((kayit) => ({
+            Tarih: kayit.tarih,
+            Kisi: kayit.kullanici,
+            "Yogurt 3 KG": sayiDegeri(kayit.yogurt3kg),
+            "Yogurt 5 KG": sayiDegeri(kayit.yogurt5kg),
+            Kaymak: sayiDegeri(kayit.kaymak),
+          })),
+        },
+      ]);
+    } catch (error: any) {
+      alert(`Excel indirilemedi: ${error?.message || "Bilinmeyen hata"}`);
+    } finally {
+      setIsExcelLoading(false);
+    }
+  };
+
   return (
     <div className="tab-fade-in main-content-area">
       <div className="card" style={{ borderLeft: "4px solid #ea580c", marginBottom: "8px", padding: "8px 10px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "6px", marginBottom: "6px", flexWrap: "wrap" }}>
           <h3 style={{ margin: 0, color: "#9a3412", fontSize: "14px", lineHeight: 1.1 }}>Sevkiyat</h3>
           <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", marginLeft: "auto" }}>
+            <button onClick={() => void handleExcelIndir()} disabled={isExcelLoading} className="p-btn btn-anim" style={{ background: "#0f766e", minWidth: "96px", height: "30px", padding: "0 10px", fontSize: "11px", opacity: isExcelLoading ? 0.7 : 1, cursor: isExcelLoading ? "wait" : "pointer" }}>
+              {isExcelLoading ? "Hazır..." : "📥 EXCEL"}
+            </button>
             <div style={{ minWidth: "58px", border: "1px solid #ea580c33", background: "#fff7ed", color: "#c2410c", borderRadius: "8px", padding: "3px 5px", textAlign: "center" }}>
               <div style={{ fontSize: "7px", fontWeight: "bold", lineHeight: 1.05 }}>TOP 3 KG</div>
               <div style={{ fontSize: "11px", fontWeight: "bold", marginTop: "2px", lineHeight: 1 }}>{fSayiNoDec(sevkiyatToplamlari.yogurt3kg)}</div>

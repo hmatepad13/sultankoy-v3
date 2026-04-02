@@ -20,6 +20,7 @@ type SatisFisBayiAdiFn = (fis?: Partial<SatisFis> | null) => string;
 type FisGorunenBayiFn = (fis: SatisFis) => string;
 
 interface SatisPanelProps {
+  aktifDonem: string;
   satisFiltreTip: SatisFiltreTip;
   setSatisFiltreTip: Dispatch<SetStateAction<SatisFiltreTip>>;
   satisFiltreKisi: SatisFiltreKisi;
@@ -126,6 +127,7 @@ const SatisTh = ({
 );
 
 export function SatisPanel({
+  aktifDonem,
   satisFiltreTip,
   setSatisFiltreTip,
   satisFiltreKisi,
@@ -152,6 +154,7 @@ export function SatisPanel({
 }: SatisPanelProps) {
   const [openDropdown, setOpenDropdown] = useState<null | { type: "satis"; id: string }>(null);
   const [activeFilterModal, setActiveFilterModal] = useState<AktifFilterModal>(null);
+  const [isExcelLoading, setIsExcelLoading] = useState(false);
 
   useEffect(() => {
     if (!openDropdown) return;
@@ -180,6 +183,50 @@ export function SatisPanel({
     }));
   };
 
+  const handleExcelIndir = async () => {
+    setIsExcelLoading(true);
+    try {
+      const { excelDosyasiIndir } = await import("../lib/excelExport");
+      excelDosyasiIndir(`sultankoy-satis-${aktifDonem}.xlsx`, [
+        {
+          name: "Ozet",
+          rows: [
+            {
+              Donem: aktifDonem,
+              "Tip Filtresi": satisFiltreTip,
+              "Kisi Filtresi": satisFiltreKisi,
+              "Toplam Satis": tFisToplam,
+              Tahsilat: tFisTahsilatRaw,
+              Gider: tKullaniciGider,
+              "Kasaya Devir": tKasayaDevir,
+              "Net Tahsilat": tNetTahsilat,
+              "Acik Hesap": tFisKalan,
+            },
+          ],
+        },
+        {
+          name: "Satis Fisleri",
+          rows: fFisList.map((fis) => ({
+            Tarih: fis.tarih,
+            Bayi: visibility.fisGorunenBayi(fis),
+            "Fis No": fis.fis_no,
+            Tutar: Number(fis.toplam_tutar || 0),
+            Tahsilat: Number(fis.tahsilat || 0),
+            "Bu Fisten Kalan": Number(fis.kalan_bakiye || 0),
+            "Toplam Borc": fis.id ? satisFisToplamBorcMap[String(fis.id)] ?? 0 : 0,
+            "Odeme Turu": fis.odeme_turu,
+            Aciklama: fis.aciklama || "",
+            Kisi: fis.ekleyen ? fis.ekleyen.split("@")[0] : "",
+          })),
+        },
+      ]);
+    } catch (error: any) {
+      alert(`Excel indirilemedi: ${error?.message || "Bilinmeyen hata"}`);
+    } finally {
+      setIsExcelLoading(false);
+    }
+  };
+
   return (
     <>
       <div className="tab-fade-in main-content-area">
@@ -187,6 +234,7 @@ export function SatisPanel({
           <button onClick={actions.onOpenNewFis} className="btn-anim m-btn green-btn" style={{ margin: 0, flex: 2, fontSize: "13px" }}>➕ YENİ SATIŞ FİŞİ</button>
           <button onClick={actions.onOpenNewTahsilat} className="btn-anim m-btn blue-btn" style={{ margin: 0, flex: 1.2, fontSize: "13px", background: "#3b82f6" }}>💸 TAHSİLAT</button>
           <button onClick={actions.onOpenNewKasaDevir} className="btn-anim m-btn" style={{ margin: 0, flex: 1, fontSize: "13px", background: "#64748b", padding: "12px 0" }}>🏦 KASA DEVİR</button>
+          <button onClick={() => void handleExcelIndir()} disabled={isExcelLoading} className="btn-anim m-btn" style={{ margin: 0, flex: 0.9, fontSize: "12px", background: "#0f766e", padding: "12px 0", opacity: isExcelLoading ? 0.75 : 1, cursor: isExcelLoading ? "wait" : "pointer" }}>{isExcelLoading ? "HAZIR..." : "📥 EXCEL"}</button>
         </div>
 
         <div style={{ display: "flex", gap: "10px", marginBottom: "12px" }}>

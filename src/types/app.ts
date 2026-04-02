@@ -9,7 +9,6 @@ export type ActiveAyarTab =
   | "gider_turleri"
   | "cop_kutusu"
   | "depolama"
-  | "yedekleme"
   | "yetkiler"
   | "kullanici_yonetimi";
 

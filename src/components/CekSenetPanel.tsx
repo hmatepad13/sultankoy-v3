@@ -126,6 +126,7 @@ export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem, onConfirm }: Cek
   const [detayKaydi, setDetayKaydi] = useState<CekSenetKaydi | null>(null);
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [gorselOnizleme, setGorselOnizleme] = useState<{ src: string; baslik: string } | null>(null);
+  const [isExcelLoading, setIsExcelLoading] = useState(false);
   const onYuzInputRef = useRef<HTMLInputElement | null>(null);
   const arkaYuzInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -177,6 +178,42 @@ export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem, onConfirm }: Cek
   const donemKayitlari = [...kayitlar]
     .filter((kayit) => String(kayit.tarih || "").startsWith(aktifDonem))
     .sort((a, b) => `${b.tarih}${b.createdAt || ""}`.localeCompare(`${a.tarih}${a.createdAt || ""}`));
+
+  const handleExcelIndir = async () => {
+    setIsExcelLoading(true);
+    try {
+      const { excelDosyasiIndir } = await import("../lib/excelExport");
+      excelDosyasiIndir(`sultankoy-cek-senet-${aktifDonem}.xlsx`, [
+        {
+          name: "Ozet",
+          rows: [
+            {
+              Donem: aktifDonem,
+              Kayit: donemKayitlari.length,
+              Toplam: donemKayitlari.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.miktar), 0),
+            },
+          ],
+        },
+        {
+          name: "Cek Senet",
+          rows: donemKayitlari.map((kayit) => ({
+            Tarih: kayit.tarih,
+            Tur: turBilgisiGetir(kayit.tur).etiket,
+            Durum: durumBilgisiGetir(kayit.durum).etiket,
+            Duzenleyen: kayit.duzenleyen,
+            "Tahsil Tarihi": kayit.tahTarihi,
+            Tutar: sayiDegeri(kayit.miktar),
+            Banka: kayit.banka,
+            Ekleyen: normalizeUsername(kayit.ekleyen),
+          })),
+        },
+      ]);
+    } catch (error: any) {
+      alert(`Excel indirilemedi: ${error?.message || "Bilinmeyen hata"}`);
+    } finally {
+      setIsExcelLoading(false);
+    }
+  };
 
   const yeniKayitAc = () => {
     setEditingId(null);
@@ -378,9 +415,14 @@ export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem, onConfirm }: Cek
       <div className="card" style={{ borderLeft: "4px solid #0f766e", marginBottom: "8px", padding: "10px 12px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
           <h3 style={{ margin: 0, color: "#0f766e", fontSize: "16px" }}>Çek-Senet</h3>
-          <button onClick={yeniKayitAc} className="p-btn btn-anim" style={{ background: "#0f766e", minWidth: "118px", height: "34px", padding: "0 14px", fontSize: "12px", marginLeft: "auto" }}>
-            + EKLE
-          </button>
+          <div style={{ display: "flex", gap: "8px", marginLeft: "auto", flexWrap: "wrap" }}>
+            <button onClick={() => void handleExcelIndir()} disabled={isExcelLoading} className="p-btn btn-anim" style={{ background: "#0369a1", minWidth: "112px", height: "34px", padding: "0 14px", fontSize: "12px", opacity: isExcelLoading ? 0.7 : 1, cursor: isExcelLoading ? "wait" : "pointer" }}>
+              {isExcelLoading ? "Hazır..." : "📥 EXCEL"}
+            </button>
+            <button onClick={yeniKayitAc} className="p-btn btn-anim" style={{ background: "#0f766e", minWidth: "118px", height: "34px", padding: "0 14px", fontSize: "12px" }}>
+              + EKLE
+            </button>
+          </div>
         </div>
       </div>
 

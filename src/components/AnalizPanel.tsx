@@ -4,6 +4,7 @@ import type { Bayi, SatisGiris, SortConfig, Urun } from "../types/app";
 type AnalizFilterModal = "analiz_bayi" | "analiz_urun" | "analiz_tarih" | null;
 
 type AnalizPanelProps = {
+  aktifDonem: string;
   periodSatisList: SatisGiris[];
   bayiler: Bayi[];
   urunler: Urun[];
@@ -126,7 +127,7 @@ function AnalizTh({
   );
 }
 
-export function AnalizPanel({ periodSatisList, bayiler, urunler, helpers }: AnalizPanelProps) {
+export function AnalizPanel({ aktifDonem, periodSatisList, bayiler, urunler, helpers }: AnalizPanelProps) {
   const [analizFiltre, setAnalizFiltre] = useState<{
     bayiler: string[];
     urunler: string[];
@@ -135,6 +136,7 @@ export function AnalizPanel({ periodSatisList, bayiler, urunler, helpers }: Anal
   }>({ bayiler: [], urunler: [], baslangic: "", bitis: "" });
   const [analizSort, setAnalizSort] = useState<SortConfig>({ key: "tarih", direction: "desc" });
   const [activeFilterModal, setActiveFilterModal] = useState<AnalizFilterModal>(null);
+  const [isExcelLoading, setIsExcelLoading] = useState(false);
 
   const bayiMap = useMemo(() => new Map(bayiler.map((item) => [item.id, item.isim])), [bayiler]);
   const urunMap = useMemo(() => new Map(urunler.map((item) => [item.id, item.isim])), [urunler]);
@@ -183,9 +185,50 @@ export function AnalizPanel({ periodSatisList, bayiler, urunler, helpers }: Anal
     });
   };
 
+  const handleExcelIndir = async () => {
+    setIsExcelLoading(true);
+    try {
+      const { excelDosyasiIndir } = await import("../lib/excelExport");
+      excelDosyasiIndir(`sultankoy-analiz-${aktifDonem}.xlsx`, [
+        {
+          name: "Ozet",
+          rows: [
+            {
+              Donem: aktifDonem,
+              Adet: tAnalizAdet,
+              KG: tAnalizKg,
+              Tutar: tAnalizTutar,
+            },
+          ],
+        },
+        {
+          name: "Analiz",
+          rows: fAnalizList.map((satir) => ({
+            Tarih: satir.tarih,
+            Bayi: satisSatiriBayiAdiGetir(satir),
+            Urun: satisSatiriUrunAdiGetir(satir),
+            Adet: Number(satir.adet || 0),
+            KG: Number(satir.toplam_kg || 0),
+            Fiyat: Number(satir.fiyat || 0),
+            Tutar: Number(satir.tutar || 0),
+          })),
+        },
+      ]);
+    } catch (error: any) {
+      alert(`Excel indirilemedi: ${error?.message || "Bilinmeyen hata"}`);
+    } finally {
+      setIsExcelLoading(false);
+    }
+  };
+
   return (
     <>
       <div className="tab-fade-in main-content-area">
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "8px" }}>
+          <button onClick={() => void handleExcelIndir()} disabled={isExcelLoading} className="btn-anim m-btn" style={{ margin: 0, minWidth: "118px", width: "auto", fontSize: "12px", background: "#0f766e", opacity: isExcelLoading ? 0.75 : 1, cursor: isExcelLoading ? "wait" : "pointer" }}>
+            {isExcelLoading ? "Hazırlanıyor..." : "📥 EXCEL"}
+          </button>
+        </div>
         <div className="compact-totals auto" style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "10px", marginTop: "5px" }}>
           {[
             { etiket: "TOP ADET", deger: helpers.fSayi(tAnalizAdet) },

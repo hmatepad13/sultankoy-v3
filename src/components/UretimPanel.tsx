@@ -171,6 +171,7 @@ export function UretimPanel({
   );
   const [uretimSort, setUretimSort] = useState<SortConfig>({ key: "tarih", direction: "desc" });
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+  const [isExcelLoading, setIsExcelLoading] = useState(false);
 
   useEffect(() => {
     if (isUretimModalOpen || editingUretimId) return;
@@ -684,9 +685,69 @@ export function UretimPanel({
     );
   };
 
+  const handleExcelIndir = async () => {
+    setIsExcelLoading(true);
+    try {
+      const { excelDosyasiIndir } = await import("../lib/excelExport");
+      excelDosyasiIndir(`sultankoy-uretim-${aktifDonem}.xlsx`, [
+        {
+          name: "Ozet",
+          rows: [
+            {
+              Donem: aktifDonem,
+              "Yogurt Kayit": yogurtUretimListesi.length,
+              "Yogurt Maliyet": yogurtUretimListesi.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.toplam_maliyet), 0),
+              "Yogurt Kar": yogurtUretimListesi.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.kar), 0),
+              "Kaymak Kayit": sutKaymagiUretimListesi.length,
+              "Kaymak Maliyet": sutKaymagiUretimListesi.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.toplam_maliyet), 0),
+              "Kaymak Kar": sutKaymagiUretimListesi.reduce((toplam, kayit) => toplam + sayiDegeri(kayit.kar), 0),
+            },
+          ],
+        },
+        {
+          name: "Yogurt",
+          rows: yogurtUretimListesi.map((kayit) => ({
+            Tarih: kayit.tarih,
+            "Giren KG": uretimGirenToplamKg(kayit),
+            "Cikan KG": uretimCikanToplamKg(kayit),
+            "3 Luk": sayiDegeri(kayit.cikti_3kg),
+            "5 Lik": sayiDegeri(kayit.cikti_5kg),
+            Maliyet: sayiDegeri(kayit.toplam_maliyet),
+            Kar: sayiDegeri(kayit.kar),
+            Aciklama: kayit.aciklama || "",
+            Kisi: normalizeUsername(kayit.ekleyen),
+          })),
+        },
+        {
+          name: "Sut Kaymagi",
+          rows: sutKaymagiUretimListesi.map((kayit) => ({
+            Tarih: kayit.tarih,
+            "Giren KG": uretimGirenToplamKg(kayit),
+            "Cikan KG": uretimCikanToplamKg(kayit),
+            "2 KG": sayiDegeri(kayit.cikti_2kg),
+            "3 KG": sayiDegeri(kayit.cikti_3kg),
+            Maliyet: sayiDegeri(kayit.toplam_maliyet),
+            Kar: sayiDegeri(kayit.kar),
+            Aciklama: kayit.aciklama || "",
+            Kisi: normalizeUsername(kayit.ekleyen),
+          })),
+        },
+      ]);
+    } catch (error: any) {
+      alert(`Excel indirilemedi: ${error?.message || "Bilinmeyen hata"}`);
+    } finally {
+      setIsExcelLoading(false);
+    }
+  };
+
   return (
     <>
       <div className="tab-fade-in main-content-area">
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "10px" }}>
+          <button onClick={() => void handleExcelIndir()} disabled={isExcelLoading} className="btn-anim m-btn" style={{ margin: 0, minWidth: "118px", width: "auto", fontSize: "12px", background: "#0f766e", opacity: isExcelLoading ? 0.75 : 1, cursor: isExcelLoading ? "wait" : "pointer" }}>
+            {isExcelLoading ? "Hazırlanıyor..." : "📥 EXCEL"}
+          </button>
+        </div>
         {renderUretimTablosu("Yoğurt Üretimleri", yogurtUretimListesi, "#8b5cf6", "➕ YENİ YOĞURT ÜRETİMİ", () => yeniUretimFormunuAc("yogurt"), "yogurt")}
         {renderUretimTablosu("Süt Kaymağı Üretimleri", sutKaymagiUretimListesi, "#0f766e", "➕ YENİ SÜT KAYMAĞI ÜRETİMİ", () => yeniUretimFormunuAc("sut_kaymagi"), "sut_kaymagi")}
       </div>

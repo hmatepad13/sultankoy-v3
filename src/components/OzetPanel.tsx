@@ -17,6 +17,7 @@ type BayiBorcSatiri = {
 type OzetFilterModal = "ozet_bayi" | null;
 
 type OzetPanelProps = {
+  aktifDonem: string;
   aktifDonemSatisEtiketi: string;
   tOzetReelSatis: number;
   tOzetFisTahsilatRaw: number;
@@ -164,6 +165,7 @@ function OzetTh({
 }
 
 export function OzetPanel({
+  aktifDonem,
   aktifDonemSatisEtiketi,
   tOzetReelSatis,
   tOzetFisTahsilatRaw,
@@ -186,6 +188,7 @@ export function OzetPanel({
 }: OzetPanelProps) {
   const [activeFilterModal, setActiveFilterModal] = useState<OzetFilterModal>(null);
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+  const [isExcelLoading, setIsExcelLoading] = useState(false);
 
   useEffect(() => {
     if (!openDropdownId) return;
@@ -225,9 +228,59 @@ export function OzetPanel({
     });
   }, [bayiBorclari, ozetBorcFiltre.bayiler, ozetBorcSort]);
 
+  const handleExcelIndir = async () => {
+    setIsExcelLoading(true);
+    try {
+      const { excelDosyasiIndir } = await import("../lib/excelExport");
+      excelDosyasiIndir(`sultankoy-ozet-${aktifDonem}.xlsx`, [
+        {
+          name: "Ozet",
+          rows: [
+            {
+              Donem: aktifDonem,
+              "Donem Satisi": tOzetReelSatis,
+              Tahsilat: tOzetFisTahsilatRaw,
+              "Acik Hesap": bayiNetDurum,
+              "Devreden Bakiye": tOzetDevredenBakiye,
+              "Isletme Giderleri": tGiderNormal,
+              "Hammadde Odemeleri": tHammaddeOdemeleri,
+              "Hammadde Borcu": tHammaddeBorcu,
+            },
+          ],
+        },
+        {
+          name: "Bayi Borclari",
+          rows: filtrelenmisBayiBorclari.map((item) => ({
+            Musteri: item.isim,
+            Borc: item.borc,
+          })),
+        },
+        {
+          name: "Personel",
+          rows: personelOzetleri.map((item) => ({
+            Personel: item.isim,
+            Satis: item.satis,
+            Tahsilat: item.tahsilat,
+            Gider: item.gider,
+            "Kasaya Devir": item.kasayaDevir,
+            Net: item.net,
+            "Acik Bakiye": item.acikBakiye,
+          })),
+        },
+      ]);
+    } catch (error: any) {
+      alert(`Excel indirilemedi: ${error?.message || "Bilinmeyen hata"}`);
+    } finally {
+      setIsExcelLoading(false);
+    }
+  };
+
   return (
     <>
       <div className="tab-fade-in main-content-area" style={{ display: "flex", flexDirection: "column" }}>
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "8px" }}>
+          <button onClick={() => void handleExcelIndir()} disabled={isExcelLoading} className="btn-anim m-btn" style={{ margin: 0, minWidth: "118px", width: "auto", fontSize: "12px", background: "#0f766e", opacity: isExcelLoading ? 0.75 : 1, cursor: isExcelLoading ? "wait" : "pointer" }}>{isExcelLoading ? "Hazırlanıyor..." : "📥 EXCEL"}</button>
+        </div>
         {renderKompaktToplamlar(
           [
             { etiket: aktifDonemSatisEtiketi, deger: `${helpers.fSayiNoDec(tOzetReelSatis)} ₺`, renk: "#059669" },
