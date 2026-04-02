@@ -41,6 +41,7 @@ import type {
   AdminKullanici,
   AppConfirmOptions,
   AppTabId,
+  BackupDurumu,
   Bayi,
   Ciftlik,
   CopKutusu,
@@ -796,6 +797,9 @@ export default function App() {
   const [depolamaDurumu, setDepolamaDurumu] = useState<DepolamaDurumu | null>(null);
   const [isDepolamaLoading, setIsDepolamaLoading] = useState(false);
   const [depolamaHata, setDepolamaHata] = useState("");
+  const [backupDurumu, setBackupDurumu] = useState<BackupDurumu | null>(null);
+  const [isBackupDurumuLoading, setIsBackupDurumuLoading] = useState(false);
+  const [backupDurumuHata, setBackupDurumuHata] = useState("");
   const [startupDiagnostics, setStartupDiagnostics] = useState<StartupLogDiagnostics | null>(null);
   const [isStartupDiagnosticsLoading, setIsStartupDiagnosticsLoading] = useState(false);
   const [startupDiagnosticsError, setStartupDiagnosticsError] = useState("");
@@ -1858,6 +1862,40 @@ export default function App() {
       updatedAt: new Date().toISOString(),
     });
     setIsDepolamaLoading(false);
+  };
+
+  const backupDurumunuGetir = async (force = false) => {
+    if (isBackupDurumuLoading) return;
+    if (!force && backupDurumu) return;
+
+    setIsBackupDurumuLoading(true);
+    setBackupDurumuHata("");
+
+    try {
+      const response = await fetch("/api/backup-status", {
+        headers: {
+          Accept: "application/json",
+        },
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        const mesaj = await edgeFunctionCevapMesajiniOku(response);
+        setBackupDurumuHata(mesaj || "Bulut yedek durumu alinamadi.");
+        setIsBackupDurumuLoading(false);
+        return;
+      }
+
+      const data = await response.json() as BackupDurumu;
+      setBackupDurumu({
+        ...data,
+        updatedAt: data.updatedAt || new Date().toISOString(),
+      });
+    } catch (error) {
+      setBackupDurumuHata(`Bulut yedek durumu alinamadi: ${error instanceof Error ? error.message : "Bilinmeyen hata"}`);
+    } finally {
+      setIsBackupDurumuLoading(false);
+    }
   };
 
   const startupTaniOzetiniGetir = useCallback(async (force = false) => {
@@ -4275,6 +4313,9 @@ export default function App() {
         if (tab === "depolama" && !depolamaDurumu && !isDepolamaLoading && !depolamaHata) {
           void depolamaDurumunuGetir();
         }
+        if (tab === "depolama" && !backupDurumu && !isBackupDurumuLoading && !backupDurumuHata) {
+          void backupDurumunuGetir();
+        }
         if (tab === "performans" && isAdmin && !startupDiagnostics && !isStartupDiagnosticsLoading && !startupDiagnosticsError) {
           void startupTaniOzetiniGetir();
         }
@@ -4336,6 +4377,10 @@ export default function App() {
       isDepolamaLoading,
       depolamaHata,
       onLoadDepolama: depolamaDurumunuGetir,
+      backupDurumu,
+      isBackupDurumuLoading,
+      backupDurumuHata,
+      onLoadBackupDurumu: backupDurumunuGetir,
       isAdmin,
       mevcutKullanici,
       adminKullanicilar,

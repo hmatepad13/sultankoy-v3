@@ -283,6 +283,18 @@ export interface DepolamaDurumu {
   updatedAt: string;
 }
 
+export interface BackupDurumu {
+  enabled: boolean;
+  summaryText: string;
+  scheduleLabel: string;
+  destinationLabel: string;
+  backupRepoUrl?: string | null;
+  workflowUrl?: string | null;
+  lastSuccessfulAt?: string | null;
+  lastSuccessfulRunUrl?: string | null;
+  updatedAt: string;
+}
+
 export interface StartupGunOzeti {
   gun: string;
   sessionCount: number;

@@ -6,6 +6,7 @@ import type {
   AdminKullanici,
   AppConfirmOptions,
   AppTabId,
+  BackupDurumu,
   Bayi,
   Ciftlik,
   CopKutusu,
@@ -50,6 +51,10 @@ interface SettingsPanelProps {
   isDepolamaLoading: boolean;
   depolamaHata: string;
   onLoadDepolama: (force?: boolean) => void;
+  backupDurumu: BackupDurumu | null;
+  isBackupDurumuLoading: boolean;
+  backupDurumuHata: string;
+  onLoadBackupDurumu: (force?: boolean) => Promise<void> | void;
   isAdmin: boolean;
   mevcutKullanici: string;
   adminKullanicilar: AdminKullanici[];
@@ -261,6 +266,10 @@ export function SettingsPanel({
   isDepolamaLoading,
   depolamaHata,
   onLoadDepolama,
+  backupDurumu,
+  isBackupDurumuLoading,
+  backupDurumuHata,
+  onLoadBackupDurumu,
   isAdmin,
   mevcutKullanici,
   adminKullanicilar,
@@ -1789,6 +1798,81 @@ export function SettingsPanel({
           <div style={{ display: "grid", gap: "12px", overflowY: "auto" }}>
             <div style={kartStili}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px", flexWrap: "wrap", marginBottom: "8px" }}>
+                <h3 style={{ margin: 0, fontSize: "15px", color: "#0f172a" }}>Bulut Yedek Durumu</h3>
+                <button
+                  onClick={() => void onLoadBackupDurumu(true)}
+                  disabled={isBackupDurumuLoading}
+                  style={{
+                    background: "#0f766e",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "8px",
+                    padding: "7px 12px",
+                    fontWeight: "bold",
+                    cursor: isBackupDurumuLoading ? "wait" : "pointer",
+                    fontSize: "12px",
+                  }}
+                >
+                  {isBackupDurumuLoading ? "Yenileniyor..." : "Yenile"}
+                </button>
+              </div>
+              <div
+                style={{
+                  background: "#ecfdf5",
+                  border: "1px solid #99f6e4",
+                  borderRadius: "10px",
+                  padding: "12px",
+                  display: "grid",
+                  gap: "10px",
+                }}
+              >
+                <div style={{ color: "#0f766e", fontWeight: 700, fontSize: "13px", lineHeight: 1.5 }}>
+                  {backupDurumu?.summaryText || "Tam yedek alınıyor ve buluta yükleniyor."}
+                </div>
+                <div style={{ display: "grid", gap: "6px", fontSize: "12px", color: "#134e4a" }}>
+                  <div><strong>Takvim:</strong> {backupDurumu?.scheduleLabel || "Her gün 03:17"}</div>
+                  <div><strong>Hedef:</strong> {backupDurumu?.destinationLabel || "GitHub bulut yedek deposu"}</div>
+                  <div><strong>Son başarılı yedek:</strong> {tarihSaatMetni(backupDurumu?.lastSuccessfulAt || null)}</div>
+                </div>
+                {(backupDurumu?.backupRepoUrl || backupDurumu?.lastSuccessfulRunUrl) && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", fontSize: "12px" }}>
+                    {backupDurumu?.backupRepoUrl && (
+                      <a href={backupDurumu.backupRepoUrl} target="_blank" rel="noreferrer" style={{ color: "#0f766e", fontWeight: 700 }}>
+                        Backup repo
+                      </a>
+                    )}
+                    {backupDurumu?.lastSuccessfulRunUrl && (
+                      <a href={backupDurumu.lastSuccessfulRunUrl} target="_blank" rel="noreferrer" style={{ color: "#0369a1", fontWeight: 700 }}>
+                        Son başarılı koşu
+                      </a>
+                    )}
+                  </div>
+                )}
+              </div>
+              {backupDurumu?.updatedAt && (
+                <div style={{ marginTop: "8px", color: "#94a3b8", fontSize: "11px", textAlign: "right" }}>
+                  Son durum güncelleme: {tarihSaatMetni(backupDurumu.updatedAt)}
+                </div>
+              )}
+            </div>
+
+            {backupDurumuHata && (
+              <div
+                style={{
+                  ...kartStili,
+                  background: "#fff7ed",
+                  borderColor: "#fdba74",
+                  color: "#9a3412",
+                  fontSize: "12px",
+                  lineHeight: 1.5,
+                }}
+              >
+                {backupDurumuHata}
+              </div>
+            )}
+
+            <div style={kartStili}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px", flexWrap: "wrap", marginBottom: "8px" }}>
                 <h3 style={{ margin: 0, fontSize: "15px", color: "#0f172a" }}>Depolama Durumu</h3>
                 <button
                   onClick={() => onLoadDepolama(true)}
@@ -1811,7 +1895,7 @@ export function SettingsPanel({
                 Bu veri sadece bu sekme acildiginda cekilir. Toplam alan bilgisi mevcut Free plan limitlerine gore gosterilir.
               </p>
               <p style={{ margin: "8px 0 0", color: "#0f766e", fontSize: "12px", lineHeight: 1.5, fontWeight: "bold" }}>
-                Tam sistem yedeği GitHub tarafında her gün otomatik alınır. Uygulama içindeki Excel butonları ise yalnızca açık sekmenin dışa aktarımı içindir.
+                Uygulama içindeki Excel butonları yalnızca açık sekmenin dışa aktarımıdır. Felaket kurtarma için kullanılan tam yedek ise yukarıdaki bulut yedek akışıdır.
               </p>
             </div>
 
