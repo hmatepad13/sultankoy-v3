@@ -10,7 +10,6 @@ permissions:
 
 jobs:
   full-backup:
-    if: ${{ secrets.BACKUP_REPO != '' && secrets.BACKUP_REPO_TOKEN != '' && secrets.SUPABASE_DB_URL != '' && secrets.SUPABASE_URL != '' && secrets.SUPABASE_SERVICE_ROLE_KEY != '' && secrets.VERCEL_TOKEN != '' && secrets.BACKUP_ENV_PASSPHRASE != '' }}
     runs-on: ubuntu-latest
     env:
       BACKUP_BUCKETS: fis_gorselleri
