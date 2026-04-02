@@ -121,6 +121,28 @@ const tarihSaatMetni = (deger?: string | null) => {
   return tarih.toLocaleString("tr-TR");
 };
 
+const taniKartStili = {
+  display: "grid",
+  gap: "6px",
+  padding: "10px",
+  borderRadius: "10px",
+  background: "#f8fafc",
+  border: "1px solid #e2e8f0",
+} as const;
+
+const taniEtiketStili = {
+  fontSize: "11px",
+  fontWeight: "bold",
+  color: "#64748b",
+} as const;
+
+const taniDegerStili = {
+  fontSize: "12px",
+  color: "#0f172a",
+  lineHeight: 1.45,
+  wordBreak: "break-word",
+} as const;
+
 const RESTORE_DESTEKLI_TABLOLAR = new Set([
   "satis_fisleri",
   "sut_giris",
@@ -271,6 +293,7 @@ export function SettingsPanel({
   const [sifreSifirlamaForm, setSifreSifirlamaForm] = useState({ userId: "", newPassword: "" });
   const [adminMesaji, setAdminMesaji] = useState<{ tip: "success" | "error"; metin: string } | null>(null);
   const [ayarArama, setAyarArama] = useState("");
+  const [isDarEkran, setIsDarEkran] = useState(() => (typeof window !== "undefined" ? window.innerWidth <= 980 : false));
 
   const gosterilecekAyarTablari = useMemo(
     () =>
@@ -350,6 +373,13 @@ export function SettingsPanel({
       void onLoadStartupDiagnostics();
     }
   }, [activeAyarTab, isAdmin, onLoadStartupDiagnostics]);
+
+  useEffect(() => {
+    const handleResize = () => setIsDarEkran(window.innerWidth <= 980);
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const handleSifreDegistir = async () => {
     const eskiSifre = sifreForm.eski.trim();
@@ -758,37 +788,74 @@ export function SettingsPanel({
                     <h4 style={{ margin: 0, fontSize: "14px", color: "#0f172a" }}>Tablo Bazlı Fetch Süresi</h4>
                     <span style={{ fontSize: "11px", color: "#64748b" }}>Ortalamaya göre sıralı</span>
                   </div>
-                  <table className="tbl" style={{ minWidth: "100%", tableLayout: "fixed" }}>
-                    <thead>
-                      <tr>
-                        <th style={{ width: "22%" }}>Tablo</th>
-                        <th style={{ width: "12%" }}>Örnek</th>
-                        <th style={{ width: "16%" }}>Ort.</th>
-                        <th style={{ width: "16%" }}>P50</th>
-                        <th style={{ width: "16%" }}>P95</th>
-                        <th style={{ width: "18%" }}>Satır Ort.</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                  {isDarEkran ? (
+                    <div style={{ display: "grid", gap: "8px" }}>
                       {startupDiagnostics.tableMetrics.map((item) => (
-                        <tr key={item.table}>
-                          <td style={{ fontWeight: "bold", color: "#0f172a" }}>{item.table}</td>
-                          <td>{sayiMetni(item.sampleCount)}</td>
-                          <td>{msMetni(item.avgMs)}</td>
-                          <td>{msMetni(item.p50Ms)}</td>
-                          <td>{msMetni(item.p95Ms)}</td>
-                          <td>{sayiMetni(item.avgRowCount)}</td>
-                        </tr>
+                        <div key={item.table} style={taniKartStili}>
+                          <div style={{ fontSize: "13px", fontWeight: "bold", color: "#0f172a" }}>{item.table}</div>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "8px" }}>
+                            <div>
+                              <div style={taniEtiketStili}>Örnek</div>
+                              <div style={taniDegerStili}>{sayiMetni(item.sampleCount)}</div>
+                            </div>
+                            <div>
+                              <div style={taniEtiketStili}>Satır Ort.</div>
+                              <div style={taniDegerStili}>{sayiMetni(item.avgRowCount)}</div>
+                            </div>
+                            <div>
+                              <div style={taniEtiketStili}>Ort.</div>
+                              <div style={taniDegerStili}>{msMetni(item.avgMs)}</div>
+                            </div>
+                            <div>
+                              <div style={taniEtiketStili}>P50</div>
+                              <div style={taniDegerStili}>{msMetni(item.p50Ms)}</div>
+                            </div>
+                            <div>
+                              <div style={taniEtiketStili}>P95</div>
+                              <div style={taniDegerStili}>{msMetni(item.p95Ms)}</div>
+                            </div>
+                          </div>
+                        </div>
                       ))}
                       {startupDiagnostics.tableMetrics.length === 0 && (
-                        <tr>
-                          <td colSpan={6} style={{ textAlign: "center", color: "#94a3b8" }}>
-                            Tablo bazlı startup verisi yok.
-                          </td>
-                        </tr>
+                        <div style={{ textAlign: "center", color: "#94a3b8", fontSize: "12px" }}>
+                          Tablo bazlı startup verisi yok.
+                        </div>
                       )}
-                    </tbody>
-                  </table>
+                    </div>
+                  ) : (
+                    <table className="tbl" style={{ minWidth: "100%", tableLayout: "fixed" }}>
+                      <thead>
+                        <tr>
+                          <th style={{ width: "22%" }}>Tablo</th>
+                          <th style={{ width: "12%" }}>Örnek</th>
+                          <th style={{ width: "16%" }}>Ort.</th>
+                          <th style={{ width: "16%" }}>P50</th>
+                          <th style={{ width: "16%" }}>P95</th>
+                          <th style={{ width: "18%" }}>Satır Ort.</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {startupDiagnostics.tableMetrics.map((item) => (
+                          <tr key={item.table}>
+                            <td style={{ fontWeight: "bold", color: "#0f172a" }}>{item.table}</td>
+                            <td>{sayiMetni(item.sampleCount)}</td>
+                            <td>{msMetni(item.avgMs)}</td>
+                            <td>{msMetni(item.p50Ms)}</td>
+                            <td>{msMetni(item.p95Ms)}</td>
+                            <td>{sayiMetni(item.avgRowCount)}</td>
+                          </tr>
+                        ))}
+                        {startupDiagnostics.tableMetrics.length === 0 && (
+                          <tr>
+                            <td colSpan={6} style={{ textAlign: "center", color: "#94a3b8" }}>
+                              Tablo bazlı startup verisi yok.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  )}
                 </div>
 
                 <div style={{ ...kartStili, overflowX: "auto" }}>
@@ -796,39 +863,79 @@ export function SettingsPanel({
                     <h4 style={{ margin: 0, fontSize: "14px", color: "#0f172a" }}>Son Açılış Oturumları</h4>
                     <span style={{ fontSize: "11px", color: "#64748b" }}>En yeni oturumlar</span>
                   </div>
-                  <table className="tbl" style={{ minWidth: "100%", tableLayout: "fixed" }}>
-                    <thead>
-                      <tr>
-                        <th style={{ width: "24%" }}>Zaman</th>
-                        <th style={{ width: "18%" }}>Kullanıcı</th>
-                        <th style={{ width: "10%" }}>Dönem</th>
-                        <th style={{ width: "12%" }}>Toplam</th>
-                        <th style={{ width: "12%" }}>Fetch</th>
-                        <th style={{ width: "12%" }}>Render</th>
-                        <th style={{ width: "12%" }}>Sekme</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                  {isDarEkran ? (
+                    <div style={{ display: "grid", gap: "8px" }}>
                       {startupDiagnostics.recentSessions.map((oturum) => (
-                        <tr key={`${oturum.sessionId}-${oturum.createdAt}`}>
-                          <td>{tarihSaatMetni(oturum.createdAt)}</td>
-                          <td style={{ fontWeight: "bold", color: "#0f172a" }}>{oturum.userEmail || "-"}</td>
-                          <td>{oturum.aktifDonem || "-"}</td>
-                          <td>{msMetni(oturum.durationMs)}</td>
-                          <td>{msMetni(oturum.fetchMs)}</td>
-                          <td>{msMetni(oturum.renderMs)}</td>
-                          <td>{oturum.activeTab || "-"}</td>
-                        </tr>
+                        <div key={`${oturum.sessionId}-${oturum.createdAt}`} style={taniKartStili}>
+                          <div style={{ fontSize: "13px", fontWeight: "bold", color: "#0f172a" }}>
+                            {oturum.userEmail || "-"}
+                          </div>
+                          <div style={taniEtiketStili}>{tarihSaatMetni(oturum.createdAt)}</div>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "8px" }}>
+                            <div>
+                              <div style={taniEtiketStili}>Dönem</div>
+                              <div style={taniDegerStili}>{oturum.aktifDonem || "-"}</div>
+                            </div>
+                            <div>
+                              <div style={taniEtiketStili}>Sekme</div>
+                              <div style={taniDegerStili}>{oturum.activeTab || "-"}</div>
+                            </div>
+                            <div>
+                              <div style={taniEtiketStili}>Toplam</div>
+                              <div style={taniDegerStili}>{msMetni(oturum.durationMs)}</div>
+                            </div>
+                            <div>
+                              <div style={taniEtiketStili}>Fetch</div>
+                              <div style={taniDegerStili}>{msMetni(oturum.fetchMs)}</div>
+                            </div>
+                            <div>
+                              <div style={taniEtiketStili}>Render</div>
+                              <div style={taniDegerStili}>{msMetni(oturum.renderMs)}</div>
+                            </div>
+                          </div>
+                        </div>
                       ))}
                       {startupDiagnostics.recentSessions.length === 0 && (
-                        <tr>
-                          <td colSpan={7} style={{ textAlign: "center", color: "#94a3b8" }}>
-                            Görüntülenecek startup oturumu yok.
-                          </td>
-                        </tr>
+                        <div style={{ textAlign: "center", color: "#94a3b8", fontSize: "12px" }}>
+                          Görüntülenecek startup oturumu yok.
+                        </div>
                       )}
-                    </tbody>
-                  </table>
+                    </div>
+                  ) : (
+                    <table className="tbl" style={{ minWidth: "100%", tableLayout: "fixed" }}>
+                      <thead>
+                        <tr>
+                          <th style={{ width: "24%" }}>Zaman</th>
+                          <th style={{ width: "18%" }}>Kullanıcı</th>
+                          <th style={{ width: "10%" }}>Dönem</th>
+                          <th style={{ width: "12%" }}>Toplam</th>
+                          <th style={{ width: "12%" }}>Fetch</th>
+                          <th style={{ width: "12%" }}>Render</th>
+                          <th style={{ width: "12%" }}>Sekme</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {startupDiagnostics.recentSessions.map((oturum) => (
+                          <tr key={`${oturum.sessionId}-${oturum.createdAt}`}>
+                            <td>{tarihSaatMetni(oturum.createdAt)}</td>
+                            <td style={{ fontWeight: "bold", color: "#0f172a" }}>{oturum.userEmail || "-"}</td>
+                            <td>{oturum.aktifDonem || "-"}</td>
+                            <td>{msMetni(oturum.durationMs)}</td>
+                            <td>{msMetni(oturum.fetchMs)}</td>
+                            <td>{msMetni(oturum.renderMs)}</td>
+                            <td>{oturum.activeTab || "-"}</td>
+                          </tr>
+                        ))}
+                        {startupDiagnostics.recentSessions.length === 0 && (
+                          <tr>
+                            <td colSpan={7} style={{ textAlign: "center", color: "#94a3b8" }}>
+                              Görüntülenecek startup oturumu yok.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  )}
                 </div>
 
                 <div style={{ display: "grid", gap: "10px", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))" }}>
@@ -849,41 +956,86 @@ export function SettingsPanel({
                     <h4 style={{ margin: 0, fontSize: "14px", color: "#0f172a" }}>İşlem Performansı</h4>
                     <span style={{ fontSize: "11px", color: "#64748b" }}>Eski app_performans_loglari özeti</span>
                   </div>
-                  <table className="tbl" style={{ minWidth: "100%", tableLayout: "fixed" }}>
-                    <thead>
-                      <tr>
-                        <th style={{ width: "22%" }}>Olay</th>
-                        <th style={{ width: "10%" }}>Kategori</th>
-                        <th style={{ width: "10%" }}>Sonuç</th>
-                        <th style={{ width: "10%" }}>Adet</th>
-                        <th style={{ width: "12%" }}>Ort.</th>
-                        <th style={{ width: "12%" }}>P50</th>
-                        <th style={{ width: "12%" }}>P95</th>
-                        <th style={{ width: "12%" }}>Yenileme</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                  {isDarEkran ? (
+                    <div style={{ display: "grid", gap: "8px" }}>
                       {startupDiagnostics.appPerformanceMetrics.map((item) => (
-                        <tr key={`${item.olay}-${item.kategori}-${item.sonuc}`}>
-                          <td style={{ fontWeight: "bold", color: "#0f172a" }}>{item.olay}</td>
-                          <td>{item.kategori || "-"}</td>
-                          <td>{item.sonuc || "-"}</td>
-                          <td>{sayiMetni(item.sampleCount)}</td>
-                          <td>{msMetni(item.avgMs)}</td>
-                          <td>{msMetni(item.p50Ms)}</td>
-                          <td>{msMetni(item.p95Ms)}</td>
-                          <td>{msMetni(item.avgYenilemeMs)}</td>
-                        </tr>
+                        <div key={`${item.olay}-${item.kategori}-${item.sonuc}`} style={taniKartStili}>
+                          <div style={{ fontSize: "13px", fontWeight: "bold", color: "#0f172a" }}>{item.olay}</div>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "8px" }}>
+                            <div>
+                              <div style={taniEtiketStili}>Kategori</div>
+                              <div style={taniDegerStili}>{item.kategori || "-"}</div>
+                            </div>
+                            <div>
+                              <div style={taniEtiketStili}>Sonuç</div>
+                              <div style={taniDegerStili}>{item.sonuc || "-"}</div>
+                            </div>
+                            <div>
+                              <div style={taniEtiketStili}>Adet</div>
+                              <div style={taniDegerStili}>{sayiMetni(item.sampleCount)}</div>
+                            </div>
+                            <div>
+                              <div style={taniEtiketStili}>Yenileme</div>
+                              <div style={taniDegerStili}>{msMetni(item.avgYenilemeMs)}</div>
+                            </div>
+                            <div>
+                              <div style={taniEtiketStili}>Ort.</div>
+                              <div style={taniDegerStili}>{msMetni(item.avgMs)}</div>
+                            </div>
+                            <div>
+                              <div style={taniEtiketStili}>P50</div>
+                              <div style={taniDegerStili}>{msMetni(item.p50Ms)}</div>
+                            </div>
+                            <div>
+                              <div style={taniEtiketStili}>P95</div>
+                              <div style={taniDegerStili}>{msMetni(item.p95Ms)}</div>
+                            </div>
+                          </div>
+                        </div>
                       ))}
                       {startupDiagnostics.appPerformanceMetrics.length === 0 && (
-                        <tr>
-                          <td colSpan={8} style={{ textAlign: "center", color: "#94a3b8" }}>
-                            İşlem performans kaydı bulunamadı.
-                          </td>
-                        </tr>
+                        <div style={{ textAlign: "center", color: "#94a3b8", fontSize: "12px" }}>
+                          İşlem performans kaydı bulunamadı.
+                        </div>
                       )}
-                    </tbody>
-                  </table>
+                    </div>
+                  ) : (
+                    <table className="tbl" style={{ minWidth: "100%", tableLayout: "fixed" }}>
+                      <thead>
+                        <tr>
+                          <th style={{ width: "22%" }}>Olay</th>
+                          <th style={{ width: "10%" }}>Kategori</th>
+                          <th style={{ width: "10%" }}>Sonuç</th>
+                          <th style={{ width: "10%" }}>Adet</th>
+                          <th style={{ width: "12%" }}>Ort.</th>
+                          <th style={{ width: "12%" }}>P50</th>
+                          <th style={{ width: "12%" }}>P95</th>
+                          <th style={{ width: "12%" }}>Yenileme</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {startupDiagnostics.appPerformanceMetrics.map((item) => (
+                          <tr key={`${item.olay}-${item.kategori}-${item.sonuc}`}>
+                            <td style={{ fontWeight: "bold", color: "#0f172a" }}>{item.olay}</td>
+                            <td>{item.kategori || "-"}</td>
+                            <td>{item.sonuc || "-"}</td>
+                            <td>{sayiMetni(item.sampleCount)}</td>
+                            <td>{msMetni(item.avgMs)}</td>
+                            <td>{msMetni(item.p50Ms)}</td>
+                            <td>{msMetni(item.p95Ms)}</td>
+                            <td>{msMetni(item.avgYenilemeMs)}</td>
+                          </tr>
+                        ))}
+                        {startupDiagnostics.appPerformanceMetrics.length === 0 && (
+                          <tr>
+                            <td colSpan={8} style={{ textAlign: "center", color: "#94a3b8" }}>
+                              İşlem performans kaydı bulunamadı.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  )}
                 </div>
 
                 <div style={{ ...kartStili, overflowX: "auto" }}>
@@ -891,39 +1043,74 @@ export function SettingsPanel({
                     <h4 style={{ margin: 0, fontSize: "14px", color: "#0f172a" }}>Son İşlem Performans Kayıtları</h4>
                     <span style={{ fontSize: "11px", color: "#64748b" }}>En yeni kayıtlar</span>
                   </div>
-                  <table className="tbl" style={{ minWidth: "100%", tableLayout: "fixed" }}>
-                    <thead>
-                      <tr>
-                        <th style={{ width: "22%" }}>Zaman</th>
-                        <th style={{ width: "18%" }}>Kullanıcı</th>
-                        <th style={{ width: "18%" }}>Olay</th>
-                        <th style={{ width: "10%" }}>Sonuç</th>
-                        <th style={{ width: "10%" }}>Toplam</th>
-                        <th style={{ width: "10%" }}>Kayıt</th>
-                        <th style={{ width: "12%" }}>Yenileme</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                  {isDarEkran ? (
+                    <div style={{ display: "grid", gap: "8px" }}>
                       {startupDiagnostics.appPerformanceRecent.map((item) => (
-                        <tr key={`${item.createdAt}-${item.olay}-${item.userEmail}`}>
-                          <td>{tarihSaatMetni(item.createdAt)}</td>
-                          <td style={{ fontWeight: "bold", color: "#0f172a" }}>{item.userEmail || "-"}</td>
-                          <td>{item.olay}</td>
-                          <td>{item.sonuc || "-"}</td>
-                          <td>{msMetni(item.toplamMs)}</td>
-                          <td>{msMetni(item.kayitMs)}</td>
-                          <td>{msMetni(item.yenilemeMs)}</td>
-                        </tr>
+                        <div key={`${item.createdAt}-${item.olay}-${item.userEmail}`} style={taniKartStili}>
+                          <div style={{ fontSize: "13px", fontWeight: "bold", color: "#0f172a" }}>{item.olay}</div>
+                          <div style={taniEtiketStili}>{tarihSaatMetni(item.createdAt)}</div>
+                          <div style={{ ...taniDegerStili, fontWeight: "bold" }}>{item.userEmail || "-"}</div>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "8px" }}>
+                            <div>
+                              <div style={taniEtiketStili}>Sonuç</div>
+                              <div style={taniDegerStili}>{item.sonuc || "-"}</div>
+                            </div>
+                            <div>
+                              <div style={taniEtiketStili}>Toplam</div>
+                              <div style={taniDegerStili}>{msMetni(item.toplamMs)}</div>
+                            </div>
+                            <div>
+                              <div style={taniEtiketStili}>Kayıt</div>
+                              <div style={taniDegerStili}>{msMetni(item.kayitMs)}</div>
+                            </div>
+                            <div>
+                              <div style={taniEtiketStili}>Yenileme</div>
+                              <div style={taniDegerStili}>{msMetni(item.yenilemeMs)}</div>
+                            </div>
+                          </div>
+                        </div>
                       ))}
                       {startupDiagnostics.appPerformanceRecent.length === 0 && (
-                        <tr>
-                          <td colSpan={7} style={{ textAlign: "center", color: "#94a3b8" }}>
-                            Gösterilecek işlem performans kaydı yok.
-                          </td>
-                        </tr>
+                        <div style={{ textAlign: "center", color: "#94a3b8", fontSize: "12px" }}>
+                          Gösterilecek işlem performans kaydı yok.
+                        </div>
                       )}
-                    </tbody>
-                  </table>
+                    </div>
+                  ) : (
+                    <table className="tbl" style={{ minWidth: "100%", tableLayout: "fixed" }}>
+                      <thead>
+                        <tr>
+                          <th style={{ width: "22%" }}>Zaman</th>
+                          <th style={{ width: "18%" }}>Kullanıcı</th>
+                          <th style={{ width: "18%" }}>Olay</th>
+                          <th style={{ width: "10%" }}>Sonuç</th>
+                          <th style={{ width: "10%" }}>Toplam</th>
+                          <th style={{ width: "10%" }}>Kayıt</th>
+                          <th style={{ width: "12%" }}>Yenileme</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {startupDiagnostics.appPerformanceRecent.map((item) => (
+                          <tr key={`${item.createdAt}-${item.olay}-${item.userEmail}`}>
+                            <td>{tarihSaatMetni(item.createdAt)}</td>
+                            <td style={{ fontWeight: "bold", color: "#0f172a" }}>{item.userEmail || "-"}</td>
+                            <td>{item.olay}</td>
+                            <td>{item.sonuc || "-"}</td>
+                            <td>{msMetni(item.toplamMs)}</td>
+                            <td>{msMetni(item.kayitMs)}</td>
+                            <td>{msMetni(item.yenilemeMs)}</td>
+                          </tr>
+                        ))}
+                        {startupDiagnostics.appPerformanceRecent.length === 0 && (
+                          <tr>
+                            <td colSpan={7} style={{ textAlign: "center", color: "#94a3b8" }}>
+                              Gösterilecek işlem performans kaydı yok.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  )}
                 </div>
 
                 <div style={{ ...kartStili, overflowX: "auto" }}>
@@ -931,37 +1118,76 @@ export function SettingsPanel({
                     <h4 style={{ margin: 0, fontSize: "14px", color: "#0f172a" }}>Hata Grupları</h4>
                     <span style={{ fontSize: "11px", color: "#64748b" }}>Eski app_hata_loglari özeti</span>
                   </div>
-                  <table className="tbl" style={{ minWidth: "100%", tableLayout: "fixed" }}>
-                    <thead>
-                      <tr>
-                        <th style={{ width: "22%" }}>İşlem</th>
-                        <th style={{ width: "16%" }}>Kategori</th>
-                        <th style={{ width: "12%" }}>Seviye</th>
-                        <th style={{ width: "10%" }}>Adet</th>
-                        <th style={{ width: "20%" }}>Son Kayıt</th>
-                        <th style={{ width: "20%" }}>Durum</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                  {isDarEkran ? (
+                    <div style={{ display: "grid", gap: "8px" }}>
                       {startupDiagnostics.appErrorMetrics.map((item) => (
-                        <tr key={`${item.islem}-${item.kategori}-${item.seviye}`}>
-                          <td style={{ fontWeight: "bold", color: "#0f172a" }}>{item.islem || "-"}</td>
-                          <td>{item.kategori || "-"}</td>
-                          <td>{item.seviye || "-"}</td>
-                          <td>{sayiMetni(item.count)}</td>
-                          <td>{tarihSaatMetni(item.latestAt)}</td>
-                          <td style={{ color: item.count > 0 ? "#dc2626" : "#059669", fontWeight: "bold" }}>{item.count > 0 ? "İncele" : "Temiz"}</td>
-                        </tr>
+                        <div key={`${item.islem}-${item.kategori}-${item.seviye}`} style={taniKartStili}>
+                          <div style={{ fontSize: "13px", fontWeight: "bold", color: "#0f172a" }}>{item.islem || "-"}</div>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "8px" }}>
+                            <div>
+                              <div style={taniEtiketStili}>Kategori</div>
+                              <div style={taniDegerStili}>{item.kategori || "-"}</div>
+                            </div>
+                            <div>
+                              <div style={taniEtiketStili}>Seviye</div>
+                              <div style={taniDegerStili}>{item.seviye || "-"}</div>
+                            </div>
+                            <div>
+                              <div style={taniEtiketStili}>Adet</div>
+                              <div style={taniDegerStili}>{sayiMetni(item.count)}</div>
+                            </div>
+                            <div>
+                              <div style={taniEtiketStili}>Durum</div>
+                              <div style={{ ...taniDegerStili, color: item.count > 0 ? "#dc2626" : "#059669", fontWeight: "bold" }}>
+                                {item.count > 0 ? "İncele" : "Temiz"}
+                              </div>
+                            </div>
+                          </div>
+                          <div>
+                            <div style={taniEtiketStili}>Son Kayıt</div>
+                            <div style={taniDegerStili}>{tarihSaatMetni(item.latestAt)}</div>
+                          </div>
+                        </div>
                       ))}
                       {startupDiagnostics.appErrorMetrics.length === 0 && (
-                        <tr>
-                          <td colSpan={6} style={{ textAlign: "center", color: "#94a3b8" }}>
-                            Hata özeti bulunamadı.
-                          </td>
-                        </tr>
+                        <div style={{ textAlign: "center", color: "#94a3b8", fontSize: "12px" }}>
+                          Hata özeti bulunamadı.
+                        </div>
                       )}
-                    </tbody>
-                  </table>
+                    </div>
+                  ) : (
+                    <table className="tbl" style={{ minWidth: "100%", tableLayout: "fixed" }}>
+                      <thead>
+                        <tr>
+                          <th style={{ width: "22%" }}>İşlem</th>
+                          <th style={{ width: "16%" }}>Kategori</th>
+                          <th style={{ width: "12%" }}>Seviye</th>
+                          <th style={{ width: "10%" }}>Adet</th>
+                          <th style={{ width: "20%" }}>Son Kayıt</th>
+                          <th style={{ width: "20%" }}>Durum</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {startupDiagnostics.appErrorMetrics.map((item) => (
+                          <tr key={`${item.islem}-${item.kategori}-${item.seviye}`}>
+                            <td style={{ fontWeight: "bold", color: "#0f172a" }}>{item.islem || "-"}</td>
+                            <td>{item.kategori || "-"}</td>
+                            <td>{item.seviye || "-"}</td>
+                            <td>{sayiMetni(item.count)}</td>
+                            <td>{tarihSaatMetni(item.latestAt)}</td>
+                            <td style={{ color: item.count > 0 ? "#dc2626" : "#059669", fontWeight: "bold" }}>{item.count > 0 ? "İncele" : "Temiz"}</td>
+                          </tr>
+                        ))}
+                        {startupDiagnostics.appErrorMetrics.length === 0 && (
+                          <tr>
+                            <td colSpan={6} style={{ textAlign: "center", color: "#94a3b8" }}>
+                              Hata özeti bulunamadı.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  )}
                 </div>
 
                 <div style={{ ...kartStili, overflowX: "auto" }}>
@@ -969,35 +1195,62 @@ export function SettingsPanel({
                     <h4 style={{ margin: 0, fontSize: "14px", color: "#0f172a" }}>Son Hata Kayıtları</h4>
                     <span style={{ fontSize: "11px", color: "#64748b" }}>En yeni hata kayıtları</span>
                   </div>
-                  <table className="tbl" style={{ minWidth: "100%", tableLayout: "fixed" }}>
-                    <thead>
-                      <tr>
-                        <th style={{ width: "22%" }}>Zaman</th>
-                        <th style={{ width: "16%" }}>Kullanıcı</th>
-                        <th style={{ width: "16%" }}>İşlem</th>
-                        <th style={{ width: "12%" }}>Kategori</th>
-                        <th style={{ width: "34%" }}>Mesaj</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                  {isDarEkran ? (
+                    <div style={{ display: "grid", gap: "8px" }}>
                       {startupDiagnostics.appErrorRecent.map((item) => (
-                        <tr key={`${item.createdAt}-${item.islem}-${item.userEmail}`}>
-                          <td>{tarihSaatMetni(item.createdAt)}</td>
-                          <td style={{ fontWeight: "bold", color: "#0f172a" }}>{item.userEmail || "-"}</td>
-                          <td>{item.islem || "-"}</td>
-                          <td>{item.kategori || "-"}</td>
-                          <td title={item.mesaj} style={{ color: "#475569" }}>{item.mesaj || "-"}</td>
-                        </tr>
+                        <div key={`${item.createdAt}-${item.islem}-${item.userEmail}`} style={taniKartStili}>
+                          <div style={{ fontSize: "13px", fontWeight: "bold", color: "#0f172a" }}>{item.islem || "-"}</div>
+                          <div style={taniEtiketStili}>{tarihSaatMetni(item.createdAt)}</div>
+                          <div style={{ ...taniDegerStili, fontWeight: "bold" }}>{item.userEmail || "-"}</div>
+                          <div style={{ display: "grid", gap: "6px" }}>
+                            <div>
+                              <div style={taniEtiketStili}>Kategori</div>
+                              <div style={taniDegerStili}>{item.kategori || "-"}</div>
+                            </div>
+                            <div>
+                              <div style={taniEtiketStili}>Mesaj</div>
+                              <div style={taniDegerStili}>{item.mesaj || "-"}</div>
+                            </div>
+                          </div>
+                        </div>
                       ))}
                       {startupDiagnostics.appErrorRecent.length === 0 && (
-                        <tr>
-                          <td colSpan={5} style={{ textAlign: "center", color: "#94a3b8" }}>
-                            Son hata kaydı bulunamadı.
-                          </td>
-                        </tr>
+                        <div style={{ textAlign: "center", color: "#94a3b8", fontSize: "12px" }}>
+                          Son hata kaydı bulunamadı.
+                        </div>
                       )}
-                    </tbody>
-                  </table>
+                    </div>
+                  ) : (
+                    <table className="tbl" style={{ minWidth: "100%", tableLayout: "fixed" }}>
+                      <thead>
+                        <tr>
+                          <th style={{ width: "22%" }}>Zaman</th>
+                          <th style={{ width: "16%" }}>Kullanıcı</th>
+                          <th style={{ width: "16%" }}>İşlem</th>
+                          <th style={{ width: "12%" }}>Kategori</th>
+                          <th style={{ width: "34%" }}>Mesaj</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {startupDiagnostics.appErrorRecent.map((item) => (
+                          <tr key={`${item.createdAt}-${item.islem}-${item.userEmail}`}>
+                            <td>{tarihSaatMetni(item.createdAt)}</td>
+                            <td style={{ fontWeight: "bold", color: "#0f172a" }}>{item.userEmail || "-"}</td>
+                            <td>{item.islem || "-"}</td>
+                            <td>{item.kategori || "-"}</td>
+                            <td title={item.mesaj} style={{ color: "#475569" }}>{item.mesaj || "-"}</td>
+                          </tr>
+                        ))}
+                        {startupDiagnostics.appErrorRecent.length === 0 && (
+                          <tr>
+                            <td colSpan={5} style={{ textAlign: "center", color: "#94a3b8" }}>
+                              Son hata kaydı bulunamadı.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  )}
                 </div>
               </>
             )}
