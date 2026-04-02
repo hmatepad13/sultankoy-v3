@@ -65,6 +65,8 @@ import { normalizeUsername } from "./utils/format";
 
 const SUPABASE_FREE_DATABASE_LIMIT_BYTES = 500_000_000;
 const SUPABASE_FREE_STORAGE_LIMIT_BYTES = 1_000_000_000;
+const BAYILER_CACHE_KEY = "app-cache-bayiler-v1";
+const URUNLER_CACHE_KEY = "app-cache-urunler-v1";
 const ODEME_TURU_SECENEKLERI = [
   { value: "PEŞİN", label: "💵 PEŞİN" },
   { value: "VADE", label: "⏳ VADE" },
@@ -200,6 +202,26 @@ const donemAraliginiGetir = (donem?: string | null) => {
 const donemiTarihtenAyikla = (tarih?: string | null) => {
   const eslesen = String(tarih || "").match(/^\d{4}-\d{2}/);
   return eslesen ? eslesen[0] : "";
+};
+
+const yerelJsonOku = <T,>(anahtar: string, varsayilanDeger: T): T => {
+  if (typeof window === "undefined") return varsayilanDeger;
+  try {
+    const hamDeger = window.localStorage.getItem(anahtar);
+    if (!hamDeger) return varsayilanDeger;
+    return JSON.parse(hamDeger) as T;
+  } catch {
+    return varsayilanDeger;
+  }
+};
+
+const yerelJsonYaz = (anahtar: string, deger: unknown) => {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(anahtar, JSON.stringify(deger));
+  } catch {
+    // Yerel depolama doluysa ya da erişilemezse sessizce devam et.
+  }
 };
 
 const fisPersonelDevirMi = (fis: Partial<SatisFis>) => {
@@ -775,8 +797,8 @@ export default function App() {
 
   // VERİ LİSTELERİ
   const [tedarikciler, setTedarikciler] = useState<Ciftlik[]>([]);
-  const [bayiler, setBayiler] = useState<Bayi[]>([]);
-  const [urunler, setUrunler] = useState<Urun[]>([]);
+  const [bayiler, setBayiler] = useState<Bayi[]>(() => yerelJsonOku<Bayi[]>(BAYILER_CACHE_KEY, []));
+  const [urunler, setUrunler] = useState<Urun[]>(() => yerelJsonOku<Urun[]>(URUNLER_CACHE_KEY, []));
   const [sutList, setSutList] = useState<SutGiris[]>([]);
   const [satisFisList, setSatisFisList] = useState<SatisFis[]>([]); 
   const [satisList, setSatisList] = useState<SatisGiris[]>([]); 
@@ -1418,6 +1440,14 @@ export default function App() {
   useEffect(() => {
     void donemSecenekleriniYukle();
   }, [donemSecenekleriniYukle]);
+
+  useEffect(() => {
+    yerelJsonYaz(BAYILER_CACHE_KEY, bayiler);
+  }, [bayiler]);
+
+  useEffect(() => {
+    yerelJsonYaz(URUNLER_CACHE_KEY, urunler);
+  }, [urunler]);
 
   useEffect(() => {
     setClientTelemetryContext({
