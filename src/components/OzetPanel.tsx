@@ -14,6 +14,11 @@ type BayiBorcSatiri = {
   borc: number;
 };
 
+type EkstreMusteriSecenegi = {
+  anahtar: string;
+  isim: string;
+};
+
 type OzetFilterModal = "ozet_bayi" | null;
 
 type OzetPanelProps = {
@@ -29,6 +34,7 @@ type OzetPanelProps = {
   hammaddeOdemeDetaySatirlari: Array<{ etiket: string; deger: string; vurgu?: boolean }>;
   hammaddeBorcDetaySatirlari: Array<{ etiket: string; deger: string; vurgu?: boolean }>;
   bayiBorclari: BayiBorcSatiri[];
+  ekstreMusterileri: EkstreMusteriSecenegi[];
   ozetBorcFiltre: { bayiler: string[] };
   setOzetBorcFiltre: (next: { bayiler: string[] }) => void;
   ozetBorcSort: SortConfig;
@@ -177,6 +183,7 @@ export function OzetPanel({
   hammaddeOdemeDetaySatirlari,
   hammaddeBorcDetaySatirlari,
   bayiBorclari,
+  ekstreMusterileri,
   ozetBorcFiltre,
   setOzetBorcFiltre,
   ozetBorcSort,
@@ -189,6 +196,8 @@ export function OzetPanel({
   const [activeFilterModal, setActiveFilterModal] = useState<OzetFilterModal>(null);
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [isExcelLoading, setIsExcelLoading] = useState(false);
+  const [isEkstreModalOpen, setIsEkstreModalOpen] = useState(false);
+  const [ekstreArama, setEkstreArama] = useState("");
 
   useEffect(() => {
     if (!openDropdownId) return;
@@ -227,6 +236,12 @@ export function OzetPanel({
       return ozetBorcSort.direction === "asc" ? sonuc : -sonuc;
     });
   }, [bayiBorclari, ozetBorcFiltre.bayiler, ozetBorcSort]);
+
+  const filtrelenmisEkstreMusterileri = useMemo(() => {
+    const arama = ekstreArama.trim().toLocaleLowerCase("tr-TR");
+    if (!arama) return ekstreMusterileri;
+    return ekstreMusterileri.filter((item) => item.isim.toLocaleLowerCase("tr-TR").includes(arama));
+  }, [ekstreArama, ekstreMusterileri]);
 
   const handleExcelIndir = async () => {
     setIsExcelLoading(true);
@@ -380,9 +395,31 @@ export function OzetPanel({
         </div>
 
         <div className="card" style={{ marginTop: "5px", order: 2 }}>
-          <h4 style={{ margin: "0 0 10px", borderBottom: "1px solid #e2e8f0", paddingBottom: "5px" }}>
-            Müşteri Borç Durumları
-          </h4>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", marginBottom: "10px", borderBottom: "1px solid #e2e8f0", paddingBottom: "5px", flexWrap: "wrap" }}>
+            <h4 style={{ margin: 0 }}>
+              Müşteri Borç Durumları
+            </h4>
+            <button
+              onClick={() => {
+                setEkstreArama("");
+                setIsEkstreModalOpen(true);
+              }}
+              className="btn-anim"
+              style={{
+                border: "1px solid #0f766e33",
+                background: "#0f766e10",
+                color: "#0f766e",
+                borderRadius: "999px",
+                padding: "6px 10px",
+                fontSize: "11px",
+                fontWeight: "bold",
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              🧾 EKSTRE ARA
+            </button>
+          </div>
           <div style={{ maxHeight: "300px", overflowY: "auto", paddingRight: "5px" }}>
             <table className="tbl" style={{ tableLayout: "fixed" }}>
               <thead>
@@ -480,6 +517,101 @@ export function OzetPanel({
             </table>
           </div>
         </div>
+
+        {isEkstreModalOpen && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(15, 23, 42, 0.55)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 1200,
+              padding: "16px",
+            }}
+            onClick={() => setIsEkstreModalOpen(false)}
+          >
+            <div
+              style={{
+                width: "100%",
+                maxWidth: "420px",
+                background: "#fff",
+                borderRadius: "16px",
+                border: "1px solid #cbd5e1",
+                boxShadow: "0 24px 40px rgba(15, 23, 42, 0.18)",
+                overflow: "hidden",
+              }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div style={{ padding: "14px 14px 10px", borderBottom: "1px solid #e2e8f0" }}>
+                <div style={{ fontSize: "15px", fontWeight: "bold", color: "#0f172a" }}>Ekstre Ara</div>
+                <div style={{ fontSize: "12px", color: "#64748b", marginTop: "4px" }}>
+                  Borcu sıfırlanmış müşteriler dahil tüm hesaplardan seçim yapabilirsin.
+                </div>
+                <input
+                  value={ekstreArama}
+                  onChange={(event) => setEkstreArama(event.target.value)}
+                  placeholder="Müşteri veya grup adı ara"
+                  autoFocus
+                  className="m-inp"
+                  style={{ width: "100%", marginTop: "10px" }}
+                />
+              </div>
+              <div style={{ maxHeight: "360px", overflowY: "auto", padding: "8px" }}>
+                {filtrelenmisEkstreMusterileri.length > 0 ? (
+                  filtrelenmisEkstreMusterileri.map((item) => (
+                    <button
+                      key={item.anahtar}
+                      onClick={() => {
+                        setIsEkstreModalOpen(false);
+                        setEkstreArama("");
+                        onOpenMusteriEkstre(item.anahtar, item.isim);
+                      }}
+                      style={{
+                        width: "100%",
+                        textAlign: "left",
+                        border: "1px solid #e2e8f0",
+                        background: "#fff",
+                        borderRadius: "10px",
+                        padding: "10px 12px",
+                        marginBottom: "8px",
+                        cursor: "pointer",
+                        color: "#0f172a",
+                        fontSize: "13px",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      {item.isim}
+                    </button>
+                  ))
+                ) : (
+                  <div style={{ padding: "18px 8px", textAlign: "center", color: "#94a3b8", fontSize: "12px", fontWeight: "bold" }}>
+                    Aramaya uygun müşteri bulunamadı.
+                  </div>
+                )}
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", padding: "10px 14px 14px", borderTop: "1px solid #e2e8f0" }}>
+                <button
+                  onClick={() => setIsEkstreModalOpen(false)}
+                  className="btn-anim"
+                  style={{
+                    border: "1px solid #cbd5e1",
+                    background: "#fff",
+                    color: "#475569",
+                    borderRadius: "10px",
+                    padding: "8px 12px",
+                    fontSize: "12px",
+                    fontWeight: "bold",
+                    cursor: "pointer",
+                  }}
+                >
+                  Kapat
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="card" style={{ marginTop: "5px", order: 1 }}>
           <h4 style={{ margin: "0 0 10px", borderBottom: "1px solid #e2e8f0", paddingBottom: "5px" }}>

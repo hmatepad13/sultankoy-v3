@@ -2486,6 +2486,38 @@ export default function App() {
         .sort((a, b) => b.borc - a.borc);
   }, [aktifDonem, hesaplaMusteriBakiyeleri, satisFisList]);
 
+  const ekstreMusterileri = useMemo(() => {
+    const secenekler = new Map<string, string>();
+    const ekle = (anahtar?: string | null, isim?: string | null) => {
+      const temizIsim = String(isim || "").trim();
+      const temizAnahtar = String(anahtar || "").trim();
+      if (!temizIsim || !temizAnahtar || sistemIslemiMi(temizIsim)) return;
+      if (!secenekler.has(temizAnahtar)) {
+        secenekler.set(temizAnahtar, temizIsim);
+      }
+    };
+
+    bayiler.forEach((bayi) => {
+      const hesapEtiketi = bayiHesapEtiketiGetir(bayi.id, bayi.isim);
+      ekle(hesapAnahtariOlustur(hesapEtiketi), hesapEtiketi);
+    });
+
+    satisFisList.forEach((fis) => {
+      ekle(satisFisHesapAnahtariGetir(fis), satisFisHesapEtiketiGetir(fis));
+    });
+
+    return [...secenekler.entries()]
+      .map(([anahtar, isim]) => ({ anahtar, isim }))
+      .sort((a, b) => a.isim.localeCompare(b.isim, "tr"));
+  }, [
+    bayiHesapEtiketiGetir,
+    bayiler,
+    hesapAnahtariOlustur,
+    satisFisHesapAnahtariGetir,
+    satisFisHesapEtiketiGetir,
+    satisFisList,
+  ]);
+
   const musteriEkstreHesapla = useCallback((hesapAnahtari: string, musteriAdi: string) => {
     const ilgiliFisler = [...satisFisList]
       .filter((fis) => {
@@ -4485,6 +4517,7 @@ export default function App() {
           hammaddeOdemeDetaySatirlari,
           hammaddeBorcDetaySatirlari,
           bayiBorclari,
+          ekstreMusterileri,
           ozetBorcFiltre,
           setOzetBorcFiltre,
           ozetBorcSort,
