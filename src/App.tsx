@@ -856,6 +856,7 @@ export default function App() {
   const [musteriEkstreData, setMusteriEkstreData] = useState<null | {
     musteri: string;
     donem: string;
+    devredenBorc: number;
     hareketler: Array<{
       tarih: string;
       fisNo: string;
@@ -2500,6 +2501,18 @@ export default function App() {
         return sayiDegeri((a as any).id) - sayiDegeri((b as any).id);
       });
 
+    const devredenBorc = ilgiliFisler.reduce((toplam, fis) => {
+      const donem = String(fis.tarih || "").substring(0, 7);
+      if (donem > aktifDonem) return toplam;
+      if (donem === aktifDonem) {
+        return fisDonemDevirMi(fis) ? Number(fis.kalan_bakiye || 0) : toplam;
+      }
+      if (fisDonemDevirMi(fis)) {
+        return Number(fis.kalan_bakiye || 0);
+      }
+      return toplam + Number(fis.kalan_bakiye || 0);
+    }, 0);
+
     const hareketler = ilgiliFisler
       .filter((fis) => String(fis.tarih || "").startsWith(aktifDonem))
       .filter((fis) => !fisDevirMi(fis))
@@ -2539,6 +2552,7 @@ export default function App() {
     return {
       musteri: musteriAdi,
       donem: aktifDonem,
+      devredenBorc,
       hareketler,
     };
   }, [aktifDonem, satisFisBayiAdiGetir, satisFisHesapAnahtariGetir, satisList, satisSatiriHesapAnahtariGetir, satisSatiriUrunAdiGetir, satisFisList]);
@@ -2549,10 +2563,10 @@ export default function App() {
 
   const musteriEkstreToplamlari = useMemo(() => {
     if (!musteriEkstreData) {
-      return { tutar: 0, tahsilat: 0, fistenKalanBorc: 0 };
+      return { devredenBorc: 0, tutar: 0, tahsilat: 0, fistenKalanBorc: 0, donemSonuBakiye: 0 };
     }
 
-    return musteriEkstreData.hareketler.reduce(
+    const toplamlar = musteriEkstreData.hareketler.reduce(
       (acc, hareket) => {
         acc.tutar += hareket.tutar;
         acc.tahsilat += hareket.tahsilat;
@@ -2561,6 +2575,12 @@ export default function App() {
       },
       { tutar: 0, tahsilat: 0, fistenKalanBorc: 0 },
     );
+
+    return {
+      devredenBorc: musteriEkstreData.devredenBorc,
+      ...toplamlar,
+      donemSonuBakiye: musteriEkstreData.devredenBorc + toplamlar.fistenKalanBorc,
+    };
   }, [musteriEkstreData]);
 
   const satisFisToplamBorcMap = useMemo(() => {
@@ -5334,8 +5354,25 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {musteriEkstreData.hareketler.length > 0 ? (
+                    {musteriEkstreData.hareketler.length > 0 || Math.abs(musteriEkstreData.devredenBorc) > 0.01 ? (
                       <>
+                        {Math.abs(musteriEkstreData.devredenBorc) > 0.01 && (
+                          <tr>
+                            <td style={{ padding: "7px 3px", borderBottom: "1px solid #dbeafe", fontSize: "10px", fontWeight: "bold", color: "#1d4ed8", whiteSpace: "nowrap" }}>
+                              Devir
+                            </td>
+                            <td style={{ padding: "7px 3px", borderBottom: "1px solid #dbeafe", fontSize: "9px", color: "#64748b", whiteSpace: "nowrap" }}>-</td>
+                            <td style={{ padding: "7px 3px", borderBottom: "1px solid #dbeafe", lineHeight: 1.3 }}>
+                              <div style={{ fontSize: "11px", color: "#1e3a8a", fontWeight: "bold" }}>Önceki Dönem Borcu</div>
+                              <div style={{ fontSize: "10px", color: "#64748b" }}>Aktif döneme devreden bakiye</div>
+                            </td>
+                            <td style={{ padding: "7px 3px", borderBottom: "1px solid #dbeafe", textAlign: "right", color: "#94a3b8", fontSize: "10px", whiteSpace: "nowrap" }}>-</td>
+                            <td style={{ padding: "7px 3px", borderBottom: "1px solid #dbeafe", textAlign: "right", color: "#94a3b8", fontSize: "10px", whiteSpace: "nowrap" }}>-</td>
+                            <td style={{ padding: "7px 3px", borderBottom: "1px solid #dbeafe", textAlign: "right", color: musteriEkstreData.devredenBorc > 0 ? "#dc2626" : "#059669", fontWeight: "bold", fontSize: "10px", whiteSpace: "nowrap" }}>
+                              {fSayi(musteriEkstreData.devredenBorc)} ₺
+                            </td>
+                          </tr>
+                        )}
                         {musteriEkstreData.hareketler.map((hareket, index) => (
                           <tr key={`${hareket.fisNo}-${index}`}>
                             <td style={{ padding: "7px 3px", borderBottom: "1px solid #f1f5f9", fontSize: "10px", whiteSpace: "nowrap" }}>
@@ -5367,10 +5404,10 @@ export default function App() {
                           </tr>
                         ))}
                         <tr>
-                          <td colSpan={3} style={{ padding: "7px 3px 0", fontSize: "10px", color: "#64748b", fontWeight: "bold" }}>Toplam</td>
+                          <td colSpan={3} style={{ padding: "7px 3px 0", fontSize: "10px", color: "#64748b", fontWeight: "bold" }}>Dönem Toplamı / Dönem Sonu</td>
                           <td style={{ padding: "7px 3px 0", textAlign: "right", fontSize: "10px", color: "#059669", fontWeight: "bold", whiteSpace: "nowrap" }}>{fSayi(musteriEkstreToplamlari.tutar)} ₺</td>
                           <td style={{ padding: "7px 3px 0", textAlign: "right", fontSize: "10px", color: "#2563eb", fontWeight: "bold", whiteSpace: "nowrap" }}>{fSayi(musteriEkstreToplamlari.tahsilat)} ₺</td>
-                          <td style={{ padding: "7px 3px 0", textAlign: "right", fontSize: "10px", color: musteriEkstreToplamlari.fistenKalanBorc > 0 ? "#dc2626" : "#059669", fontWeight: "bold", whiteSpace: "nowrap" }}>{fSayi(musteriEkstreToplamlari.fistenKalanBorc)} ₺</td>
+                          <td style={{ padding: "7px 3px 0", textAlign: "right", fontSize: "10px", color: musteriEkstreToplamlari.donemSonuBakiye > 0 ? "#dc2626" : "#059669", fontWeight: "bold", whiteSpace: "nowrap" }}>{fSayi(musteriEkstreToplamlari.donemSonuBakiye)} ₺</td>
                         </tr>
                       </>
                     ) : (
