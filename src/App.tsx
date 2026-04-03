@@ -244,6 +244,106 @@ const fisKasayaDevirMi = (fis: Partial<SatisFis>) => {
   return odemeTuru === "KASAYA DEVİR" || odemeTuru === "KASAYA DEVIR";
 };
 
+const personelAnahtariniGetir = (deger?: string | null) => normalizeUsername(deger) || "Bilinmiyor";
+
+const personelDevirAnahtariniGetir = (aciklama?: string | null) => {
+  const eslesme = String(aciklama || "").match(/\((.*?)\)/);
+  return personelAnahtariniGetir(eslesme?.[1]);
+};
+
+const personelBakiyeleriniHesapla = (
+  satisFisleri: Array<Partial<SatisFis>>,
+  giderKayitlari: Array<Partial<Gider>>,
+) => {
+  const map: Record<
+    string,
+    { devirNet: number; devirAcik: number; tahsilat: number; gider: number; kasayaDevir: number; acikBakiye: number }
+  > = {};
+
+  const kayitGetir = (key: string) => {
+    if (!map[key]) {
+      map[key] = { devirNet: 0, devirAcik: 0, tahsilat: 0, gider: 0, kasayaDevir: 0, acikBakiye: 0 };
+    }
+    return map[key];
+  };
+
+  const olaylar = [
+    ...satisFisleri.map((fis, index) => ({
+      tip: "satis" as const,
+      tarih: String(fis.tarih || ""),
+      sira:
+        fisPersonelDevirMi(fis) && fis.bayi === "SİSTEM İŞLEMİ"
+          ? 0
+          : fisKasayaDevirMi(fis)
+            ? 1
+            : fisDonemDevirMi(fis)
+              ? 2
+              : 3,
+      indeks: index,
+      fis,
+    })),
+    ...giderKayitlari.map((gider, index) => ({
+      tip: "gider" as const,
+      tarih: String(gider.tarih || ""),
+      sira: 4,
+      indeks: index,
+      gider,
+    })),
+  ].sort((a, b) => {
+    const tarihKarsilastirma = a.tarih.localeCompare(b.tarih);
+    if (tarihKarsilastirma !== 0) return tarihKarsilastirma;
+    if (a.sira !== b.sira) return a.sira - b.sira;
+    return a.indeks - b.indeks;
+  });
+
+  olaylar.forEach((olay) => {
+    if (olay.tip === "gider") {
+      const key = personelAnahtariniGetir(olay.gider.ekleyen);
+      kayitGetir(key).gider += Number(olay.gider.tutar || 0);
+      return;
+    }
+
+    const fis = olay.fis;
+    const personelDevir = fisPersonelDevirMi(fis) && fis.bayi === "SİSTEM İŞLEMİ";
+    const key = personelDevir ? personelDevirAnahtariniGetir(fis.aciklama) : personelAnahtariniGetir(fis.ekleyen);
+    const kayit = kayitGetir(key);
+
+    if (personelDevir) {
+      map[key] = {
+        devirNet: Number(fis.toplam_tutar || 0),
+        devirAcik: Number(fis.kalan_bakiye || 0),
+        tahsilat: 0,
+        gider: 0,
+        kasayaDevir: 0,
+        acikBakiye: 0,
+      };
+      return;
+    }
+
+    if (fisKasayaDevirMi(fis)) {
+      kayit.kasayaDevir += Number(fis.tahsilat || 0);
+      return;
+    }
+
+    if (fisDonemDevirMi(fis)) {
+      return;
+    }
+
+    kayit.tahsilat += Number(fis.tahsilat || 0);
+    kayit.acikBakiye += Number(fis.kalan_bakiye || 0);
+  });
+
+  return Object.fromEntries(
+    Object.entries(map).map(([key, deger]) => [
+      key,
+      {
+        net: deger.devirNet + (deger.tahsilat - deger.gider - deger.kasayaDevir),
+        acikBakiye: deger.devirAcik + deger.acikBakiye,
+      },
+    ]),
+  ) as Record<string, { net: number; acikBakiye: number }>;
+};
+
 const fisTahsilatMi = (fis: Partial<SatisFis>) =>
   !fisKasayaDevirMi(fis) &&
   !fisDevirMi(fis) &&
@@ -4236,19 +4336,19 @@ export default function App() {
     { etiket: "Süt Tozu Borcu", deger: `${fSayiNoDec(hammaddeBorclari.sutTozu)} TL`, vurgu: true },
   ];
   const bayiNetDurum = bayiBorclari.reduce((a, b) => a + b.borc, 0);
+  const oncekiPersonelBakiyeleri = useMemo(
+    () => personelBakiyeleriniHesapla(oncekiSatisFisList, oncekiGiderList),
+    [oncekiGiderList, oncekiSatisFisList],
+  );
   
   const personelOzetleri = useMemo(() => {
     const map: Record<string, PersonelOzeti> = {};
-    const getKey = (val?: string | null) => (val ? normalizeUsername(val) || "Bilinmiyor" : "Bilinmiyor");
-    const getPersonelDevirKey = (aciklama?: string | null) => {
-      const eslesme = aciklama?.match(/\((.*?)\)/);
-      return eslesme?.[1] ? normalizeUsername(eslesme[1]) || eslesme[1] : "Bilinmiyor";
-    };
+    const personelDevirleri = new Set<string>();
 
     periodSatisFis.forEach((f: any) => {
       const personelDevir = fisPersonelDevirMi(f) && f.bayi === "SİSTEM İŞLEMİ";
       const donemDevir = fisDonemDevirMi(f);
-      const key = personelDevir ? getPersonelDevirKey(f.aciklama) : getKey(f.ekleyen);
+      const key = personelDevir ? personelDevirAnahtariniGetir(f.aciklama) : personelAnahtariniGetir(f.ekleyen);
       if (!map[key]) {
         map[key] = { isim: key, satis: 0, tahsilat: 0, gider: 0, kasayaDevir: 0, net: 0, acikBakiye: 0, devirNet: 0, devirAcik: 0 };
       }
@@ -4256,6 +4356,7 @@ export default function App() {
       if (fisKasayaDevirMi(f)) {
         map[key].kasayaDevir += Number(f.tahsilat) || 0;
       } else if (personelDevir) {
+        personelDevirleri.add(key);
         map[key].devirNet += Number(f.toplam_tutar) || 0;
         map[key].devirAcik += Number(f.kalan_bakiye) || 0;
       } else if (donemDevir) {
@@ -4270,11 +4371,20 @@ export default function App() {
     });
 
     periodGider.forEach((g: any) => {
-      const key = getKey(g.ekleyen);
+      const key = personelAnahtariniGetir(g.ekleyen);
       if (!map[key]) {
         map[key] = { isim: key, satis: 0, tahsilat: 0, gider: 0, kasayaDevir: 0, net: 0, acikBakiye: 0, devirNet: 0, devirAcik: 0 };
       }
       map[key].gider += Number(g.tutar) || 0;
+    });
+
+    Object.entries(oncekiPersonelBakiyeleri).forEach(([key, bakiye]) => {
+      if (!map[key]) {
+        map[key] = { isim: key, satis: 0, tahsilat: 0, gider: 0, kasayaDevir: 0, net: 0, acikBakiye: 0, devirNet: 0, devirAcik: 0 };
+      }
+      if (personelDevirleri.has(key)) return;
+      map[key].devirNet = bakiye.net;
+      map[key].devirAcik = bakiye.acikBakiye;
     });
 
     return Object.values(map)
@@ -4292,7 +4402,7 @@ export default function App() {
         Math.abs(p.acikBakiye) > 0.01
       )
       .sort((a, b) => a.isim.localeCompare(b.isim));
-  }, [periodSatisFis, periodGider]);
+  }, [oncekiPersonelBakiyeleri, periodGider, periodSatisFis]);
 
   const sekmeSecenekleri = useMemo(
     () => TAB_TANIMLARI.map((tab) => ({ id: tab.id, etiket: tab.etiket })),
