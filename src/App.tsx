@@ -203,6 +203,17 @@ const donemiTarihtenAyikla = (tarih?: string | null) => {
   return eslesen ? eslesen[0] : "";
 };
 
+const birOncekiDonemiGetir = (donem?: string | null) => {
+  const [yilStr, ayStr] = String(donem || "").split("-");
+  const yil = Number(yilStr);
+  const ay = Number(ayStr);
+  if (!Number.isInteger(yil) || !Number.isInteger(ay) || ay < 1 || ay > 12) return null;
+
+  const oncekiAy = ay === 1 ? 12 : ay - 1;
+  const oncekiYil = ay === 1 ? yil - 1 : yil;
+  return `${String(oncekiYil).padStart(4, "0")}-${String(oncekiAy).padStart(2, "0")}`;
+};
+
 const yerelJsonOku = <T,>(anahtar: string, varsayilanDeger: T): T => {
   if (typeof window === "undefined") return varsayilanDeger;
   try {
@@ -855,8 +866,11 @@ export default function App() {
   const [confirmDialog, setConfirmDialog] = useState<(AppConfirmOptions & { confirmText: string; cancelText: string; tone: AppDialogTone }) | null>(null);
   const [alertDialog, setAlertDialog] = useState<(AppAlertOptions & { buttonText: string; tone: AppDialogTone }) | null>(null);
   const [musteriEkstreData, setMusteriEkstreData] = useState<null | {
+    hesapAnahtari: string;
     musteri: string;
     donem: string;
+    oncekiDonem: string | null;
+    oncekiDonemDetayiVar: boolean;
     devredenBorc: number;
     hareketler: Array<{
       tarih: string;
@@ -871,6 +885,7 @@ export default function App() {
       fistenKalanBorc: number;
     }>;
   }>(null);
+  const [isMusteriEkstreYukleniyor, setIsMusteriEkstreYukleniyor] = useState(false);
   const [bayiSecimModal, setBayiSecimModal] = useState<{ hedef: "fis" | "tahsilat" | null; arama: string }>({
     hedef: null,
     arama: "",
@@ -2533,7 +2548,31 @@ export default function App() {
     tumSatisFisList,
   ]);
 
-  const musteriEkstreHesapla = useCallback((hesapAnahtari: string, musteriAdi: string) => {
+  const musteriEkstreDetayKayitlariniGetir = useCallback(
+    async (donem: string) => {
+      if (donem === aktifDonem) {
+        return satisList.filter((satir) => String(satir.tarih || "").startsWith(donem));
+      }
+
+      const { baslangic, bitis } = donemAraliginiGetir(donem);
+      const { data, error } = await supabase
+        .from("satis_giris")
+        .select("*")
+        .gte("tarih", baslangic)
+        .lt("tarih", bitis)
+        .order("tarih", { ascending: true })
+        .order("id", { ascending: true });
+
+      if (error) {
+        throw error;
+      }
+
+      return (data as SatisGiris[] | null) || [];
+    },
+    [aktifDonem, satisList],
+  );
+
+  const musteriEkstreHesapla = useCallback((hesapAnahtari: string, musteriAdi: string, donem: string, donemDetaylari: SatisGiris[]) => {
     const ilgiliFisler = [...tumSatisFisList]
       .filter((fis) => {
         if (satisFisHesapAnahtariGetir(fis) !== hesapAnahtari) return false;
@@ -2549,9 +2588,9 @@ export default function App() {
       });
 
     const devredenBorc = ilgiliFisler.reduce((toplam, fis) => {
-      const donem = String(fis.tarih || "").substring(0, 7);
-      if (donem > aktifDonem) return toplam;
-      if (donem === aktifDonem) {
+      const fisDonemi = String(fis.tarih || "").substring(0, 7);
+      if (fisDonemi > donem) return toplam;
+      if (fisDonemi === donem) {
         return fisDonemDevirMi(fis) ? Number(fis.kalan_bakiye || 0) : toplam;
       }
       if (fisDonemDevirMi(fis)) {
@@ -2560,17 +2599,22 @@ export default function App() {
       return toplam + Number(fis.kalan_bakiye || 0);
     }, 0);
 
+    const oncekiDonem = birOncekiDonemiGetir(donem);
+    const oncekiDonemDetayiVar =
+      !!oncekiDonem &&
+      ilgiliFisler.some((fis) => String(fis.tarih || "").substring(0, 7) < donem);
+
     const hareketler = ilgiliFisler
-      .filter((fis) => String(fis.tarih || "").startsWith(aktifDonem))
+      .filter((fis) => String(fis.tarih || "").startsWith(donem))
       .filter((fis) => !fisDevirMi(fis))
       .map((fis) => {
-        const eslesenFisSatirlari = satisList.filter(
+        const eslesenFisSatirlari = donemDetaylari.filter(
           (satir) => String(satir.fis_no || "").trim() === String(fis.fis_no || "").trim(),
         );
         const yedekFisSatirlari =
           eslesenFisSatirlari.length > 0
             ? []
-            : satisList.filter(
+            : donemDetaylari.filter(
                 (satir) =>
                   satisSatiriHesapAnahtariGetir(satir) === hesapAnahtari &&
                   String(satir.tarih || "") === String(fis.tarih || ""),
@@ -2597,16 +2641,40 @@ export default function App() {
       });
 
     return {
+      hesapAnahtari,
       musteri: musteriAdi,
-      donem: aktifDonem,
+      donem,
+      oncekiDonem,
+      oncekiDonemDetayiVar,
       devredenBorc,
       hareketler,
     };
-  }, [aktifDonem, satisFisBayiAdiGetir, satisFisHesapAnahtariGetir, satisList, satisSatiriHesapAnahtariGetir, satisSatiriUrunAdiGetir, tumSatisFisList]);
+  }, [fisDonemDevirMi, fisKasayaDevirMi, satisFisBayiAdiGetir, satisFisHesapAnahtariGetir, satisSatiriHesapAnahtariGetir, satisSatiriUrunAdiGetir, sistemIslemiMi, tumSatisFisList]);
 
-  const handleMusteriEkstreAc = useCallback((bayiAnahtar: string, musteriAdi: string) => {
-    setMusteriEkstreData(musteriEkstreHesapla(bayiAnahtar, musteriAdi));
-  }, [musteriEkstreHesapla]);
+  const handleMusteriEkstreAc = useCallback(async (bayiAnahtar: string, musteriAdi: string, hedefDonem = aktifDonem) => {
+    setIsMusteriEkstreYukleniyor(true);
+    try {
+      const donemDetaylari = await musteriEkstreDetayKayitlariniGetir(hedefDonem);
+      setMusteriEkstreData(musteriEkstreHesapla(bayiAnahtar, musteriAdi, hedefDonem, donemDetaylari));
+    } catch (error: any) {
+      alertDialogAc({
+        title: "Ekstre Açılmadı",
+        message: `İstenen dönem ekstresi yüklenemedi. ${error?.message || ""}`.trim(),
+        tone: "danger",
+      });
+    } finally {
+      setIsMusteriEkstreYukleniyor(false);
+    }
+  }, [aktifDonem, alertDialogAc, musteriEkstreDetayKayitlariniGetir, musteriEkstreHesapla]);
+
+  const handleOncekiDonemEkstreAc = useCallback(() => {
+    if (!musteriEkstreData?.oncekiDonem) return;
+    void handleMusteriEkstreAc(
+      musteriEkstreData.hesapAnahtari,
+      musteriEkstreData.musteri,
+      musteriEkstreData.oncekiDonem,
+    );
+  }, [handleMusteriEkstreAc, musteriEkstreData]);
 
   const musteriEkstreToplamlari = useMemo(() => {
     if (!musteriEkstreData) {
@@ -5445,6 +5513,28 @@ export default function App() {
                             <td style={{ padding: "7px 3px", borderBottom: "1px solid #dbeafe", lineHeight: 1.3 }}>
                               <div style={{ fontSize: "11px", color: "#1e3a8a", fontWeight: "bold" }}>Önceki Dönem Borcu</div>
                               <div style={{ fontSize: "10px", color: "#64748b" }}>Aktif döneme devreden bakiye</div>
+                              {musteriEkstreData.oncekiDonemDetayiVar && musteriEkstreData.oncekiDonem && (
+                                <button
+                                  onClick={() => void handleOncekiDonemEkstreAc()}
+                                  className="btn-anim"
+                                  style={{
+                                    marginTop: "6px",
+                                    padding: "4px 8px",
+                                    borderRadius: "999px",
+                                    border: "1px solid #93c5fd",
+                                    background: "#eff6ff",
+                                    color: "#1d4ed8",
+                                    fontSize: "10px",
+                                    fontWeight: "bold",
+                                    cursor: isMusteriEkstreYukleniyor ? "wait" : "pointer",
+                                  }}
+                                  disabled={isMusteriEkstreYukleniyor}
+                                >
+                                  {isMusteriEkstreYukleniyor
+                                    ? "Yükleniyor..."
+                                    : `${donemMetni(musteriEkstreData.oncekiDonem)} Detay`}
+                                </button>
+                              )}
                             </td>
                             <td style={{ padding: "7px 3px", borderBottom: "1px solid #dbeafe", textAlign: "right", color: "#94a3b8", fontSize: "10px", whiteSpace: "nowrap" }}>-</td>
                             <td style={{ padding: "7px 3px", borderBottom: "1px solid #dbeafe", textAlign: "right", color: "#94a3b8", fontSize: "10px", whiteSpace: "nowrap" }}>-</td>
