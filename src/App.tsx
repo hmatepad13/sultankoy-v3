@@ -779,8 +779,9 @@ export default function App() {
   const [bayiler, setBayiler] = useState<Bayi[]>(() => yerelJsonOku<Bayi[]>(BAYILER_CACHE_KEY, []));
   const [urunler, setUrunler] = useState<Urun[]>(() => yerelJsonOku<Urun[]>(URUNLER_CACHE_KEY, []));
   const [sutList, setSutList] = useState<SutGiris[]>([]);
-  const [satisFisList, setSatisFisList] = useState<SatisFis[]>([]); 
-  const [satisList, setSatisList] = useState<SatisGiris[]>([]); 
+  const [satisFisList, setSatisFisList] = useState<SatisFis[]>([]);
+  const [oncekiSatisFisList, setOncekiSatisFisList] = useState<SatisFis[]>([]);
+  const [satisList, setSatisList] = useState<SatisGiris[]>([]);
   const [giderList, setGiderList] = useState<Gider[]>([]);
   const [giderTuruListesi, setGiderTuruListesi] = useState<GiderTuru[]>([]);
   const [uretimList, setUretimList] = useState<Uretim[]>([]);
@@ -2308,7 +2309,7 @@ export default function App() {
       }
 
       if (hedef === "acilis" || hedef === "hepsi" || hedef === "satis") {
-        const [{ data: f, error: fErr }, { data: st, error: stErr }] = await Promise.all([
+        const [{ data: f, error: fErr }, { data: st, error: stErr }, { data: pf, error: pfErr }] = await Promise.all([
           startupSorguyuCalistir<SatisFis>(
             "satis_fisleri",
             supabase
@@ -2329,9 +2330,19 @@ export default function App() {
               .order("tarih", { ascending: true })
               .order("id", { ascending: true }),
           ),
+          startupSorguyuCalistir<SatisFis>(
+            "satis_fisleri_onceki",
+            supabase
+              .from("satis_fisleri")
+              .select("*")
+              .lt("tarih", donemBaslangici)
+              .order("tarih", { ascending: true })
+              .order("id", { ascending: true }),
+          ),
         ]);
-        if (fErr || stErr) throw fErr || stErr;
+        if (fErr || stErr || pfErr) throw fErr || stErr || pfErr;
         if (f) setSatisFisList(f);
+        if (pf) setOncekiSatisFisList(pf);
         if (st) setSatisList(st);
       }
 
@@ -2466,6 +2477,10 @@ export default function App() {
   }
 
   // DÖNEM GEÇİŞ LİSTESİ OLUŞTURUCU
+  const tumSatisFisList = useMemo(
+    () => [...oncekiSatisFisList, ...satisFisList],
+    [oncekiSatisFisList, satisFisList],
+  );
   const aylar = useMemo(() => {
      const set = new Set(donemSecenekleri);
      [...sutList, ...satisFisList, ...giderList, ...uretimList].forEach(item => {
@@ -2479,12 +2494,12 @@ export default function App() {
 
   // Tüm Fişlerden Müşteri Borç Durumu Hesaplama
   const bayiBorclari = useMemo(() => {
-    const { bakiyeler, labels } = hesaplaMusteriBakiyeleri(satisFisList, aktifDonem);
+    const { bakiyeler, labels } = hesaplaMusteriBakiyeleri(tumSatisFisList, aktifDonem);
     return Object.keys(bakiyeler)
         .map((k) => ({ anahtar: k, isim: labels[k] || k, borc: bakiyeler[k] }))
         .filter((b) => Math.abs(b.borc) > 0.01)
         .sort((a, b) => b.borc - a.borc);
-  }, [aktifDonem, hesaplaMusteriBakiyeleri, satisFisList]);
+  }, [aktifDonem, hesaplaMusteriBakiyeleri, tumSatisFisList]);
 
   const ekstreMusterileri = useMemo(() => {
     const secenekler = new Map<string, string>();
@@ -2502,7 +2517,7 @@ export default function App() {
       ekle(hesapAnahtariOlustur(hesapEtiketi), hesapEtiketi);
     });
 
-    satisFisList.forEach((fis) => {
+    tumSatisFisList.forEach((fis) => {
       ekle(satisFisHesapAnahtariGetir(fis), satisFisHesapEtiketiGetir(fis));
     });
 
@@ -2515,11 +2530,11 @@ export default function App() {
     hesapAnahtariOlustur,
     satisFisHesapAnahtariGetir,
     satisFisHesapEtiketiGetir,
-    satisFisList,
+    tumSatisFisList,
   ]);
 
   const musteriEkstreHesapla = useCallback((hesapAnahtari: string, musteriAdi: string) => {
-    const ilgiliFisler = [...satisFisList]
+    const ilgiliFisler = [...tumSatisFisList]
       .filter((fis) => {
         if (satisFisHesapAnahtariGetir(fis) !== hesapAnahtari) return false;
         if (fisKasayaDevirMi(fis)) return false;
@@ -2587,7 +2602,7 @@ export default function App() {
       devredenBorc,
       hareketler,
     };
-  }, [aktifDonem, satisFisBayiAdiGetir, satisFisHesapAnahtariGetir, satisList, satisSatiriHesapAnahtariGetir, satisSatiriUrunAdiGetir, satisFisList]);
+  }, [aktifDonem, satisFisBayiAdiGetir, satisFisHesapAnahtariGetir, satisList, satisSatiriHesapAnahtariGetir, satisSatiriUrunAdiGetir, tumSatisFisList]);
 
   const handleMusteriEkstreAc = useCallback((bayiAnahtar: string, musteriAdi: string) => {
     setMusteriEkstreData(musteriEkstreHesapla(bayiAnahtar, musteriAdi));
@@ -2616,22 +2631,22 @@ export default function App() {
   }, [musteriEkstreData]);
 
   const satisFisToplamBorcMap = useMemo(() => {
-    return hesaplaMusteriBakiyeleri(satisFisList).map;
-  }, [hesaplaMusteriBakiyeleri, satisFisList]);
+    return hesaplaMusteriBakiyeleri(tumSatisFisList).map;
+  }, [hesaplaMusteriBakiyeleri, tumSatisFisList]);
 
   const fisKaydiniListeyeUygula = useCallback(
-    (hedefFis: Partial<SatisFis>, kayitlar: Array<Partial<SatisFis>> = satisFisList) => {
+    (hedefFis: Partial<SatisFis>, kayitlar: Array<Partial<SatisFis>> = tumSatisFisList) => {
       const hedefId = hedefFis.id == null ? null : String(hedefFis.id);
       const digerKayitlar = hedefId
         ? kayitlar.filter((kayit) => String(kayit.id ?? "") !== hedefId)
         : [...kayitlar];
       return [...digerKayitlar, hedefFis];
     },
-    [satisFisList],
+    [tumSatisFisList],
   );
 
   const fisBorcBilgisiniGetir = useCallback(
-    (hedefFis: Partial<SatisFis>, kayitlar: Array<Partial<SatisFis>> = satisFisList) => {
+    (hedefFis: Partial<SatisFis>, kayitlar: Array<Partial<SatisFis>> = tumSatisFisList) => {
       const { map } = hesaplaMusteriBakiyeleri(kayitlar);
       const genelBorc =
         hedefFis.id == null
@@ -2642,7 +2657,7 @@ export default function App() {
         genelBorc,
       };
     },
-    [hesaplaMusteriBakiyeleri, satisFisList],
+    [hesaplaMusteriBakiyeleri, tumSatisFisList],
   );
 
   const handleDonemKapat = async () => {
@@ -3945,7 +3960,7 @@ export default function App() {
     () => new Set(ozetToplamFisler.map((fis) => String(fis.fis_no || "").trim()).filter(Boolean)),
     [ozetToplamFisler],
   );
-  const tOzetDevredenBakiye = useMemo(
+  const tOzetDevredenSatirToplami = useMemo(
     () =>
       periodSatisList.reduce((toplam: number, satir) => {
         const fisNo = String(satir.fis_no || "").trim();
@@ -3955,15 +3970,47 @@ export default function App() {
       }, 0),
     [ozetToplamFisNoSet, periodSatisList, satisSatiriUrunAdiGetir],
   );
+  const oncekiDonemBayiBakiyeleri = useMemo(
+    () => hesaplaMusteriBakiyeleri(oncekiSatisFisList).bakiyeler,
+    [hesaplaMusteriBakiyeleri, oncekiSatisFisList],
+  );
+  const oncekiDonemDevredenBakiye = useMemo(
+    () => Object.values(oncekiDonemBayiBakiyeleri).reduce((toplam, borc) => toplam + Number(borc || 0), 0),
+    [oncekiDonemBayiBakiyeleri],
+  );
+  const tOzetDevredenBakiye = useMemo(
+    () => (Math.abs(oncekiDonemDevredenBakiye) > 0.01 ? oncekiDonemDevredenBakiye : tOzetDevredenSatirToplami),
+    [oncekiDonemDevredenBakiye, tOzetDevredenSatirToplami],
+  );
   const tOzetReelSatis = useMemo(
-    () => tOzetFisToplam - tOzetDevredenBakiye,
-    [tOzetDevredenBakiye, tOzetFisToplam],
+    () => tOzetFisToplam - tOzetDevredenSatirToplami,
+    [tOzetDevredenSatirToplami, tOzetFisToplam],
   );
   const aktifDonemSatisEtiketi = useMemo(() => donemSatisEtiketiGetir(aktifDonem), [aktifDonem]);
 
   const tFisToplam = useMemo(() => filteredForTotals.filter(f => !fisKasayaDevirMi(f)).reduce((a: number, b: any) => a + Number(b.toplam_tutar), 0), [filteredForTotals]);
   const tFisTahsilatRaw = useMemo(() => filteredForTotals.filter(f => !fisKasayaDevirMi(f)).reduce((a: number, b: any) => a + Number(b.tahsilat), 0), [filteredForTotals]);
-  const tFisKalan = useMemo(() => filteredForTotals.filter(f => !fisKasayaDevirMi(f)).reduce((a: number, b: any) => a + Number(b.kalan_bakiye), 0), [filteredForTotals]);
+  const acikHesapKaynakFisler = useMemo(
+    () =>
+      tumSatisFisList.filter((fis: any) => {
+        if (fisKasayaDevirMi(fis)) return false;
+        const isBayiMatch =
+          fisFiltre.bayiler.length === 0 || fisFiltre.bayiler.includes(satisFisBayiAdiGetir(fis));
+        const isKisiMatch =
+          satisFiltreKisi === "herkes" || normalizeUsername(fis.ekleyen) === aktifKullaniciKisa;
+        return isBayiMatch && isKisiMatch;
+      }),
+    [aktifKullaniciKisa, fisFiltre.bayiler, fisKasayaDevirMi, normalizeUsername, satisFiltreKisi, satisFisBayiAdiGetir, tumSatisFisList],
+  );
+  const tFisKalan = useMemo(() => {
+    const { bakiyeler } = hesaplaMusteriBakiyeleri(acikHesapKaynakFisler, aktifDonem);
+    const devredenToplam = Object.values(bakiyeler).reduce(
+      (toplam, borc) => toplam + Number(borc || 0),
+      0,
+    );
+    if (Math.abs(devredenToplam) > 0.01) return devredenToplam;
+    return filteredForTotals.filter(f => !fisKasayaDevirMi(f)).reduce((a: number, b: any) => a + Number(b.kalan_bakiye), 0);
+  }, [acikHesapKaynakFisler, aktifDonem, filteredForTotals, fisKasayaDevirMi, hesaplaMusteriBakiyeleri]);
 
   // GİDERLER TAHSİLATTAN DÜŞÜYOR (Kullanıcının giderleri net tahsilatı belirler)
   const tKullaniciGider = useMemo(
