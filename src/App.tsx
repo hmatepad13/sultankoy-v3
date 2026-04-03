@@ -790,10 +790,12 @@ export default function App() {
   const [bayiler, setBayiler] = useState<Bayi[]>(() => yerelJsonOku<Bayi[]>(BAYILER_CACHE_KEY, []));
   const [urunler, setUrunler] = useState<Urun[]>(() => yerelJsonOku<Urun[]>(URUNLER_CACHE_KEY, []));
   const [sutList, setSutList] = useState<SutGiris[]>([]);
+  const [oncekiSutList, setOncekiSutList] = useState<SutGiris[]>([]);
   const [satisFisList, setSatisFisList] = useState<SatisFis[]>([]);
   const [oncekiSatisFisList, setOncekiSatisFisList] = useState<SatisFis[]>([]);
   const [satisList, setSatisList] = useState<SatisGiris[]>([]);
   const [giderList, setGiderList] = useState<Gider[]>([]);
+  const [oncekiGiderList, setOncekiGiderList] = useState<Gider[]>([]);
   const [giderTuruListesi, setGiderTuruListesi] = useState<GiderTuru[]>([]);
   const [uretimList, setUretimList] = useState<Uretim[]>([]);
   const [copKutusuList, setCopKutusuList] = useState<CopKutusu[]>([]);
@@ -2373,36 +2375,98 @@ export default function App() {
       }
 
       if (hedef === "hepsi" || hedef === "sut" || hedef === "ozet") {
-        const { data: s, error: sErr } = await startupSorguyuCalistir<SutGiris>(
-          "sut_giris",
-          supabase
-            .from("sut_giris")
-            .select("*")
-            .gte("tarih", donemBaslangici)
-            .lt("tarih", donemBitisi)
-            .order("tarih", { ascending: true })
-            .order("id", { ascending: true }),
-        );
-        if (sErr) throw sErr;
+        const sutIstekleri =
+          hedef === "ozet"
+            ? Promise.all([
+                startupSorguyuCalistir<SutGiris>(
+                  "sut_giris",
+                  supabase
+                    .from("sut_giris")
+                    .select("*")
+                    .gte("tarih", donemBaslangici)
+                    .lt("tarih", donemBitisi)
+                    .order("tarih", { ascending: true })
+                    .order("id", { ascending: true }),
+                ),
+                startupSorguyuCalistir<SutGiris>(
+                  "sut_giris_onceki",
+                  supabase
+                    .from("sut_giris")
+                    .select("*")
+                    .lt("tarih", donemBaslangici)
+                    .order("tarih", { ascending: true })
+                    .order("id", { ascending: true }),
+                ),
+              ])
+            : Promise.all([
+                startupSorguyuCalistir<SutGiris>(
+                  "sut_giris",
+                  supabase
+                    .from("sut_giris")
+                    .select("*")
+                    .gte("tarih", donemBaslangici)
+                    .lt("tarih", donemBitisi)
+                    .order("tarih", { ascending: true })
+                    .order("id", { ascending: true }),
+                ),
+                Promise.resolve({ data: null as SutGiris[] | null, error: null }),
+              ]);
+
+        const [{ data: s, error: sErr }, { data: ps, error: psErr }] = await sutIstekleri;
+        if (sErr || psErr) throw sErr || psErr;
         if (s) setSutList(s);
+        if (hedef === "ozet") {
+          setOncekiSutList(ps || []);
+        }
         if (kullaniciId) {
           ertelenenVeriYuklemeRef.current.sutYuklenenKullanici = kullaniciId;
         }
       }
 
-      if (hedef === "acilis" || hedef === "hepsi" || hedef === "gider") {
-        const { data: g, error: gErr } = await startupSorguyuCalistir<Gider>(
-          "giderler",
-          supabase
-            .from("giderler")
-            .select("*")
-            .gte("tarih", donemBaslangici)
-            .lt("tarih", donemBitisi)
-            .order("tarih", { ascending: true })
-            .order("id", { ascending: true }),
-        );
-        if (gErr) throw gErr;
+      if (hedef === "acilis" || hedef === "hepsi" || hedef === "gider" || hedef === "ozet") {
+        const giderIstekleri =
+          hedef === "ozet"
+            ? Promise.all([
+                startupSorguyuCalistir<Gider>(
+                  "giderler",
+                  supabase
+                    .from("giderler")
+                    .select("*")
+                    .gte("tarih", donemBaslangici)
+                    .lt("tarih", donemBitisi)
+                    .order("tarih", { ascending: true })
+                    .order("id", { ascending: true }),
+                ),
+                startupSorguyuCalistir<Gider>(
+                  "giderler_onceki",
+                  supabase
+                    .from("giderler")
+                    .select("*")
+                    .lt("tarih", donemBaslangici)
+                    .order("tarih", { ascending: true })
+                    .order("id", { ascending: true }),
+                ),
+              ])
+            : Promise.all([
+                startupSorguyuCalistir<Gider>(
+                  "giderler",
+                  supabase
+                    .from("giderler")
+                    .select("*")
+                    .gte("tarih", donemBaslangici)
+                    .lt("tarih", donemBitisi)
+                    .order("tarih", { ascending: true })
+                    .order("id", { ascending: true }),
+                ),
+                Promise.resolve({ data: null as Gider[] | null, error: null }),
+              ]);
+
+        const [{ data: g, error: gErr }, { data: pg, error: pgErr }] = await giderIstekleri;
+        if (gErr || pgErr) throw gErr || pgErr;
         if (g) setGiderList(g);
+        if (hedef === "ozet") {
+          setOncekiGiderList(pg || []);
+        }
         if (kullaniciId) {
           ertelenenVeriYuklemeRef.current.giderYuklenenKullanici = kullaniciId;
         }
@@ -2506,6 +2570,14 @@ export default function App() {
   const tumSatisFisList = useMemo(
     () => [...oncekiSatisFisList, ...satisFisList],
     [oncekiSatisFisList, satisFisList],
+  );
+  const tumOzetSutList = useMemo(
+    () => [...oncekiSutList, ...sutList],
+    [oncekiSutList, sutList],
+  );
+  const tumOzetGiderList = useMemo(
+    () => [...oncekiGiderList, ...giderList],
+    [oncekiGiderList, giderList],
   );
   const aylar = useMemo(() => {
      const set = new Set(donemSecenekleri);
@@ -4135,10 +4207,13 @@ export default function App() {
     [periodGider],
   );
   const tHammaddeOdemeleri = tSutOdemesi + tKremaOdemesi + tKovaOdemesi + tKatkiOdemesi + tSutTozuOdemesi;
-  const sutcuyeBorcumuz = useMemo(() => sutcuBorcunuHesapla(sutList, giderList, aktifDonem), [aktifDonem, giderList, sutList]);
+  const sutcuyeBorcumuz = useMemo(
+    () => sutcuBorcunuHesapla(tumOzetSutList, tumOzetGiderList, aktifDonem),
+    [aktifDonem, tumOzetGiderList, tumOzetSutList],
+  );
   const hammaddeBorclari = useMemo(
-    () => hammaddeBorclariniHesapla(giderList, aktifDonem),
-    [aktifDonem, giderList],
+    () => hammaddeBorclariniHesapla(tumOzetGiderList, aktifDonem),
+    [aktifDonem, tumOzetGiderList],
   );
   const tHammaddeBorcu =
     sutcuyeBorcumuz +
