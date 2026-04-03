@@ -820,6 +820,7 @@ export default function App() {
   const [adminKullanicilar, setAdminKullanicilar] = useState<AdminKullanici[]>([]);
   const [isAdminKullaniciLoading, setIsAdminKullaniciLoading] = useState(false);
   const [adminKullaniciHata, setAdminKullaniciHata] = useState("");
+  const satisVarsayilanFiltresiKullaniciRef = useRef<string | null>(null);
   
   // DİĞER İŞLEMLER (Sadece Kasaya Devir Kaldı)
   const [digerModalConfig, setDigerModalConfig] = useState<{
@@ -1359,6 +1360,16 @@ export default function App() {
     session?.user?.email || (username.includes("@") ? username : `${username}@sistem.local`);
   const aktifKullaniciKisa = normalizeUsername(aktifKullaniciEposta);
   const isAdmin = adminMi(mevcutKullanici);
+
+  useEffect(() => {
+    if (!mevcutKullanici) return;
+    if (satisVarsayilanFiltresiKullaniciRef.current === mevcutKullanici) return;
+
+    setSatisFiltreTip("tumu");
+    setSatisFiltreKisi(isAdmin ? "herkes" : "benim");
+    satisVarsayilanFiltresiKullaniciRef.current = mevcutKullanici;
+  }, [isAdmin, mevcutKullanici]);
+
   const startupLog = useCallback(
     (source: string, message: string, details: Record<string, unknown> = {}, fingerprintSuffix = "") => {
       const fingerprintParcalari = ["startup", startupTelemetriRef.current.denemeId, source];
