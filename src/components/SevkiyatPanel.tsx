@@ -10,6 +10,7 @@ type SevkiyatPanelProps = {
   aktifKullaniciId: string | null;
   aktifKullaniciKisa: string;
   aktifDonem: string;
+  isAdmin: boolean;
   onRefreshCop: () => void | Promise<void>;
   onConfirm: (options: AppConfirmOptions) => Promise<boolean>;
 };
@@ -92,9 +93,10 @@ const sevkiyatTablosuEksikMi = (hata: BasitSupabaseHatasi) => {
 const sevkiyatKurulumMesaji = () =>
   `Sevkiyat tablosu bulunamadı. Önce ${SEVKIYAT_SQL_DOSYASI} dosyasını Supabase SQL Editor'da çalıştırın.`;
 
-export function SevkiyatPanel({ aktifKullaniciEposta, aktifKullaniciId, aktifKullaniciKisa, aktifDonem, onRefreshCop, onConfirm }: SevkiyatPanelProps) {
+export function SevkiyatPanel({ aktifKullaniciEposta, aktifKullaniciId, aktifKullaniciKisa, aktifDonem, isAdmin, onRefreshCop, onConfirm }: SevkiyatPanelProps) {
   const [sevkiyatList, setSevkiyatList] = useState<SevkiyatKaydi[]>([]);
   const [sevkiyatFiltreKisi, setSevkiyatFiltreKisi] = useState<"benim" | "tumu">("benim");
+  const [varsayilanFiltreUygulananKullanici, setVarsayilanFiltreUygulananKullanici] = useState<string | null>(null);
   const [sevkiyatForm, setSevkiyatForm] = useState({
     tarih: varsayilanTarihGetir(aktifDonem),
     yogurt3kg: "",
@@ -113,6 +115,12 @@ export function SevkiyatPanel({ aktifKullaniciEposta, aktifKullaniciId, aktifKul
     if (editingSevkiyatId) return;
     setSevkiyatForm((prev) => ({ ...prev, tarih: varsayilanTarihGetir(aktifDonem) }));
   }, [aktifDonem, editingSevkiyatId]);
+
+  useEffect(() => {
+    if (!aktifKullaniciKisa || varsayilanFiltreUygulananKullanici === aktifKullaniciKisa) return;
+    setSevkiyatFiltreKisi(isAdmin ? "tumu" : "benim");
+    setVarsayilanFiltreUygulananKullanici(aktifKullaniciKisa);
+  }, [aktifKullaniciKisa, isAdmin, varsayilanFiltreUygulananKullanici]);
 
   useEffect(() => {
     if (!openDropdown) return;

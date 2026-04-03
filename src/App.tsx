@@ -4685,6 +4685,7 @@ export default function App() {
           aktifKullaniciId: session?.user?.id || null,
           aktifKullaniciKisa,
           aktifDonem,
+          isAdmin,
           onRefreshCop: () => verileriGetir("cop"),
           onConfirm: confirmDialogAc,
         });
@@ -4700,6 +4701,7 @@ export default function App() {
           aktifKullaniciEposta,
           aktifKullaniciId: session?.user?.id || null,
           aktifKullaniciKisa,
+          isAdmin,
           giderTurleri,
           periodGider,
           kaydiSilebilirMi,

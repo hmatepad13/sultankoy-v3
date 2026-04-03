@@ -27,6 +27,7 @@ type GiderPanelProps = {
   aktifKullaniciEposta: string;
   aktifKullaniciId: string | null;
   aktifKullaniciKisa: string;
+  isAdmin: boolean;
   giderTurleri: string[];
   periodGider: Gider[];
   kaydiSilebilirMi: (ekleyen?: string | null) => boolean;
@@ -116,6 +117,7 @@ export function GiderPanel({
   aktifKullaniciEposta,
   aktifKullaniciId,
   aktifKullaniciKisa,
+  isAdmin,
   giderTurleri,
   periodGider,
   kaydiSilebilirMi,
@@ -128,6 +130,7 @@ export function GiderPanel({
   helpers,
 }: GiderPanelProps) {
   const [giderFiltreKisi, setGiderFiltreKisi] = useState<"benim" | "tumu">("benim");
+  const [varsayilanFiltreUygulananKullanici, setVarsayilanFiltreUygulananKullanici] = useState<string | null>(null);
   const [giderFiltre, setGiderFiltre] = useState<{ turler: string[]; kisiler: string[] }>({ turler: [], kisiler: [] });
   const [isGiderModalOpen, setIsGiderModalOpen] = useState(false);
   const [editingGiderId, setEditingGiderId] = useState<string | null>(null);
@@ -146,6 +149,12 @@ export function GiderPanel({
     if (isGiderModalOpen || editingGiderId) return;
     setGiderForm((prev) => ({ ...prev, tarih: varsayilanTarihGetir(aktifDonem) }));
   }, [aktifDonem, editingGiderId, isGiderModalOpen]);
+
+  useEffect(() => {
+    if (!aktifKullaniciKisa || varsayilanFiltreUygulananKullanici === aktifKullaniciKisa) return;
+    setGiderFiltreKisi(isAdmin ? "tumu" : "benim");
+    setVarsayilanFiltreUygulananKullanici(aktifKullaniciKisa);
+  }, [aktifKullaniciKisa, isAdmin, varsayilanFiltreUygulananKullanici]);
 
   useEffect(() => {
     if (!openDropdownId) return;
