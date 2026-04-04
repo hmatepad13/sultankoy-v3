@@ -5709,30 +5709,32 @@ export default function App() {
                             </td>
                             <td style={{ padding: "7px 3px", borderBottom: "1px solid #dbeafe", fontSize: "9px", color: "#64748b", whiteSpace: "nowrap" }}>-</td>
                             <td style={{ padding: "7px 3px", borderBottom: "1px solid #dbeafe", lineHeight: 1.3 }}>
-                              <div style={{ fontSize: "11px", color: "#1e3a8a", fontWeight: "bold" }}>Önceki Dönem Borcu</div>
-                              <div style={{ fontSize: "10px", color: "#64748b" }}>Aktif döneme devreden bakiye</div>
-                              {musteriEkstreData.oncekiDonemDetayiVar && musteriEkstreData.oncekiDonem && (
-                                <button
-                                  onClick={() => void handleOncekiDonemEkstreAc()}
-                                  className="btn-anim"
-                                  style={{
-                                    marginTop: "6px",
-                                    padding: "4px 8px",
-                                    borderRadius: "999px",
-                                    border: "1px solid #93c5fd",
-                                    background: "#eff6ff",
-                                    color: "#1d4ed8",
-                                    fontSize: "10px",
-                                    fontWeight: "bold",
-                                    cursor: isMusteriEkstreYukleniyor ? "wait" : "pointer",
-                                  }}
-                                  disabled={isMusteriEkstreYukleniyor}
-                                >
-                                  {isMusteriEkstreYukleniyor
-                                    ? "Yükleniyor..."
-                                    : `${donemMetni(musteriEkstreData.oncekiDonem)} Detay`}
-                                </button>
-                              )}
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "6px" }}>
+                                <div style={{ fontSize: "11px", color: "#1e3a8a", fontWeight: "bold" }}>Önceki Dönem Borcu</div>
+                                {musteriEkstreData.oncekiDonemDetayiVar && musteriEkstreData.oncekiDonem && (
+                                  <button
+                                    onClick={() => void handleOncekiDonemEkstreAc()}
+                                    className="btn-anim"
+                                    style={{
+                                      padding: "3px 7px",
+                                      borderRadius: "999px",
+                                      border: "1px solid #93c5fd",
+                                      background: "#eff6ff",
+                                      color: "#1d4ed8",
+                                      fontSize: "9px",
+                                      fontWeight: "bold",
+                                      cursor: isMusteriEkstreYukleniyor ? "wait" : "pointer",
+                                      whiteSpace: "nowrap",
+                                      flexShrink: 0,
+                                    }}
+                                    disabled={isMusteriEkstreYukleniyor}
+                                  >
+                                    {isMusteriEkstreYukleniyor
+                                      ? "Yükleniyor..."
+                                      : `${String(musteriEkstreData.oncekiDonem).split("-").reverse().join("/")} Detay`}
+                                  </button>
+                                )}
+                              </div>
                             </td>
                             <td style={{ padding: "7px 3px", borderBottom: "1px solid #dbeafe", textAlign: "right", color: "#94a3b8", fontSize: "10px", whiteSpace: "nowrap" }}>-</td>
                             <td style={{ padding: "7px 3px", borderBottom: "1px solid #dbeafe", textAlign: "right", color: "#94a3b8", fontSize: "10px", whiteSpace: "nowrap" }}>-</td>
