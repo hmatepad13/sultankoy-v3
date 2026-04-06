@@ -7,7 +7,11 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "admin:check": "node scripts/admin/check-access.mjs",
+    "perf:login": "node scripts/admin/perf-login.mjs",
+    "perf:startup": "node scripts/admin/perf-startup.mjs",
+    "vercel:status": "node scripts/admin/vercel-status.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
