@@ -3,7 +3,7 @@ import { DonemDisiTarihUyarisi } from "./DonemDisiTarihUyarisi";
 import { supabase } from "../lib/supabase";
 import type { AppConfirmOptions, SevkiyatKaydi } from "../types/app";
 import { aktifDonemDisiKayitOnayMetni, getLocalDateString } from "../utils/date";
-import { fSayiNoDec, normalizeUsername } from "../utils/format";
+import { fSayi, fSayiNoDec, normalizeUsername } from "../utils/format";
 
 type SevkiyatPanelProps = {
   aktifKullaniciEposta: string;
@@ -39,8 +39,18 @@ const SEVKIYAT_SQL_DOSYASI = "sql/add-sevkiyatlar-table.sql";
 
 const sayiDegeri = (deger: unknown) => {
   if (typeof deger === "number" && Number.isFinite(deger)) return deger;
-  if (typeof deger === "string" && deger.trim() && !Number.isNaN(Number(deger))) return Number(deger);
+  if (typeof deger === "string") {
+    const normalize = deger.trim().replace(",", ".");
+    if (normalize && !Number.isNaN(Number(normalize))) return Number(normalize);
+  }
   return 0;
+};
+
+const ondalikMetniTemizle = (deger: string) => {
+  const temiz = deger.replace(/[^0-9.,]/g, "").replace(/\./g, ",");
+  const ilkVirgul = temiz.indexOf(",");
+  if (ilkVirgul === -1) return temiz;
+  return `${temiz.slice(0, ilkVirgul + 1)}${temiz.slice(ilkVirgul + 1).replace(/,/g, "")}`;
 };
 
 const varsayilanTarihGetir = (aktifDonem: string) => {
@@ -152,7 +162,7 @@ export function SevkiyatPanel({ aktifKullaniciEposta, aktifKullaniciId, aktifKul
   }, [aktifDonem]);
 
   const handleSevkiyatInputDegistir = (alan: "yogurt3kg" | "yogurt5kg" | "kaymak", value: string) => {
-    const temiz = value.replace(/[^\d]/g, "");
+    const temiz = alan === "kaymak" ? ondalikMetniTemizle(value) : value.replace(/[^\d]/g, "");
     setSevkiyatForm((prev) => ({ ...prev, [alan]: temiz }));
   };
 
@@ -277,7 +287,7 @@ export function SevkiyatPanel({ aktifKullaniciEposta, aktifKullaniciId, aktifKul
       tarih: kayit.tarih,
       yogurt3kg: kayit.yogurt3kg ? String(kayit.yogurt3kg) : "",
       yogurt5kg: kayit.yogurt5kg ? String(kayit.yogurt5kg) : "",
-      kaymak: kayit.kaymak ? String(kayit.kaymak) : "",
+      kaymak: kayit.kaymak ? String(kayit.kaymak).replace(".", ",") : "",
     });
   };
 
@@ -419,7 +429,7 @@ export function SevkiyatPanel({ aktifKullaniciEposta, aktifKullaniciId, aktifKul
             </div>
             <div style={{ minWidth: "66px", border: "1px solid #9a341233", background: "#fff7ed", color: "#9a3412", borderRadius: "8px", padding: "3px 5px", textAlign: "center" }}>
               <div style={{ fontSize: "7px", fontWeight: "bold", lineHeight: 1.05 }}>TOP KAYMAK</div>
-              <div style={{ fontSize: "11px", fontWeight: "bold", marginTop: "2px", lineHeight: 1 }}>{fSayiNoDec(sevkiyatToplamlari.kaymak)}</div>
+              <div style={{ fontSize: "11px", fontWeight: "bold", marginTop: "2px", lineHeight: 1 }}>{fSayi(sevkiyatToplamlari.kaymak)}</div>
             </div>
           </div>
         </div>
@@ -466,7 +476,7 @@ export function SevkiyatPanel({ aktifKullaniciEposta, aktifKullaniciId, aktifKul
             <span style={{ fontSize: "10px", fontWeight: "bold", color: "#7c2d12", whiteSpace: "nowrap" }}>Kaymak</span>
             <input
               type="text"
-              inputMode="numeric"
+              inputMode="decimal"
               className="m-inp"
               style={{ width: "100%", height: "30px", minHeight: "30px", flex: "0 0 30px", padding: "4px 6px", fontSize: "11px", textAlign: "center", boxSizing: "border-box" }}
               value={sevkiyatForm.kaymak}
@@ -490,22 +500,23 @@ export function SevkiyatPanel({ aktifKullaniciEposta, aktifKullaniciId, aktifKul
           <thead>
             <tr>
               <th style={{ width: "34%", textAlign: "left", background: "#5b9bd5", color: "#fff" }}>TAR / KİŞİ</th>
-              <th style={{ width: "38%", textAlign: "right", background: "#5b9bd5", color: "#fff" }}>YOĞURT</th>
-              <th style={{ width: "20%", textAlign: "right", background: "#5b9bd5", color: "#fff" }}>KAYMAK</th>
+              <th style={{ width: "18%", textAlign: "right", background: "#5b9bd5", color: "#fff" }}>3 KG</th>
+              <th style={{ width: "18%", textAlign: "right", background: "#5b9bd5", color: "#fff" }}>5 KG</th>
+              <th style={{ width: "22%", textAlign: "right", background: "#5b9bd5", color: "#fff" }}>KAYMAK KG</th>
               <th style={{ width: "8%", background: "#5b9bd5" }}></th>
             </tr>
           </thead>
           <tbody>
             {isYukleniyor && (
               <tr>
-                <td colSpan={4} style={{ textAlign: "center", padding: "14px", color: "#64748b", fontWeight: "bold" }}>
+                <td colSpan={5} style={{ textAlign: "center", padding: "14px", color: "#64748b", fontWeight: "bold" }}>
                   Yükleniyor...
                 </td>
               </tr>
             )}
             {!isYukleniyor && filtrelenmisSevkiyatlar.length === 0 && (
               <tr>
-                <td colSpan={4} style={{ textAlign: "center", padding: "14px", color: "#94a3b8", fontWeight: "bold" }}>
+                <td colSpan={5} style={{ textAlign: "center", padding: "14px", color: "#94a3b8", fontWeight: "bold" }}>
                   Sevkiyat kaydı bulunmuyor.
                 </td>
               </tr>
@@ -523,19 +534,9 @@ export function SevkiyatPanel({ aktifKullaniciEposta, aktifKullaniciId, aktifKul
                     </span>
                   </div>
                 </td>
-                <td style={{ textAlign: "right", fontWeight: "bold", color: "#ea580c" }}>
-                  <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "4px", flexWrap: "wrap" }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: "3px", borderRadius: "999px", padding: "2px 6px", background: "#fff7ed", color: "#c2410c", fontSize: "10px", lineHeight: 1.1 }}>
-                      <span style={{ color: "#9a3412", fontWeight: 700 }}>3K</span>
-                      <span>{fSayiNoDec(kayit.yogurt3kg)}</span>
-                    </span>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: "3px", borderRadius: "999px", padding: "2px 6px", background: "#fff7ed", color: "#c2410c", fontSize: "10px", lineHeight: 1.1 }}>
-                      <span style={{ color: "#9a3412", fontWeight: 700 }}>5K</span>
-                      <span>{fSayiNoDec(kayit.yogurt5kg)}</span>
-                    </span>
-                  </div>
-                </td>
-                <td style={{ textAlign: "right", fontWeight: "bold", color: "#ea580c" }}>{fSayiNoDec(kayit.kaymak)}</td>
+                <td style={{ textAlign: "right", fontWeight: "bold", color: "#ea580c" }}>{fSayiNoDec(kayit.yogurt3kg)}</td>
+                <td style={{ textAlign: "right", fontWeight: "bold", color: "#ea580c" }}>{fSayiNoDec(kayit.yogurt5kg)}</td>
+                <td style={{ textAlign: "right", fontWeight: "bold", color: "#ea580c" }}>{fSayi(kayit.kaymak)}</td>
                 <td className="actions-cell" style={{ position: "relative" }}>
                   <button onClick={(e) => { e.stopPropagation(); setOpenDropdown({ type: "sevkiyat", id: kayit.id }); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "16px", padding: "0 4px", color: "#64748b" }}>⋮</button>
                   {openDropdown?.type === "sevkiyat" && Number(openDropdown.id) === Number(kayit.id) && (
@@ -561,7 +562,7 @@ export function SevkiyatPanel({ aktifKullaniciEposta, aktifKullaniciId, aktifKul
               <div><b>Kişi:</b> {sevkiyatDetayKaydi.kullanici}</div>
               <div><b>3 KG Yoğurt:</b> {fSayiNoDec(sevkiyatDetayKaydi.yogurt3kg)}</div>
               <div><b>5 KG Yoğurt:</b> {fSayiNoDec(sevkiyatDetayKaydi.yogurt5kg)}</div>
-              <div><b>Kaymak:</b> {fSayiNoDec(sevkiyatDetayKaydi.kaymak)}</div>
+              <div><b>Kaymak:</b> {fSayi(sevkiyatDetayKaydi.kaymak)}</div>
             </div>
             <button onClick={() => setSevkiyatDetayKaydi(null)} style={{ width: "100%", marginTop: "14px", padding: "10px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: "8px", fontWeight: "bold", color: "#475569", cursor: "pointer" }}>KAPAT</button>
           </div>
