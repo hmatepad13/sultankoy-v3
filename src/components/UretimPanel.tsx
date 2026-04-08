@@ -284,7 +284,7 @@ export function UretimPanel({
   const handleUretimKaydet = async () => {
     if (!uretimForm.tarih) return alert("Tarih zorunludur!");
 
-    const duzenlenenKayit = uretimList.find((item) => item.id === editingUretimId);
+    const duzenlenenKayit = uretimList.find((item) => String(item.id ?? "") === String(editingUretimId ?? ""));
     if (editingUretimId && !kaydiDuzenleyebilirMi(duzenlenenKayit?.ekleyen)) {
       return alert("Bu üretim kaydını sadece ekleyen kullanıcı veya admin düzenleyebilir.");
     }
