@@ -265,7 +265,7 @@ export function GiderPanel({
 
   const handleGiderKaydet = async () => {
     if (!giderForm.tarih || !giderForm.tur || !giderForm.tutar) return alert("Tarih, Tür ve Tutar zorunludur!");
-    const duzenlenenKayit = periodGider.find((item) => item.id === editingGiderId);
+    const duzenlenenKayit = periodGider.find((item) => String(item.id || "") === String(editingGiderId || ""));
     if (editingGiderId && !kaydiDuzenleyebilirMi(duzenlenenKayit?.ekleyen)) return alert("Bu gider kaydını sadece ekleyen kullanıcı veya admin düzenleyebilir.");
     const donemDisiOnayMesaji = aktifDonemDisiKayitOnayMetni(giderForm.tarih, aktifDonem);
     if (
