@@ -15,6 +15,29 @@ export const normalizeUsername = (deger?: string | null) =>
     .toLowerCase()
     .replace("@sistem.local", "");
 
+const kullaniciAnahtarlariniGetir = (deger?: string | null) => {
+  const hamDeger = String(deger || "").trim().toLowerCase();
+  if (!hamDeger) return [];
+
+  const anahtarlar = new Set<string>();
+  anahtarlar.add(hamDeger);
+
+  const normalizeDeger = normalizeUsername(hamDeger);
+  if (normalizeDeger) anahtarlar.add(normalizeDeger);
+
+  const epostaKisa = hamDeger.split("@")[0]?.trim();
+  if (epostaKisa) anahtarlar.add(epostaKisa);
+
+  return [...anahtarlar];
+};
+
+export const kullanicilarAyniMi = (birinci?: string | null, ikinci?: string | null) => {
+  const birinciAnahtarlar = new Set(kullaniciAnahtarlariniGetir(birinci));
+  if (birinciAnahtarlar.size === 0) return false;
+
+  return kullaniciAnahtarlariniGetir(ikinci).some((anahtar) => birinciAnahtarlar.has(anahtar));
+};
+
 export const tamamlaSekmeYetkisi = (tabs?: Partial<SekmeYetkiMap> | null): SekmeYetkiMap => ({
   ...VARSAYILAN_SEKME_YETKILERI,
   ...tabs,

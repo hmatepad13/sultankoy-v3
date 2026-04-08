@@ -60,7 +60,7 @@ import type {
   Urun,
 } from "./types/app";
 import { aktifDonemDisiKayitOnayMetni, getLocalDateString } from "./utils/date";
-import { normalizeUsername } from "./utils/format";
+import { kullanicilarAyniMi, normalizeUsername } from "./utils/format";
 
 const SUPABASE_FREE_DATABASE_LIMIT_BYTES = 500_000_000;
 const SUPABASE_FREE_STORAGE_LIMIT_BYTES = 1_000_000_000;
@@ -1680,7 +1680,7 @@ export default function App() {
   }, [activeTab, aktifDonem, isAdmin, session?.user?.id]);
 
   const kaydiSilebilirMi = (ekleyen?: string | null) =>
-    isAdmin || (!!normalizeUsername(ekleyen) && normalizeUsername(ekleyen) === aktifKullaniciKisa);
+    isAdmin || kullanicilarAyniMi(ekleyen, aktifKullaniciEposta || aktifKullaniciKisa);
   const kaydiDuzenleyebilirMi = (ekleyen?: string | null) => kaydiSilebilirMi(ekleyen);
   const satisFisEkleleyeniniBul = (fis?: Partial<SatisFis> | null) =>
     fis?.ekleyen ||

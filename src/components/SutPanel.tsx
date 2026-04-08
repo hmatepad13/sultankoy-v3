@@ -3,7 +3,7 @@ import { DonemDisiTarihUyarisi } from "./DonemDisiTarihUyarisi";
 import { supabase } from "../lib/supabase";
 import type { AppConfirmOptions, Ciftlik, SortConfig, SutGiris } from "../types/app";
 import { aktifDonemDisiKayitOnayMetni, getLocalDateString } from "../utils/date";
-import { normalizeUsername } from "../utils/format";
+import { kullanicilarAyniMi, normalizeUsername } from "../utils/format";
 
 type SutFilterModal = "sut_ciftlik" | "sut_tarih" | null;
 type GorselOnizleme = { url: string; baslik: string; boyut?: string; indirmeAdi?: string } | null;
@@ -317,7 +317,7 @@ export function SutPanel({
   );
 
   const kaydiSilebilirMi = (ekleyen?: string | null) =>
-    isAdmin || (!!normalizeUsername(ekleyen) && normalizeUsername(ekleyen) === aktifKullaniciKisa);
+    isAdmin || kullanicilarAyniMi(ekleyen, aktifKullaniciEposta || aktifKullaniciKisa);
   const kaydiDuzenleyebilirMi = (ekleyen?: string | null) => kaydiSilebilirMi(ekleyen);
 
   const resetSutFormu = () => {

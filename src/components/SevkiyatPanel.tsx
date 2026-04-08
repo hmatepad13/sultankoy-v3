@@ -3,7 +3,7 @@ import { DonemDisiTarihUyarisi } from "./DonemDisiTarihUyarisi";
 import { supabase } from "../lib/supabase";
 import type { AppConfirmOptions, SevkiyatKaydi } from "../types/app";
 import { aktifDonemDisiKayitOnayMetni, getLocalDateString } from "../utils/date";
-import { fSayi, fSayiNoDec, normalizeUsername } from "../utils/format";
+import { fSayi, fSayiNoDec, kullanicilarAyniMi, normalizeUsername } from "../utils/format";
 
 type SevkiyatPanelProps = {
   aktifKullaniciEposta: string;
@@ -208,9 +208,7 @@ export function SevkiyatPanel({ aktifKullaniciEposta, aktifKullaniciId, aktifKul
   }, [sevkiyatlariYukle]);
 
   const sevkiyatKaydiSahibiMi = useCallback(
-    (kayit?: Partial<SevkiyatKaydi> | null) =>
-      !!normalizeUsername(kayit?.ekleyen || kayit?.kullanici) &&
-      normalizeUsername(kayit?.ekleyen || kayit?.kullanici) === aktifKullaniciKisa,
+    (kayit?: Partial<SevkiyatKaydi> | null) => kullanicilarAyniMi(kayit?.ekleyen || kayit?.kullanici, aktifKullaniciKisa),
     [aktifKullaniciKisa],
   );
 

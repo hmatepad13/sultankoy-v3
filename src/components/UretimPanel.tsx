@@ -21,7 +21,7 @@ import {
 } from "../lib/uretim";
 import type { AppConfirmOptions, SortConfig, Uretim } from "../types/app";
 import { aktifDonemDisiKayitOnayMetni, getLocalDateString } from "../utils/date";
-import { fSayiNoDec, normalizeUsername } from "../utils/format";
+import { fSayiNoDec, kullanicilarAyniMi, normalizeUsername } from "../utils/format";
 
 type UretimMiniDetay = {
   baslik: string;
@@ -198,7 +198,7 @@ export function UretimPanel({
   const uretimAksiyonYetkiliMi =
     normalizeUsername(aktifKullaniciKisa) === "admin" || normalizeUsername(aktifKullaniciKisa) === "yusuf";
   const kaydiSilebilirMi = (ekleyen?: string | null) =>
-    isAdmin || (!!normalizeUsername(ekleyen) && normalizeUsername(ekleyen) === normalizeUsername(aktifKullaniciKisa));
+    isAdmin || kullanicilarAyniMi(ekleyen, aktifKullaniciEposta || aktifKullaniciKisa);
   const kaydiDuzenleyebilirMi = (ekleyen?: string | null) => kaydiSilebilirMi(ekleyen);
   const tabloTamSayi = (deger: unknown) =>
     fSayiNoDec(typeof deger === "number" || typeof deger === "string" ? deger : 0);

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { DonemDisiTarihUyarisi } from "./DonemDisiTarihUyarisi";
 import type { AppConfirmOptions, CekSenetDurum, CekSenetKaydi, CekSenetTur } from "../types/app";
 import { aktifDonemDisiKayitOnayMetni, getLocalDateString } from "../utils/date";
-import { fSayi, normalizeUsername } from "../utils/format";
+import { fSayi, kullanicilarAyniMi, normalizeUsername } from "../utils/format";
 
 type CekSenetPanelProps = {
   aktifKullaniciKisa: string;
@@ -161,7 +161,7 @@ export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem, onConfirm }: Cek
   }, [aktifDonem]);
 
   const kayitSahibiMi = useCallback(
-    (kayit?: Partial<CekSenetKaydi> | null) => normalizeUsername(kayit?.ekleyen) === aktifKullaniciKisa,
+    (kayit?: Partial<CekSenetKaydi> | null) => kullanicilarAyniMi(kayit?.ekleyen, aktifKullaniciKisa),
     [aktifKullaniciKisa],
   );
 
