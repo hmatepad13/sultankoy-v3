@@ -184,6 +184,7 @@ export function GiderPanel({
   }), giderSort), [aktifKullaniciKisa, giderFiltre, giderFiltreKisi, giderSort, periodGider]);
 
   const fGGiderNormal = useMemo(() => fGiderList.filter((g) => normalGiderMi(g.tur)).reduce((a, b) => a + Number(b.tutar), 0), [fGiderList]);
+  const fGGiderNormalKayitAdedi = useMemo(() => fGiderList.filter((g) => normalGiderMi(g.tur)).length, [fGiderList]);
   const fGSutOdemesi = useMemo(() => fGiderList.filter((g) => sutOdemesiMi(g.tur)).reduce((a, b) => a + Number(b.tutar), 0), [fGiderList]);
   const fGKremaOdemesi = useMemo(() => fGiderList.filter((g) => kremaOdemesiMi(g.tur)).reduce((a, b) => a + Number(b.tutar), 0), [fGiderList]);
   const fGKovaOdemesi = useMemo(() => fGiderList.filter((g) => kovaOdemesiMi(g.tur)).reduce((a, b) => a + Number(b.tutar), 0), [fGiderList]);
@@ -371,7 +372,20 @@ export function GiderPanel({
         <div className="gider-ust-satir" style={{ display: "flex", gap: "8px", flexWrap: "nowrap", alignItems: "center", marginBottom: "10px" }}>
           <button onClick={handleYeniGiderModalAc} className="btn-anim m-btn inline-mobile-btn" style={{ background: "#dc2626", margin: 0, width: "auto", minWidth: "136px", flex: "0 0 auto", fontSize: "13px", padding: "10px 12px" }}>➕ YENİ GİDER EKLE</button>
           <div style={{ display: "flex", gap: "6px", flex: "1 1 auto", minWidth: "0", flexWrap: "wrap" }}>
-            <div className="gider-ust-ozet" style={{ border: "1px solid #dc262633", background: "#dc262610", color: "#dc2626", borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", flex: "1 1 120px", minWidth: "100px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>GİDERLER: {helpers.fSayi(fGGiderNormal)} ₺</div>
+            <div
+              className="gider-ust-ozet"
+              onClick={() => onOpenMiniDetay({
+                baslik: "Giderler",
+                renk: "#dc2626",
+                satirlar: [
+                  { etiket: "Toplam Gider", deger: `${helpers.fSayi(fGGiderNormal)} TL`, vurgu: true },
+                  { etiket: "Kayit Sayisi", deger: String(fGGiderNormalKayitAdedi) },
+                ],
+              })}
+              style={{ border: "1px solid #dc262633", background: "#dc262610", color: "#dc2626", borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", flex: "1 1 120px", minWidth: "100px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", cursor: "pointer" }}
+            >
+              GİDERLER: {helpers.fSayi(fGGiderNormal)} ₺
+            </div>
             <div className="gider-ust-ozet" onClick={() => onOpenMiniDetay({ baslik: "Hammadde Ödemeleri", renk: "#7c3aed", satirlar: [{ etiket: "Süt Ödemesi", deger: `${helpers.fSayi(fGSutOdemesi)} TL`, vurgu: true }, { etiket: "Krema Ödemesi", deger: `${helpers.fSayi(fGKremaOdemesi)} TL`, vurgu: true }, { etiket: "Kova Ödemesi", deger: `${helpers.fSayi(fGKovaOdemesi)} TL`, vurgu: true }, { etiket: "Katkı Ödemesi", deger: `${helpers.fSayi(fGKatkiOdemesi)} TL`, vurgu: true }, { etiket: "Süt Tozu Ödemesi", deger: `${helpers.fSayi(fGSutTozuOdemesi)} TL`, vurgu: true }] })} style={{ border: "1px solid #8b5cf633", background: "#8b5cf610", color: "#7c3aed", borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", flex: "1 1 145px", minWidth: "125px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", cursor: "pointer" }}>HAMMADDE ÖDEMELERİ: {helpers.fSayi(fGHammaddeOdemeleri)} ₺</div>
           </div>
           <button onClick={() => void handleExcelIndir()} disabled={isExcelLoading} className="btn-anim m-btn inline-mobile-btn" style={{ background: "#0f766e", margin: 0, width: "auto", minWidth: "112px", flex: "0 0 auto", fontSize: "12px", padding: "10px 12px", opacity: isExcelLoading ? 0.75 : 1, cursor: isExcelLoading ? "wait" : "pointer" }}>{isExcelLoading ? "Hazır..." : "📥 EXCEL"}</button>
