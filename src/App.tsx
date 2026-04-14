@@ -34,7 +34,12 @@ import {
 } from "./lib/gider";
 import { installClientTelemetry, logClientError, logClientEvent, setClientTelemetryContext } from "./lib/clientTelemetry";
 import { adminMi, kullaniciYetkileriniKaydet, kullaniciYetkileriniYukle, kullaniciYetkisiniBul } from "./lib/permissions";
-import { supabase } from "./lib/supabase";
+import {
+  INTERNET_CONNECTION_EVENT,
+  INTERNET_CONNECTION_MESSAGE,
+  internetBaglantisiHatasiMi,
+  supabase,
+} from "./lib/supabase";
 import { uretimKaydiniNormalizeEt } from "./lib/uretim";
 import type {
   ActiveAyarTab,
@@ -919,6 +924,9 @@ export default function App() {
   const [isStartupDiagnosticsLoading, setIsStartupDiagnosticsLoading] = useState(false);
   const [startupDiagnosticsError, setStartupDiagnosticsError] = useState("");
   const [veriYuklemeHata, setVeriYuklemeHata] = useState("");
+  const [internetBaglantiUyarisi, setInternetBaglantiUyarisi] = useState(() =>
+    typeof navigator !== "undefined" && navigator.onLine === false ? INTERNET_CONNECTION_MESSAGE : "",
+  );
   const [authHata, setAuthHata] = useState("");
   const [adminKullanicilar, setAdminKullanicilar] = useState<AdminKullanici[]>([]);
   const [isAdminKullaniciLoading, setIsAdminKullaniciLoading] = useState(false);
@@ -1375,6 +1383,36 @@ export default function App() {
       setAuthHata("");
     }
   }, [session?.user?.email]);
+
+  useEffect(() => {
+    const baglantiKoptu = () => {
+      setInternetBaglantiUyarisi(INTERNET_CONNECTION_MESSAGE);
+    };
+    const baglantiGeldi = () => {
+      setInternetBaglantiUyarisi("");
+      setVeriYuklemeHata((mevcutHata) => (mevcutHata === INTERNET_CONNECTION_MESSAGE ? "" : mevcutHata));
+    };
+    const supabaseBaglantiHatasi = (event: Event) => {
+      const mesaj = event instanceof CustomEvent && typeof event.detail?.message === "string"
+        ? event.detail.message
+        : INTERNET_CONNECTION_MESSAGE;
+      setInternetBaglantiUyarisi(mesaj);
+    };
+
+    window.addEventListener("offline", baglantiKoptu);
+    window.addEventListener("online", baglantiGeldi);
+    window.addEventListener(INTERNET_CONNECTION_EVENT, supabaseBaglantiHatasi);
+
+    if (navigator.onLine === false) {
+      baglantiKoptu();
+    }
+
+    return () => {
+      window.removeEventListener("offline", baglantiKoptu);
+      window.removeEventListener("online", baglantiGeldi);
+      window.removeEventListener(INTERNET_CONNECTION_EVENT, supabaseBaglantiHatasi);
+    };
+  }, []);
 
   useEffect(() => {
     setDonemSecenekleriHazir(false);
@@ -2663,7 +2701,12 @@ export default function App() {
         target: hedef,
         online: typeof navigator !== "undefined" ? navigator.onLine : true,
       });
-      setVeriYuklemeHata(error?.message || "Veriler alinirken beklenmeyen bir hata olustu.");
+      if (internetBaglantisiHatasiMi(error)) {
+        setInternetBaglantiUyarisi(INTERNET_CONNECTION_MESSAGE);
+        setVeriYuklemeHata(INTERNET_CONNECTION_MESSAGE);
+      } else {
+        setVeriYuklemeHata(error?.message || "Veriler alınırken beklenmeyen bir hata oluştu.");
+      }
       return false;
     }
   }
@@ -5107,7 +5150,68 @@ export default function App() {
         </div>
       )}
 
-      {veriYuklemeHata && (
+      {internetBaglantiUyarisi && (
+        <div
+          style={{
+            position: "fixed",
+            left: "10px",
+            right: "10px",
+            bottom: pwaUpdateReady ? "154px" : "78px",
+            zIndex: 1620,
+            margin: "0 auto",
+            maxWidth: "460px",
+            background: "#fff7ed",
+            border: "1px solid #fed7aa",
+            borderRadius: "16px",
+            boxShadow: "0 18px 35px rgba(124, 45, 18, 0.18)",
+            padding: "11px 12px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "12px",
+            color: "#9a3412",
+            fontSize: "12px",
+          }}
+        >
+          <div style={{ display: "grid", gap: "3px", lineHeight: 1.25 }}>
+            <strong>Bağlantı sorunu</strong>
+            <span>{internetBaglantiUyarisi}</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+            <button
+              onClick={() => void verileriGetir("hepsi")}
+              style={{
+                background: "#fff",
+                border: "1px solid #fdba74",
+                borderRadius: "999px",
+                color: "#c2410c",
+                cursor: "pointer",
+                fontSize: "11px",
+                fontWeight: "bold",
+                padding: "5px 10px",
+              }}
+            >
+              Tekrar Dene
+            </button>
+            <button
+              onClick={() => setInternetBaglantiUyarisi("")}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#c2410c",
+                cursor: "pointer",
+                fontSize: "16px",
+                lineHeight: 1,
+                padding: 0,
+              }}
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+
+      {veriYuklemeHata && veriYuklemeHata !== INTERNET_CONNECTION_MESSAGE && (
         <div
           style={{
             margin: "8px 10px 0",
