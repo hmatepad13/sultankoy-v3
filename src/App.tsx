@@ -66,6 +66,7 @@ const SUPABASE_FREE_DATABASE_LIMIT_BYTES = 500_000_000;
 const SUPABASE_FREE_STORAGE_LIMIT_BYTES = 1_000_000_000;
 const BAYILER_CACHE_KEY = "app-cache-bayiler-v1";
 const URUNLER_CACHE_KEY = "app-cache-urunler-v1";
+const PWA_UPDATE_READY_EVENT = "sultankoy:pwa-update-ready";
 const ODEME_TURU_SECENEKLERI = [
   { value: "PEŞİN", label: "💵 PEŞİN" },
   { value: "VADE", label: "⏳ VADE" },
@@ -1012,6 +1013,7 @@ export default function App() {
     renk: string;
     satirlar: Array<{ etiket: string; deger: string; vurgu?: boolean }>;
   }>(null);
+  const [pwaUpdateReady, setPwaUpdateReady] = useState(() => Boolean(window.sultankoyPwaUpdateReady));
 
   const masterKayitIsminiNormalizeEt = useCallback(
     (deger?: string | null) =>
@@ -4561,6 +4563,24 @@ export default function App() {
     };
   }, [session?.user?.id]);
 
+  useEffect(() => {
+    const handleUpdateReady = () => setPwaUpdateReady(true);
+    window.addEventListener(PWA_UPDATE_READY_EVENT, handleUpdateReady);
+
+    return () => window.removeEventListener(PWA_UPDATE_READY_EVENT, handleUpdateReady);
+  }, []);
+
+  const handlePwaUpdate = () => {
+    const applyUpdate = window.sultankoyApplyPwaUpdate;
+    window.sultankoyPwaUpdateReady = false;
+    setPwaUpdateReady(false);
+    if (applyUpdate) {
+      void applyUpdate();
+      return;
+    }
+    window.location.reload();
+  };
+
   const renderOzetMiniDetay = () => {
     if (!ozetMiniDetay) return null;
 
@@ -5039,6 +5059,53 @@ export default function App() {
            </button>
         </div>
       </header>
+
+      {pwaUpdateReady && (
+        <div
+          style={{
+            position: "fixed",
+            left: "10px",
+            right: "10px",
+            bottom: "78px",
+            zIndex: 1600,
+            margin: "0 auto",
+            maxWidth: "420px",
+            background: "#eff6ff",
+            border: "1px solid #bfdbfe",
+            borderRadius: "14px",
+            boxShadow: "0 18px 35px rgba(15, 23, 42, 0.18)",
+            padding: "10px 12px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "10px",
+            color: "#1e3a8a",
+            fontSize: "12px",
+          }}
+        >
+          <div style={{ display: "grid", gap: "2px", lineHeight: 1.25 }}>
+            <strong>Yeni sürüm hazır</strong>
+            <span>Formları kaybettirmemek için yenilemeyi sen başlat.</span>
+          </div>
+          <div style={{ display: "flex", gap: "8px", flexShrink: 0 }}>
+            <button
+              onClick={() => {
+                window.sultankoyPwaUpdateReady = false;
+                setPwaUpdateReady(false);
+              }}
+              style={{ background: "transparent", border: "none", color: "#64748b", cursor: "pointer", fontSize: "12px", fontWeight: "bold", padding: "6px 2px" }}
+            >
+              Sonra
+            </button>
+            <button
+              onClick={handlePwaUpdate}
+              style={{ background: temaRengi, border: "none", borderRadius: "999px", color: "#fff", cursor: "pointer", fontSize: "12px", fontWeight: "bold", padding: "7px 12px" }}
+            >
+              Yenile
+            </button>
+          </div>
+        </div>
+      )}
 
       {veriYuklemeHata && (
         <div
