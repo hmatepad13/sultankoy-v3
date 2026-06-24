@@ -191,7 +191,8 @@ export function GiderPanel({
   const fGSutTozuOdemesi = useMemo(() => fGiderList.filter((g) => sutTozuOdemesiMi(g.tur)).reduce((a, b) => a + Number(b.tutar), 0), [fGiderList]);
   const fGHammaddeOdemeleri = fGSutOdemesi + fGKremaOdemesi + fGKovaOdemesi + fGKatkiOdemesi + fGSutTozuOdemesi;
   const fGToplamGider = fGGiderNormal + fGHammaddeOdemeleri;
-  const hammaddeOdemeDetaySatirlari = [
+  const toplamGiderDetaySatirlari = [
+    { etiket: "Giderler", tutar: fGGiderNormal },
     { etiket: "Süt Ödemesi", tutar: fGSutOdemesi },
     { etiket: "Krema Ödemesi", tutar: fGKremaOdemesi },
     { etiket: "Kova Ödemesi", tutar: fGKovaOdemesi },
@@ -383,9 +384,9 @@ export function GiderPanel({
             <div
               className="gider-ust-ozet"
               onClick={() => onOpenMiniDetay({
-                baslik: "Hammadde Ödemeleri",
+                baslik: "Giderler",
                 renk: "#dc2626",
-                satirlar: hammaddeOdemeDetaySatirlari,
+                satirlar: toplamGiderDetaySatirlari,
               })}
               style={{ border: "1px solid #dc262633", background: "#dc262610", color: "#dc2626", borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", flex: "1 1 120px", minWidth: "100px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", cursor: "pointer" }}
             >

@@ -317,9 +317,14 @@ export function OzetPanel({
             }}
             onClick={() =>
               onOpenMiniDetay({
-                baslik: "Hammadde Ödemeleri",
+                baslik: "Giderler",
                 renk: "#dc2626",
-                satirlar: hammaddeOdemeDetaySatirlari,
+                satirlar: [
+                  ...(tGiderNormal !== 0
+                    ? [{ etiket: "Giderler", deger: `${helpers.fSayiNoDec(tGiderNormal)} TL`, vurgu: true }]
+                    : []),
+                  ...hammaddeOdemeDetaySatirlari,
+                ],
               })
             }
           >

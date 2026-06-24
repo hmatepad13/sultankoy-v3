@@ -4712,11 +4712,11 @@ export default function App() {
 
     return (
       <div
-        style={{ position: "fixed", inset: 0, backgroundColor: "transparent", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 1320, padding: "92px 14px 14px" }}
+        style={{ position: "fixed", inset: 0, backgroundColor: "rgba(15, 23, 42, 0.14)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1320, padding: "16px" }}
         onClick={() => setOzetMiniDetay(null)}
       >
         <div
-          style={{ position: "relative", background: "#fff", borderRadius: "10px", width: "100%", maxWidth: "250px", padding: "10px 10px 9px", border: "1px solid #dbeafe", boxShadow: "0 12px 24px rgba(15, 23, 42, 0.12)" }}
+          style={{ position: "relative", background: "#fff", borderRadius: "12px", width: "100%", maxWidth: "280px", padding: "12px 12px 10px", border: "1px solid #dbeafe", boxShadow: "0 18px 36px rgba(15, 23, 42, 0.18)" }}
           onClick={(e) => e.stopPropagation()}
         >
           <button
@@ -4725,6 +4725,9 @@ export default function App() {
           >
             ✕
           </button>
+          <div style={{ color: ozetMiniDetay.renk, fontSize: "12px", fontWeight: "bold", paddingRight: "18px", marginBottom: "6px" }}>
+            {ozetMiniDetay.baslik}
+          </div>
           <div style={{ display: "grid", gap: "5px", paddingTop: "2px" }}>
             {ozetMiniDetay.satirlar.map((satir) => (
               <div key={`${satir.etiket}-${satir.deger}`} style={{ display: "flex", justifyContent: "space-between", gap: "10px", fontSize: satir.vurgu ? "11px" : "10px", fontWeight: satir.vurgu ? "bold" : "normal", color: satir.vurgu ? ozetMiniDetay.renk : "#334155", paddingTop: satir.vurgu ? "5px" : 0, borderTop: satir.vurgu ? "1px dashed #cbd5e1" : "none" }}>
