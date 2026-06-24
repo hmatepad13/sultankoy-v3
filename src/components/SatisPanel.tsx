@@ -268,7 +268,8 @@ export function SatisPanel({
           </div>
         </div>
 
-        <div style={{ display: "flex", background: "#e2e8f0", borderRadius: "999px", overflow: "hidden", marginBottom: "10px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "10px", flexWrap: "wrap" }}>
+          <span style={{ fontSize: "11px", fontWeight: "bold", color: "#64748b" }}>Tarih:</span>
           {[
             { key: "bugun" as const, label: "Bugün" },
             { key: "dun" as const, label: "Dün" },
@@ -279,12 +280,16 @@ export function SatisPanel({
               <button
                 key={secenek.key}
                 onClick={() => tarihHizliSec(secenek.key)}
-                style={{ flex: 1, padding: "7px 8px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "bold", background: secili ? "#0f766e" : "transparent", color: secili ? "#fff" : "#475569" }}
+                className="btn-anim"
+                style={{ border: "none", borderRadius: "999px", padding: "5px 10px", fontSize: "11px", fontWeight: "bold", cursor: "pointer", background: secili ? "#0f766e" : "#e2e8f0", color: secili ? "#fff" : "#475569" }}
               >
                 {secenek.label}
               </button>
             );
           })}
+          {tarihHizliFiltre === "ozel" && (
+            <span style={{ borderRadius: "999px", padding: "5px 10px", fontSize: "11px", fontWeight: "bold", background: "#fef3c7", color: "#92400e" }}>Özel</span>
+          )}
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "0.95fr 1.45fr 1fr", gap: "6px", marginBottom: "10px", alignItems: "stretch" }}>
