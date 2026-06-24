@@ -4472,12 +4472,14 @@ export default function App() {
   );
   const tHammaddeOdemeleri = tSutOdemesi + tKremaOdemesi + tKovaOdemesi + tKatkiOdemesi + tSutTozuOdemesi;
   const hammaddeOdemeDetaySatirlari = [
-    { etiket: "Süt Ödemesi", deger: `${fSayiNoDec(tSutOdemesi)} TL`, vurgu: true },
-    { etiket: "Krema Ödemesi", deger: `${fSayiNoDec(tKremaOdemesi)} TL`, vurgu: true },
-    { etiket: "Kova Ödemesi", deger: `${fSayiNoDec(tKovaOdemesi)} TL`, vurgu: true },
-    { etiket: "Katkı Ödemesi", deger: `${fSayiNoDec(tKatkiOdemesi)} TL`, vurgu: true },
-    { etiket: "Süt Tozu Ödemesi", deger: `${fSayiNoDec(tSutTozuOdemesi)} TL`, vurgu: true },
-  ];
+    { etiket: "Süt Ödemesi", tutar: tSutOdemesi },
+    { etiket: "Krema Ödemesi", tutar: tKremaOdemesi },
+    { etiket: "Kova Ödemesi", tutar: tKovaOdemesi },
+    { etiket: "Katkı Ödemesi", tutar: tKatkiOdemesi },
+    { etiket: "Süt Tozu Ödemesi", tutar: tSutTozuOdemesi },
+  ]
+    .filter((satir) => satir.tutar !== 0)
+    .map((satir) => ({ etiket: satir.etiket, deger: `${fSayiNoDec(satir.tutar)} TL`, vurgu: true }));
   const bayiNetDurum = bayiBorclari.reduce((a, b) => a + b.borc, 0);
   const oncekiPersonelBakiyeleri = useMemo(
     () => personelBakiyeleriniHesapla(oncekiSatisFisList, oncekiGiderList),

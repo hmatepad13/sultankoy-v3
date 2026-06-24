@@ -192,12 +192,14 @@ export function GiderPanel({
   const fGHammaddeOdemeleri = fGSutOdemesi + fGKremaOdemesi + fGKovaOdemesi + fGKatkiOdemesi + fGSutTozuOdemesi;
   const fGToplamGider = fGGiderNormal + fGHammaddeOdemeleri;
   const hammaddeOdemeDetaySatirlari = [
-    { etiket: "Süt Ödemesi", deger: `${helpers.fSayi(fGSutOdemesi)} TL`, vurgu: true },
-    { etiket: "Krema Ödemesi", deger: `${helpers.fSayi(fGKremaOdemesi)} TL`, vurgu: true },
-    { etiket: "Kova Ödemesi", deger: `${helpers.fSayi(fGKovaOdemesi)} TL`, vurgu: true },
-    { etiket: "Katkı Ödemesi", deger: `${helpers.fSayi(fGKatkiOdemesi)} TL`, vurgu: true },
-    { etiket: "Süt Tozu Ödemesi", deger: `${helpers.fSayi(fGSutTozuOdemesi)} TL`, vurgu: true },
-  ];
+    { etiket: "Süt Ödemesi", tutar: fGSutOdemesi },
+    { etiket: "Krema Ödemesi", tutar: fGKremaOdemesi },
+    { etiket: "Kova Ödemesi", tutar: fGKovaOdemesi },
+    { etiket: "Katkı Ödemesi", tutar: fGKatkiOdemesi },
+    { etiket: "Süt Tozu Ödemesi", tutar: fGSutTozuOdemesi },
+  ]
+    .filter((satir) => satir.tutar !== 0)
+    .map((satir) => ({ etiket: satir.etiket, deger: `${helpers.fSayi(satir.tutar)} TL`, vurgu: true }));
 
   const resetGiderFormu = () => {
     setGiderForm({ tarih: varsayilanTarihGetir(aktifDonem), tur: "Genel Gider", aciklama: "", tutar: "" });
