@@ -28,9 +28,7 @@ type OzetPanelProps = {
   tOzetFisTahsilatRaw: number;
   bayiNetDurum: number;
   tOzetDevredenBakiye: number;
-  tGiderNormal: number;
-  tHammaddeOdemeleri: number;
-  hammaddeOdemeDetaySatirlari: Array<{ etiket: string; deger: string; vurgu?: boolean }>;
+  tGiderToplam: number;
   bayiBorclari: BayiBorcSatiri[];
   ekstreMusterileri: EkstreMusteriSecenegi[];
   ozetBorcFiltre: { bayiler: string[] };
@@ -175,9 +173,7 @@ export function OzetPanel({
   tOzetFisTahsilatRaw,
   bayiNetDurum,
   tOzetDevredenBakiye,
-  tGiderNormal,
-  tHammaddeOdemeleri,
-  hammaddeOdemeDetaySatirlari,
+  tGiderToplam,
   bayiBorclari,
   ekstreMusterileri,
   ozetBorcFiltre,
@@ -235,7 +231,7 @@ export function OzetPanel({
               Tahsilat: tOzetFisTahsilatRaw,
               "Acik Hesap": bayiNetDurum,
               "Devreden Bakiye": tOzetDevredenBakiye,
-              "Toplam Giderler": tGiderNormal + tHammaddeOdemeleri,
+              "Toplam Giderler": tGiderToplam,
             },
           ],
         },
@@ -302,17 +298,15 @@ export function OzetPanel({
               onOpenMiniDetay({
                 baslik: "Giderler",
                 renk: "#dc2626",
-                satirlar: [
-                  ...(tGiderNormal !== 0
-                    ? [{ etiket: "Giderler", deger: `${helpers.fSayiNoDec(tGiderNormal)} TL`, vurgu: true }]
-                    : []),
-                  ...hammaddeOdemeDetaySatirlari,
-                ],
+                satirlar:
+                  tGiderToplam !== 0
+                    ? [{ etiket: "Giderler", deger: `${helpers.fSayiNoDec(tGiderToplam)} TL`, vurgu: true }]
+                    : [],
               })
             }
           >
             <div style={{ fontSize: "10px", opacity: 0.9, marginBottom: "2px" }}>GİDERLER</div>
-            <b style={{ fontSize: "14px" }}>{helpers.fSayiNoDec(tGiderNormal + tHammaddeOdemeleri)} ₺</b>
+            <b style={{ fontSize: "14px" }}>{helpers.fSayiNoDec(tGiderToplam)} ₺</b>
           </div>
         </div>
 

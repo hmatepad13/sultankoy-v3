@@ -2,14 +2,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { DonemDisiTarihUyarisi } from "./DonemDisiTarihUyarisi";
 import { supabase } from "../lib/supabase";
-import {
-  katkiOdemesiMi,
-  kovaOdemesiMi,
-  kremaOdemesiMi,
-  normalGiderMi,
-  sutOdemesiMi,
-  sutTozuOdemesiMi,
-} from "../lib/gider";
 import type { AppConfirmOptions, Gider, SortConfig } from "../types/app";
 import { aktifDonemDisiKayitOnayMetni, getLocalDateString } from "../utils/date";
 import { normalizeUsername } from "../utils/format";
@@ -183,24 +175,11 @@ export function GiderPanel({
     return kisiEslesiyor && turEslesiyor && filtreKisiEslesiyor;
   }), giderSort), [aktifKullaniciKisa, giderFiltre, giderFiltreKisi, giderSort, periodGider]);
 
-  const fGGiderNormal = useMemo(() => fGiderList.filter((g) => normalGiderMi(g.tur)).reduce((a, b) => a + Number(b.tutar), 0), [fGiderList]);
-  const fGSutOdemesi = useMemo(() => fGiderList.filter((g) => sutOdemesiMi(g.tur)).reduce((a, b) => a + Number(b.tutar), 0), [fGiderList]);
-  const fGKremaOdemesi = useMemo(() => fGiderList.filter((g) => kremaOdemesiMi(g.tur)).reduce((a, b) => a + Number(b.tutar), 0), [fGiderList]);
-  const fGKovaOdemesi = useMemo(() => fGiderList.filter((g) => kovaOdemesiMi(g.tur)).reduce((a, b) => a + Number(b.tutar), 0), [fGiderList]);
-  const fGKatkiOdemesi = useMemo(() => fGiderList.filter((g) => katkiOdemesiMi(g.tur)).reduce((a, b) => a + Number(b.tutar), 0), [fGiderList]);
-  const fGSutTozuOdemesi = useMemo(() => fGiderList.filter((g) => sutTozuOdemesiMi(g.tur)).reduce((a, b) => a + Number(b.tutar), 0), [fGiderList]);
-  const fGHammaddeOdemeleri = fGSutOdemesi + fGKremaOdemesi + fGKovaOdemesi + fGKatkiOdemesi + fGSutTozuOdemesi;
-  const fGToplamGider = fGGiderNormal + fGHammaddeOdemeleri;
-  const toplamGiderDetaySatirlari = [
-    { etiket: "Giderler", tutar: fGGiderNormal },
-    { etiket: "Süt Ödemesi", tutar: fGSutOdemesi },
-    { etiket: "Krema Ödemesi", tutar: fGKremaOdemesi },
-    { etiket: "Kova Ödemesi", tutar: fGKovaOdemesi },
-    { etiket: "Katkı Ödemesi", tutar: fGKatkiOdemesi },
-    { etiket: "Süt Tozu Ödemesi", tutar: fGSutTozuOdemesi },
-  ]
-    .filter((satir) => satir.tutar !== 0)
-    .map((satir) => ({ etiket: satir.etiket, deger: `${helpers.fSayi(satir.tutar)} TL`, vurgu: true }));
+  const fGToplamGider = useMemo(() => fGiderList.reduce((a, b) => a + Number(b.tutar), 0), [fGiderList]);
+  const toplamGiderDetaySatirlari =
+    fGToplamGider !== 0
+      ? [{ etiket: "Giderler", deger: `${helpers.fSayi(fGToplamGider)} TL`, vurgu: true }]
+      : [];
 
   const resetGiderFormu = () => {
     setGiderForm({ tarih: varsayilanTarihGetir(aktifDonem), tur: "Genel Gider", aciklama: "", tutar: "" });

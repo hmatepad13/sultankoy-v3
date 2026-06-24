@@ -21,15 +21,6 @@ import {
   TAB_TANIMLARI,
   TEMA_RENGI,
 } from "./constants/app";
-import {
-  hammaddeBorcuGideriMi,
-  katkiOdemesiMi,
-  kovaOdemesiMi,
-  kremaOdemesiMi,
-  normalGiderMi,
-  sutOdemesiMi,
-  sutTozuOdemesiMi,
-} from "./lib/gider";
 import { installClientTelemetry, logClientError, logClientEvent, setClientTelemetryContext } from "./lib/clientTelemetry";
 import { adminMi, kullaniciYetkileriniKaydet, kullaniciYetkileriniYukle, kullaniciYetkisiniBul } from "./lib/permissions";
 import {
@@ -4429,7 +4420,7 @@ export default function App() {
   const tKullaniciGider = useMemo(
     () =>
       periodGider
-        .filter((g) => normalizeUsername(g.ekleyen) === aktifKullaniciKisa && !hammaddeBorcuGideriMi(g.tur))
+        .filter((g) => normalizeUsername(g.ekleyen) === aktifKullaniciKisa)
         .reduce((a: number, b: any) => a + Number(b.tutar), 0),
     [aktifKullaniciKisa, periodGider],
   );
@@ -4444,40 +4435,10 @@ export default function App() {
     return true;
   }), fisSort), [filteredForTotals, satisFiltreTip, fisSort]);
 
-  const tGiderNormal = useMemo(
-    () => periodGider.filter((g) => normalGiderMi(g.tur)).reduce((a: number, b: any) => a + Number(b.tutar), 0),
+  const tGiderToplam = useMemo(
+    () => periodGider.reduce((a: number, b: any) => a + Number(b.tutar), 0),
     [periodGider],
   );
-  const tSutOdemesi = useMemo(
-    () => periodGider.filter((g) => sutOdemesiMi(g.tur)).reduce((a: number, b: any) => a + Number(b.tutar), 0),
-    [periodGider],
-  );
-  const tKremaOdemesi = useMemo(
-    () => periodGider.filter((g) => kremaOdemesiMi(g.tur)).reduce((a: number, b: any) => a + Number(b.tutar), 0),
-    [periodGider],
-  );
-  const tKovaOdemesi = useMemo(
-    () => periodGider.filter((g) => kovaOdemesiMi(g.tur)).reduce((a: number, b: any) => a + Number(b.tutar), 0),
-    [periodGider],
-  );
-  const tKatkiOdemesi = useMemo(
-    () => periodGider.filter((g) => katkiOdemesiMi(g.tur)).reduce((a: number, b: any) => a + Number(b.tutar), 0),
-    [periodGider],
-  );
-  const tSutTozuOdemesi = useMemo(
-    () => periodGider.filter((g) => sutTozuOdemesiMi(g.tur)).reduce((a: number, b: any) => a + Number(b.tutar), 0),
-    [periodGider],
-  );
-  const tHammaddeOdemeleri = tSutOdemesi + tKremaOdemesi + tKovaOdemesi + tKatkiOdemesi + tSutTozuOdemesi;
-  const hammaddeOdemeDetaySatirlari = [
-    { etiket: "Süt Ödemesi", tutar: tSutOdemesi },
-    { etiket: "Krema Ödemesi", tutar: tKremaOdemesi },
-    { etiket: "Kova Ödemesi", tutar: tKovaOdemesi },
-    { etiket: "Katkı Ödemesi", tutar: tKatkiOdemesi },
-    { etiket: "Süt Tozu Ödemesi", tutar: tSutTozuOdemesi },
-  ]
-    .filter((satir) => satir.tutar !== 0)
-    .map((satir) => ({ etiket: satir.etiket, deger: `${fSayiNoDec(satir.tutar)} TL`, vurgu: true }));
   const bayiNetDurum = bayiBorclari.reduce((a, b) => a + b.borc, 0);
   const oncekiPersonelBakiyeleri = useMemo(
     () => personelBakiyeleriniHesapla(oncekiSatisFisList, oncekiGiderList),
@@ -4487,6 +4448,13 @@ export default function App() {
   const personelOzetleri = useMemo(() => {
     const map: Record<string, PersonelOzeti> = {};
     const personelDevirleri = new Set<string>();
+    const fisDevredenBorcToplamlari = new Map<string, number>();
+
+    periodSatisList.forEach((satir) => {
+      const fisNo = String(satir.fis_no || "").trim();
+      if (!fisNo || !devredenBorcSatiriMi(satisSatiriUrunAdiGetir(satir))) return;
+      fisDevredenBorcToplamlari.set(fisNo, (fisDevredenBorcToplamlari.get(fisNo) || 0) + Number(satir.tutar || 0));
+    });
 
     periodSatisFis.forEach((f: any) => {
       const personelDevir = fisPersonelDevirMi(f) && f.bayi === "SİSTEM İŞLEMİ";
@@ -4507,7 +4475,10 @@ export default function App() {
         return;
       } else {
         if (f.bayi !== "SİSTEM İŞLEMİ" && Number(f.toplam_tutar) > 0) {
-          map[key].satis += Number(f.toplam_tutar) || 0;
+          const fisNo = String(f.fis_no || "").trim();
+          const devredenBorc = fisDevredenBorcToplamlari.get(fisNo) || 0;
+          const donemSatisTutari = Math.max(0, (Number(f.toplam_tutar) || 0) - devredenBorc);
+          map[key].satis += donemSatisTutari;
         }
         map[key].tahsilat += Number(f.tahsilat) || 0;
         map[key].acikBakiye += Number(f.kalan_bakiye) || 0;
@@ -4548,7 +4519,7 @@ export default function App() {
         Math.abs(p.acikBakiye) > 0.01
       )
       .sort((a, b) => a.isim.localeCompare(b.isim));
-  }, [oncekiPersonelBakiyeleri, periodGider, periodSatisFis]);
+  }, [oncekiPersonelBakiyeleri, periodGider, periodSatisFis, periodSatisList, satisSatiriUrunAdiGetir]);
 
   const sekmeSecenekleri = useMemo(
     () => TAB_TANIMLARI.map((tab) => ({ id: tab.id, etiket: tab.etiket })),
@@ -4969,9 +4940,7 @@ export default function App() {
           tOzetFisTahsilatRaw,
           bayiNetDurum,
           tOzetDevredenBakiye,
-          tGiderNormal,
-          tHammaddeOdemeleri,
-          hammaddeOdemeDetaySatirlari,
+          tGiderToplam,
           bayiBorclari,
           ekstreMusterileri,
           ozetBorcFiltre,
