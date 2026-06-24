@@ -987,6 +987,7 @@ export default function App() {
     hareketler: Array<{
       tarih: string;
       fisNo: string;
+      bayi: string;
       urunSatirlari: Array<{
         isim: string;
         adet: number;
@@ -1118,6 +1119,7 @@ export default function App() {
     const bakiyeler: Record<string, number> = {};
     const labels: Record<string, string> = {};
     const map: Record<string, number> = {};
+    const hesapDurumlari: Record<string, { bakiye: number; kaynakBakiyeleri: Record<string, number> }> = {};
 
     satisFisleriniSirala(kayitlar).forEach((fis) => {
       const donem = String(fis.tarih || "").substring(0, 7);
@@ -1128,13 +1130,31 @@ export default function App() {
       const hesapAnahtari = satisFisHesapAnahtariGetir(fis);
       if (!bayiAdi || bayiAdi === "SİSTEM İŞLEMİ" || !hesapEtiketi) return;
 
-      labels[hesapAnahtari] = hesapEtiketi;
-      if (fisDonemDevirMi(fis)) {
-        bakiyeler[hesapAnahtari] = Number(fis.kalan_bakiye || 0);
-      } else {
-        bakiyeler[hesapAnahtari] = (bakiyeler[hesapAnahtari] || 0) + Number(fis.kalan_bakiye || 0);
+      if (!hesapDurumlari[hesapAnahtari]) {
+        hesapDurumlari[hesapAnahtari] = { bakiye: 0, kaynakBakiyeleri: {} };
       }
 
+      const hesapDurumu = hesapDurumlari[hesapAnahtari];
+      const kaynakAnahtari = fis.bayi_id ? `id:${fis.bayi_id}` : hesapAnahtari;
+      const kalanBakiye = Number(fis.kalan_bakiye || 0);
+
+      labels[hesapAnahtari] = hesapEtiketi;
+      if (fisDonemDevirMi(fis)) {
+        if (fis.bayi_id) {
+          const oncekiKaynakBakiyesi = hesapDurumu.kaynakBakiyeleri[kaynakAnahtari] || 0;
+          hesapDurumu.kaynakBakiyeleri[kaynakAnahtari] = kalanBakiye;
+          hesapDurumu.bakiye += kalanBakiye - oncekiKaynakBakiyesi;
+        } else {
+          hesapDurumu.bakiye = kalanBakiye;
+          hesapDurumu.kaynakBakiyeleri = {};
+        }
+      } else {
+        hesapDurumu.kaynakBakiyeleri[kaynakAnahtari] =
+          (hesapDurumu.kaynakBakiyeleri[kaynakAnahtari] || 0) + kalanBakiye;
+        hesapDurumu.bakiye += kalanBakiye;
+      }
+
+      bakiyeler[hesapAnahtari] = hesapDurumu.bakiye;
       if (fis.id) {
         map[String(fis.id)] = bakiyeler[hesapAnahtari];
       }
@@ -2815,17 +2835,15 @@ export default function App() {
         return sayiDegeri((a as any).id) - sayiDegeri((b as any).id);
       });
 
-    const devredenBorc = ilgiliFisler.reduce((toplam, fis) => {
-      const fisDonemi = String(fis.tarih || "").substring(0, 7);
-      if (fisDonemi > donem) return toplam;
-      if (fisDonemi === donem) {
-        return fisDonemDevirMi(fis) ? Number(fis.kalan_bakiye || 0) : toplam;
-      }
-      if (fisDonemDevirMi(fis)) {
-        return Number(fis.kalan_bakiye || 0);
-      }
-      return toplam + Number(fis.kalan_bakiye || 0);
-    }, 0);
+    const devredenBorc =
+      hesaplaMusteriBakiyeleri(
+        tumSatisFisList.filter((fis) => {
+          if (fisKasayaDevirMi(fis)) return false;
+          const fisDonemi = String(fis.tarih || "").substring(0, 7);
+          return fisDonemi < donem || (fisDonemi === donem && fisDonemDevirMi(fis));
+        }),
+        donem,
+      ).bakiyeler[hesapAnahtari] || 0;
 
     const oncekiDonem = birOncekiDonemiGetir(donem);
     const oncekiDonemDetayiVar =
@@ -2861,6 +2879,7 @@ export default function App() {
         return {
           tarih: fis.tarih,
           fisNo: gorunenFisNoOlustur(fis),
+          bayi: satisFisBayiAdiGetir(fis),
           urunSatirlari,
           tutar: Number(fis.toplam_tutar || 0),
           tahsilat: Number(fis.tahsilat || 0),
@@ -2877,7 +2896,7 @@ export default function App() {
       devredenBorc,
       hareketler,
     };
-  }, [fisDonemDevirMi, fisKasayaDevirMi, satisFisBayiAdiGetir, satisFisHesapAnahtariGetir, satisSatiriHesapAnahtariGetir, satisSatiriUrunAdiGetir, sistemIslemiMi, tumSatisFisList]);
+  }, [fisDonemDevirMi, fisKasayaDevirMi, hesaplaMusteriBakiyeleri, satisFisBayiAdiGetir, satisFisHesapAnahtariGetir, satisSatiriHesapAnahtariGetir, satisSatiriUrunAdiGetir, sistemIslemiMi, tumSatisFisList]);
 
   const handleMusteriEkstreAc = useCallback(async (bayiAnahtar: string, musteriAdi: string, hedefDonem = aktifDonem) => {
     setIsMusteriEkstreYukleniyor(true);
@@ -3098,6 +3117,138 @@ export default function App() {
     if (odemeTuru === "KASAYA DEVİR" || odemeTuru === "KASAYA DEVIR") return "KASAYA DEVİR";
     return fis.odeme_turu || "SİSTEM İŞLEMİ";
   };
+
+  const handleBayiGrupDuzenle = useCallback(
+    async (id: string, isim: string, hesapGrubu?: string | null) => {
+      const yeniGrup = prompt(`${isim} için hesap grubu (boş bırakılırsa bağ kaldırılır)`, hesapGrubu || "");
+      if (yeniGrup === null) return;
+
+      const temizGrup = yeniGrup.trim();
+      const mevcutGrup = String(hesapGrubu || "").trim();
+      if (temizGrup === mevcutGrup) {
+        alertDialogAc({
+          title: "Grup Değişmedi",
+          message: `${isim} için hesap grubu zaten ${temizGrup || "boş"}.`,
+          tone: "primary",
+        });
+        return;
+      }
+
+      const hedefGrupMetni = temizGrup || "Grup bağlantısı yok";
+      const rpcPayload = {
+        p_bayi_id: id,
+        p_hesap_grubu: temizGrup || null,
+        p_aktif_donem: aktifDonem,
+      };
+      const tarihEtiketi = (tarih?: string | null) => {
+        const parcalar = String(tarih || "").split("-");
+        return parcalar.length === 3 ? `${parcalar[2]}.${parcalar[1]}.${parcalar[0]}` : String(tarih || "-");
+      };
+
+      try {
+        const { data: previewData, error: previewError } = await supabase.rpc(
+          "app_preview_bayi_group" as any,
+          rpcPayload as any,
+        );
+        if (previewError) throw previewError;
+
+        const preview: any = previewData;
+        if (!preview?.ok) {
+          throw new Error("Grup önizlemesi alınamadı.");
+        }
+
+        const beforeTotal = Number(preview.beforeTotal || 0);
+        const afterTotal = Number(preview.afterTotal || 0);
+        const difference = Number(preview.difference || 0);
+        const members = Array.isArray(preview.members) ? preview.members : [];
+        const devirDates = Array.isArray(preview.devirDates) ? preview.devirDates : [];
+
+        if (preview.canApply === false) {
+          alertDialogAc({
+            title: "Güvenli Grup Uygulanmadı",
+            message: preview.blockReason || "Bu grup değişikliği otomatik uygulanamıyor.",
+            tone: "danger",
+          });
+          return;
+        }
+
+        if (Math.abs(difference) > 0.01) {
+          alertDialogAc({
+            title: "Toplam Borç Korunamadı",
+            message: [
+              `${isim} için grup değişikliği durduruldu.`,
+              `Önceki toplam: ${fSayiNoDec(beforeTotal)} ₺`,
+              `Yeni toplam: ${fSayiNoDec(afterTotal)} ₺`,
+              `Fark: ${fSayiNoDec(difference)} ₺`,
+            ].join("\n"),
+            tone: "danger",
+          });
+          return;
+        }
+
+        const uyeMetni = members
+          .map((item: any) => `- ${item.isim}${item.aktif === false ? " (pasif)" : ""}`)
+          .join("\n");
+        const devirMetni = devirDates
+          .map((item: any) => {
+            const sube = Number(item.subeDevirSayisi || 0);
+            const grup = Number(item.grupDevirSayisi || 0);
+            return `- ${tarihEtiketi(item.tarih)}: ${sube} şube devri, ${grup} grup devri`;
+          })
+          .join("\n");
+
+        const onay = await confirmDialogAc({
+          title: "Güvenli Grup",
+          message: [
+            `${isim} için yeni hesap grubu: ${hedefGrupMetni}`,
+            "",
+            `Korunan toplam borç: ${fSayiNoDec(beforeTotal)} ₺`,
+            `İşlem sonrası toplam: ${fSayiNoDec(afterTotal)} ₺`,
+            `Fark: ${fSayiNoDec(difference)} ₺`,
+            "",
+            "Bu grupta görünecek müşteriler:",
+            uyeMetni || "- Yok",
+            devirMetni ? "" : null,
+            devirMetni ? "Devir kontrolü:" : null,
+            devirMetni || null,
+          ]
+            .filter((satir) => satir !== null)
+            .join("\n"),
+          confirmText: "Uygula",
+          cancelText: "Vazgeç",
+          tone: "warning",
+        });
+
+        if (!onay) return;
+
+        const { data: applyData, error: applyError } = await supabase.rpc(
+          "app_apply_bayi_group" as any,
+          rpcPayload as any,
+        );
+        if (applyError) throw applyError;
+
+        const sonuc: any = applyData;
+        await Promise.all([verileriGetir("ayar"), verileriGetir("satis")]);
+
+        alertDialogAc({
+          title: "Grup Güncellendi",
+          message: [
+            `${isim} için hesap grubu güncellendi: ${hedefGrupMetni}`,
+            `Toplam borç: ${fSayiNoDec(Number(sonuc?.afterTotal ?? afterTotal))} ₺`,
+            `Düzeltilen devir sayısı: ${Number(sonuc?.fixedDevirCount || 0)}`,
+          ].join("\n"),
+          tone: "primary",
+        });
+      } catch (error: any) {
+        alertDialogAc({
+          title: "Grup Güncellenemedi",
+          message: error?.message || "Grup işlemi sırasında bilinmeyen bir hata oluştu.",
+          tone: "danger",
+        });
+      }
+    },
+    [aktifDonem, alertDialogAc, confirmDialogAc, fSayiNoDec, verileriGetir],
+  );
 
   async function ayarIslem(tablo: string, isim: any, islemTip: string, id: any, resetFn?: any) {
     if (islemTip === "ekle") {
@@ -4764,9 +4915,7 @@ export default function App() {
         }
       },
       onSettingEditGroup: (_tablo: any, id: any, isim: any, hesapGrubu: any) => {
-        const yeniGrup = prompt(`${isim} için hesap grubu (boş bırakılırsa bağ kaldırılır)`, hesapGrubu || "");
-        if (yeniGrup === null) return;
-        ayarIslem("bayiler", yeniGrup.trim(), "hesap_grubu", id);
+        void handleBayiGrupDuzenle(id, isim, hesapGrubu);
       },
       onSettingToggleActive: (tablo: any, id: any, aktif: any) => {
         ayarIslem(tablo, !aktif, "durum", id);
@@ -5914,7 +6063,21 @@ export default function App() {
                             </td>
                           </tr>
                         )}
-                        {musteriEkstreData.hareketler.map((hareket, index) => (
+                        {musteriEkstreData.hareketler.map((hareket, index) => {
+                          const subeEtiketi = (() => {
+                            const bayiAdi = String(hareket.bayi || "").trim();
+                            const hesapAdi = String(musteriEkstreData.musteri || "").trim();
+                            if (!bayiAdi || !hesapAdi) return "";
+                            const bayiNorm = masterKayitIsminiNormalizeEt(bayiAdi);
+                            const hesapNorm = masterKayitIsminiNormalizeEt(hesapAdi);
+                            if (!bayiNorm || bayiNorm === hesapNorm) return "";
+                            const sadeAd = bayiNorm.startsWith(hesapNorm)
+                              ? bayiAdi.slice(hesapAdi.length).replace(/^[\s\-–—_/]+/, "").trim()
+                              : bayiAdi;
+                            return sadeAd.toLocaleLowerCase("tr-TR");
+                          })();
+
+                          return (
                           <tr key={`${hareket.fisNo}-${index}`}>
                             <td style={{ padding: "7px 3px", borderBottom: "1px solid #f1f5f9", fontSize: "10px", whiteSpace: "nowrap" }}>
                               {(() => {
@@ -5922,7 +6085,14 @@ export default function App() {
                                 return parcalar.length === 3 ? `${parcalar[2]}.${parcalar[1]}` : hareket.tarih;
                               })()}
                             </td>
-                            <td style={{ padding: "7px 3px", borderBottom: "1px solid #f1f5f9", fontSize: "9px", color: "#64748b", whiteSpace: "nowrap" }}>{hareket.fisNo}</td>
+                            <td style={{ padding: "7px 3px", borderBottom: "1px solid #f1f5f9", whiteSpace: "nowrap" }}>
+                              <div style={{ fontSize: "9px", color: "#64748b" }}>{hareket.fisNo}</div>
+                              {subeEtiketi && (
+                                <div style={{ fontSize: "8px", color: "#0f766e", fontWeight: "bold", marginTop: "2px", lineHeight: 1.1 }}>
+                                  {subeEtiketi}
+                                </div>
+                              )}
+                            </td>
                             <td style={{ padding: "7px 3px", borderBottom: "1px solid #f1f5f9", lineHeight: 1.3 }}>
                               {hareket.urunSatirlari.length > 0 ? (
                                 hareket.urunSatirlari.map((urun, urunIndex) => (
@@ -5943,7 +6113,8 @@ export default function App() {
                             <td style={{ padding: "7px 3px", borderBottom: "1px solid #f1f5f9", textAlign: "right", color: hareket.tahsilat > 0 ? "#2563eb" : "#94a3b8", fontSize: "10px", whiteSpace: "nowrap" }}>{hareket.tahsilat > 0 ? `${fSayi(hareket.tahsilat)} ₺` : "-"}</td>
                             <td style={{ padding: "7px 3px", borderBottom: "1px solid #f1f5f9", textAlign: "right", color: hareket.fistenKalanBorc > 0 ? "#dc2626" : "#059669", fontWeight: "bold", fontSize: "10px", whiteSpace: "nowrap" }}>{fSayi(hareket.fistenKalanBorc)} ₺</td>
                           </tr>
-                        ))}
+                          );
+                        })}
                         <tr>
                           <td colSpan={3} style={{ padding: "7px 3px 0", fontSize: "10px", color: "#64748b", fontWeight: "bold" }}>Dönem Toplamı / Dönem Sonu</td>
                           <td style={{ padding: "7px 3px 0", textAlign: "right", fontSize: "10px", color: "#059669", fontWeight: "bold", whiteSpace: "nowrap" }}>{fSayi(musteriEkstreToplamlari.tutar)} ₺</td>

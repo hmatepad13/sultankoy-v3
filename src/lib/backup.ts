@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
 import type {
+  Bayi,
   Gider,
   OzetKart,
   OzetSatiri,
@@ -57,15 +58,27 @@ const kayitIsminiNormalizeEt = (deger?: string | null) =>
 
 type EslemeHaritalari = {
   bayi: Map<string, string>;
+  bayiKayit: Map<string, Bayi>;
+  hesapGrubuEtiket: Map<string, string>;
   urun: Map<string, string>;
   ciftlik: Map<string, string>;
 };
 
-const eslemeHaritalariOlustur = (veri: YedekVerisi): EslemeHaritalari => ({
-  bayi: new Map(veri.bayiler.map((item) => [item.id, item.isim])),
-  urun: new Map(veri.urunler.map((item) => [item.id, item.isim])),
-  ciftlik: new Map(veri.ciftlikler.map((item) => [item.id, item.isim])),
-});
+const eslemeHaritalariOlustur = (veri: YedekVerisi): EslemeHaritalari => {
+  const hesapGrubuEtiket = new Map<string, string>();
+  veri.bayiler.forEach((item) => {
+    const grup = String(item.hesap_grubu || "").trim();
+    if (grup) hesapGrubuEtiket.set(kayitIsminiNormalizeEt(grup), grup);
+  });
+
+  return {
+    bayi: new Map(veri.bayiler.map((item) => [item.id, item.isim])),
+    bayiKayit: new Map(veri.bayiler.map((item) => [item.id, item])),
+    hesapGrubuEtiket,
+    urun: new Map(veri.urunler.map((item) => [item.id, item.isim])),
+    ciftlik: new Map(veri.ciftlikler.map((item) => [item.id, item.isim])),
+  };
+};
 
 const satisFisBayiAdiGetir = (fis: Partial<SatisFis> | null | undefined, haritalar?: EslemeHaritalari) =>
   (fis?.bayi_id ? haritalar?.bayi.get(fis.bayi_id) : undefined) || fis?.bayi || "";
@@ -79,7 +92,23 @@ const satisSatiriUrunAdiGetir = (satir: Partial<YedekVerisi["satisList"][number]
 const sutCiftlikAdiGetir = (kayit: Partial<YedekVerisi["sutList"][number]> | null | undefined, haritalar?: EslemeHaritalari) =>
   (kayit?.ciftlik_id ? haritalar?.ciftlik.get(kayit.ciftlik_id) : undefined) || kayit?.ciftlik || "";
 
-const satisFisBayiAnahtariGetir = (fis: Partial<SatisFis> | null | undefined, haritalar?: EslemeHaritalari) =>
+const satisFisHesapEtiketiGetir = (fis: Partial<SatisFis> | null | undefined, haritalar?: EslemeHaritalari) => {
+  const bayiKaydi = fis?.bayi_id ? haritalar?.bayiKayit.get(fis.bayi_id) : undefined;
+  const grupEtiketi = String(bayiKaydi?.hesap_grubu || "").trim();
+  if (grupEtiketi) return grupEtiketi;
+
+  const gosterimAdi = bayiKaydi?.isim || String(fis?.bayi || "").trim();
+  const normalizeEdilenGosterimAdi = kayitIsminiNormalizeEt(gosterimAdi);
+  if (normalizeEdilenGosterimAdi && haritalar?.hesapGrubuEtiket.has(normalizeEdilenGosterimAdi)) {
+    return haritalar.hesapGrubuEtiket.get(normalizeEdilenGosterimAdi) || gosterimAdi;
+  }
+  return gosterimAdi;
+};
+
+const satisFisHesapAnahtariGetir = (fis: Partial<SatisFis> | null | undefined, haritalar?: EslemeHaritalari) =>
+  `hesap:${kayitIsminiNormalizeEt(satisFisHesapEtiketiGetir(fis, haritalar))}`;
+
+const satisFisKaynakAnahtariGetir = (fis: Partial<SatisFis> | null | undefined, haritalar?: EslemeHaritalari) =>
   fis?.bayi_id ? `id:${fis.bayi_id}` : `isim:${kayitIsminiNormalizeEt(satisFisBayiAdiGetir(fis, haritalar))}`;
 
 const odemeTurunuNormalizeEt = (odemeTuru?: string | null) =>
@@ -187,25 +216,46 @@ const satisBakiyeDurumuHesapla = (kayitlar: SatisFis[], sonDonem?: string, harit
   const bakiyeler: Record<string, number> = {};
   const map: Record<string, number> = {};
   const labels: Record<string, string> = {};
+  const hesapDurumlari: Record<string, { bakiye: number; kaynakBakiyeleri: Record<string, number> }> = {};
+  const hesapDurumuGetir = (hesapAnahtari: string) => {
+    if (!hesapDurumlari[hesapAnahtari]) {
+      hesapDurumlari[hesapAnahtari] = { bakiye: 0, kaynakBakiyeleri: {} };
+    }
+    return hesapDurumlari[hesapAnahtari];
+  };
 
   satisFisleriniSirala(kayitlar).forEach((fis) => {
     const donem = donemGetir(fis.tarih);
     const bayi = satisFisBayiAdiGetir(fis, haritalar);
-    const bayiKey = satisFisBayiAnahtariGetir(fis, haritalar);
+    const hesapEtiketi = satisFisHesapEtiketiGetir(fis, haritalar);
+    const hesapAnahtari = satisFisHesapAnahtariGetir(fis, haritalar);
     if (sonDonem && donem > sonDonem) return;
-    if (!bayi || sistemIslemiMi(bayi)) return;
+    if (!bayi || sistemIslemiMi(bayi) || !hesapEtiketi) return;
 
     const kalanBakiye = Number(fis.kalan_bakiye || 0);
+    const hesapDurumu = hesapDurumuGetir(hesapAnahtari);
 
-    if (cariDevirMi(fis.odeme_turu) || personelDevirMi(fis.odeme_turu)) {
-      bakiyeler[bayiKey] = kalanBakiye;
+    if (cariDevirMi(fis.odeme_turu)) {
+      if (fis.bayi_id) {
+        const kaynakAnahtari = satisFisKaynakAnahtariGetir(fis, haritalar);
+        const oncekiKaynakBakiyesi = hesapDurumu.kaynakBakiyeleri[kaynakAnahtari] || 0;
+        hesapDurumu.kaynakBakiyeleri[kaynakAnahtari] = kalanBakiye;
+        hesapDurumu.bakiye += kalanBakiye - oncekiKaynakBakiyesi;
+      } else {
+        hesapDurumu.bakiye = kalanBakiye;
+        hesapDurumu.kaynakBakiyeleri = {};
+      }
     } else {
-      bakiyeler[bayiKey] = (bakiyeler[bayiKey] || 0) + kalanBakiye;
+      const kaynakAnahtari = satisFisKaynakAnahtariGetir(fis, haritalar);
+      hesapDurumu.kaynakBakiyeleri[kaynakAnahtari] =
+        (hesapDurumu.kaynakBakiyeleri[kaynakAnahtari] || 0) + kalanBakiye;
+      hesapDurumu.bakiye += kalanBakiye;
     }
-    labels[bayiKey] = bayi;
+    bakiyeler[hesapAnahtari] = hesapDurumu.bakiye;
+    labels[hesapAnahtari] = hesapEtiketi;
 
     if (fis.id) {
-      map[String(fis.id)] = bakiyeler[bayiKey];
+      map[String(fis.id)] = bakiyeler[hesapAnahtari];
     }
   });
 
