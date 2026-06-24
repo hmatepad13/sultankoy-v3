@@ -227,6 +227,24 @@ export function SatisPanel({
     }
   };
 
+  const tarihHizliFiltre = (() => {
+    if (fisFiltre.baslangic === bugun && fisFiltre.bitis === bugun) return "bugun";
+    if (fisFiltre.baslangic === dun && fisFiltre.bitis === dun) return "dun";
+    if (!fisFiltre.baslangic && !fisFiltre.bitis) return "buay";
+    return "ozel";
+  })();
+  const tarihHizliSec = (secim: "bugun" | "dun" | "buay") => {
+    if (secim === "bugun") {
+      setFisFiltre((prev) => ({ ...prev, baslangic: bugun, bitis: bugun }));
+      return;
+    }
+    if (secim === "dun") {
+      setFisFiltre((prev) => ({ ...prev, baslangic: dun, bitis: dun }));
+      return;
+    }
+    setFisFiltre((prev) => ({ ...prev, baslangic: "", bitis: "" }));
+  };
+
   return (
     <>
       <div className="tab-fade-in main-content-area">
@@ -248,6 +266,25 @@ export function SatisPanel({
             <button onClick={() => setSatisFiltreKisi("benim")} style={{ flex: 1, padding: "6px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "bold", background: satisFiltreKisi === "benim" ? "#2563eb" : "transparent", color: satisFiltreKisi === "benim" ? "#fff" : "#475569" }}>Benim</button>
             <button onClick={() => setSatisFiltreKisi("herkes")} style={{ flex: 1, padding: "6px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "bold", background: satisFiltreKisi === "herkes" ? "#2563eb" : "transparent", color: satisFiltreKisi === "herkes" ? "#fff" : "#475569" }}>Herkes</button>
           </div>
+        </div>
+
+        <div style={{ display: "flex", background: "#e2e8f0", borderRadius: "999px", overflow: "hidden", marginBottom: "10px" }}>
+          {[
+            { key: "bugun" as const, label: "Bugün" },
+            { key: "dun" as const, label: "Dün" },
+            { key: "buay" as const, label: "Bu Ay" },
+          ].map((secenek) => {
+            const secili = tarihHizliFiltre === secenek.key;
+            return (
+              <button
+                key={secenek.key}
+                onClick={() => tarihHizliSec(secenek.key)}
+                style={{ flex: 1, padding: "7px 8px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "bold", background: secili ? "#0f766e" : "transparent", color: secili ? "#fff" : "#475569" }}
+              >
+                {secenek.label}
+              </button>
+            );
+          })}
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "0.95fr 1.45fr 1fr", gap: "6px", marginBottom: "10px", alignItems: "stretch" }}>
