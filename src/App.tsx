@@ -2717,7 +2717,7 @@ export default function App() {
     const { bakiyeler, labels } = hesaplaMusteriBakiyeleri(tumSatisFisList, aktifDonem);
     return Object.keys(bakiyeler)
         .map((k) => ({ anahtar: k, isim: labels[k] || k, borc: bakiyeler[k] }))
-        .filter((b) => Math.abs(b.borc) > 0.01)
+        .filter((b) => b.borc > 0.01)
         .sort((a, b) => b.borc - a.borc);
   }, [aktifDonem, hesaplaMusteriBakiyeleri, tumSatisFisList]);
 
@@ -4400,20 +4400,20 @@ export default function App() {
         if (fisKasayaDevirMi(fis)) return false;
         const isBayiMatch =
           fisFiltre.bayiler.length === 0 || fisFiltre.bayiler.includes(satisFisBayiAdiGetir(fis));
-        const isKisiMatch =
-          satisFiltreKisi === "herkes" || normalizeUsername(fis.ekleyen) === aktifKullaniciKisa;
-        return isBayiMatch && isKisiMatch;
+        return isBayiMatch;
       }),
-    [aktifKullaniciKisa, fisFiltre.bayiler, fisKasayaDevirMi, normalizeUsername, satisFiltreKisi, satisFisBayiAdiGetir, tumSatisFisList],
+    [fisFiltre.bayiler, fisKasayaDevirMi, satisFisBayiAdiGetir, tumSatisFisList],
   );
   const tFisKalan = useMemo(() => {
     const { bakiyeler } = hesaplaMusteriBakiyeleri(acikHesapKaynakFisler, aktifDonem);
-    const devredenToplam = Object.values(bakiyeler).reduce(
-      (toplam, borc) => toplam + Number(borc || 0),
+    const borcluToplam = Object.values(bakiyeler).reduce(
+      (toplam, borc) => toplam + Math.max(0, Number(borc || 0)),
       0,
     );
-    if (Math.abs(devredenToplam) > 0.01) return devredenToplam;
-    return filteredForTotals.filter(f => !fisKasayaDevirMi(f)).reduce((a: number, b: any) => a + Number(b.kalan_bakiye), 0);
+    if (borcluToplam > 0.01) return borcluToplam;
+    return filteredForTotals
+      .filter((f) => !fisKasayaDevirMi(f))
+      .reduce((a: number, b: any) => a + Math.max(0, Number(b.kalan_bakiye || 0)), 0);
   }, [acikHesapKaynakFisler, aktifDonem, filteredForTotals, fisKasayaDevirMi, hesaplaMusteriBakiyeleri]);
 
   // GİDERLER TAHSİLATTAN DÜŞÜYOR (Kullanıcının giderleri net tahsilatı belirler)
