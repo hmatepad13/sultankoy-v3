@@ -4392,7 +4392,33 @@ export default function App() {
   );
   const aktifDonemSatisEtiketi = useMemo(() => donemSatisEtiketiGetir(aktifDonem), [aktifDonem]);
 
-  const tFisToplam = useMemo(() => filteredForTotals.filter(f => !fisKasayaDevirMi(f)).reduce((a: number, b: any) => a + Number(b.toplam_tutar), 0), [filteredForTotals]);
+  const filteredForTotalsFisNoSet = useMemo(
+    () =>
+      new Set(
+        filteredForTotals
+          .filter((f) => !fisKasayaDevirMi(f))
+          .map((fis) => String(fis.fis_no || "").trim())
+          .filter(Boolean),
+      ),
+    [filteredForTotals, fisKasayaDevirMi],
+  );
+  const tFisDevredenSatirToplami = useMemo(
+    () =>
+      periodSatisList.reduce((toplam: number, satir) => {
+        const fisNo = String(satir.fis_no || "").trim();
+        if (!fisNo || !filteredForTotalsFisNoSet.has(fisNo)) return toplam;
+        if (!devredenBorcSatiriMi(satisSatiriUrunAdiGetir(satir))) return toplam;
+        return toplam + Number(satir.tutar || 0);
+      }, 0),
+    [filteredForTotalsFisNoSet, periodSatisList, satisSatiriUrunAdiGetir],
+  );
+  const tFisToplam = useMemo(
+    () =>
+      filteredForTotals
+        .filter((f) => !fisKasayaDevirMi(f))
+        .reduce((a: number, b: any) => a + Number(b.toplam_tutar), 0) - tFisDevredenSatirToplami,
+    [filteredForTotals, fisKasayaDevirMi, tFisDevredenSatirToplami],
+  );
   const tFisTahsilatRaw = useMemo(() => filteredForTotals.filter(f => !fisKasayaDevirMi(f)).reduce((a: number, b: any) => a + Number(b.tahsilat), 0), [filteredForTotals]);
   const acikHesapKaynakFisler = useMemo(
     () =>
