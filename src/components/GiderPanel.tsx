@@ -184,13 +184,20 @@ export function GiderPanel({
   }), giderSort), [aktifKullaniciKisa, giderFiltre, giderFiltreKisi, giderSort, periodGider]);
 
   const fGGiderNormal = useMemo(() => fGiderList.filter((g) => normalGiderMi(g.tur)).reduce((a, b) => a + Number(b.tutar), 0), [fGiderList]);
-  const fGGiderNormalKayitAdedi = useMemo(() => fGiderList.filter((g) => normalGiderMi(g.tur)).length, [fGiderList]);
   const fGSutOdemesi = useMemo(() => fGiderList.filter((g) => sutOdemesiMi(g.tur)).reduce((a, b) => a + Number(b.tutar), 0), [fGiderList]);
   const fGKremaOdemesi = useMemo(() => fGiderList.filter((g) => kremaOdemesiMi(g.tur)).reduce((a, b) => a + Number(b.tutar), 0), [fGiderList]);
   const fGKovaOdemesi = useMemo(() => fGiderList.filter((g) => kovaOdemesiMi(g.tur)).reduce((a, b) => a + Number(b.tutar), 0), [fGiderList]);
   const fGKatkiOdemesi = useMemo(() => fGiderList.filter((g) => katkiOdemesiMi(g.tur)).reduce((a, b) => a + Number(b.tutar), 0), [fGiderList]);
   const fGSutTozuOdemesi = useMemo(() => fGiderList.filter((g) => sutTozuOdemesiMi(g.tur)).reduce((a, b) => a + Number(b.tutar), 0), [fGiderList]);
   const fGHammaddeOdemeleri = fGSutOdemesi + fGKremaOdemesi + fGKovaOdemesi + fGKatkiOdemesi + fGSutTozuOdemesi;
+  const fGToplamGider = fGGiderNormal + fGHammaddeOdemeleri;
+  const hammaddeOdemeDetaySatirlari = [
+    { etiket: "Süt Ödemesi", deger: `${helpers.fSayi(fGSutOdemesi)} TL`, vurgu: true },
+    { etiket: "Krema Ödemesi", deger: `${helpers.fSayi(fGKremaOdemesi)} TL`, vurgu: true },
+    { etiket: "Kova Ödemesi", deger: `${helpers.fSayi(fGKovaOdemesi)} TL`, vurgu: true },
+    { etiket: "Katkı Ödemesi", deger: `${helpers.fSayi(fGKatkiOdemesi)} TL`, vurgu: true },
+    { etiket: "Süt Tozu Ödemesi", deger: `${helpers.fSayi(fGSutTozuOdemesi)} TL`, vurgu: true },
+  ];
 
   const resetGiderFormu = () => {
     setGiderForm({ tarih: varsayilanTarihGetir(aktifDonem), tur: "Genel Gider", aciklama: "", tutar: "" });
@@ -338,8 +345,7 @@ export function GiderPanel({
             {
               Donem: aktifDonem,
               "Kisi Filtresi": giderFiltreKisi,
-              Giderler: fGGiderNormal,
-              "Hammadde Odemeleri": fGHammaddeOdemeleri,
+              "Toplam Gider": fGToplamGider,
             },
           ],
         },
@@ -375,18 +381,14 @@ export function GiderPanel({
             <div
               className="gider-ust-ozet"
               onClick={() => onOpenMiniDetay({
-                baslik: "Giderler",
+                baslik: "Hammadde Ödemeleri",
                 renk: "#dc2626",
-                satirlar: [
-                  { etiket: "Toplam Gider", deger: `${helpers.fSayi(fGGiderNormal)} TL`, vurgu: true },
-                  { etiket: "Kayit Sayisi", deger: String(fGGiderNormalKayitAdedi) },
-                ],
+                satirlar: hammaddeOdemeDetaySatirlari,
               })}
               style={{ border: "1px solid #dc262633", background: "#dc262610", color: "#dc2626", borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", flex: "1 1 120px", minWidth: "100px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", cursor: "pointer" }}
             >
-              GİDERLER: {helpers.fSayi(fGGiderNormal)} ₺
+              TOPLAM: {helpers.fSayi(fGToplamGider)} ₺
             </div>
-            <div className="gider-ust-ozet" onClick={() => onOpenMiniDetay({ baslik: "Hammadde Ödemeleri", renk: "#7c3aed", satirlar: [{ etiket: "Süt Ödemesi", deger: `${helpers.fSayi(fGSutOdemesi)} TL`, vurgu: true }, { etiket: "Krema Ödemesi", deger: `${helpers.fSayi(fGKremaOdemesi)} TL`, vurgu: true }, { etiket: "Kova Ödemesi", deger: `${helpers.fSayi(fGKovaOdemesi)} TL`, vurgu: true }, { etiket: "Katkı Ödemesi", deger: `${helpers.fSayi(fGKatkiOdemesi)} TL`, vurgu: true }, { etiket: "Süt Tozu Ödemesi", deger: `${helpers.fSayi(fGSutTozuOdemesi)} TL`, vurgu: true }] })} style={{ border: "1px solid #8b5cf633", background: "#8b5cf610", color: "#7c3aed", borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: "bold", flex: "1 1 145px", minWidth: "125px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", cursor: "pointer" }}>HAMMADDE ÖDEMELERİ: {helpers.fSayi(fGHammaddeOdemeleri)} ₺</div>
           </div>
           <button onClick={() => void handleExcelIndir()} disabled={isExcelLoading} className="btn-anim m-btn inline-mobile-btn" style={{ background: "#0f766e", margin: 0, width: "auto", minWidth: "112px", flex: "0 0 auto", fontSize: "12px", padding: "10px 12px", opacity: isExcelLoading ? 0.75 : 1, cursor: isExcelLoading ? "wait" : "pointer" }}>{isExcelLoading ? "Hazır..." : "📥 EXCEL"}</button>
           <div className="gider-filtre-grup" style={{ display: "flex", background: "#cbd5e1", borderRadius: "8px", overflow: "hidden", flex: "0 0 auto", minWidth: "110px", marginLeft: "auto" }}>
