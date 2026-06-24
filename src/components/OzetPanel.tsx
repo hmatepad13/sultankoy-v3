@@ -287,23 +287,6 @@ export function OzetPanel({
           <div
             className="c-kutu"
             style={{
-              border: "1px solid #b4530933",
-              background: "#b4530910",
-              color: "#b45309",
-              borderRadius: "18px",
-              padding: "6px 10px",
-              fontSize: "11px",
-              fontWeight: "bold",
-              flex: "1 1 130px",
-              minWidth: "120px",
-            }}
-          >
-            <div style={{ fontSize: "10px", opacity: 0.9, marginBottom: "2px" }}>DEVREDEN BAKİYE</div>
-            <b style={{ fontSize: "14px" }}>{helpers.fSayiNoDec(tOzetDevredenBakiye)} ₺</b>
-          </div>
-          <div
-            className="c-kutu"
-            style={{
               border: "1px solid #dc262633",
               background: "#dc262610",
               color: "#dc2626",
