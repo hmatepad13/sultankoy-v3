@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { TEMA_RENGI } from "../constants/app";
 import type { PersonelOzeti, SortConfig } from "../types/app";
 
@@ -30,9 +30,7 @@ type OzetPanelProps = {
   tOzetDevredenBakiye: number;
   tGiderNormal: number;
   tHammaddeOdemeleri: number;
-  tHammaddeBorcu: number;
   hammaddeOdemeDetaySatirlari: Array<{ etiket: string; deger: string; vurgu?: boolean }>;
-  hammaddeBorcDetaySatirlari: Array<{ etiket: string; deger: string; vurgu?: boolean }>;
   bayiBorclari: BayiBorcSatiri[];
   ekstreMusterileri: EkstreMusteriSecenegi[];
   ozetBorcFiltre: { bayiler: string[] };
@@ -179,9 +177,7 @@ export function OzetPanel({
   tOzetDevredenBakiye,
   tGiderNormal,
   tHammaddeOdemeleri,
-  tHammaddeBorcu,
   hammaddeOdemeDetaySatirlari,
-  hammaddeBorcDetaySatirlari,
   bayiBorclari,
   ekstreMusterileri,
   ozetBorcFiltre,
@@ -194,27 +190,9 @@ export function OzetPanel({
   helpers,
 }: OzetPanelProps) {
   const [activeFilterModal, setActiveFilterModal] = useState<OzetFilterModal>(null);
-  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [isExcelLoading, setIsExcelLoading] = useState(false);
   const [isEkstreModalOpen, setIsEkstreModalOpen] = useState(false);
   const [ekstreArama, setEkstreArama] = useState("");
-
-  useEffect(() => {
-    if (!openDropdownId) return;
-
-    const handleDisTiklama = (event: MouseEvent | TouchEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (!target || target.closest(".dropdown-menu") || target.closest(".actions-cell")) return;
-      setOpenDropdownId(null);
-    };
-
-    document.addEventListener("mousedown", handleDisTiklama);
-    document.addEventListener("touchstart", handleDisTiklama, { passive: true });
-    return () => {
-      document.removeEventListener("mousedown", handleDisTiklama);
-      document.removeEventListener("touchstart", handleDisTiklama);
-    };
-  }, [openDropdownId]);
 
   const ozetBorcFiltreSecenekleri = useMemo(
     () => [...new Set(bayiBorclari.map((item) => item.isim))].sort((a, b) => a.localeCompare(b, "tr")),
@@ -259,7 +237,6 @@ export function OzetPanel({
               "Devreden Bakiye": tOzetDevredenBakiye,
               "Isletme Giderleri": tGiderNormal,
               "Hammadde Odemeleri": tHammaddeOdemeleri,
-              "Hammadde Borcu": tHammaddeBorcu,
             },
           ],
         },
@@ -367,31 +344,6 @@ export function OzetPanel({
             <div style={{ color: "#7c3aed", fontSize: "10px", marginBottom: "2px" }}>HAMMADDE ÖDEMELERİ</div>
             <b style={{ fontSize: "14px" }}>{helpers.fSayiNoDec(tHammaddeOdemeleri)} ₺</b>
           </div>
-          <div
-            className="c-kutu"
-            style={{
-              border: "1px solid #0f766e33",
-              background: "#0f766e10",
-              color: "#334155",
-              borderRadius: "18px",
-              padding: "6px 10px",
-              fontSize: "10px",
-              fontWeight: "bold",
-              flex: "1 1 150px",
-              minWidth: "145px",
-              cursor: "pointer",
-            }}
-            onClick={() =>
-              onOpenMiniDetay({
-                baslik: "Hammadde Borçları",
-                renk: "#0f766e",
-                satirlar: hammaddeBorcDetaySatirlari,
-              })
-            }
-          >
-            <div style={{ color: "#0f766e", fontSize: "10px", marginBottom: "2px" }}>HAMMADDE BORÇLARI</div>
-            <b style={{ fontSize: "14px" }}>{helpers.fSayiNoDec(tHammaddeBorcu)} ₺</b>
-          </div>
         </div>
 
         <div className="card" style={{ marginTop: "5px", order: 2 }}>
@@ -472,37 +424,32 @@ export function OzetPanel({
                         {helpers.fSayiNoDec(borc.borc)} ₺
                       </b>
                     </td>
-                    <td className="actions-cell" style={{ position: "relative" }}>
+                    <td style={{ textAlign: "center" }}>
                       <button
                         onClick={(event) => {
                           event.stopPropagation();
-                          setOpenDropdownId(borc.anahtar);
+                          onOpenMusteriEkstre(borc.anahtar, borc.isim);
                         }}
+                        title="Ekstre"
+                        aria-label={`${borc.isim} ekstresini aç`}
+                        className="btn-anim"
                         style={{
-                          background: "none",
-                          border: "none",
+                          width: "28px",
+                          height: "28px",
+                          border: "1px solid #0f766e33",
+                          borderRadius: "999px",
+                          background: "#0f766e10",
                           cursor: "pointer",
-                          fontSize: "18px",
-                          padding: "0 6px",
-                          color: "#64748b",
+                          fontSize: "15px",
+                          color: "#0f766e",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          padding: 0,
                         }}
                       >
-                        ⋮
+                        🧾
                       </button>
-                      {openDropdownId === borc.anahtar && (
-                        <div className="dropdown-menu">
-                          <button
-                            title="Ekstre"
-                            className="dropdown-item-icon"
-                            onClick={() => {
-                              setOpenDropdownId(null);
-                              onOpenMusteriEkstre(borc.anahtar, borc.isim);
-                            }}
-                          >
-                            🧾
-                          </button>
-                        </div>
-                      )}
                     </td>
                   </tr>
                 ))}

@@ -22,13 +22,11 @@ import {
   TEMA_RENGI,
 } from "./constants/app";
 import {
-  hammaddeBorclariniHesapla,
   hammaddeBorcuGideriMi,
   katkiOdemesiMi,
   kovaOdemesiMi,
   kremaOdemesiMi,
   normalGiderMi,
-  sutcuBorcunuHesapla,
   sutOdemesiMi,
   sutTozuOdemesiMi,
 } from "./lib/gider";
@@ -252,6 +250,14 @@ const fisKasayaDevirMi = (fis: Partial<SatisFis>) => {
 
 const personelAnahtariniGetir = (deger?: string | null) => normalizeUsername(deger) || "Bilinmiyor";
 
+const PERSONEL_OZETI_HARIC_KULLANICILAR = ["yusuf"];
+
+const personelOzetindenHaricMi = (deger?: string | null) => {
+  const key = personelAnahtariniGetir(deger);
+  const normalized = normalizeUsername(key);
+  return adminMi(normalized) || PERSONEL_OZETI_HARIC_KULLANICILAR.includes(normalized);
+};
+
 const personelDevirAnahtariniGetir = (aciklama?: string | null) => {
   const eslesme = String(aciklama || "").match(/\((.*?)\)/);
   return personelAnahtariniGetir(eslesme?.[1]);
@@ -305,6 +311,7 @@ const personelBakiyeleriniHesapla = (
   olaylar.forEach((olay) => {
     if (olay.tip === "gider") {
       const key = personelAnahtariniGetir(olay.gider.ekleyen);
+      if (personelOzetindenHaricMi(key)) return;
       kayitGetir(key).gider += Number(olay.gider.tutar || 0);
       return;
     }
@@ -312,6 +319,7 @@ const personelBakiyeleriniHesapla = (
     const fis = olay.fis;
     const personelDevir = fisPersonelDevirMi(fis) && fis.bayi === "SİSTEM İŞLEMİ";
     const key = personelDevir ? personelDevirAnahtariniGetir(fis.aciklama) : personelAnahtariniGetir(fis.ekleyen);
+    if (personelOzetindenHaricMi(key)) return;
     const kayit = kayitGetir(key);
 
     if (personelDevir) {
@@ -896,7 +904,6 @@ export default function App() {
   const [bayiler, setBayiler] = useState<Bayi[]>(() => yerelJsonOku<Bayi[]>(BAYILER_CACHE_KEY, []));
   const [urunler, setUrunler] = useState<Urun[]>(() => yerelJsonOku<Urun[]>(URUNLER_CACHE_KEY, []));
   const [sutList, setSutList] = useState<SutGiris[]>([]);
-  const [oncekiSutList, setOncekiSutList] = useState<SutGiris[]>([]);
   const [satisFisList, setSatisFisList] = useState<SatisFis[]>([]);
   const [oncekiSatisFisList, setOncekiSatisFisList] = useState<SatisFis[]>([]);
   const [satisList, setSatisList] = useState<SatisGiris[]>([]);
@@ -2535,49 +2542,18 @@ export default function App() {
       }
 
       if (hedef === "hepsi" || hedef === "sut" || hedef === "ozet") {
-        const sutIstekleri =
-          hedef === "ozet"
-            ? Promise.all([
-                startupSorguyuCalistir<SutGiris>(
-                  "sut_giris",
-                  supabase
-                    .from("sut_giris")
-                    .select("*")
-                    .gte("tarih", donemBaslangici)
-                    .lt("tarih", donemBitisi)
-                    .order("tarih", { ascending: true })
-                    .order("id", { ascending: true }),
-                ),
-                startupSorguyuCalistir<SutGiris>(
-                  "sut_giris_onceki",
-                  supabase
-                    .from("sut_giris")
-                    .select("*")
-                    .lt("tarih", donemBaslangici)
-                    .order("tarih", { ascending: true })
-                    .order("id", { ascending: true }),
-                ),
-              ])
-            : Promise.all([
-                startupSorguyuCalistir<SutGiris>(
-                  "sut_giris",
-                  supabase
-                    .from("sut_giris")
-                    .select("*")
-                    .gte("tarih", donemBaslangici)
-                    .lt("tarih", donemBitisi)
-                    .order("tarih", { ascending: true })
-                    .order("id", { ascending: true }),
-                ),
-                Promise.resolve({ data: null as SutGiris[] | null, error: null }),
-              ]);
-
-        const [{ data: s, error: sErr }, { data: ps, error: psErr }] = await sutIstekleri;
-        if (sErr || psErr) throw sErr || psErr;
+        const { data: s, error: sErr } = await startupSorguyuCalistir<SutGiris>(
+          "sut_giris",
+          supabase
+            .from("sut_giris")
+            .select("*")
+            .gte("tarih", donemBaslangici)
+            .lt("tarih", donemBitisi)
+            .order("tarih", { ascending: true })
+            .order("id", { ascending: true }),
+        );
+        if (sErr) throw sErr;
         if (s) setSutList(s);
-        if (hedef === "ozet") {
-          setOncekiSutList(ps || []);
-        }
         if (kullaniciId) {
           ertelenenVeriYuklemeRef.current.sutYuklenenKullanici = kullaniciId;
         }
@@ -2735,14 +2711,6 @@ export default function App() {
   const tumSatisFisList = useMemo(
     () => [...oncekiSatisFisList, ...satisFisList],
     [oncekiSatisFisList, satisFisList],
-  );
-  const tumOzetSutList = useMemo(
-    () => [...oncekiSutList, ...sutList],
-    [oncekiSutList, sutList],
-  );
-  const tumOzetGiderList = useMemo(
-    () => [...oncekiGiderList, ...giderList],
-    [oncekiGiderList, giderList],
   );
   const aylar = useMemo(() => {
      const set = new Set(donemSecenekleri);
@@ -4503,33 +4471,12 @@ export default function App() {
     [periodGider],
   );
   const tHammaddeOdemeleri = tSutOdemesi + tKremaOdemesi + tKovaOdemesi + tKatkiOdemesi + tSutTozuOdemesi;
-  const sutcuyeBorcumuz = useMemo(
-    () => sutcuBorcunuHesapla(tumOzetSutList, tumOzetGiderList, aktifDonem),
-    [aktifDonem, tumOzetGiderList, tumOzetSutList],
-  );
-  const hammaddeBorclari = useMemo(
-    () => hammaddeBorclariniHesapla(tumOzetGiderList, aktifDonem),
-    [aktifDonem, tumOzetGiderList],
-  );
-  const tHammaddeBorcu =
-    sutcuyeBorcumuz +
-    hammaddeBorclari.krema +
-    hammaddeBorclari.kova +
-    hammaddeBorclari.katki +
-    hammaddeBorclari.sutTozu;
   const hammaddeOdemeDetaySatirlari = [
     { etiket: "Süt Ödemesi", deger: `${fSayiNoDec(tSutOdemesi)} TL`, vurgu: true },
     { etiket: "Krema Ödemesi", deger: `${fSayiNoDec(tKremaOdemesi)} TL`, vurgu: true },
     { etiket: "Kova Ödemesi", deger: `${fSayiNoDec(tKovaOdemesi)} TL`, vurgu: true },
     { etiket: "Katkı Ödemesi", deger: `${fSayiNoDec(tKatkiOdemesi)} TL`, vurgu: true },
     { etiket: "Süt Tozu Ödemesi", deger: `${fSayiNoDec(tSutTozuOdemesi)} TL`, vurgu: true },
-  ];
-  const hammaddeBorcDetaySatirlari = [
-    { etiket: "Süt Borcu", deger: `${fSayiNoDec(sutcuyeBorcumuz)} TL`, vurgu: true },
-    { etiket: "Krema Borcu", deger: `${fSayiNoDec(hammaddeBorclari.krema)} TL`, vurgu: true },
-    { etiket: "Kova Borcu", deger: `${fSayiNoDec(hammaddeBorclari.kova)} TL`, vurgu: true },
-    { etiket: "Katkı Borcu", deger: `${fSayiNoDec(hammaddeBorclari.katki)} TL`, vurgu: true },
-    { etiket: "Süt Tozu Borcu", deger: `${fSayiNoDec(hammaddeBorclari.sutTozu)} TL`, vurgu: true },
   ];
   const bayiNetDurum = bayiBorclari.reduce((a, b) => a + b.borc, 0);
   const oncekiPersonelBakiyeleri = useMemo(
@@ -4545,6 +4492,7 @@ export default function App() {
       const personelDevir = fisPersonelDevirMi(f) && f.bayi === "SİSTEM İŞLEMİ";
       const donemDevir = fisDonemDevirMi(f);
       const key = personelDevir ? personelDevirAnahtariniGetir(f.aciklama) : personelAnahtariniGetir(f.ekleyen);
+      if (personelOzetindenHaricMi(key)) return;
       if (!map[key]) {
         map[key] = { isim: key, satis: 0, tahsilat: 0, gider: 0, kasayaDevir: 0, net: 0, acikBakiye: 0, devirNet: 0, devirAcik: 0 };
       }
@@ -4568,6 +4516,7 @@ export default function App() {
 
     periodGider.forEach((g: any) => {
       const key = personelAnahtariniGetir(g.ekleyen);
+      if (personelOzetindenHaricMi(key)) return;
       if (!map[key]) {
         map[key] = { isim: key, satis: 0, tahsilat: 0, gider: 0, kasayaDevir: 0, net: 0, acikBakiye: 0, devirNet: 0, devirAcik: 0 };
       }
@@ -4575,6 +4524,7 @@ export default function App() {
     });
 
     Object.entries(oncekiPersonelBakiyeleri).forEach(([key, bakiye]) => {
+      if (personelOzetindenHaricMi(key)) return;
       if (!map[key]) {
         map[key] = { isim: key, satis: 0, tahsilat: 0, gider: 0, kasayaDevir: 0, net: 0, acikBakiye: 0, devirNet: 0, devirAcik: 0 };
       }
@@ -5036,9 +4986,7 @@ export default function App() {
           tOzetDevredenBakiye,
           tGiderNormal,
           tHammaddeOdemeleri,
-          tHammaddeBorcu,
           hammaddeOdemeDetaySatirlari,
-          hammaddeBorcDetaySatirlari,
           bayiBorclari,
           ekstreMusterileri,
           ozetBorcFiltre,
