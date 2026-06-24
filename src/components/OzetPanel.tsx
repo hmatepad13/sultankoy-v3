@@ -235,8 +235,7 @@ export function OzetPanel({
               Tahsilat: tOzetFisTahsilatRaw,
               "Acik Hesap": bayiNetDurum,
               "Devreden Bakiye": tOzetDevredenBakiye,
-              "Isletme Giderleri": tGiderNormal,
-              "Hammadde Odemeleri": tHammaddeOdemeleri,
+              "Toplam Giderler": tGiderNormal + tHammaddeOdemeleri,
             },
           ],
         },
@@ -314,35 +313,18 @@ export function OzetPanel({
               fontWeight: "bold",
               flex: "1 1 130px",
               minWidth: "120px",
-            }}
-          >
-            <div style={{ fontSize: "10px", opacity: 0.9, marginBottom: "2px" }}>İŞLETME GİDERLERİ</div>
-            <b style={{ fontSize: "14px" }}>{helpers.fSayiNoDec(tGiderNormal)} ₺</b>
-          </div>
-          <div
-            className="c-kutu"
-            style={{
-              border: "1px solid #8b5cf633",
-              background: "#8b5cf610",
-              color: "#334155",
-              borderRadius: "18px",
-              padding: "6px 10px",
-              fontSize: "10px",
-              fontWeight: "bold",
-              flex: "1 1 150px",
-              minWidth: "145px",
               cursor: "pointer",
             }}
             onClick={() =>
               onOpenMiniDetay({
                 baslik: "Hammadde Ödemeleri",
-                renk: "#7c3aed",
+                renk: "#dc2626",
                 satirlar: hammaddeOdemeDetaySatirlari,
               })
             }
           >
-            <div style={{ color: "#7c3aed", fontSize: "10px", marginBottom: "2px" }}>HAMMADDE ÖDEMELERİ</div>
-            <b style={{ fontSize: "14px" }}>{helpers.fSayiNoDec(tHammaddeOdemeleri)} ₺</b>
+            <div style={{ fontSize: "10px", opacity: 0.9, marginBottom: "2px" }}>GİDERLER</div>
+            <b style={{ fontSize: "14px" }}>{helpers.fSayiNoDec(tGiderNormal + tHammaddeOdemeleri)} ₺</b>
           </div>
         </div>
 
