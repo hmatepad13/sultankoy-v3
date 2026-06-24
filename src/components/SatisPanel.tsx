@@ -268,6 +268,30 @@ export function SatisPanel({
           </div>
         </div>
 
+        <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "10px", flexWrap: "wrap" }}>
+          <span style={{ fontSize: "11px", fontWeight: "bold", color: "#64748b" }}>Tarih:</span>
+          {[
+            { key: "bugun" as const, label: "Bugün" },
+            { key: "dun" as const, label: "Dün" },
+            { key: "buay" as const, label: "Bu Ay" },
+          ].map((secenek) => {
+            const secili = tarihHizliFiltre === secenek.key;
+            return (
+              <button
+                key={secenek.key}
+                onClick={() => tarihHizliSec(secenek.key)}
+                className="btn-anim"
+                style={{ border: "none", borderRadius: "999px", padding: "5px 10px", fontSize: "11px", fontWeight: "bold", cursor: "pointer", background: secili ? "#0f766e" : "#e2e8f0", color: secili ? "#fff" : "#475569" }}
+              >
+                {secenek.label}
+              </button>
+            );
+          })}
+          {tarihHizliFiltre === "ozel" && (
+            <span style={{ borderRadius: "999px", padding: "5px 10px", fontSize: "11px", fontWeight: "bold", background: "#fef3c7", color: "#92400e" }}>Özel</span>
+          )}
+        </div>
+
         <div style={{ display: "grid", gridTemplateColumns: "0.95fr 1.45fr 1fr", gap: "6px", marginBottom: "10px", alignItems: "stretch" }}>
           <div style={{ minWidth: 0, border: "1px solid #05966933", background: "#05966910", color: "#059669", borderRadius: "12px", padding: "6px 8px", display: "flex", flexDirection: "column", justifyContent: "center" }}><span style={{ fontSize: "9px", fontWeight: "bold", opacity: 0.85, whiteSpace: "nowrap" }}>TOPLAM SATIŞ</span><b style={{ fontSize: "14px", marginTop: "2px", whiteSpace: "normal", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{helpers.fSayiNoDec(tFisToplam)} ₺</b></div>
           <div style={{ minWidth: 0, border: "1px solid #2563eb33", background: "#2563eb10", color: "#2563eb", borderRadius: "12px", padding: "6px 8px", display: "flex", flexDirection: "column", gap: "4px", justifyContent: "center" }}>
