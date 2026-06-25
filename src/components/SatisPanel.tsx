@@ -1,5 +1,5 @@
-import { useEffect, useState, type CSSProperties, type Dispatch, type SetStateAction } from "react";
-import type { Bayi, SatisFis, SortConfig } from "../types/app";
+import { useEffect, useMemo, useState, type CSSProperties, type Dispatch, type SetStateAction } from "react";
+import type { Bayi, SatisFis, SatisGiris, SortConfig } from "../types/app";
 
 type SatisFiltreKisi = "benim" | "herkes";
 type SatisFiltreTip = "tumu" | "satis" | "tahsilat" | "kasa_devir";
@@ -18,6 +18,7 @@ type FisTahsilatFn = (fis: Partial<SatisFis>) => boolean;
 type SistemIslemiFn = (deger?: string | null) => boolean;
 type SatisFisBayiAdiFn = (fis?: Partial<SatisFis> | null) => string;
 type FisGorunenBayiFn = (fis: SatisFis) => string;
+type SatisSatiriUrunAdiFn = (satir?: Partial<SatisGiris> | null) => string;
 
 interface SatisPanelProps {
   aktifDonem: string;
@@ -26,6 +27,7 @@ interface SatisPanelProps {
   satisFiltreKisi: SatisFiltreKisi;
   setSatisFiltreKisi: Dispatch<SetStateAction<SatisFiltreKisi>>;
   fFisList: SatisFis[];
+  periodSatisList: SatisGiris[];
   satisFisToplamBorcMap: Record<string, number>;
   fisSort: SortConfig;
   setFisSort: Dispatch<SetStateAction<SortConfig>>;
@@ -60,6 +62,7 @@ interface SatisPanelProps {
     fisTahsilatMi: FisTahsilatFn;
     sistemIslemiMi: SistemIslemiFn;
     satisFisBayiAdiGetir: SatisFisBayiAdiFn;
+    satisSatiriUrunAdiGetir: SatisSatiriUrunAdiFn;
     fisGorunenBayi: FisGorunenBayiFn;
   };
   helpers: {
@@ -133,6 +136,7 @@ export function SatisPanel({
   satisFiltreKisi,
   setSatisFiltreKisi,
   fFisList,
+  periodSatisList,
   satisFisToplamBorcMap,
   fisSort,
   setFisSort,
@@ -244,6 +248,57 @@ export function SatisPanel({
     }
     setFisFiltre((prev) => ({ ...prev, baslangic: "", bitis: "" }));
   };
+  const tarihKaydir = (yon: -1 | 1) => {
+    const kaynakTarih =
+      fisFiltre.baslangic && fisFiltre.baslangic === fisFiltre.bitis
+        ? fisFiltre.baslangic
+        : fisFiltre.baslangic || bugun;
+    const tarih = new Date(`${kaynakTarih}T12:00:00`);
+    tarih.setDate(tarih.getDate() + yon);
+    const yeniTarih = tarih.toISOString().slice(0, 10);
+    setFisFiltre((prev) => ({ ...prev, baslangic: yeniTarih, bitis: yeniTarih }));
+  };
+
+  const tarihBasligi = useMemo(() => {
+    if (fisFiltre.baslangic && fisFiltre.baslangic === fisFiltre.bitis) {
+      return new Intl.DateTimeFormat("tr-TR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        weekday: "long",
+      }).format(new Date(`${fisFiltre.baslangic}T12:00:00`));
+    }
+    if (!fisFiltre.baslangic && !fisFiltre.bitis) {
+      const [yil, ay] = aktifDonem.split("-");
+      return `${yil} / ${ay} ay toplamı`;
+    }
+    return `${fisFiltre.baslangic || "…"} - ${fisFiltre.bitis || "…"}`;
+  }, [aktifDonem, fisFiltre.baslangic, fisFiltre.bitis]);
+
+  const gunlukUrunToplamlari = useMemo(() => {
+    const gecerliFisNolari = new Set(
+      fFisList
+        .filter((fis) => Number(fis.toplam_tutar || 0) > 0 && !visibility.fisKasayaDevirMi(fis) && !visibility.sistemIslemiMi(visibility.satisFisBayiAdiGetir(fis)))
+        .map((fis) => String(fis.fis_no || "").trim())
+        .filter(Boolean),
+    );
+    const haricUrunler = new Set(["boş kova", "iade", "iade kova", "devreden borç"]);
+    const map = new Map<string, { urun: string; adet: number; kg: number; tutar: number }>();
+
+    periodSatisList.forEach((satir) => {
+      const fisNo = String(satir.fis_no || "").trim();
+      if (!fisNo || !gecerliFisNolari.has(fisNo)) return;
+      const urun = visibility.satisSatiriUrunAdiGetir(satir);
+      if (!urun || haricUrunler.has(urun.toLocaleLowerCase("tr-TR"))) return;
+      const mevcut = map.get(urun) || { urun, adet: 0, kg: 0, tutar: 0 };
+      mevcut.adet += Number(satir.adet || 0);
+      mevcut.kg += Number(satir.toplam_kg || 0);
+      mevcut.tutar += Number(satir.tutar || 0);
+      map.set(urun, mevcut);
+    });
+
+    return [...map.values()].sort((a, b) => b.tutar - a.tutar);
+  }, [fFisList, periodSatisList, visibility]);
 
   return (
     <>
@@ -281,27 +336,45 @@ export function SatisPanel({
           <div style={{ minWidth: 0, border: "1px solid #dc262633", background: "#dc262610", color: "#dc2626", borderRadius: "12px", padding: "6px 8px", display: "flex", flexDirection: "column", justifyContent: "center" }}><span style={{ fontSize: "9px", fontWeight: "bold", opacity: 0.85, whiteSpace: "nowrap" }}>AÇIK HESAP</span><b style={{ fontSize: "14px", marginTop: "2px", whiteSpace: "normal", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{helpers.fSayiNoDec(tFisKalan)} ₺</b></div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "6px", marginBottom: "6px", flexWrap: "wrap" }}>
-          <span style={{ fontSize: "11px", fontWeight: "bold", color: "#64748b" }}>Tarih:</span>
-          {[
-            { key: "bugun" as const, label: "Bugün" },
-            { key: "dun" as const, label: "Dün" },
-            { key: "buay" as const, label: "Bu Ay" },
-          ].map((secenek) => {
-            const secili = tarihHizliFiltre === secenek.key;
-            return (
-              <button
-                key={secenek.key}
-                onClick={() => tarihHizliSec(secenek.key)}
-                className="btn-anim"
-                style={{ border: "none", borderRadius: "999px", padding: "5px 10px", fontSize: "11px", fontWeight: "bold", cursor: "pointer", background: secili ? "#0f766e" : "#e2e8f0", color: secili ? "#fff" : "#475569" }}
-              >
-                {secenek.label}
-              </button>
-            );
-          })}
-          {tarihHizliFiltre === "ozel" && (
-            <span style={{ borderRadius: "999px", padding: "5px 10px", fontSize: "11px", fontWeight: "bold", background: "#fef3c7", color: "#92400e" }}>Özel</span>
+        <div style={{ border: "1px solid #99f6e4", background: "#ecfdf5", borderRadius: "10px", overflow: "hidden", marginBottom: "6px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", padding: "7px 8px", borderBottom: "1px solid #ccfbf1", flexWrap: "wrap" }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ color: "#0f766e", fontSize: "12px", fontWeight: "bold" }}>Günlük Ürün Toplamı</div>
+              <div style={{ color: "#475569", fontSize: "11px", fontWeight: "bold", marginTop: "3px", textTransform: "capitalize" }}>{tarihBasligi}</div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", justifyContent: "flex-end" }}>
+              <button type="button" onClick={() => tarihKaydir(-1)} className="btn-anim" style={{ border: "none", borderRadius: "8px", padding: "6px 9px", fontSize: "13px", fontWeight: "bold", cursor: "pointer", background: "#d1fae5", color: "#0f766e" }}>‹</button>
+              <button type="button" onClick={() => tarihHizliSec("bugun")} className="btn-anim" style={{ border: "none", borderRadius: "8px", padding: "6px 10px", fontSize: "11px", fontWeight: "bold", cursor: "pointer", background: tarihHizliFiltre === "bugun" ? "#0f766e" : "#d1fae5", color: tarihHizliFiltre === "bugun" ? "#fff" : "#0f766e" }}>Bugün</button>
+              <button type="button" onClick={() => tarihKaydir(1)} className="btn-anim" style={{ border: "none", borderRadius: "8px", padding: "6px 9px", fontSize: "13px", fontWeight: "bold", cursor: "pointer", background: "#d1fae5", color: "#0f766e" }}>›</button>
+              <button type="button" onClick={() => tarihHizliSec("buay")} className="btn-anim" style={{ border: "none", borderRadius: "8px", padding: "6px 10px", fontSize: "11px", fontWeight: "bold", cursor: "pointer", background: tarihHizliFiltre === "buay" ? "#0f766e" : "#d1fae5", color: tarihHizliFiltre === "buay" ? "#fff" : "#0f766e" }}>Bu Ay</button>
+              <button type="button" onClick={() => setActiveFilterModal("fis_tarih")} className="btn-anim" style={{ border: "none", borderRadius: "8px", padding: "6px 9px", fontSize: "12px", fontWeight: "bold", cursor: "pointer", background: tarihHizliFiltre === "ozel" ? "#fef3c7" : "#d1fae5", color: tarihHizliFiltre === "ozel" ? "#92400e" : "#0f766e" }}>📅</button>
+            </div>
+          </div>
+          {gunlukUrunToplamlari.length > 0 ? (
+            <div style={{ overflowX: "auto" }}>
+              <table className="tbl" style={{ tableLayout: "fixed", minWidth: "520px", borderRadius: 0 }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: "left", width: "42%" }}>ÜRÜN</th>
+                    <th style={{ textAlign: "right", width: "18%" }}>KOVA/ADET</th>
+                    <th style={{ textAlign: "right", width: "18%" }}>KG</th>
+                    <th style={{ textAlign: "right", width: "22%" }}>TUTAR</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {gunlukUrunToplamlari.map((satir) => (
+                    <tr key={satir.urun}>
+                      <td style={{ fontWeight: "bold", color: "#0f172a" }}>{satir.urun}</td>
+                      <td style={{ textAlign: "right", color: "#0f766e", fontWeight: "bold" }}>{helpers.fSayiNoDec(satir.adet)}</td>
+                      <td style={{ textAlign: "right", color: "#2563eb", fontWeight: "bold" }}>{helpers.fSayiNoDec(satir.kg)}</td>
+                      <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold" }}>{helpers.fSayiNoDec(satir.tutar)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div style={{ padding: "10px", color: "#64748b", fontSize: "12px", fontWeight: "bold" }}>Bu tarih aralığında satış ürünü yok.</div>
           )}
         </div>
 
