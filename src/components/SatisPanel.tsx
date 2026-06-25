@@ -28,6 +28,7 @@ interface SatisPanelProps {
   setSatisFiltreKisi: Dispatch<SetStateAction<SatisFiltreKisi>>;
   fFisList: SatisFis[];
   periodSatisList: SatisGiris[];
+  satisVerisiYukleniyor: boolean;
   satisFisToplamBorcMap: Record<string, number>;
   fisSort: SortConfig;
   setFisSort: Dispatch<SetStateAction<SortConfig>>;
@@ -137,6 +138,7 @@ export function SatisPanel({
   setSatisFiltreKisi,
   fFisList,
   periodSatisList,
+  satisVerisiYukleniyor,
   satisFisToplamBorcMap,
   fisSort,
   setFisSort,
@@ -343,6 +345,8 @@ export function SatisPanel({
                 </tbody>
               </table>
             </div>
+          ) : satisVerisiYukleniyor ? (
+            <div style={{ padding: "10px", color: "#0f766e", fontSize: "12px", fontWeight: "bold" }}>Satış verileri yükleniyor...</div>
           ) : (
             <div style={{ padding: "10px", color: "#64748b", fontSize: "12px", fontWeight: "bold" }}>Bu tarih aralığında satış ürünü yok.</div>
           )}

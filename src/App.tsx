@@ -897,6 +897,7 @@ export default function App() {
   const [satisFisList, setSatisFisList] = useState<SatisFis[]>([]);
   const [oncekiSatisFisList, setOncekiSatisFisList] = useState<SatisFis[]>([]);
   const [satisList, setSatisList] = useState<SatisGiris[]>([]);
+  const [satisVerisiYukleniyor, setSatisVerisiYukleniyor] = useState(true);
   const [giderList, setGiderList] = useState<Gider[]>([]);
   const [oncekiGiderList, setOncekiGiderList] = useState<Gider[]>([]);
   const [giderTuruListesi, setGiderTuruListesi] = useState<GiderTuru[]>([]);
@@ -2382,6 +2383,7 @@ export default function App() {
       | "cop" = "hepsi",
   ) {
     const startupEtkin = hedef === "acilis" && !startupTelemetriRef.current.fetchLoglandi;
+    const satisVerisiYuklenecek = hedef === "acilis" || hedef === "hepsi" || hedef === "satis";
     const kullaniciId = session?.user?.id || null;
     const { baslangic: donemBaslangici, bitis: donemBitisi } = donemAraliginiGetir(aktifDonem);
     const startupSorguyuCalistir = async <T,>(
@@ -2417,6 +2419,7 @@ export default function App() {
 
     try {
       setVeriYuklemeHata("");
+      if (satisVerisiYuklenecek) setSatisVerisiYukleniyor(true);
       if (startupEtkin) {
         if (startupTelemetriRef.current.oturumBazMs == null) {
           startupTelemetriRef.current.oturumBazMs = performansSimdi();
@@ -2528,6 +2531,7 @@ export default function App() {
         if (f) setSatisFisList(f);
         if (pf) setOncekiSatisFisList(pf);
         if (st) setSatisList(st);
+        setSatisVerisiYukleniyor(false);
       }
 
       if (hedef === "hepsi" || hedef === "sut" || hedef === "ozet") {
@@ -2656,6 +2660,7 @@ export default function App() {
       return true;
 
     } catch (error: any) {
+      if (satisVerisiYuklenecek) setSatisVerisiYukleniyor(false);
       if (startupEtkin && !startupTelemetriRef.current.fetchLoglandi) {
         const bitisMs = performansSimdi();
         const durationMs = sureyiYuvarla(startupTelemetriRef.current.ilkFetchBaslangicMs, bitisMs);
@@ -4918,6 +4923,7 @@ export default function App() {
           setSatisFiltreKisi,
           fFisList,
           periodSatisList,
+          satisVerisiYukleniyor,
           satisFisToplamBorcMap,
           fisSort,
           setFisSort,
