@@ -248,22 +248,6 @@ export function SatisPanel({
     }
     setFisFiltre((prev) => ({ ...prev, baslangic: "", bitis: "" }));
   };
-  const tarihBasligi = useMemo(() => {
-    if (fisFiltre.baslangic && fisFiltre.baslangic === fisFiltre.bitis) {
-      return new Intl.DateTimeFormat("tr-TR", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        weekday: "long",
-      }).format(new Date(`${fisFiltre.baslangic}T12:00:00`));
-    }
-    if (!fisFiltre.baslangic && !fisFiltre.bitis) {
-      const [yil, ay] = aktifDonem.split("-");
-      return `${yil} / ${ay} ay toplamı`;
-    }
-    return `${fisFiltre.baslangic || "…"} - ${fisFiltre.bitis || "…"}`;
-  }, [aktifDonem, fisFiltre.baslangic, fisFiltre.bitis]);
-
   const gunlukUrunToplamlari = useMemo(() => {
     const gecerliFisNolari = new Set(
       fFisList
@@ -326,10 +310,9 @@ export function SatisPanel({
         </div>
 
         <div style={{ borderRadius: "8px", overflow: "visible", marginBottom: "6px" }}>
-          <div style={{ minHeight: "42px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", padding: "5px 8px", flexWrap: "wrap", background: "#ecfdf5", border: "1px solid #99f6e4", borderBottom: "none", borderRadius: "8px 8px 0 0" }}>
+          <div style={{ minHeight: "32px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", padding: "4px 8px", flexWrap: "nowrap", background: "#ecfdf5", border: "1px solid #99f6e4", borderBottom: "none", borderRadius: "8px 8px 0 0" }}>
             <div style={{ minWidth: 0 }}>
               <div style={{ color: "#0f766e", fontSize: "12px", fontWeight: "bold" }}>Günlük Ürün Toplamı</div>
-              <div style={{ color: "#475569", fontSize: "10px", fontWeight: "bold", marginTop: "3px", textTransform: "capitalize" }}>{tarihBasligi}</div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "nowrap", justifyContent: "flex-end", marginLeft: "auto", position: "relative" }}>
               <button type="button" onClick={() => tarihHizliSec("bugun")} className="btn-anim" style={{ minHeight: "28px", border: "none", borderRadius: "6px", padding: "5px 9px", fontSize: "11px", fontWeight: "bold", cursor: "pointer", background: tarihHizliFiltre === "bugun" ? "#0f766e" : "#d1fae5", color: tarihHizliFiltre === "bugun" ? "#fff" : "#0f766e" }}>Bugün</button>
