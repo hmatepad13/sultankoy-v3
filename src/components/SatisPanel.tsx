@@ -297,7 +297,7 @@ export function SatisPanel({
       map.set(urun, mevcut);
     });
 
-    return [...map.values()].sort((a, b) => b.tutar - a.tutar);
+    return [...map.values()].sort((a, b) => b.adet - a.adet);
   }, [fFisList, periodSatisList, visibility]);
 
   return (
@@ -336,38 +336,38 @@ export function SatisPanel({
           <div style={{ minWidth: 0, border: "1px solid #dc262633", background: "#dc262610", color: "#dc2626", borderRadius: "12px", padding: "6px 8px", display: "flex", flexDirection: "column", justifyContent: "center" }}><span style={{ fontSize: "9px", fontWeight: "bold", opacity: 0.85, whiteSpace: "nowrap" }}>AÇIK HESAP</span><b style={{ fontSize: "14px", marginTop: "2px", whiteSpace: "normal", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{helpers.fSayiNoDec(tFisKalan)} ₺</b></div>
         </div>
 
-        <div style={{ border: "1px solid #99f6e4", background: "#ecfdf5", borderRadius: "10px", overflow: "hidden", marginBottom: "6px" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", padding: "7px 8px", borderBottom: "1px solid #ccfbf1", flexWrap: "wrap" }}>
+        <div style={{ borderRadius: "8px", overflow: "visible", marginBottom: "6px" }}>
+          <div style={{ minHeight: "42px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", padding: "5px 8px", flexWrap: "wrap", background: "#ecfdf5", border: "1px solid #99f6e4", borderBottom: "none", borderRadius: "8px 8px 0 0" }}>
             <div style={{ minWidth: 0 }}>
               <div style={{ color: "#0f766e", fontSize: "12px", fontWeight: "bold" }}>Günlük Ürün Toplamı</div>
-              <div style={{ color: "#475569", fontSize: "11px", fontWeight: "bold", marginTop: "3px", textTransform: "capitalize" }}>{tarihBasligi}</div>
+              <div style={{ color: "#475569", fontSize: "10px", fontWeight: "bold", marginTop: "3px", textTransform: "capitalize" }}>{tarihBasligi}</div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", justifyContent: "flex-end" }}>
-              <button type="button" onClick={() => tarihKaydir(-1)} className="btn-anim" style={{ border: "none", borderRadius: "8px", padding: "6px 9px", fontSize: "13px", fontWeight: "bold", cursor: "pointer", background: "#d1fae5", color: "#0f766e" }}>‹</button>
-              <button type="button" onClick={() => tarihHizliSec("bugun")} className="btn-anim" style={{ border: "none", borderRadius: "8px", padding: "6px 10px", fontSize: "11px", fontWeight: "bold", cursor: "pointer", background: tarihHizliFiltre === "bugun" ? "#0f766e" : "#d1fae5", color: tarihHizliFiltre === "bugun" ? "#fff" : "#0f766e" }}>Bugün</button>
-              <button type="button" onClick={() => tarihKaydir(1)} className="btn-anim" style={{ border: "none", borderRadius: "8px", padding: "6px 9px", fontSize: "13px", fontWeight: "bold", cursor: "pointer", background: "#d1fae5", color: "#0f766e" }}>›</button>
-              <button type="button" onClick={() => tarihHizliSec("buay")} className="btn-anim" style={{ border: "none", borderRadius: "8px", padding: "6px 10px", fontSize: "11px", fontWeight: "bold", cursor: "pointer", background: tarihHizliFiltre === "buay" ? "#0f766e" : "#d1fae5", color: tarihHizliFiltre === "buay" ? "#fff" : "#0f766e" }}>Bu Ay</button>
-              <button type="button" onClick={() => setActiveFilterModal("fis_tarih")} className="btn-anim" style={{ border: "none", borderRadius: "8px", padding: "6px 9px", fontSize: "12px", fontWeight: "bold", cursor: "pointer", background: tarihHizliFiltre === "ozel" ? "#fef3c7" : "#d1fae5", color: tarihHizliFiltre === "ozel" ? "#92400e" : "#0f766e" }}>📅</button>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "nowrap", justifyContent: "flex-end", marginLeft: "auto", position: "relative" }}>
+              <button type="button" onClick={() => tarihKaydir(-1)} className="btn-anim" style={{ minHeight: "28px", width: "30px", border: "none", borderRadius: "6px", padding: 0, fontSize: "17px", fontWeight: "bold", cursor: "pointer", background: "#d1fae5", color: "#0f766e", display: "inline-grid", placeItems: "center" }}>‹</button>
+              <button type="button" onClick={() => tarihHizliSec("bugun")} className="btn-anim" style={{ minHeight: "28px", border: "none", borderRadius: "6px", padding: "5px 9px", fontSize: "11px", fontWeight: "bold", cursor: "pointer", background: tarihHizliFiltre === "bugun" ? "#0f766e" : "#d1fae5", color: tarihHizliFiltre === "bugun" ? "#fff" : "#0f766e" }}>Bugün</button>
+              <button type="button" onClick={() => tarihKaydir(1)} className="btn-anim" style={{ minHeight: "28px", width: "30px", border: "none", borderRadius: "6px", padding: 0, fontSize: "17px", fontWeight: "bold", cursor: "pointer", background: "#d1fae5", color: "#0f766e", display: "inline-grid", placeItems: "center" }}>›</button>
+              <button type="button" onClick={() => tarihHizliSec("buay")} className="btn-anim" style={{ minHeight: "28px", border: "none", borderRadius: "6px", padding: "5px 9px", fontSize: "11px", fontWeight: "bold", cursor: "pointer", background: tarihHizliFiltre === "buay" ? "#0f766e" : "#d1fae5", color: tarihHizliFiltre === "buay" ? "#fff" : "#0f766e" }}>Bu Ay</button>
+              <button type="button" onClick={() => setActiveFilterModal("fis_tarih")} className="btn-anim" style={{ minHeight: "28px", width: "30px", border: "none", borderRadius: "6px", padding: 0, fontSize: "12px", fontWeight: "bold", cursor: "pointer", background: tarihHizliFiltre === "ozel" ? "#fef3c7" : "#d1fae5", color: tarihHizliFiltre === "ozel" ? "#92400e" : "#0f766e", display: "inline-grid", placeItems: "center" }}>📅</button>
             </div>
           </div>
           {gunlukUrunToplamlari.length > 0 ? (
             <div style={{ overflowX: "auto" }}>
-              <table className="tbl" style={{ tableLayout: "fixed", minWidth: "520px", borderRadius: 0 }}>
+              <table className="tbl" style={{ tableLayout: "fixed", minWidth: "460px", borderRadius: "0 0 8px 8px", overflow: "hidden" }}>
                 <thead>
                   <tr>
-                    <th style={{ textAlign: "left", width: "42%" }}>ÜRÜN</th>
-                    <th style={{ textAlign: "right", width: "18%" }}>KOVA/ADET</th>
-                    <th style={{ textAlign: "right", width: "18%" }}>KG</th>
-                    <th style={{ textAlign: "right", width: "22%" }}>TUTAR</th>
+                    <th style={{ textAlign: "left", width: "42%", background: "#ecfeff", fontSize: "9px", padding: "4px 6px" }}>ÜRÜN</th>
+                    <th style={{ textAlign: "right", width: "18%", background: "#ecfeff", fontSize: "9px", padding: "4px 6px" }}>KOVA/ADET</th>
+                    <th style={{ textAlign: "right", width: "18%", background: "#ecfeff", fontSize: "9px", padding: "4px 6px" }}>KG</th>
+                    <th style={{ textAlign: "right", width: "22%", background: "#ecfeff", fontSize: "9px", padding: "4px 6px" }}>TUTAR</th>
                   </tr>
                 </thead>
                 <tbody>
                   {gunlukUrunToplamlari.map((satir) => (
                     <tr key={satir.urun}>
-                      <td style={{ fontWeight: "bold", color: "#0f172a" }}>{satir.urun}</td>
-                      <td style={{ textAlign: "right", color: "#0f766e", fontWeight: "bold" }}>{helpers.fSayiNoDec(satir.adet)}</td>
-                      <td style={{ textAlign: "right", color: "#2563eb", fontWeight: "bold" }}>{helpers.fSayiNoDec(satir.kg)}</td>
-                      <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold" }}>{helpers.fSayiNoDec(satir.tutar)}</td>
+                      <td style={{ fontWeight: "bold", color: "#0f172a", fontSize: "11px", padding: "4px 8px" }}>{satir.urun}</td>
+                      <td style={{ textAlign: "right", color: "#0f766e", fontWeight: "bold", fontSize: "11px", padding: "4px 8px" }}>{helpers.fSayiNoDec(satir.adet)}</td>
+                      <td style={{ textAlign: "right", color: "#2563eb", fontWeight: "bold", fontSize: "11px", padding: "4px 8px" }}>{satir.kg > 0 ? helpers.fSayiNoDec(satir.kg) : "-"}</td>
+                      <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold", fontSize: "11px", padding: "4px 8px" }}>{helpers.fSayiNoDec(satir.tutar)}</td>
                     </tr>
                   ))}
                 </tbody>
