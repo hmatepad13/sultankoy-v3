@@ -1211,7 +1211,7 @@ export default function App() {
   }, [isDigerUrunMenuOpen]);
 
   const handleIdleLogout = useEffectEvent(() => {
-    void cikisYap("10 dakika işlem yapılmadığı için güvenlik amacıyla oturum kapatıldı.");
+    void cikisYap();
   });
 
   const confirmDialogKapat = useCallback((sonuc: boolean) => {
@@ -4689,7 +4689,7 @@ export default function App() {
   useEffect(() => {
     if (!session?.user?.id) return;
 
-    const IDLE_LIMIT_MS = 10 * 60 * 1000;
+    const IDLE_LIMIT_MS = 60 * 60 * 1000;
     let timeoutId: number | null = null;
 
     const resetIdleTimer = () => {
