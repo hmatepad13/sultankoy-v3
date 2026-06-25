@@ -248,17 +248,6 @@ export function SatisPanel({
     }
     setFisFiltre((prev) => ({ ...prev, baslangic: "", bitis: "" }));
   };
-  const tarihKaydir = (yon: -1 | 1) => {
-    const kaynakTarih =
-      fisFiltre.baslangic && fisFiltre.baslangic === fisFiltre.bitis
-        ? fisFiltre.baslangic
-        : fisFiltre.baslangic || bugun;
-    const tarih = new Date(`${kaynakTarih}T12:00:00`);
-    tarih.setDate(tarih.getDate() + yon);
-    const yeniTarih = tarih.toISOString().slice(0, 10);
-    setFisFiltre((prev) => ({ ...prev, baslangic: yeniTarih, bitis: yeniTarih }));
-  };
-
   const tarihBasligi = useMemo(() => {
     if (fisFiltre.baslangic && fisFiltre.baslangic === fisFiltre.bitis) {
       return new Intl.DateTimeFormat("tr-TR", {
@@ -343,11 +332,9 @@ export function SatisPanel({
               <div style={{ color: "#475569", fontSize: "10px", fontWeight: "bold", marginTop: "3px", textTransform: "capitalize" }}>{tarihBasligi}</div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "nowrap", justifyContent: "flex-end", marginLeft: "auto", position: "relative" }}>
-              <button type="button" onClick={() => tarihKaydir(-1)} className="btn-anim" style={{ minHeight: "28px", width: "30px", border: "none", borderRadius: "6px", padding: 0, fontSize: "17px", fontWeight: "bold", cursor: "pointer", background: "#d1fae5", color: "#0f766e", display: "inline-grid", placeItems: "center" }}>‹</button>
               <button type="button" onClick={() => tarihHizliSec("bugun")} className="btn-anim" style={{ minHeight: "28px", border: "none", borderRadius: "6px", padding: "5px 9px", fontSize: "11px", fontWeight: "bold", cursor: "pointer", background: tarihHizliFiltre === "bugun" ? "#0f766e" : "#d1fae5", color: tarihHizliFiltre === "bugun" ? "#fff" : "#0f766e" }}>Bugün</button>
-              <button type="button" onClick={() => tarihKaydir(1)} className="btn-anim" style={{ minHeight: "28px", width: "30px", border: "none", borderRadius: "6px", padding: 0, fontSize: "17px", fontWeight: "bold", cursor: "pointer", background: "#d1fae5", color: "#0f766e", display: "inline-grid", placeItems: "center" }}>›</button>
+              <button type="button" onClick={() => tarihHizliSec("dun")} className="btn-anim" style={{ minHeight: "28px", border: "none", borderRadius: "6px", padding: "5px 9px", fontSize: "11px", fontWeight: "bold", cursor: "pointer", background: tarihHizliFiltre === "dun" ? "#0f766e" : "#d1fae5", color: tarihHizliFiltre === "dun" ? "#fff" : "#0f766e" }}>Dün</button>
               <button type="button" onClick={() => tarihHizliSec("buay")} className="btn-anim" style={{ minHeight: "28px", border: "none", borderRadius: "6px", padding: "5px 9px", fontSize: "11px", fontWeight: "bold", cursor: "pointer", background: tarihHizliFiltre === "buay" ? "#0f766e" : "#d1fae5", color: tarihHizliFiltre === "buay" ? "#fff" : "#0f766e" }}>Bu Ay</button>
-              <button type="button" onClick={() => setActiveFilterModal("fis_tarih")} className="btn-anim" style={{ minHeight: "28px", width: "30px", border: "none", borderRadius: "6px", padding: 0, fontSize: "12px", fontWeight: "bold", cursor: "pointer", background: tarihHizliFiltre === "ozel" ? "#fef3c7" : "#d1fae5", color: tarihHizliFiltre === "ozel" ? "#92400e" : "#0f766e", display: "inline-grid", placeItems: "center" }}>📅</button>
             </div>
           </div>
           {gunlukUrunToplamlari.length > 0 ? (
