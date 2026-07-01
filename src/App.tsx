@@ -2823,6 +2823,18 @@ export default function App() {
       .sort((a, b) => b.borc - a.borc);
   }, [hesapAnahtariOlustur, musteriBakiyeList]);
 
+  const musteriBakiyeMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    musteriBakiyeList.forEach((item) => {
+      const bakiye = Number(item.balance || 0);
+      const anahtar = item.account_key || hesapAnahtariOlustur(item.account_label);
+      if (anahtar) map[anahtar] = bakiye;
+      const etiketAnahtari = hesapAnahtariOlustur(item.account_label);
+      if (etiketAnahtari) map[etiketAnahtari] = bakiye;
+    });
+    return map;
+  }, [hesapAnahtariOlustur, musteriBakiyeList]);
+
   const ekstreMusterileri = useMemo(() => {
     const secenekler = new Map<string, string>();
     const ekle = (anahtar?: string | null, isim?: string | null) => {
@@ -3023,17 +3035,33 @@ export default function App() {
 
   const fisBorcBilgisiniGetir = useCallback(
     (hedefFis: Partial<SatisFis>, kayitlar: Array<Partial<SatisFis>> = tumSatisFisList) => {
+      const hedefKalanBakiye = Number(hedefFis.kalan_bakiye || 0);
+      const hesapAnahtari = satisFisHesapAnahtariGetir(hedefFis);
+      const dbGenelBorc = hesapAnahtari ? musteriBakiyeMap[hesapAnahtari] : undefined;
+
+      if (typeof dbGenelBorc === "number") {
+        const mevcutKayit = hedefFis.id
+          ? tumSatisFisList.find((kayit) => String(kayit.id || "") === String(hedefFis.id))
+          : null;
+        const mevcutKayitKalanBakiye = mevcutKayit ? Number(mevcutKayit.kalan_bakiye || 0) : 0;
+        const eskiBorc = dbGenelBorc - mevcutKayitKalanBakiye;
+        return {
+          eskiBorc,
+          genelBorc: eskiBorc + hedefKalanBakiye,
+        };
+      }
+
       const { map } = hesaplaMusteriBakiyeleri(kayitlar);
       const genelBorc =
         hedefFis.id == null
-          ? Number(hedefFis.kalan_bakiye || 0)
-          : map[String(hedefFis.id)] ?? Number(hedefFis.kalan_bakiye || 0);
+          ? hedefKalanBakiye
+          : map[String(hedefFis.id)] ?? hedefKalanBakiye;
       return {
-        eskiBorc: genelBorc - Number(hedefFis.kalan_bakiye || 0),
+        eskiBorc: genelBorc - hedefKalanBakiye,
         genelBorc,
       };
     },
-    [hesaplaMusteriBakiyeleri, tumSatisFisList],
+    [hesaplaMusteriBakiyeleri, musteriBakiyeMap, satisFisHesapAnahtariGetir, tumSatisFisList],
   );
 
   const sonrakiDonemiGetir = useCallback((donem: string) => {
