@@ -89,6 +89,13 @@ type SupabaseListeSorgusu<T> = {
   range: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: any }>;
 };
 
+type SatisHesapBakiyesi = {
+  account_key: string;
+  account_label: string;
+  output_bayi_id?: string | null;
+  balance: number | string;
+};
+
 const supabaseTumKayitlariGetir = async <T,>(sorgu: SupabaseListeSorgusu<T>) => {
   const tumKayitlar: T[] = [];
   let baslangic = 0;
@@ -921,6 +928,7 @@ export default function App() {
   const [oncekiSatisFisList, setOncekiSatisFisList] = useState<SatisFis[]>([]);
   const [satisList, setSatisList] = useState<SatisGiris[]>([]);
   const [satisVerisiYukleniyor, setSatisVerisiYukleniyor] = useState(true);
+  const [musteriBakiyeList, setMusteriBakiyeList] = useState<SatisHesapBakiyesi[]>([]);
   const [giderList, setGiderList] = useState<Gider[]>([]);
   const [oncekiGiderList, setOncekiGiderList] = useState<Gider[]>([]);
   const [giderTuruListesi, setGiderTuruListesi] = useState<GiderTuru[]>([]);
@@ -2407,6 +2415,7 @@ export default function App() {
   ) {
     const startupEtkin = hedef === "acilis" && !startupTelemetriRef.current.fetchLoglandi;
     const satisVerisiYuklenecek = hedef === "acilis" || hedef === "hepsi" || hedef === "satis";
+    const musteriBakiyesiYuklenecek = hedef === "acilis" || hedef === "hepsi" || hedef === "satis" || hedef === "ozet";
     const kullaniciId = session?.user?.id || null;
     const { baslangic: donemBaslangici, bitis: donemBitisi } = donemAraliginiGetir(aktifDonem);
     const startupSorguyuCalistir = async <T,>(
@@ -2561,6 +2570,24 @@ export default function App() {
         if (pf) setOncekiSatisFisList(pf);
         if (st) setSatisList(st);
         setSatisVerisiYukleniyor(false);
+      }
+
+      if (musteriBakiyesiYuklenecek) {
+        const { data: hesapBakiyeleri, error: hesapBakiyeleriErr } = await startupSorguyuCalistir<SatisHesapBakiyesi>(
+          "satis_hesap_bakiyeleri",
+          supabase.rpc("app_satis_account_balances", {
+            p_before_date: donemBitisi,
+            p_override_bayi_id: null,
+            p_override_hesap_grubu: null,
+          }) as PromiseLike<{ data: SatisHesapBakiyesi[] | null; error: any }>,
+        );
+        if (hesapBakiyeleriErr) throw hesapBakiyeleriErr;
+        setMusteriBakiyeList(
+          (hesapBakiyeleri || []).map((item) => ({
+            ...item,
+            balance: Number(item.balance || 0),
+          })),
+        );
       }
 
       if (hedef === "hepsi" || hedef === "sut" || hedef === "ozet") {
@@ -2746,14 +2773,17 @@ export default function App() {
      return Array.from(set).sort().reverse(); 
   }, [donemSecenekleri, sutList, satisFisList, giderList, uretimList, aktifDonem]);
 
-  // Tüm Fişlerden Müşteri Borç Durumu Hesaplama
+  // Veritabanı cari fonksiyonundan müşteri borç durumu
   const bayiBorclari = useMemo(() => {
-    const { bakiyeler, labels } = hesaplaMusteriBakiyeleri(tumSatisFisList, aktifDonem);
-    return Object.keys(bakiyeler)
-        .map((k) => ({ anahtar: k, isim: labels[k] || k, borc: bakiyeler[k] }))
-        .filter((b) => b.borc > 0.01)
-        .sort((a, b) => b.borc - a.borc);
-  }, [aktifDonem, hesaplaMusteriBakiyeleri, tumSatisFisList]);
+    return musteriBakiyeList
+      .map((item) => ({
+        anahtar: item.account_key || hesapAnahtariOlustur(item.account_label),
+        isim: item.account_label,
+        borc: Number(item.balance || 0),
+      }))
+      .filter((b) => b.borc > 0.01)
+      .sort((a, b) => b.borc - a.borc);
+  }, [hesapAnahtariOlustur, musteriBakiyeList]);
 
   const ekstreMusterileri = useMemo(() => {
     const secenekler = new Map<string, string>();
@@ -4456,27 +4486,31 @@ export default function App() {
     [filteredForTotals, fisKasayaDevirMi, tFisDevredenSatirToplami],
   );
   const tFisTahsilatRaw = useMemo(() => filteredForTotals.filter(f => !fisKasayaDevirMi(f)).reduce((a: number, b: any) => a + Number(b.tahsilat), 0), [filteredForTotals]);
-  const acikHesapKaynakFisler = useMemo(
-    () =>
-      tumSatisFisList.filter((fis: any) => {
-        if (fisKasayaDevirMi(fis)) return false;
-        const isBayiMatch =
-          fisFiltre.bayiler.length === 0 || fisFiltre.bayiler.includes(satisFisBayiAdiGetir(fis));
-        return isBayiMatch;
-      }),
-    [fisFiltre.bayiler, fisKasayaDevirMi, satisFisBayiAdiGetir, tumSatisFisList],
-  );
+  const seciliSatisHesapEtiketleri = useMemo(() => {
+    const set = new Set<string>();
+    fisFiltre.bayiler.forEach((bayiAdi) => {
+      const hesapEtiketi = bayiHesapEtiketiGetir(seciliBayiId(bayiAdi), bayiAdi);
+      [bayiAdi, hesapEtiketi].forEach((etiket) => {
+        const normalized = masterKayitIsminiNormalizeEt(etiket);
+        if (normalized) set.add(normalized);
+      });
+    });
+    return set;
+  }, [bayiHesapEtiketiGetir, fisFiltre.bayiler, masterKayitIsminiNormalizeEt, seciliBayiId]);
+
   const tFisKalan = useMemo(() => {
-    const { bakiyeler } = hesaplaMusteriBakiyeleri(acikHesapKaynakFisler, aktifDonem);
-    const borcluToplam = Object.values(bakiyeler).reduce(
-      (toplam, borc) => toplam + Math.max(0, Number(borc || 0)),
+    const kaynakBakiyeler =
+      seciliSatisHesapEtiketleri.size === 0
+        ? musteriBakiyeList
+        : musteriBakiyeList.filter((item) =>
+            seciliSatisHesapEtiketleri.has(masterKayitIsminiNormalizeEt(item.account_label)),
+          );
+
+    return kaynakBakiyeler.reduce(
+      (toplam, item) => toplam + Math.max(0, Number(item.balance || 0)),
       0,
     );
-    if (borcluToplam > 0.01) return borcluToplam;
-    return filteredForTotals
-      .filter((f) => !fisKasayaDevirMi(f))
-      .reduce((a: number, b: any) => a + Math.max(0, Number(b.kalan_bakiye || 0)), 0);
-  }, [acikHesapKaynakFisler, aktifDonem, filteredForTotals, fisKasayaDevirMi, hesaplaMusteriBakiyeleri]);
+  }, [masterKayitIsminiNormalizeEt, musteriBakiyeList, seciliSatisHesapEtiketleri]);
 
   // GİDERLER TAHSİLATTAN DÜŞÜYOR (Kullanıcının giderleri net tahsilatı belirler)
   const tKullaniciGider = useMemo(
