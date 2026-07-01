@@ -3483,6 +3483,32 @@ export default function App() {
     });
   };
 
+  const detayImzaSayisi = (deger: unknown) => {
+    const sayi = Number(deger || 0);
+    return Number.isFinite(sayi) ? sayi.toFixed(4) : "0.0000";
+  };
+
+  const satisDetayImzasiOlustur = useCallback(
+    (detaylar: Array<Partial<SatisGiris>>) =>
+      detaylar
+        .map((detay) => {
+          const urunAnahtari = detay.urun_id
+            ? `id:${detay.urun_id}`
+            : `isim:${masterKayitIsminiNormalizeEt(detay.urun)}`;
+          return [
+            urunAnahtari,
+            detayImzaSayisi(detay.adet),
+            detayImzaSayisi(detay.toplam_kg),
+            detayImzaSayisi(detay.fiyat),
+            detayImzaSayisi(detay.tutar),
+            detayImzaSayisi(detay.bos_kova),
+          ].join(":");
+        })
+        .sort()
+        .join("|"),
+    [masterKayitIsminiNormalizeEt],
+  );
+
   const benzerSatisFisiIcinOnayAl = useCallback(
     async ({
       tarih,
@@ -3490,6 +3516,7 @@ export default function App() {
       toplamTutar,
       tahsilat,
       kalanBakiye,
+      detayImzasi,
       excludeId,
       islemAdi,
     }: {
@@ -3498,6 +3525,7 @@ export default function App() {
       toplamTutar: number;
       tahsilat: number;
       kalanBakiye: number;
+      detayImzasi?: string;
       excludeId?: string | number | null;
       islemAdi: string;
     }) => {
@@ -3525,11 +3553,42 @@ export default function App() {
 
       if (!data || data.length === 0) return true;
 
-      const ilk = data[0];
+      let benzerKayitlar = data;
+
+      if (detayImzasi) {
+        const fisNolari = data.map((item) => item.fis_no).filter(Boolean);
+        if (fisNolari.length > 0) {
+          const { data: detaylar, error: detayError } = await supabase
+            .from("satis_giris")
+            .select("fis_no, urun, urun_id, adet, fiyat, toplam_kg, bos_kova, tutar")
+            .in("fis_no", fisNolari);
+
+          if (detayError) {
+            console.warn("Benzer fiş detay kontrolü yapılamadı:", detayError.message);
+          } else {
+            const detayMap = new Map<string, Partial<SatisGiris>[]>();
+            (detaylar || []).forEach((detay) => {
+              const fisNo = String(detay.fis_no || "");
+              if (!fisNo) return;
+              detayMap.set(fisNo, [...(detayMap.get(fisNo) || []), detay as Partial<SatisGiris>]);
+            });
+
+            benzerKayitlar = data.filter((fis) => {
+              const fisNo = String(fis.fis_no || "");
+              if (!fisNo) return false;
+              return satisDetayImzasiOlustur(detayMap.get(fisNo) || []) === detayImzasi;
+            });
+          }
+        }
+      }
+
+      if (benzerKayitlar.length === 0) return true;
+
+      const ilk = benzerKayitlar[0];
       return confirmDialogAc({
         title: "Benzer Kayıt Var",
         message: [
-          `${bayi} için ${tarih.split("-").reverse().join(".")} tarihinde aynı tutarlı ${islemAdi} zaten var.`,
+          `${bayi} için ${tarih.split("-").reverse().join(".")} tarihinde aynı tutarlı${detayImzasi ? " ve aynı ürünlü" : ""} ${islemAdi} zaten var.`,
           `Mevcut fiş: ${ilk.fis_no || ilk.id}`,
           `Tutar: ${fSayi(toplamTutar)} ₺`,
           `Tahsilat: ${fSayi(tahsilat)} ₺`,
@@ -3541,7 +3600,7 @@ export default function App() {
         tone: "warning",
       });
     },
-    [confirmDialogAc],
+    [confirmDialogAc, satisDetayImzasiOlustur],
   );
 
   const resetTahsilatForm = () => {
@@ -4090,19 +4149,6 @@ export default function App() {
     let ortakFisNo = editingFisNo || benzersizFisNoOlustur("F");
     const tahsilat = paraGirdisiniSayiyaCevir(fisUst.tahsilat || "");
     const kalanBakiye = fisCanliToplam - tahsilat;
-    if (
-      !(await benzerSatisFisiIcinOnayAl({
-        tarih: fisUst.tarih,
-        bayi: fisUst.bayi,
-        toplamTutar: fisCanliToplam,
-        tahsilat,
-        kalanBakiye,
-        excludeId: editingFisId,
-        islemAdi: "satış fişi",
-      }))
-    ) return;
-    const yeniGorselSecildi = Boolean(fisGorselDosya);
-    let fisGorselYolu = fisGorselMevcutYol || null;
     const secilenBayiId = seciliBayiId(fisUst.bayi);
 
     const detayPayloadlari = () => {
@@ -4176,6 +4222,22 @@ export default function App() {
       return insertArray;
     };
 
+    const yeniDetayPayloadlari = detayPayloadlari();
+    if (
+      !(await benzerSatisFisiIcinOnayAl({
+        tarih: fisUst.tarih,
+        bayi: fisUst.bayi,
+        toplamTutar: fisCanliToplam,
+        tahsilat,
+        kalanBakiye,
+        detayImzasi: satisDetayImzasiOlustur(yeniDetayPayloadlari),
+        excludeId: editingFisId,
+        islemAdi: "satış fişi",
+      }))
+    ) return;
+    const yeniGorselSecildi = Boolean(fisGorselDosya);
+    let fisGorselYolu = fisGorselMevcutYol || null;
+
     const yeniGorseliTemizle = async () => {
       if (yeniGorselSecildi && fisGorselYolu && fisGorselYolu !== fisGorselMevcutYol) {
         await fisGorseliniSil(fisGorselYolu);
@@ -4213,7 +4275,7 @@ export default function App() {
 
     let savedFisId = editingFisId;
 
-    const rpcDetaylari = detayPayloadlari().map((detay) => ({
+    const rpcDetaylari = yeniDetayPayloadlari.map((detay) => ({
       bayi_id: detay.bayi_id,
       urun: detay.urun,
       urun_id: detay.urun_id,
@@ -4314,7 +4376,7 @@ export default function App() {
     if (editingFisId) {
       const eskiDetaylar = satisList.filter(s => s.fis_no === ortakFisNo);
       const yedekDetaylar = idsizKayitlar(eskiDetaylar as Array<Record<string, any>>);
-      const insertArray = detayPayloadlari();
+      const insertArray = yeniDetayPayloadlari;
 
       const { error: detaySilError } = await supabase.from("satis_giris").delete().eq("fis_no", ortakFisNo);
       if (detaySilError) {
@@ -4356,7 +4418,7 @@ export default function App() {
       }
       savedFisId = newFisData?.id;
       yeniFisCreatedAt = newFisData?.created_at || null;
-      const insertArray = detayPayloadlari();
+      const insertArray = yeniDetayPayloadlari;
       const { error: errDetay } = await supabase.from("satis_giris").insert(insertArray);
       if (errDetay && savedFisId) {
           const { error: fisSilError } = await supabase.from("satis_fisleri").delete().eq("id", savedFisId);
