@@ -83,6 +83,29 @@ const sayiDegeri = (deger: unknown) => {
 
 const GORSEL_OPTIMIZE_UZUN_KENAR = 1200;
 const GORSEL_OPTIMIZE_KALITE = 0.5;
+const SUPABASE_SAYFA_BOYUTU = 1000;
+
+type SupabaseListeSorgusu<T> = {
+  range: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: any }>;
+};
+
+const supabaseTumKayitlariGetir = async <T,>(sorgu: SupabaseListeSorgusu<T>) => {
+  const tumKayitlar: T[] = [];
+  let baslangic = 0;
+
+  while (true) {
+    const { data, error } = await sorgu.range(baslangic, baslangic + SUPABASE_SAYFA_BOYUTU - 1);
+    if (error) return { data: null, error };
+
+    const kayitlar = data || [];
+    tumKayitlar.push(...kayitlar);
+    if (kayitlar.length < SUPABASE_SAYFA_BOYUTU) break;
+
+    baslangic += SUPABASE_SAYFA_BOYUTU;
+  }
+
+  return { data: tumKayitlar, error: null };
+};
 
 const gorseliOptimizasyonIcinYukle = (dosya: File) =>
   new Promise<HTMLImageElement>((resolve, reject) => {
@@ -2499,32 +2522,38 @@ export default function App() {
         const [{ data: f, error: fErr }, { data: st, error: stErr }, { data: pf, error: pfErr }] = await Promise.all([
           startupSorguyuCalistir<SatisFis>(
             "satis_fisleri",
-            supabase
-              .from("satis_fisleri")
-              .select("*")
-              .gte("tarih", donemBaslangici)
-              .lt("tarih", donemBitisi)
-              .order("tarih", { ascending: true })
-              .order("id", { ascending: true }),
+            supabaseTumKayitlariGetir<SatisFis>(
+              supabase
+                .from("satis_fisleri")
+                .select("*")
+                .gte("tarih", donemBaslangici)
+                .lt("tarih", donemBitisi)
+                .order("tarih", { ascending: true })
+                .order("id", { ascending: true }),
+            ),
           ),
           startupSorguyuCalistir<SatisGiris>(
             "satis_giris",
-            supabase
-              .from("satis_giris")
-              .select("*")
-              .gte("tarih", donemBaslangici)
-              .lt("tarih", donemBitisi)
-              .order("tarih", { ascending: true })
-              .order("id", { ascending: true }),
+            supabaseTumKayitlariGetir<SatisGiris>(
+              supabase
+                .from("satis_giris")
+                .select("*")
+                .gte("tarih", donemBaslangici)
+                .lt("tarih", donemBitisi)
+                .order("tarih", { ascending: true })
+                .order("id", { ascending: true }),
+            ),
           ),
           startupSorguyuCalistir<SatisFis>(
             "satis_fisleri_onceki",
-            supabase
-              .from("satis_fisleri")
-              .select("*")
-              .lt("tarih", donemBaslangici)
-              .order("tarih", { ascending: true })
-              .order("id", { ascending: true }),
+            supabaseTumKayitlariGetir<SatisFis>(
+              supabase
+                .from("satis_fisleri")
+                .select("*")
+                .lt("tarih", donemBaslangici)
+                .order("tarih", { ascending: true })
+                .order("id", { ascending: true }),
+            ),
           ),
         ]);
         if (fErr || stErr || pfErr) throw fErr || stErr || pfErr;
@@ -2765,13 +2794,15 @@ export default function App() {
       }
 
       const { baslangic, bitis } = donemAraliginiGetir(donem);
-      const { data, error } = await supabase
-        .from("satis_giris")
-        .select("*")
-        .gte("tarih", baslangic)
-        .lt("tarih", bitis)
-        .order("tarih", { ascending: true })
-        .order("id", { ascending: true });
+      const { data, error } = await supabaseTumKayitlariGetir<SatisGiris>(
+        supabase
+          .from("satis_giris")
+          .select("*")
+          .gte("tarih", baslangic)
+          .lt("tarih", bitis)
+          .order("tarih", { ascending: true })
+          .order("id", { ascending: true }),
+      );
 
       if (error) {
         throw error;
