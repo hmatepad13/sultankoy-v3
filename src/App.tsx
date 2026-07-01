@@ -53,7 +53,7 @@ import type {
   Uretim,
   Urun,
 } from "./types/app";
-import { aktifDonemDisiKayitOnayMetni, getLocalDateString } from "./utils/date";
+import { aktifDonemDisiKayitOnayMetni, getLocalDateString, tarihtenDonemGetir } from "./utils/date";
 import { kullanicilarAyniMi, normalizeUsername } from "./utils/format";
 
 const SUPABASE_FREE_DATABASE_LIMIT_BYTES = 500_000_000;
@@ -2998,6 +2998,51 @@ export default function App() {
     [hesaplaMusteriBakiyeleri, tumSatisFisList],
   );
 
+  const sonrakiDonemiGetir = useCallback((donem: string) => {
+    const [yyyy, mm] = donem.split("-").map((parca) => Number(parca));
+    if (!yyyy || !mm) return "";
+    const sonrakiAy = mm === 12 ? 1 : mm + 1;
+    const sonrakiYil = mm === 12 ? yyyy + 1 : yyyy;
+    return `${sonrakiYil}-${String(sonrakiAy).padStart(2, "0")}`;
+  }, []);
+
+  const gecmisDonemDevirleriniYenile = useCallback(
+    async (tarihler: Array<string | null | undefined>, islemEtiketi = "kayıt") => {
+      const etkilenenDonemler = tarihler
+        .map((tarih) => tarihtenDonemGetir(tarih))
+        .filter((donem): donem is string => Boolean(donem && donem < aktifDonem))
+        .sort();
+
+      const ilkEtkilenenDonem = etkilenenDonemler[0];
+      if (!ilkEtkilenenDonem) return false;
+
+      const kapanacakDonemler: string[] = [];
+      let donem = ilkEtkilenenDonem;
+      while (donem && donem < aktifDonem) {
+        kapanacakDonemler.push(donem);
+        donem = sonrakiDonemiGetir(donem);
+      }
+
+      for (const kapanacakDonem of kapanacakDonemler) {
+        const { error } = await supabase.rpc("app_close_period", {
+          p_aktif_donem: kapanacakDonem,
+        });
+        if (error) {
+          throw new Error(`${kapanacakDonem} devri yenilenemedi: ${error.message || "Bilinmeyen hata"}`);
+        }
+      }
+
+      alertDialogAc({
+        title: "Devirler Yenilendi",
+        message: `${ilkEtkilenenDonem} geçmiş dönemindeki ${islemEtiketi} nedeniyle ${kapanacakDonemler.join(", ")} kapanışı yeniden hesaplandı. Açık hesap ve grup borçları güncellendi.`,
+        tone: "primary",
+      });
+
+      return true;
+    },
+    [aktifDonem, alertDialogAc, sonrakiDonemiGetir],
+  );
+
   const handleDonemKapat = async () => {
      if(!donemOnay) return;
      const [yyyy, mm] = aktifDonem.split('-');
@@ -3405,6 +3450,9 @@ export default function App() {
 
     const tMiktar = paraGirdisiniSayiyaCevir(tahsilatForm.miktar);
     if (tMiktar <= 0) return alert("Geçerli bir tahsilat tutarı girin.");
+    const oncekiTahsilatTarihi = editingTahsilatId
+      ? satisFisList.find((fis) => String(fis.id ?? "") === String(editingTahsilatId))?.tarih
+      : null;
 
     const donemDisiOnayMesaji = aktifDonemDisiKayitOnayMetni(tahsilatForm.tarih, aktifDonem);
     if (
@@ -3441,7 +3489,12 @@ export default function App() {
 
     resetTahsilatForm();
     setIsTahsilatModalOpen(false);
-    verileriGetir("satis");
+    try {
+      await gecmisDonemDevirleriniYenile([oncekiTahsilatTarihi, tahsilatForm.tarih], "tahsilat kaydı");
+    } catch (yenilemeHatasi: any) {
+      alert(`Tahsilat kaydedildi ama devir otomatik yenilenemedi. ${yenilemeHatasi?.message || ""}`.trim());
+    }
+    await verileriGetir("satis");
   }
 
   const resetDigerForm = () => {
@@ -3500,6 +3553,9 @@ export default function App() {
 
   async function handleKasaDevirKaydet() {
     if (!digerForm.tutar || paraGirdisiniSayiyaCevir(digerForm.tutar) <= 0) return alert("Geçerli bir tutar girin.");
+    const oncekiKasaDevirTarihi = digerModalConfig.mode === "edit" && digerModalConfig.fisId
+      ? satisFisList.find((fis) => String(fis.id ?? "") === String(digerModalConfig.fisId))?.tarih
+      : null;
 
     const donemDisiOnayMesaji = aktifDonemDisiKayitOnayMetni(digerForm.tarih, aktifDonem);
     if (
@@ -3537,7 +3593,12 @@ export default function App() {
     if (error) return alert("Hata: " + veritabaniHatasiMesaji("satis_fisleri", error));
 
     resetDigerForm();
-    verileriGetir("satis");
+    try {
+      await gecmisDonemDevirleriniYenile([oncekiKasaDevirTarihi, digerForm.tarih], "kasa devir kaydı");
+    } catch (yenilemeHatasi: any) {
+      alert(`Kasa devir kaydedildi ama dönem devirleri otomatik yenilenemedi. ${yenilemeHatasi?.message || ""}`.trim());
+    }
+    await verileriGetir("satis");
   }
 
   const handleBayiSecimi = (secilenBayi: string) => {
@@ -3852,6 +3913,9 @@ export default function App() {
     if (editingFisId && !fisDuzenlenebilirMi({ id: editingFisId, fis_no: editingFisNo || undefined })) {
       return alert("Bu fişi sadece ekleyen kullanıcı veya admin düzenleyebilir.");
     }
+    const oncekiFisTarihi = editingFisId
+      ? satisFisList.find((fis) => String(fis.id ?? "") === String(editingFisId))?.tarih
+      : null;
 
     const eklenecekUrunler = urunler.filter(u => Number(fisDetay[u.id]?.adet) > 0 || Number(fisDetay[u.id]?.kg) > 0);
     
@@ -4075,7 +4139,13 @@ export default function App() {
         gosterBakiye: false
       };
 
-      resetFisForm(); setIsFisModalOpen(false); verileriGetir("satis"); setSonFisData(fisGosterimData);
+      resetFisForm(); setIsFisModalOpen(false);
+      try {
+        await gecmisDonemDevirleriniYenile([oncekiFisTarihi, fisUst.tarih], "satış fişi");
+      } catch (yenilemeHatasi: any) {
+        alert(`Satış fişi kaydedildi ama dönem devirleri otomatik yenilenemedi. ${yenilemeHatasi?.message || ""}`.trim());
+      }
+      await verileriGetir("satis"); setSonFisData(fisGosterimData);
       return;
     }
 
@@ -4192,7 +4262,13 @@ export default function App() {
       gosterBakiye: false
     };
     
-    resetFisForm(); setIsFisModalOpen(false); verileriGetir("satis"); setSonFisData(fisGosterimData);
+    resetFisForm(); setIsFisModalOpen(false);
+    try {
+      await gecmisDonemDevirleriniYenile([oncekiFisTarihi, fisUst.tarih], "satış fişi");
+    } catch (yenilemeHatasi: any) {
+      alert(`Satış fişi kaydedildi ama dönem devirleri otomatik yenilenemedi. ${yenilemeHatasi?.message || ""}`.trim());
+    }
+    await verileriGetir("satis"); setSonFisData(fisGosterimData);
   }
 
   const resetFisForm = () => {
@@ -4326,7 +4402,12 @@ export default function App() {
       p_fis_id: fis.id,
     });
     if (!rpcSilError) {
-      verileriGetir("satis"); verileriGetir("cop");
+      try {
+        await gecmisDonemDevirleriniYenile([fis.tarih], "silinen satış fişi");
+      } catch (yenilemeHatasi: any) {
+        alert(`Fiş silindi ama dönem devirleri otomatik yenilenemedi. ${yenilemeHatasi?.message || ""}`.trim());
+      }
+      await verileriGetir("satis"); await verileriGetir("cop");
       return;
     }
     if (!rpcBulunamadiMi(rpcSilError, "app_delete_satis_fisi")) {
@@ -4363,7 +4444,12 @@ export default function App() {
       return;
     }
 
-    verileriGetir("satis"); verileriGetir("cop");
+    try {
+      await gecmisDonemDevirleriniYenile([fis.tarih], "silinen satış fişi");
+    } catch (yenilemeHatasi: any) {
+      alert(`Fiş silindi ama dönem devirleri otomatik yenilenemedi. ${yenilemeHatasi?.message || ""}`.trim());
+    }
+    await verileriGetir("satis"); await verileriGetir("cop");
   }
 
   const goruntuyuJpegOlarakPaylas = async (elementId: string, dosyaAdi: string, baslik: string) => {
@@ -4683,6 +4769,9 @@ export default function App() {
 
   const handleRestoreTrashItem = async (trashId: string) => {
     if (!trashId) return;
+    const copKaydi = copKutusuList.find((item) => String(item.id || "") === String(trashId));
+    const copVerisi = (copKaydi?.veri || {}) as { tarih?: string | null };
+    const geriYuklenecekTarih = copKaydi?.tablo_adi === "satis_fisleri" ? copVerisi.tarih : null;
     setRestoringTrashId(trashId);
     try {
       const { data, error } = await supabase.rpc("app_restore_trash_item", {
@@ -4701,6 +4790,11 @@ export default function App() {
       const geriYuklenenTablo = String(sonuc?.tablo_adi || "");
 
       if (geriYuklenenTablo === "satis_fisleri") {
+        try {
+          await gecmisDonemDevirleriniYenile([geriYuklenecekTarih], "geri yüklenen satış fişi");
+        } catch (yenilemeHatasi: any) {
+          alert(`Kayıt geri yüklendi ama dönem devirleri otomatik yenilenemedi. ${yenilemeHatasi?.message || ""}`.trim());
+        }
         await verileriGetir("satis");
       } else if (geriYuklenenTablo === "sut_giris") {
         await verileriGetir("sut");

@@ -23,6 +23,10 @@ export const aktifDonemDisiTarihUyariMetni = (tarih?: string | null, aktifDonem?
 export const aktifDonemDisiKayitOnayMetni = (tarih?: string | null, aktifDonem?: string | null) => {
   if (!tarihAktifDonemDisindaMi(tarih, aktifDonem)) return "";
   const secilenDonem = tarihtenDonemGetir(tarih);
+  const hedefDonem = String(aktifDonem || "").trim();
+  if (secilenDonem && hedefDonem && secilenDonem < hedefDonem) {
+    return `Bu kayıt geçmiş dönem (${secilenDonem}) içine düşecek. Kaydedince sonraki dönem devirleri otomatik yeniden hesaplanacak. Devam edilsin mi?`;
+  }
   return secilenDonem
     ? `Bu kayıt ${secilenDonem} dönemine düşecek. Yine de kaydetmek istiyor musunuz?`
     : "";
