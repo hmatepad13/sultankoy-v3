@@ -961,6 +961,12 @@ export default function App() {
   const [isAdminKullaniciLoading, setIsAdminKullaniciLoading] = useState(false);
   const [adminKullaniciHata, setAdminKullaniciHata] = useState("");
   const satisVarsayilanFiltresiKullaniciRef = useRef<string | null>(null);
+  const fisKaydediliyorRef = useRef(false);
+  const tahsilatKaydediliyorRef = useRef(false);
+  const kasaDevirKaydediliyorRef = useRef(false);
+  const [fisKaydediliyor, setFisKaydediliyor] = useState(false);
+  const [tahsilatKaydediliyor, setTahsilatKaydediliyor] = useState(false);
+  const [kasaDevirKaydediliyor, setKasaDevirKaydediliyor] = useState(false);
   
   // DİĞER İŞLEMLER (Sadece Kasaya Devir Kaldı)
   const [digerModalConfig, setDigerModalConfig] = useState<{
@@ -1275,6 +1281,25 @@ export default function App() {
       tone: options.tone || "warning",
     });
   }, []);
+
+  const kayitIslemiCalistir = useCallback(
+    async (
+      kilitRef: { current: boolean },
+      setYukleniyor: (value: boolean) => void,
+      islem: () => Promise<unknown>,
+    ) => {
+      if (kilitRef.current) return;
+      kilitRef.current = true;
+      setYukleniyor(true);
+      try {
+        return await islem();
+      } finally {
+        kilitRef.current = false;
+        setYukleniyor(false);
+      }
+    },
+    [],
+  );
 
   useEffect(() => () => {
     if (confirmCozumRef.current) {
@@ -3417,6 +3442,67 @@ export default function App() {
     });
   };
 
+  const benzerSatisFisiIcinOnayAl = useCallback(
+    async ({
+      tarih,
+      bayi,
+      toplamTutar,
+      tahsilat,
+      kalanBakiye,
+      excludeId,
+      islemAdi,
+    }: {
+      tarih: string;
+      bayi: string;
+      toplamTutar: number;
+      tahsilat: number;
+      kalanBakiye: number;
+      excludeId?: string | number | null;
+      islemAdi: string;
+    }) => {
+      const sorgu = supabase
+        .from("satis_fisleri")
+        .select("id, fis_no, tarih, bayi, toplam_tutar, tahsilat, kalan_bakiye, created_at")
+        .eq("tarih", tarih)
+        .eq("bayi", bayi)
+        .eq("toplam_tutar", toplamTutar)
+        .eq("tahsilat", tahsilat)
+        .eq("kalan_bakiye", kalanBakiye)
+        .not("odeme_turu", "in", "(DEVIR,DEVİR,PERSONEL DEVIR,PERSONEL DEVİR)")
+        .order("created_at", { ascending: false })
+        .limit(3);
+
+      if (excludeId != null) {
+        sorgu.neq("id", excludeId);
+      }
+
+      const { data, error } = await sorgu;
+      if (error) {
+        console.warn("Benzer fiş kontrolü yapılamadı:", error.message);
+        return true;
+      }
+
+      if (!data || data.length === 0) return true;
+
+      const ilk = data[0];
+      return confirmDialogAc({
+        title: "Benzer Kayıt Var",
+        message: [
+          `${bayi} için ${tarih.split("-").reverse().join(".")} tarihinde aynı tutarlı ${islemAdi} zaten var.`,
+          `Mevcut fiş: ${ilk.fis_no || ilk.id}`,
+          `Tutar: ${fSayi(toplamTutar)} ₺`,
+          `Tahsilat: ${fSayi(tahsilat)} ₺`,
+          "",
+          "Yine de ikinci kaydı oluşturmak/güncellemek istiyor musunuz?",
+        ].join("\n"),
+        confirmText: "Evet, Devam",
+        cancelText: "Vazgeç",
+        tone: "warning",
+      });
+    },
+    [confirmDialogAc],
+  );
+
   const resetTahsilatForm = () => {
     setEditingTahsilatId(null);
     setTahsilatForm({ tarih: aktifDonemTarihi(), bayi: "", miktar: "", odeme_turu: "PEŞİN", aciklama: "" });
@@ -3445,6 +3531,7 @@ export default function App() {
   };
 
   async function handleTahsilatKaydet() {
+    return kayitIslemiCalistir(tahsilatKaydediliyorRef, setTahsilatKaydediliyor, async () => {
     if (!tahsilatForm.bayi || !tahsilatForm.miktar) return alert("Bayi ve miktar alanları zorunludur!");
     if (!tumBayiler.some(b => b.isim === tahsilatForm.bayi)) return alert("Lütfen listeden geçerli bir Bayi/Müşteri seçin! Kendiniz rastgele isim giremezsiniz.");
 
@@ -3463,6 +3550,18 @@ export default function App() {
         confirmText: "Evet, Kaydet",
         cancelText: "Vazgeç",
         tone: "warning",
+      }))
+    ) return;
+
+    if (
+      !(await benzerSatisFisiIcinOnayAl({
+        tarih: tahsilatForm.tarih,
+        bayi: tahsilatForm.bayi,
+        toplamTutar: 0,
+        tahsilat: tMiktar,
+        kalanBakiye: -tMiktar,
+        excludeId: editingTahsilatId,
+        islemAdi: "tahsilat kaydı",
       }))
     ) return;
 
@@ -3495,6 +3594,7 @@ export default function App() {
       alert(`Tahsilat kaydedildi ama devir otomatik yenilenemedi. ${yenilemeHatasi?.message || ""}`.trim());
     }
     await verileriGetir("satis");
+    });
   }
 
   const resetDigerForm = () => {
@@ -3552,6 +3652,7 @@ export default function App() {
   }
 
   async function handleKasaDevirKaydet() {
+    return kayitIslemiCalistir(kasaDevirKaydediliyorRef, setKasaDevirKaydediliyor, async () => {
     if (!digerForm.tutar || paraGirdisiniSayiyaCevir(digerForm.tutar) <= 0) return alert("Geçerli bir tutar girin.");
     const oncekiKasaDevirTarihi = digerModalConfig.mode === "edit" && digerModalConfig.fisId
       ? satisFisList.find((fis) => String(fis.id ?? "") === String(digerModalConfig.fisId))?.tarih
@@ -3599,6 +3700,7 @@ export default function App() {
       alert(`Kasa devir kaydedildi ama dönem devirleri otomatik yenilenemedi. ${yenilemeHatasi?.message || ""}`.trim());
     }
     await verileriGetir("satis");
+    });
   }
 
   const handleBayiSecimi = (secilenBayi: string) => {
@@ -3907,6 +4009,7 @@ export default function App() {
   };
 
   async function handleTopluFisKaydet() {
+    return kayitIslemiCalistir(fisKaydediliyorRef, setFisKaydediliyor, async () => {
     if (!fisUst.bayi) return alert("Lütfen bir Bayi/Market seçin!");
     const secilebilirBayiler = editingFisId ? tumBayiler : aktifBayiler;
     if (!secilebilirBayiler.some(b => b.isim === fisUst.bayi)) return alert("Lütfen listeden geçerli bir Bayi/Market seçin! Kendiniz rastgele isim giremezsiniz.");
@@ -3946,6 +4049,17 @@ export default function App() {
     let ortakFisNo = editingFisNo || benzersizFisNoOlustur("F");
     const tahsilat = paraGirdisiniSayiyaCevir(fisUst.tahsilat || "");
     const kalanBakiye = fisCanliToplam - tahsilat;
+    if (
+      !(await benzerSatisFisiIcinOnayAl({
+        tarih: fisUst.tarih,
+        bayi: fisUst.bayi,
+        toplamTutar: fisCanliToplam,
+        tahsilat,
+        kalanBakiye,
+        excludeId: editingFisId,
+        islemAdi: "satış fişi",
+      }))
+    ) return;
     const yeniGorselSecildi = Boolean(fisGorselDosya);
     let fisGorselYolu = fisGorselMevcutYol || null;
     const secilenBayiId = seciliBayiId(fisUst.bayi);
@@ -4269,6 +4383,7 @@ export default function App() {
       alert(`Satış fişi kaydedildi ama dönem devirleri otomatik yenilenemedi. ${yenilemeHatasi?.message || ""}`.trim());
     }
     await verileriGetir("satis"); setSonFisData(fisGosterimData);
+    });
   }
 
   const resetFisForm = () => {
@@ -5618,7 +5733,14 @@ export default function App() {
                <div style={{ padding: "12px 15px", borderTop: "1px solid #e2e8f0", background: "#f8fafc", borderRadius: "0 0 12px 12px" }}>
                  {digerModalConfig.mode === "view"
                    ? <button onClick={resetDigerForm} className="p-btn btn-anim" style={{ background: "#64748b", width: "100%", height: "45px", fontSize: "15px" }}>KAPAT</button>
-                   : <button onClick={handleDigerIslemKaydet} className="p-btn btn-anim" style={{ background: "#64748b", width: "100%", height: "45px", fontSize: "15px" }}>{digerModalConfig.mode === "edit" ? "GÜNCELLE" : "KAYDET"}</button>}
+                   : <button
+                       onClick={handleDigerIslemKaydet}
+                       disabled={kasaDevirKaydediliyor}
+                       className="p-btn btn-anim"
+                       style={{ background: kasaDevirKaydediliyor ? "#94a3b8" : "#64748b", width: "100%", height: "45px", fontSize: "15px", cursor: kasaDevirKaydediliyor ? "not-allowed" : "pointer" }}
+                     >
+                       {kasaDevirKaydediliyor ? "KAYDEDİLİYOR..." : digerModalConfig.mode === "edit" ? "GÜNCELLE" : "KAYDET"}
+                     </button>}
                </div>
             </div>
           </div>
@@ -5944,7 +6066,14 @@ export default function App() {
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", background: "#fef2f2", padding: "6px", borderRadius: "6px", border: "1px solid #fecaca" }}><span style={{color: "#dc2626", fontWeight: "bold", fontSize: "12px"}}>GENEL TOPLAM BORÇ:</span><b style={{color: "#dc2626", fontSize: "16px"}}>{fSayi(toplamGenelBorc)} ₺</b></div>
                   </>
                 )}
-                <button onClick={handleTopluFisKaydet} className="p-btn btn-anim" style={{ background: editingFisId ? "#f59e0b" : "#059669", width: "100%", height: "40px", fontSize: "14px" }}>{editingFisId ? "DEĞİŞİKLİKLERİ KAYDET" : "FİŞİ KAYDET"}</button>
+                <button
+                  onClick={handleTopluFisKaydet}
+                  disabled={fisKaydediliyor}
+                  className="p-btn btn-anim"
+                  style={{ background: fisKaydediliyor ? "#94a3b8" : editingFisId ? "#f59e0b" : "#059669", width: "100%", height: "40px", fontSize: "14px", cursor: fisKaydediliyor ? "not-allowed" : "pointer" }}
+                >
+                  {fisKaydediliyor ? "KAYDEDİLİYOR..." : editingFisId ? "DEĞİŞİKLİKLERİ KAYDET" : "FİŞİ KAYDET"}
+                </button>
               </div>
             </div>
           </div>
@@ -6228,7 +6357,14 @@ export default function App() {
                  <div><label style={{fontSize: "11px", color: "#64748b"}}>Açıklama / Not</label><input placeholder="Opsiyonel..." value={tahsilatForm.aciklama} onChange={e => setTahsilatForm({ ...tahsilatForm, aciklama: e.target.value })} className="m-inp" style={{width: "100%"}} /></div>
                </div>
                <div style={{ padding: "12px 15px", borderTop: "1px solid #e2e8f0", background: "#f8fafc", borderRadius: "0 0 12px 12px" }}>
-                  <button onClick={handleTahsilatKaydet} className="p-btn btn-anim" style={{ background: "#2563eb", width: "100%", height: "45px", fontSize: "15px" }}>{editingTahsilatId ? "GÜNCELLE" : "KAYDET"}</button>
+                  <button
+                    onClick={handleTahsilatKaydet}
+                    disabled={tahsilatKaydediliyor}
+                    className="p-btn btn-anim"
+                    style={{ background: tahsilatKaydediliyor ? "#94a3b8" : "#2563eb", width: "100%", height: "45px", fontSize: "15px", cursor: tahsilatKaydediliyor ? "not-allowed" : "pointer" }}
+                  >
+                    {tahsilatKaydediliyor ? "KAYDEDİLİYOR..." : editingTahsilatId ? "GÜNCELLE" : "KAYDET"}
+                  </button>
                  </div>
             </div>
           </div>
