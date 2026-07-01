@@ -1598,10 +1598,10 @@ export default function App() {
       });
     });
 
+    secenekler.add(bugunDonemi);
     const siraliSecenekler = Array.from(secenekler).sort().reverse();
-    const varsayilanDonem = siraliSecenekler[0] || bugunDonemi;
-    setDonemSecenekleri(siraliSecenekler.length > 0 ? siraliSecenekler : [bugunDonemi]);
-    setAktifDonem(varsayilanDonem);
+    setDonemSecenekleri(siraliSecenekler);
+    setAktifDonem(bugunDonemi);
     setDonemSecenekleriHazir(true);
   }, [session?.user?.id]);
 
