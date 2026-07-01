@@ -239,6 +239,7 @@ export function SatisPanel({
     if (!fisFiltre.baslangic && !fisFiltre.bitis) return "buay";
     return "ozel";
   })();
+  const guncelDonemMi = bugun.startsWith(aktifDonem);
   const tarihHizliSec = (secim: "bugun" | "dun" | "buay") => {
     if (secim === "bugun") {
       setFisFiltre((prev) => ({ ...prev, baslangic: bugun, bitis: bugun }));
@@ -317,8 +318,12 @@ export function SatisPanel({
               <div style={{ color: "#0f766e", fontSize: "12px", fontWeight: "bold" }}>Günlük Ürün Toplamı</div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "nowrap", justifyContent: "flex-end", marginLeft: "auto", position: "relative" }}>
-              <button type="button" onClick={() => tarihHizliSec("bugun")} className="btn-anim" style={{ minHeight: "28px", border: "none", borderRadius: "6px", padding: "5px 9px", fontSize: "11px", fontWeight: "bold", cursor: "pointer", background: tarihHizliFiltre === "bugun" ? "#0f766e" : "#d1fae5", color: tarihHizliFiltre === "bugun" ? "#fff" : "#0f766e" }}>Bugün</button>
-              <button type="button" onClick={() => tarihHizliSec("dun")} className="btn-anim" style={{ minHeight: "28px", border: "none", borderRadius: "6px", padding: "5px 9px", fontSize: "11px", fontWeight: "bold", cursor: "pointer", background: tarihHizliFiltre === "dun" ? "#0f766e" : "#d1fae5", color: tarihHizliFiltre === "dun" ? "#fff" : "#0f766e" }}>Dün</button>
+              {guncelDonemMi && (
+                <>
+                  <button type="button" onClick={() => tarihHizliSec("bugun")} className="btn-anim" style={{ minHeight: "28px", border: "none", borderRadius: "6px", padding: "5px 9px", fontSize: "11px", fontWeight: "bold", cursor: "pointer", background: tarihHizliFiltre === "bugun" ? "#0f766e" : "#d1fae5", color: tarihHizliFiltre === "bugun" ? "#fff" : "#0f766e" }}>Bugün</button>
+                  <button type="button" onClick={() => tarihHizliSec("dun")} className="btn-anim" style={{ minHeight: "28px", border: "none", borderRadius: "6px", padding: "5px 9px", fontSize: "11px", fontWeight: "bold", cursor: "pointer", background: tarihHizliFiltre === "dun" ? "#0f766e" : "#d1fae5", color: tarihHizliFiltre === "dun" ? "#fff" : "#0f766e" }}>Dün</button>
+                </>
+              )}
               <button type="button" onClick={() => tarihHizliSec("buay")} className="btn-anim" style={{ minHeight: "28px", border: "none", borderRadius: "6px", padding: "5px 9px", fontSize: "11px", fontWeight: "bold", cursor: "pointer", background: tarihHizliFiltre === "buay" ? "#0f766e" : "#d1fae5", color: tarihHizliFiltre === "buay" ? "#fff" : "#0f766e" }}>Bu Ay</button>
             </div>
           </div>
@@ -414,8 +419,12 @@ export function SatisPanel({
                     {activeFilterModal === "fis_tarih" && (
                       <div style={{ display: "flex", gap: "6px" }}>
                         {[
-                          { key: "bugun" as const, etiket: "Bugün" },
-                          { key: "dun" as const, etiket: "Dün" },
+                          ...(guncelDonemMi
+                            ? [
+                                { key: "bugun" as const, etiket: "Bugün" },
+                                { key: "dun" as const, etiket: "Dün" },
+                              ]
+                            : []),
                           { key: "buay" as const, etiket: "Bu Ay" },
                         ].map((secenek) => {
                           const secili = tarihHizliFiltre === secenek.key;

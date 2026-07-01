@@ -1581,9 +1581,19 @@ export default function App() {
     if (satisVarsayilanFiltresiKullaniciRef.current === mevcutKullanici) return;
 
     setSatisFiltreTip("tumu");
-    setSatisFiltreKisi(isAdmin ? "herkes" : "benim");
+    setSatisFiltreKisi("herkes");
     satisVarsayilanFiltresiKullaniciRef.current = mevcutKullanici;
-  }, [isAdmin, mevcutKullanici]);
+  }, [mevcutKullanici]);
+
+  useEffect(() => {
+    const guncelDonemMi = bugun.startsWith(aktifDonem);
+    setSatisFiltreKisi("herkes");
+    setFisFiltre((prev) => ({
+      ...prev,
+      baslangic: guncelDonemMi ? bugun : "",
+      bitis: guncelDonemMi ? bugun : "",
+    }));
+  }, [aktifDonem, bugun]);
 
   const startupLog = useCallback(
     (source: string, message: string, details: Record<string, unknown> = {}, fingerprintSuffix = "") => {
