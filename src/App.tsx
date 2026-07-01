@@ -172,6 +172,9 @@ const satisFisleriniSirala = (kayitlar: Array<Partial<SatisFis>>) =>
   [...kayitlar].sort((a, b) => {
     const tarihFarki = String(a.tarih || "").localeCompare(String(b.tarih || ""));
     if (tarihFarki !== 0) return tarihFarki;
+    const aDevir = odemeTurunuNormalizeEt(a.odeme_turu) === "DEVIR" || odemeTurunuNormalizeEt(a.odeme_turu) === "DEVİR";
+    const bDevir = odemeTurunuNormalizeEt(b.odeme_turu) === "DEVIR" || odemeTurunuNormalizeEt(b.odeme_turu) === "DEVİR";
+    if (aDevir !== bDevir) return aDevir ? -1 : 1;
     const idA = Number(a.id);
     const idB = Number(b.id);
     if (!Number.isNaN(idA) && !Number.isNaN(idB) && idA !== idB) return idA - idB;

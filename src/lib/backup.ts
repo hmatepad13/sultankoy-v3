@@ -191,6 +191,9 @@ const satisFisleriniSirala = (kayitlar: SatisFis[]) =>
   [...kayitlar].sort((a, b) => {
     const tarihFarki = String(a.tarih || "").localeCompare(String(b.tarih || ""));
     if (tarihFarki !== 0) return tarihFarki;
+    const aDevir = cariDevirMi(a.odeme_turu);
+    const bDevir = cariDevirMi(b.odeme_turu);
+    if (aDevir !== bDevir) return aDevir ? -1 : 1;
 
     const idA = Number(a.id);
     const idB = Number(b.id);
