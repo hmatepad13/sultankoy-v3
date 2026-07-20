@@ -1022,6 +1022,7 @@ export default function App() {
     arama: string;
     yeniGrupAcik: boolean;
     yeniGrup: string;
+    seciliGrup: string | null;
   }>(null);
   const [musteriEkstreData, setMusteriEkstreData] = useState<null | {
     hesapAnahtari: string;
@@ -3333,6 +3334,8 @@ export default function App() {
               `Önceki toplam: ${fSayiNoDec(beforeTotal)} ₺`,
               `Yeni toplam: ${fSayiNoDec(afterTotal)} ₺`,
               `Fark: ${fSayiNoDec(difference)} ₺`,
+              "",
+              "Hiçbir veri değiştirilmedi.",
             ].join("\n"),
             tone: "danger",
           });
@@ -3412,6 +3415,7 @@ export default function App() {
         arama: "",
         yeniGrupAcik: false,
         yeniGrup: "",
+        seciliGrup: null,
       });
     },
     [],
@@ -5774,19 +5778,20 @@ export default function App() {
               <div style={{ display: "grid", gap: "7px" }}>
                 {filtreliHesapGruplari.map((grup) => {
                   const mevcutMu = masterKayitIsminiNormalizeEt(grup) === masterKayitIsminiNormalizeEt(bayiGrupSecimModal.mevcutGrup);
+                  const seciliMi = masterKayitIsminiNormalizeEt(grup) === masterKayitIsminiNormalizeEt(bayiGrupSecimModal.seciliGrup);
                   return (
                     <button
                       key={masterKayitIsminiNormalizeEt(grup)}
                       type="button"
                       disabled={mevcutMu}
-                      onClick={() => bayiGrupSeciminiUygula(grup)}
+                      onClick={() => setBayiGrupSecimModal((onceki) => onceki ? { ...onceki, seciliGrup: grup, yeniGrupAcik: false, yeniGrup: "" } : onceki)}
                       style={{
                         width: "100%",
                         padding: "11px 12px",
-                        border: `1px solid ${mevcutMu ? "#93c5fd" : "#e2e8f0"}`,
+                        border: `1px solid ${seciliMi ? "#34d399" : mevcutMu ? "#93c5fd" : "#e2e8f0"}`,
                         borderRadius: "10px",
-                        background: mevcutMu ? "#eff6ff" : "#fff",
-                        color: mevcutMu ? "#1d4ed8" : "#334155",
+                        background: seciliMi ? "#ecfdf5" : mevcutMu ? "#eff6ff" : "#fff",
+                        color: seciliMi ? "#047857" : mevcutMu ? "#1d4ed8" : "#334155",
                         cursor: mevcutMu ? "default" : "pointer",
                         display: "flex",
                         alignItems: "center",
@@ -5798,7 +5803,7 @@ export default function App() {
                       }}
                     >
                       <span>{grup}</span>
-                      {mevcutMu ? <span style={{ fontSize: "10px", fontWeight: 700 }}>MEVCUT</span> : <span aria-hidden="true">›</span>}
+                      {mevcutMu ? <span style={{ fontSize: "10px", fontWeight: 700 }}>MEVCUT</span> : seciliMi ? <span style={{ fontSize: "10px", fontWeight: 700 }}>SEÇİLDİ</span> : <span aria-hidden="true">›</span>}
                     </button>
                   );
                 })}
@@ -5819,16 +5824,43 @@ export default function App() {
                       style={{ width: "100%", padding: "10px 12px", border: "1px solid #93c5fd", borderRadius: "10px", fontSize: "13px", outline: "none" }}
                     />
                     <div style={{ display: "flex", gap: "7px" }}>
-                      <button type="button" disabled={!bayiGrupSecimModal.yeniGrup.trim()} onClick={() => bayiGrupSeciminiUygula(bayiGrupSecimModal.yeniGrup)} style={{ flex: 1, padding: "9px 10px", border: "none", borderRadius: "9px", background: bayiGrupSecimModal.yeniGrup.trim() ? "#2563eb" : "#94a3b8", color: "#fff", cursor: bayiGrupSecimModal.yeniGrup.trim() ? "pointer" : "not-allowed", fontSize: "12px", fontWeight: 700 }}>Oluştur ve Seç</button>
+                      <button type="button" disabled={!bayiGrupSecimModal.yeniGrup.trim()} onClick={() => setBayiGrupSecimModal((onceki) => onceki ? { ...onceki, seciliGrup: onceki.yeniGrup.trim(), yeniGrupAcik: false } : onceki)} style={{ flex: 1, padding: "9px 10px", border: "none", borderRadius: "9px", background: bayiGrupSecimModal.yeniGrup.trim() ? "#2563eb" : "#94a3b8", color: "#fff", cursor: bayiGrupSecimModal.yeniGrup.trim() ? "pointer" : "not-allowed", fontSize: "12px", fontWeight: 700 }}>Yeni Grubu Seç</button>
                       <button type="button" onClick={() => setBayiGrupSecimModal((onceki) => onceki ? { ...onceki, yeniGrupAcik: false, yeniGrup: "" } : onceki)} style={{ padding: "9px 12px", border: "1px solid #cbd5e1", borderRadius: "9px", background: "#fff", color: "#475569", cursor: "pointer", fontSize: "12px", fontWeight: 700 }}>Vazgeç</button>
                     </div>
                   </div>
                 )}
 
                 {bayiGrupSecimModal.mevcutGrup && (
-                  <button type="button" onClick={() => bayiGrupSeciminiUygula("")} style={{ width: "100%", padding: "10px 12px", border: "1px solid #fecaca", borderRadius: "10px", background: "#fff", color: "#b91c1c", cursor: "pointer", fontSize: "12px", fontWeight: 700 }}>Grup bağlantısını kaldır</button>
+                  <button type="button" onClick={() => setBayiGrupSecimModal((onceki) => onceki ? { ...onceki, seciliGrup: "", yeniGrupAcik: false, yeniGrup: "" } : onceki)} style={{ width: "100%", padding: "10px 12px", border: `1px solid ${bayiGrupSecimModal.seciliGrup === "" ? "#f87171" : "#fecaca"}`, borderRadius: "10px", background: bayiGrupSecimModal.seciliGrup === "" ? "#fef2f2" : "#fff", color: "#b91c1c", cursor: "pointer", fontSize: "12px", fontWeight: 700 }}>{bayiGrupSecimModal.seciliGrup === "" ? "✓ Bağlantıyı kaldırma seçildi" : "Grup bağlantısını kaldır"}</button>
                 )}
               </div>
+
+              {bayiGrupSecimModal.seciliGrup !== null && (
+                <div style={{ padding: "11px 12px", border: "1px solid #a7f3d0", borderRadius: "10px", background: "#ecfdf5", color: "#065f46", display: "grid", gap: "4px", fontSize: "12px" }}>
+                  <div><strong>Müşteri:</strong> {bayiGrupSecimModal.isim}</div>
+                  <div><strong>{bayiGrupSecimModal.seciliGrup ? "Katılacağı grup:" : "İşlem:"}</strong> {bayiGrupSecimModal.seciliGrup || "Grup bağlantısını kaldır"}</div>
+                  <div style={{ marginTop: "3px", color: "#047857", fontSize: "10px" }}>Henüz hiçbir kontrol veya veri değişikliği yapılmadı.</div>
+                </div>
+              )}
+
+              <button
+                type="button"
+                disabled={bayiGrupSecimModal.seciliGrup === null}
+                onClick={() => bayiGrupSeciminiUygula(bayiGrupSecimModal.seciliGrup || "")}
+                style={{
+                  width: "100%",
+                  padding: "12px",
+                  border: "none",
+                  borderRadius: "10px",
+                  background: bayiGrupSecimModal.seciliGrup === null ? "#94a3b8" : "#059669",
+                  color: "#fff",
+                  cursor: bayiGrupSecimModal.seciliGrup === null ? "not-allowed" : "pointer",
+                  fontSize: "13px",
+                  fontWeight: 800,
+                }}
+              >
+                Seçimi Kontrol Et
+              </button>
             </div>
           </div>
         </div>
