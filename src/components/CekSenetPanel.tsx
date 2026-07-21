@@ -3,6 +3,7 @@ import { DonemDisiTarihUyarisi } from "./DonemDisiTarihUyarisi";
 import type { AppConfirmOptions, CekSenetDurum, CekSenetKaydi, CekSenetTur } from "../types/app";
 import { aktifDonemDisiKayitOnayMetni, getLocalDateString } from "../utils/date";
 import { fSayi, kullanicilarAyniMi, normalizeUsername } from "../utils/format";
+import { supabase } from "../lib/supabase";
 
 type CekSenetPanelProps = {
   aktifKullaniciKisa: string;
@@ -22,6 +23,26 @@ type CekSenetForm = {
 };
 
 const STORAGE_KEY = "sultankoy_cek_senet_kayitlari_v1";
+const CEK_SENET_TABLOSU = "cek_senet_kayitlari";
+const GORSEL_BUCKET = "fis_gorselleri";
+
+type CekSenetDbSatiri = {
+  id: string;
+  tur: CekSenetTur;
+  tarih: string;
+  duzenleyen: string;
+  tah_tarihi: string;
+  miktar: number | string;
+  banka: string;
+  durum: CekSenetDurum;
+  tahsil_edilme_tarihi?: string | null;
+  on_yuz_foto?: string | null;
+  arka_yuz_foto?: string | null;
+  ekleyen: string;
+  created_by?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
 
 const TUR_SECENEKLERI: Array<{ deger: CekSenetTur; etiket: string; renk: string; arkaPlan: string }> = [
   { deger: "verilen_cek", etiket: "Verilen Çek", renk: "#b45309", arkaPlan: "#fff7ed" },
@@ -99,16 +120,53 @@ const localStorageOku = (): CekSenetKaydi[] => {
   }
 };
 
-const localStorageYaz = (kayitlar: CekSenetKaydi[]) => {
-  if (typeof window === "undefined") return true;
-
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(kayitlar));
-    return true;
-  } catch {
-    return false;
-  }
+const localStorageTemizle = () => {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(STORAGE_KEY);
 };
+
+const hataMesajiniGetir = (error: unknown) =>
+  error instanceof Error && error.message ? error.message : "Bilinmeyen hata";
+
+const dbSatiriniCevir = (satir: CekSenetDbSatiri): CekSenetKaydi => ({
+  id: String(satir.id || ""),
+  tur: satir.tur,
+  tarih: String(satir.tarih || ""),
+  duzenleyen: String(satir.duzenleyen || ""),
+  tahTarihi: String(satir.tah_tarihi || ""),
+  miktar: sayiDegeri(satir.miktar),
+  banka: String(satir.banka || ""),
+  durum: satir.durum || "bekliyor",
+  tahsilEdilmeTarihi: String(satir.tahsil_edilme_tarihi || ""),
+  onYuzFoto: String(satir.on_yuz_foto || ""),
+  arkaYuzFoto: String(satir.arka_yuz_foto || ""),
+  ekleyen: String(satir.ekleyen || ""),
+  createdBy: satir.created_by || null,
+  createdAt: String(satir.created_at || ""),
+  updatedAt: String(satir.updated_at || ""),
+});
+
+const kaydiDbPayloadinaCevir = (kayit: CekSenetKaydi) => ({
+  id: kayit.id,
+  tur: kayit.tur,
+  tarih: kayit.tarih,
+  duzenleyen: kayit.duzenleyen,
+  tah_tarihi: kayit.tahTarihi,
+  miktar: sayiDegeri(kayit.miktar),
+  banka: kayit.banka,
+  durum: kayit.durum,
+  tahsil_edilme_tarihi: kayit.tahsilEdilmeTarihi || null,
+  on_yuz_foto: kayit.onYuzFoto || null,
+  arka_yuz_foto: kayit.arkaYuzFoto || null,
+  ekleyen: kayit.ekleyen || "",
+});
+
+const dataUrlMi = (deger?: string | null) => String(deger || "").startsWith("data:");
+
+const yeniKayitIdOlustur = () =>
+  typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `cs-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
 
 const dosyaDataUrlGetir = (file: File) =>
   new Promise<string>((resolve, reject) => {
@@ -119,7 +177,7 @@ const dosyaDataUrlGetir = (file: File) =>
   });
 
 export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem, onConfirm }: CekSenetPanelProps) {
-  const [kayitlar, setKayitlar] = useState<CekSenetKaydi[]>(() => localStorageOku());
+  const [kayitlar, setKayitlar] = useState<CekSenetKaydi[]>([]);
   const [formAcik, setFormAcik] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<CekSenetForm>(() => bosFormGetir(aktifDonem));
@@ -127,8 +185,158 @@ export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem, onConfirm }: Cek
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [gorselOnizleme, setGorselOnizleme] = useState<{ src: string; baslik: string } | null>(null);
   const [isExcelLoading, setIsExcelLoading] = useState(false);
+  const [veriYukleniyor, setVeriYukleniyor] = useState(true);
+  const [kayitIslemiSuruyor, setKayitIslemiSuruyor] = useState(false);
+  const [veriHatasi, setVeriHatasi] = useState("");
+  const [tasimaMesaji, setTasimaMesaji] = useState("");
+  const [gorselUrlMap, setGorselUrlMap] = useState<Record<string, string>>({});
   const onYuzInputRef = useRef<HTMLInputElement | null>(null);
   const arkaYuzInputRef = useRef<HTMLInputElement | null>(null);
+
+  const gorselUrliniGetir = useCallback(
+    (kaynak?: string | null) => {
+      const temiz = String(kaynak || "");
+      if (!temiz) return "";
+      if (dataUrlMi(temiz) || temiz.startsWith("blob:") || /^https?:\/\//i.test(temiz)) return temiz;
+      return gorselUrlMap[temiz] || "";
+    },
+    [gorselUrlMap],
+  );
+
+  const gorselUrlLeriniYukle = useCallback(async (kayitListesi: CekSenetKaydi[]) => {
+    const yollar = Array.from(
+      new Set(
+        kayitListesi
+          .flatMap((kayit) => [kayit.onYuzFoto, kayit.arkaYuzFoto])
+          .map((deger) => String(deger || ""))
+          .filter((deger) => deger && !dataUrlMi(deger) && !deger.startsWith("blob:") && !/^https?:\/\//i.test(deger)),
+      ),
+    );
+    if (yollar.length === 0) return;
+
+    const sonuc = await Promise.all(
+      yollar.map(async (yol) => {
+        const { data, error } = await supabase.storage.from(GORSEL_BUCKET).createSignedUrl(yol, 60 * 60 * 6);
+        return [yol, error ? "" : data?.signedUrl || ""] as const;
+      }),
+    );
+    setGorselUrlMap((onceki) => ({
+      ...onceki,
+      ...Object.fromEntries(sonuc.filter(([, url]) => Boolean(url))),
+    }));
+  }, []);
+
+  const gorseliStorageaYukle = useCallback(
+    async (kaynak: string, kayitId: string, taraf: "on" | "arka") => {
+      if (!dataUrlMi(kaynak)) return kaynak;
+
+      const response = await fetch(kaynak);
+      if (!response.ok) throw new Error("Fotoğraf hazırlanamadı.");
+      const blob = await response.blob();
+      const uzanti = blob.type.includes("png") ? "png" : blob.type.includes("webp") ? "webp" : "jpg";
+      const kullanici = normalizeUsername(aktifKullaniciKisa) || "kullanici";
+      const guvenliEk = Math.random().toString(36).slice(2, 9);
+      const yol = `cek-senet/${kullanici}/${kayitId}/${taraf}-${Date.now()}-${guvenliEk}.${uzanti}`;
+      const { error } = await supabase.storage.from(GORSEL_BUCKET).upload(yol, blob, {
+        contentType: blob.type || "image/jpeg",
+        upsert: false,
+      });
+      if (error) throw error;
+      return yol;
+    },
+    [aktifKullaniciKisa],
+  );
+
+  const storageGorselleriniSil = useCallback(async (yollar: Array<string | null | undefined>) => {
+    const silinecekler = Array.from(
+      new Set(
+        yollar
+          .map((deger) => String(deger || ""))
+          .filter((deger) => deger && !dataUrlMi(deger) && !deger.startsWith("blob:") && !/^https?:\/\//i.test(deger)),
+      ),
+    );
+    if (silinecekler.length === 0) return;
+    const { error } = await supabase.storage.from(GORSEL_BUCKET).remove(silinecekler);
+    if (error) console.warn("Çek-senet görseli silinemedi:", error.message);
+  }, []);
+
+  const supabaseKayitlariniGetir = useCallback(async () => {
+    const { data, error } = await supabase
+      .from(CEK_SENET_TABLOSU)
+      .select("*")
+      .order("tarih", { ascending: false })
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return ((data || []) as CekSenetDbSatiri[]).map(dbSatiriniCevir);
+  }, []);
+
+  useEffect(() => {
+    let aktif = true;
+
+    const yukleVeYerelKayitlariTasi = async () => {
+      setVeriYukleniyor(true);
+      setVeriHatasi("");
+      setTasimaMesaji("");
+      const yerelKayitlar = localStorageOku();
+
+      try {
+        let uzakKayitlar = await supabaseKayitlariniGetir();
+        const uzakIdler = new Set(uzakKayitlar.map((kayit) => kayit.id));
+        let tasinanKayitSayisi = 0;
+
+        for (const yerelKayit of yerelKayitlar) {
+          const kayitId = yerelKayit.id || yeniKayitIdOlustur();
+          if (uzakIdler.has(kayitId)) continue;
+
+          const yuklenenYollar: string[] = [];
+          try {
+            const onYuzFoto = await gorseliStorageaYukle(yerelKayit.onYuzFoto || "", kayitId, "on");
+            if (onYuzFoto && onYuzFoto !== yerelKayit.onYuzFoto) yuklenenYollar.push(onYuzFoto);
+            const arkaYuzFoto = await gorseliStorageaYukle(yerelKayit.arkaYuzFoto || "", kayitId, "arka");
+            if (arkaYuzFoto && arkaYuzFoto !== yerelKayit.arkaYuzFoto) yuklenenYollar.push(arkaYuzFoto);
+
+            const tasinacakKayit: CekSenetKaydi = {
+              ...yerelKayit,
+              id: kayitId,
+              onYuzFoto,
+              arkaYuzFoto,
+              ekleyen: yerelKayit.ekleyen || aktifKullaniciKisa,
+            };
+            const { error } = await supabase.from(CEK_SENET_TABLOSU).insert(kaydiDbPayloadinaCevir(tasinacakKayit));
+            if (error) throw error;
+            uzakIdler.add(kayitId);
+            tasinanKayitSayisi += 1;
+          } catch (error) {
+            await storageGorselleriniSil(yuklenenYollar);
+            throw error;
+          }
+        }
+
+        if (yerelKayitlar.length > 0) {
+          uzakKayitlar = await supabaseKayitlariniGetir();
+          localStorageTemizle();
+          if (tasinanKayitSayisi > 0) {
+            setTasimaMesaji(`${tasinanKayitSayisi} yerel çek-senet kaydı Supabase'e taşındı.`);
+          }
+        }
+
+        if (!aktif) return;
+        setKayitlar(uzakKayitlar);
+        await gorselUrlLeriniYukle(uzakKayitlar);
+      } catch (error: unknown) {
+        if (!aktif) return;
+        setKayitlar(yerelKayitlar);
+        setVeriHatasi(`Çek-senet kayıtları Supabase'den yüklenemedi: ${hataMesajiniGetir(error)}`);
+      } finally {
+        if (aktif) setVeriYukleniyor(false);
+      }
+    };
+
+    void yukleVeYerelKayitlariTasi();
+    return () => {
+      aktif = false;
+    };
+  }, [aktifKullaniciKisa, gorselUrlLeriniYukle, gorseliStorageaYukle, storageGorselleriniSil, supabaseKayitlariniGetir]);
 
   useEffect(() => {
     if (formAcik || editingId) return;
@@ -165,16 +373,6 @@ export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem, onConfirm }: Cek
     [aktifKullaniciKisa],
   );
 
-  const kayitlariKaydet = useCallback((sonrakiKayitlar: CekSenetKaydi[]) => {
-    if (!localStorageYaz(sonrakiKayitlar)) {
-      alert("Kayıt saklanamadı. Tarayıcı depolama alanı dolu olabilir.");
-      return false;
-    }
-
-    setKayitlar(sonrakiKayitlar);
-    return true;
-  }, []);
-
   const donemKayitlari = [...kayitlar]
     .filter((kayit) => String(kayit.tarih || "").startsWith(aktifDonem))
     .sort((a, b) => `${b.tarih}${b.createdAt || ""}`.localeCompare(`${a.tarih}${a.createdAt || ""}`));
@@ -208,8 +406,8 @@ export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem, onConfirm }: Cek
           })),
         },
       ]);
-    } catch (error: any) {
-      alert(`Excel indirilemedi: ${error?.message || "Bilinmeyen hata"}`);
+    } catch (error: unknown) {
+      alert(`Excel indirilemedi: ${hataMesajiniGetir(error)}`);
     } finally {
       setIsExcelLoading(false);
     }
@@ -253,6 +451,7 @@ export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem, onConfirm }: Cek
   };
 
   const handleKaydet = async () => {
+    if (kayitIslemiSuruyor) return;
     if (!form.tarih) return alert("Tarih seçin.");
     if (!form.duzenleyen.trim()) return alert("Düzenleyen girin.");
     if (!form.tahTarihi) return alert("Tahsilat tarihi seçin.");
@@ -276,31 +475,59 @@ export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem, onConfirm }: Cek
       }))
     ) return;
 
-    const yeniKayit: CekSenetKaydi = {
-      id: editingId || `cs-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
-      tur: form.tur,
-      tarih: form.tarih,
-      duzenleyen: form.duzenleyen.trim(),
-      tahTarihi: form.tahTarihi,
-      miktar: sayiDegeri(form.miktar),
-      banka: form.banka.trim(),
-      durum: oncekiKayit?.durum || "bekliyor",
-      tahsilEdilmeTarihi: oncekiKayit?.tahsilEdilmeTarihi || "",
-      onYuzFoto: form.onYuzFoto || "",
-      arkaYuzFoto: form.arkaYuzFoto || "",
-      ekleyen: aktifKullaniciKisa,
-      createdAt: oncekiKayit?.createdAt || new Date().toISOString(),
-    };
+    setKayitIslemiSuruyor(true);
+    const kayitId = editingId || yeniKayitIdOlustur();
+    const yuklenenYollar: string[] = [];
+    try {
+      const onYuzFoto = await gorseliStorageaYukle(form.onYuzFoto || "", kayitId, "on");
+      if (onYuzFoto && onYuzFoto !== form.onYuzFoto) yuklenenYollar.push(onYuzFoto);
+      const arkaYuzFoto = await gorseliStorageaYukle(form.arkaYuzFoto || "", kayitId, "arka");
+      if (arkaYuzFoto && arkaYuzFoto !== form.arkaYuzFoto) yuklenenYollar.push(arkaYuzFoto);
 
-    const sonrakiKayitlar = editingId
-      ? kayitlar.map((item) => (item.id === editingId ? yeniKayit : item))
-      : [yeniKayit, ...kayitlar];
+      const yeniKayit: CekSenetKaydi = {
+        id: kayitId,
+        tur: form.tur,
+        tarih: form.tarih,
+        duzenleyen: form.duzenleyen.trim(),
+        tahTarihi: form.tahTarihi,
+        miktar: sayiDegeri(form.miktar),
+        banka: form.banka.trim(),
+        durum: oncekiKayit?.durum || "bekliyor",
+        tahsilEdilmeTarihi: oncekiKayit?.tahsilEdilmeTarihi || "",
+        onYuzFoto,
+        arkaYuzFoto,
+        ekleyen: oncekiKayit?.ekleyen || aktifKullaniciKisa,
+        createdAt: oncekiKayit?.createdAt,
+      };
 
-    if (!kayitlariKaydet(sonrakiKayitlar)) return;
-    formKapat();
+      const sorgu = editingId
+        ? supabase.from(CEK_SENET_TABLOSU).update(kaydiDbPayloadinaCevir(yeniKayit)).eq("id", editingId)
+        : supabase.from(CEK_SENET_TABLOSU).insert(kaydiDbPayloadinaCevir(yeniKayit));
+      const { data, error } = await sorgu.select("*").single();
+      if (error) throw error;
+
+      const kaydedilen = dbSatiriniCevir(data as CekSenetDbSatiri);
+      setKayitlar((onceki) =>
+        editingId
+          ? onceki.map((item) => (item.id === editingId ? kaydedilen : item))
+          : [kaydedilen, ...onceki],
+      );
+      await gorselUrlLeriniYukle([kaydedilen]);
+      await storageGorselleriniSil([
+        oncekiKayit?.onYuzFoto && oncekiKayit.onYuzFoto !== onYuzFoto ? oncekiKayit.onYuzFoto : null,
+        oncekiKayit?.arkaYuzFoto && oncekiKayit.arkaYuzFoto !== arkaYuzFoto ? oncekiKayit.arkaYuzFoto : null,
+      ]);
+      formKapat();
+    } catch (error: unknown) {
+      await storageGorselleriniSil(yuklenenYollar);
+      alert(`Çek-senet kaydı kaydedilemedi: ${hataMesajiniGetir(error)}`);
+    } finally {
+      setKayitIslemiSuruyor(false);
+    }
   };
 
   const handleSil = async (kayit: CekSenetKaydi) => {
+    if (kayitIslemiSuruyor) return;
     if (!kayitSahibiMi(kayit)) {
       alert("Bu kaydı sadece ekleyen kullanıcı silebilir.");
       return;
@@ -315,37 +542,46 @@ export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem, onConfirm }: Cek
       }))
     ) return;
 
-    const sonrakiKayitlar = kayitlar.filter((item) => item.id !== kayit.id);
-    if (!kayitlariKaydet(sonrakiKayitlar)) return;
-    if (editingId === kayit.id) formKapat();
+    setKayitIslemiSuruyor(true);
+    try {
+      const { error } = await supabase.from(CEK_SENET_TABLOSU).delete().eq("id", kayit.id);
+      if (error) throw error;
+      setKayitlar((onceki) => onceki.filter((item) => item.id !== kayit.id));
+      await storageGorselleriniSil([kayit.onYuzFoto, kayit.arkaYuzFoto]);
+      if (editingId === kayit.id) formKapat();
+      if (detayKaydi?.id === kayit.id) setDetayKaydi(null);
+    } catch (error: unknown) {
+      alert(`Çek-senet kaydı silinemedi: ${hataMesajiniGetir(error)}`);
+    } finally {
+      setKayitIslemiSuruyor(false);
+    }
   };
 
-  const handleDurumDegistir = (kayit: CekSenetKaydi, yeniDurum: CekSenetDurum) => {
+  const handleDurumDegistir = async (kayit: CekSenetKaydi, yeniDurum: CekSenetDurum) => {
+    if (kayitIslemiSuruyor) return;
     if (!kayitSahibiMi(kayit)) {
       alert("Bu kaydı sadece ekleyen kullanıcı güncelleyebilir.");
       return;
     }
 
-    const sonrakiKayitlar = kayitlar.map((item) =>
-      item.id === kayit.id
-        ? {
-            ...item,
-            durum: yeniDurum,
-            tahsilEdilmeTarihi: yeniDurum === "tahsil_edildi" ? getLocalDateString() : "",
-          }
-        : item,
-    );
-
-    if (!kayitlariKaydet(sonrakiKayitlar)) return;
-    setDetayKaydi((prev) =>
-      prev?.id === kayit.id
-        ? {
-            ...prev,
-            durum: yeniDurum,
-            tahsilEdilmeTarihi: yeniDurum === "tahsil_edildi" ? getLocalDateString() : "",
-          }
-        : prev,
-    );
+    setKayitIslemiSuruyor(true);
+    try {
+      const tahsilEdilmeTarihi = yeniDurum === "tahsil_edildi" ? getLocalDateString() : "";
+      const { data, error } = await supabase
+        .from(CEK_SENET_TABLOSU)
+        .update({ durum: yeniDurum, tahsil_edilme_tarihi: tahsilEdilmeTarihi || null })
+        .eq("id", kayit.id)
+        .select("*")
+        .single();
+      if (error) throw error;
+      const guncellenen = dbSatiriniCevir(data as CekSenetDbSatiri);
+      setKayitlar((onceki) => onceki.map((item) => (item.id === kayit.id ? guncellenen : item)));
+      setDetayKaydi((onceki) => (onceki?.id === kayit.id ? guncellenen : onceki));
+    } catch (error: unknown) {
+      alert(`Çek-senet durumu güncellenemedi: ${hataMesajiniGetir(error)}`);
+    } finally {
+      setKayitIslemiSuruyor(false);
+    }
   };
 
   const renderFotoAlani = (
@@ -353,7 +589,8 @@ export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem, onConfirm }: Cek
     alan: "onYuzFoto" | "arkaYuzFoto",
     inputRef: { current: HTMLInputElement | null },
   ) => {
-    const src = form[alan];
+    const kaynak = form[alan];
+    const src = gorselUrliniGetir(kaynak);
 
     return (
       <div style={{ border: "1px solid #cbd5e1", borderRadius: "10px", padding: "10px", background: "#f8fafc" }}>
@@ -378,7 +615,7 @@ export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem, onConfirm }: Cek
           >
             Foto Yükle
           </button>
-          {src && (
+          {kaynak && (
             <button
               type="button"
               onClick={() => setForm((prev) => ({ ...prev, [alan]: "" }))}
@@ -392,8 +629,10 @@ export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem, onConfirm }: Cek
     );
   };
 
-  const renderDetayFoto = (baslik: string, src?: string) => (
-    <div style={{ border: "1px solid #cbd5e1", borderRadius: "10px", padding: "10px", background: "#f8fafc" }}>
+  const renderDetayFoto = (baslik: string, kaynak?: string) => {
+    const src = gorselUrliniGetir(kaynak);
+    return (
+      <div style={{ border: "1px solid #cbd5e1", borderRadius: "10px", padding: "10px", background: "#f8fafc" }}>
       <div style={{ fontSize: "11px", color: "#64748b", fontWeight: "bold", marginBottom: "8px" }}>{baslik}</div>
       {src ? (
         <img
@@ -407,8 +646,9 @@ export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem, onConfirm }: Cek
           Foto yok
         </div>
       )}
-    </div>
-  );
+      </div>
+    );
+  };
 
   return (
     <div className="tab-fade-in main-content-area">
@@ -416,15 +656,26 @@ export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem, onConfirm }: Cek
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
           <h3 style={{ margin: 0, color: "#0f766e", fontSize: "16px" }}>Çek-Senet</h3>
           <div style={{ display: "flex", gap: "8px", marginLeft: "auto", flexWrap: "wrap" }}>
-            <button onClick={() => void handleExcelIndir()} disabled={isExcelLoading} className="p-btn btn-anim" style={{ background: "#0369a1", minWidth: "112px", height: "34px", padding: "0 14px", fontSize: "12px", opacity: isExcelLoading ? 0.7 : 1, cursor: isExcelLoading ? "wait" : "pointer" }}>
+            <button onClick={() => void handleExcelIndir()} disabled={isExcelLoading || veriYukleniyor} className="p-btn btn-anim" style={{ background: "#0369a1", minWidth: "112px", height: "34px", padding: "0 14px", fontSize: "12px", opacity: isExcelLoading || veriYukleniyor ? 0.7 : 1, cursor: isExcelLoading || veriYukleniyor ? "wait" : "pointer" }}>
               {isExcelLoading ? "Hazır..." : "📥 EXCEL"}
             </button>
-            <button onClick={yeniKayitAc} className="p-btn btn-anim" style={{ background: "#0f766e", minWidth: "118px", height: "34px", padding: "0 14px", fontSize: "12px" }}>
+            <button onClick={yeniKayitAc} disabled={veriYukleniyor || kayitIslemiSuruyor || Boolean(veriHatasi)} className="p-btn btn-anim" style={{ background: "#0f766e", minWidth: "118px", height: "34px", padding: "0 14px", fontSize: "12px", opacity: veriYukleniyor || kayitIslemiSuruyor || veriHatasi ? 0.65 : 1 }}>
               + EKLE
             </button>
           </div>
         </div>
       </div>
+
+      {tasimaMesaji && (
+        <div style={{ marginBottom: "8px", padding: "9px 11px", borderRadius: "9px", background: "#ecfdf5", border: "1px solid #a7f3d0", color: "#047857", fontSize: "12px", fontWeight: "bold" }}>
+          {tasimaMesaji}
+        </div>
+      )}
+      {veriHatasi && (
+        <div style={{ marginBottom: "8px", padding: "9px 11px", borderRadius: "9px", background: "#fef2f2", border: "1px solid #fecaca", color: "#b91c1c", fontSize: "12px", fontWeight: "bold" }}>
+          {veriHatasi}
+        </div>
+      )}
 
       <div className="table-wrapper table-wrapper-fixed">
         <table className="tbl tbl-cek-senet" style={{ tableLayout: "fixed", width: "100%", minWidth: 0 }}>
@@ -442,7 +693,14 @@ export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem, onConfirm }: Cek
             </tr>
           </thead>
           <tbody>
-            {donemKayitlari.length === 0 && (
+            {veriYukleniyor && (
+              <tr>
+                <td colSpan={9} style={{ textAlign: "center", padding: "14px", color: "#64748b", fontWeight: "bold" }}>
+                  Supabase kayıtları yükleniyor...
+                </td>
+              </tr>
+            )}
+            {!veriYukleniyor && donemKayitlari.length === 0 && (
               <tr>
                 <td colSpan={9} style={{ textAlign: "center", padding: "14px", color: "#94a3b8", fontWeight: "bold" }}>
                   Kayıt bulunmuyor.
@@ -524,7 +782,7 @@ export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem, onConfirm }: Cek
                             onClick={() => {
                               setOpenDropdownId(null);
                               setGorselOnizleme({
-                                src: kayit.onYuzFoto || kayit.arkaYuzFoto || "",
+                                src: gorselUrliniGetir(kayit.onYuzFoto || kayit.arkaYuzFoto || ""),
                                 baslik: kayit.onYuzFoto ? "Ön Yüz" : "Arka Yüz",
                               });
                             }}
@@ -540,7 +798,7 @@ export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem, onConfirm }: Cek
                               className="dropdown-item-icon"
                               onClick={() => {
                                 setOpenDropdownId(null);
-                                handleDurumDegistir(kayit, secenek.deger);
+                                void handleDurumDegistir(kayit, secenek.deger);
                               }}
                             >
                               {secenek.ikon}
@@ -613,8 +871,8 @@ export function CekSenetPanel({ aktifKullaniciKisa, aktifDonem, onConfirm }: Cek
 
             <div style={{ padding: "12px 16px", borderTop: "1px solid #e2e8f0", display: "flex", gap: "8px", background: "#f8fafc", borderRadius: "0 0 14px 14px" }}>
               <button onClick={formKapat} type="button" style={{ flex: 1, background: "#fff", border: "1px solid #cbd5e1", color: "#475569", borderRadius: "8px", padding: "10px", fontWeight: "bold", cursor: "pointer" }}>VAZGEÇ</button>
-              <button onClick={handleKaydet} type="button" style={{ flex: 1, background: "#0f766e", border: "none", color: "#fff", borderRadius: "8px", padding: "10px", fontWeight: "bold", cursor: "pointer" }}>
-                {editingId ? "GÜNCELLE" : "KAYDET"}
+              <button onClick={() => void handleKaydet()} disabled={kayitIslemiSuruyor} type="button" style={{ flex: 1, background: "#0f766e", border: "none", color: "#fff", borderRadius: "8px", padding: "10px", fontWeight: "bold", cursor: kayitIslemiSuruyor ? "wait" : "pointer", opacity: kayitIslemiSuruyor ? 0.7 : 1 }}>
+                {kayitIslemiSuruyor ? "KAYDEDİLİYOR..." : editingId ? "GÜNCELLE" : "KAYDET"}
               </button>
             </div>
           </div>

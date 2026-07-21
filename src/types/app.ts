@@ -76,7 +76,9 @@ export interface CekSenetKaydi {
   onYuzFoto?: string;
   arkaYuzFoto?: string;
   ekleyen?: string;
+  createdBy?: string | null;
   createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface SutGiris {
