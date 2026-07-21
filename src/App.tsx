@@ -1664,34 +1664,17 @@ export default function App() {
       return;
     }
 
-    const sorgular = await Promise.allSettled([
-      supabase.from("satis_fisleri").select("tarih"),
-      supabase.from("giderler").select("tarih"),
-      supabase.from("sut_giris").select("tarih"),
-      supabase.from("uretim").select("tarih"),
-    ]);
+    const { data, error } = await supabase.rpc("app_list_periods");
+    if (error) {
+      console.error("Dönem seçenekleri yüklenemedi:", error);
+    }
 
-    const secenekler = new Set<string>();
-
-    sorgular.forEach((sonuc) => {
-      if (sonuc.status !== "fulfilled") {
-        console.error("Dönem seçenekleri yüklenemedi:", sonuc.reason);
-        return;
-      }
-
-      if (sonuc.value.error) {
-        console.error("Dönem seçenekleri yüklenemedi:", sonuc.value.error);
-        return;
-      }
-
-      (sonuc.value.data || []).forEach((kayit) => {
-        const donem = donemiTarihtenAyikla(kayit.tarih);
-        if (donem) secenekler.add(donem);
-      });
-    });
-
-    secenekler.add(bugunDonemi);
-    const siraliSecenekler = Array.from(secenekler).sort().reverse();
+    const sunucuDonemleri = Array.isArray(data)
+      ? (data as Array<{ donem?: unknown }>)
+          .map((kayit) => (typeof kayit.donem === "string" ? kayit.donem.trim() : ""))
+          .filter((donem) => /^\d{4}-\d{2}$/.test(donem))
+      : [];
+    const siraliSecenekler = Array.from(new Set([...sunucuDonemleri, bugunDonemi])).sort().reverse();
     setDonemSecenekleri(siraliSecenekler);
     setAktifDonem(bugunDonemi);
     setDonemSecenekleriHazir(true);
