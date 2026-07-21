@@ -3149,7 +3149,6 @@ export default function App() {
        setAktifDonem(sonrakiDonem);
        setIsDonemModalOpen(false);
        setDonemOnay(false);
-       await verileriGetir("satis");
        if (sonuc?.skipped && sonuc?.message) {
          alert(String(sonuc.message));
        }
@@ -3178,7 +3177,6 @@ export default function App() {
        setAktifDonem(nextDonem);
        setIsDonemModalOpen(false);
        setDonemOnay(false);
-       await verileriGetir("satis");
        alert(`${aktifDonem} dönemi daha önce kapatılmış. Devir fişleri tekrar oluşturulmadı.`);
        return;
      }
@@ -3222,7 +3220,6 @@ export default function App() {
      setAktifDonem(nextDonem);
      setIsDonemModalOpen(false);
      setDonemOnay(false);
-     await verileriGetir("satis");
   }
 
   // DÖNEM İZOLASYONLARI
