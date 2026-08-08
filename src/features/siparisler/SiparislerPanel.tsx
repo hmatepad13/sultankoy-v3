@@ -4,6 +4,7 @@ import { MusteriEslemeModal } from "./components/MusteriEslemeModal";
 import { MusteriListesiModal } from "./components/MusteriListesiModal";
 import { SiparisDetayModal } from "./components/SiparisDetayModal";
 import { TestModal } from "./components/TestModal";
+import { WhatsAppQrModal } from "./components/WhatsAppQrModal";
 import {
   eslesmeKaydet,
   eslesmeSil,
@@ -54,6 +55,7 @@ export function SiparislerPanel({ bayiler, isAdmin, onConfirm }: SiparislerPanel
   const [bilgi, setBilgi] = useState("");
   const [musteriListesiAcik, setMusteriListesiAcik] = useState(false);
   const [testModalAcik, setTestModalAcik] = useState(false);
+  const [qrModalAcik, setQrModalAcik] = useState(false);
   const [eslesmeModalAcik, setEslesmeModalAcik] = useState(false);
   const [aktifEslesme, setAktifEslesme] = useState<WhatsAppMusteriEslesmesi | null>(null);
   const [aktifTaslak, setAktifTaslak] = useState<WhatsAppSiparisTaslagi | null>(null);
@@ -67,7 +69,21 @@ export function SiparislerPanel({ bayiler, isAdmin, onConfirm }: SiparislerPanel
     if (!veri.worker?.last_seen) return false;
     return Date.now() - new Date(veri.worker.last_seen).getTime() < 35_000;
   }, [veri.worker?.last_seen]);
-  const whatsappBagli = workerCanli && Boolean(veri.worker?.whatsapp_bagli);
+  const whatsappDurumu = workerCanli ? (veri.worker?.whatsapp_durum || "bilinmiyor") : "servis_yok";
+  const whatsappBagli = workerCanli && whatsappDurumu === "bagli" && Boolean(veri.worker?.whatsapp_bagli);
+  const groqBagli = workerCanli && Boolean(veri.worker?.groq_bagli);
+  const qrGerekli = workerCanli && ["oturum_yok", "qr_hazirlaniyor", "qr_bekleniyor"].includes(whatsappDurumu);
+  const whatsappDurumMetni = ({
+    bagli: "Bağlı",
+    yeniden_baglaniyor: "Bağlanıyor",
+    oturum_yok: "QR gerekli",
+    qr_hazirlaniyor: "QR hazırlanıyor",
+    qr_bekleniyor: "QR okut",
+    servis_yok: "Bağlı değil",
+    hata: "Hata",
+    bilinmiyor: "Kontrol ediliyor",
+  } as Record<string, string>)[whatsappDurumu] || "Bağlı değil";
+  const whatsappDurumSinifi = whatsappBagli ? "online" : whatsappDurumu === "yeniden_baglaniyor" || whatsappDurumu === "qr_hazirlaniyor" ? "pending" : "offline";
 
   const sonSiparisIstegi = useMemo(
     () => veri.istekler.find((istek) => istek.tur === "siparisleri_getir") || null,
@@ -110,19 +126,25 @@ export function SiparislerPanel({ bayiler, isAdmin, onConfirm }: SiparislerPanel
     return () => window.clearInterval(zamanlayici);
   }, [verileriYenile]);
 
-  const istekOlustur = async (tur: "test_mesajlari" | "siparisleri_getir") => {
+  const istekOlustur = async (tur: "test_mesajlari" | "siparisleri_getir" | "qr_olustur") => {
     setIslemYapiliyor(true);
     setHata("");
     setBilgi("");
     try {
       await whatsappIslemIstegiOlustur(tur);
-      setBilgi(tur === "test_mesajlari" ? "Test başlatıldı." : "Günlük siparişler hazırlanıyor...");
+      setBilgi(tur === "test_mesajlari" ? "Test başlatıldı." : tur === "qr_olustur" ? "QR hazırlanıyor..." : "Günlük siparişler hazırlanıyor...");
       await verileriYenile(true);
     } catch (error) {
       setHata(error instanceof Error ? error.message : "İşlem isteği oluşturulamadı.");
     } finally {
       setIslemYapiliyor(false);
     }
+  };
+
+  const qrIsteginiBaslat = async () => {
+    setQrModalAcik(true);
+    if (islemYapiliyor || devamEdenIsVar || whatsappDurumu === "qr_bekleniyor" || whatsappDurumu === "qr_hazirlaniyor") return;
+    await istekOlustur("qr_olustur");
   };
 
   const eslesmeFormunuKaydet = async (form: EslesmeFormu) => {
@@ -204,16 +226,25 @@ export function SiparislerPanel({ bayiler, isAdmin, onConfirm }: SiparislerPanel
       </header>
 
       <div className="wp-connection-bar">
-        <span className={`wp-connection-item ${whatsappBagli ? "online" : "offline"}`}>
-          <i className="wp-dot" /> WhatsApp: {whatsappBagli ? "Bağlı" : "Bağlı değil"}
-        </span>
+        {qrGerekli ? (
+          <button type="button" className={`wp-connection-item wp-connection-action ${whatsappDurumSinifi}`} onClick={() => void qrIsteginiBaslat()}>
+            <i className="wp-dot" /> WhatsApp: {whatsappDurumMetni}
+          </button>
+        ) : (
+          <span className={`wp-connection-item ${whatsappDurumSinifi}`} title={veri.worker?.whatsapp_detay || undefined}>
+            <i className="wp-dot" /> WhatsApp: {whatsappDurumMetni}
+          </span>
+        )}
         <span className={`wp-connection-item ${workerCanli ? "online" : "offline"}`}>
           <i className="wp-dot" /> Oracle: {workerCanli ? "Bağlı" : "Bağlı değil"}
         </span>
         <span className={`wp-connection-item ${supabaseBagli ? "online" : "offline"}`}>
           <i className="wp-dot" /> Supabase: {supabaseBagli ? "Bağlı" : "Bağlı değil"}
         </span>
-        <button className="wp-test-link" onClick={() => setTestModalAcik(true)}>Bağlantı testi</button>
+        <span className={`wp-connection-item ${groqBagli ? "online" : "offline"}`}>
+          <i className="wp-dot" /> Groq: {groqBagli ? "Bağlı" : "Bağlı değil"}
+        </span>
+        <button className="wp-test-link" onClick={() => setTestModalAcik(true)}>Test</button>
       </div>
 
       {hata ? <div className="wp-alert wp-alert-error">{hata}</div> : null}
@@ -284,6 +315,13 @@ export function SiparislerPanel({ bayiler, isAdmin, onConfirm }: SiparislerPanel
         onClose={() => setTestModalAcik(false)}
         onRun={() => istekOlustur("test_mesajlari")}
         onDelete={testKaydiniSil}
+      />
+      <WhatsAppQrModal
+        acik={qrModalAcik}
+        worker={veri.worker}
+        islemYapiliyor={islemYapiliyor || devamEdenIsVar}
+        onClose={() => setQrModalAcik(false)}
+        onRequest={qrIsteginiBaslat}
       />
       <SiparisDetayModal taslak={aktifTaslak} onClose={() => setAktifTaslak(null)} onSave={taslagiKaydet} onDelete={taslagiSil} />
     </section>
