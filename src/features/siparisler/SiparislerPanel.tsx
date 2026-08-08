@@ -196,6 +196,9 @@ export function SiparislerPanel({ bayiler, isAdmin, onConfirm }: SiparislerPanel
         </div>
         <div className="wp-header-actions">
           <button className="wp-icon-button wp-icon-framed" onClick={() => void verileriYenile()} disabled={yukleniyor} aria-label="Siparişleri yenile">↻</button>
+          <button className="wp-btn wp-btn-primary wp-header-order-button" disabled={siparisButonuKapali} onClick={() => void istekOlustur("siparisleri_getir")}>
+            {devamEdenIsVar ? "Hazırlanıyor..." : "Siparişleri Getir"}
+          </button>
           <button className="wp-btn wp-btn-secondary" onClick={() => setMusteriListesiAcik(true)}>Müşteriler</button>
         </div>
       </header>
@@ -215,16 +218,6 @@ export function SiparislerPanel({ bayiler, isAdmin, onConfirm }: SiparislerPanel
 
       {hata ? <div className="wp-alert wp-alert-error">{hata}</div> : null}
       {bilgi ? <div className="wp-alert wp-alert-info">{bilgi}</div> : null}
-
-      <div className="wp-daily-action">
-        <div>
-          <strong>Son 24 saatin siparişlerini hazırla</strong>
-          <span>{aktifEslesmeSayisi === 0 ? "Önce WhatsApp müşterisi ekleyin" : `${aktifEslesmeSayisi} müşteri kontrol edilecek`}</span>
-        </div>
-        <button className="wp-btn wp-btn-primary wp-btn-large" disabled={siparisButonuKapali} onClick={() => void istekOlustur("siparisleri_getir")}>
-          {devamEdenIsVar ? "Hazırlanıyor..." : "Siparişleri Getir"}
-        </button>
-      </div>
 
       <div className="wp-summary-row" aria-label="Günlük sipariş özeti">
         <div><span>Müşteri</span><strong>{gunlukTaslaklar.length}</strong></div>
