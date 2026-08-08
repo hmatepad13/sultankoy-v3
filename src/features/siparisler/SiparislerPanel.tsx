@@ -235,11 +235,11 @@ export function SiparislerPanel({ bayiler, isAdmin, onConfirm }: SiparislerPanel
 
       <div className="wp-orders-card">
         <div className="wp-orders-title">
-          <div>
-            <h3>Müşteri Siparişleri</h3>
-            <span>{sonSiparisIstegi ? `Son kontrol ${kisaSaat(sonSiparisIstegi.completed_at || sonSiparisIstegi.created_at)}` : "Henüz sipariş kontrolü yapılmadı"}</span>
+          <h3>Müşteri Siparişleri</h3>
+          <div className="wp-orders-meta">
+            <span>{sonSiparisIstegi ? `Son: ${kisaSaat(sonSiparisIstegi.completed_at || sonSiparisIstegi.created_at)}` : "Kontrol yok"}</span>
+            {sonSiparisIstegi ? <span className={`wp-badge ${sonSiparisIstegi.durum}`}>{durumEtiketi(sonSiparisIstegi.durum)}</span> : null}
           </div>
-          {sonSiparisIstegi ? <span className={`wp-badge ${sonSiparisIstegi.durum}`}>{durumEtiketi(sonSiparisIstegi.durum)}</span> : null}
         </div>
 
         <div className="wp-order-head" aria-hidden="true">
