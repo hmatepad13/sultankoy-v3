@@ -49,6 +49,7 @@ export function SiparislerPanel({ bayiler, isAdmin, onConfirm }: SiparislerPanel
   const [veri, setVeri] = useState<SiparislerVeriPaketi>(BOS_VERI);
   const [yukleniyor, setYukleniyor] = useState(true);
   const [islemYapiliyor, setIslemYapiliyor] = useState(false);
+  const [supabaseBagli, setSupabaseBagli] = useState(false);
   const [hata, setHata] = useState("");
   const [bilgi, setBilgi] = useState("");
   const [musteriListesiAcik, setMusteriListesiAcik] = useState(false);
@@ -93,8 +94,10 @@ export function SiparislerPanel({ bayiler, isAdmin, onConfirm }: SiparislerPanel
     try {
       const paket = await siparislerVerileriniGetir();
       setVeri(paket);
+      setSupabaseBagli(true);
       setHata("");
     } catch (error) {
+      setSupabaseBagli(false);
       setHata(error instanceof Error ? error.message : "Sipariş verileri alınamadı.");
     } finally {
       if (!sessiz) setYukleniyor(false);
@@ -199,10 +202,14 @@ export function SiparislerPanel({ bayiler, isAdmin, onConfirm }: SiparislerPanel
 
       <div className="wp-connection-bar">
         <span className={`wp-connection-item ${whatsappBagli ? "online" : "offline"}`}>
-          <i className="wp-dot" /> WhatsApp {whatsappBagli ? "bağlı" : "bağlı değil"}
+          <i className="wp-dot" /> WhatsApp: {whatsappBagli ? "Bağlı" : "Bağlı değil"}
         </span>
-        <span className="wp-connection-separator">·</span>
-        <span>Worker {workerCanli ? "çalışıyor" : "yanıt vermiyor"}</span>
+        <span className={`wp-connection-item ${workerCanli ? "online" : "offline"}`}>
+          <i className="wp-dot" /> Oracle: {workerCanli ? "Bağlı" : "Bağlı değil"}
+        </span>
+        <span className={`wp-connection-item ${supabaseBagli ? "online" : "offline"}`}>
+          <i className="wp-dot" /> Supabase: {supabaseBagli ? "Bağlı" : "Bağlı değil"}
+        </span>
         <button className="wp-test-link" onClick={() => setTestModalAcik(true)}>Bağlantı testi</button>
       </div>
 
