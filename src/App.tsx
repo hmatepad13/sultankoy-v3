@@ -623,6 +623,9 @@ const uretimPanelSekmesi = onYuklenebilirSekmeOlustur(() =>
 const analizPanelSekmesi = onYuklenebilirSekmeOlustur(() =>
   import("./components/AnalizPanel").then((module) => ({ default: module.AnalizPanel })),
 );
+const siparislerPanelSekmesi = onYuklenebilirSekmeOlustur(() =>
+  import("./features/siparisler/SiparislerPanel").then((module) => ({ default: module.SiparislerPanel })),
+);
 const settingsPanelSekmesi = onYuklenebilirSekmeOlustur(() =>
   import("./components/SettingsPanel").then((module) => ({ default: module.SettingsPanel })),
 );
@@ -634,6 +637,7 @@ const sekmeModulYukleyicileri: Record<AppTabId, () => Promise<unknown>> = {
   cek_senet: cekSenetPanelSekmesi.yukle,
   gider: giderPanelSekmesi.yukle,
   uretim: uretimPanelSekmesi.yukle,
+  siparisler: siparislerPanelSekmesi.yukle,
   analiz: analizPanelSekmesi.yukle,
   ayarlar: settingsPanelSekmesi.yukle,
 };
@@ -653,6 +657,7 @@ const SevkiyatPanel = sevkiyatPanelSekmesi.LazyBilesen;
 const CekSenetPanel = cekSenetPanelSekmesi.LazyBilesen;
 const GiderPanel = giderPanelSekmesi.LazyBilesen;
 const UretimPanel = uretimPanelSekmesi.LazyBilesen;
+const SiparislerPanel = siparislerPanelSekmesi.LazyBilesen;
 const AnalizPanel = analizPanelSekmesi.LazyBilesen;
 const SettingsPanel = settingsPanelSekmesi.LazyBilesen;
 const sekmeYukleniyorFallback = (
@@ -5487,6 +5492,12 @@ export default function App() {
           urunler,
           helpers: { fSayi },
         });
+      case "siparisler":
+        return sekmeBileseniniRenderEt(siparislerPanelSekmesi.hazirBilesen(), SiparislerPanel, {
+          bayiler,
+          isAdmin,
+          onConfirm: confirmDialogAc,
+        });
       case "ayarlar":
         return renderAyarlar();
       default:
@@ -5528,6 +5539,7 @@ export default function App() {
     if (tabId === "satis") return "#059669";
     if (tabId === "sevkiyat") return "#ea580c";
     if (tabId === "gider") return "#dc2626";
+    if (tabId === "siparisler") return "#059669";
     if (tabId === "analiz" || tabId === "uretim") return "#8b5cf6";
     if (tabId === "sut") return "#0f766e";
     if (tabId === "ayarlar") return "#64748b";

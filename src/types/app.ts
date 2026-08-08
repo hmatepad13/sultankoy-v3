@@ -1,4 +1,4 @@
-export type AppTabId = "ozet" | "sut" | "uretim" | "sevkiyat" | "cek_senet" | "satis" | "gider" | "analiz" | "ayarlar";
+export type AppTabId = "ozet" | "sut" | "uretim" | "sevkiyat" | "cek_senet" | "satis" | "gider" | "siparisler" | "analiz" | "ayarlar";
 
 export type ActiveAyarTab =
   | "hesap"

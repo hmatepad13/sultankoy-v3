@@ -46,7 +46,7 @@ export const kullaniciYetkisiniBul = (
   kayitlar: KullaniciSekmeYetkisi[],
 ): SekmeYetkiMap => {
   if (adminMi(username)) {
-    return { ...VARSAYILAN_SEKME_YETKILERI };
+    return { ...VARSAYILAN_SEKME_YETKILERI, siparisler: true };
   }
 
   const kayit = kayitlar.find((item) => normalizeUsername(item.username) === normalizeUsername(username));

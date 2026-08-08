@@ -84,6 +84,7 @@ export const TAB_TANIMLARI: Array<{ id: AppTabId; ikon: string; etiket: string }
   { id: "cek_senet", ikon: "🧾", etiket: "ÇEK-SENET" },
   { id: "satis", ikon: "💰", etiket: "SATIŞ" },
   { id: "gider", ikon: "💸", etiket: "GİDER" },
+  { id: "siparisler", ikon: "📦", etiket: "SİPARİŞLER" },
   { id: "analiz", ikon: "📈", etiket: "ANALİZ" },
   { id: "ayarlar", ikon: "⚙️", etiket: "AYARLAR" },
 ];
@@ -109,6 +110,7 @@ export const VARSAYILAN_SEKME_YETKILERI: SekmeYetkiMap = {
   cek_senet: true,
   satis: true,
   gider: true,
+  siparisler: false,
   analiz: true,
   ayarlar: true,
 };
