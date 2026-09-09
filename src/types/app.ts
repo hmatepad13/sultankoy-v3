@@ -287,6 +287,8 @@ export interface DepolamaDurumu {
 
 export interface BackupDurumu {
   enabled: boolean;
+  status?: "healthy" | "error";
+  workflowState?: string | null;
   summaryText: string;
   scheduleLabel: string;
   destinationLabel: string;
@@ -294,6 +296,9 @@ export interface BackupDurumu {
   workflowUrl?: string | null;
   lastSuccessfulAt?: string | null;
   lastSuccessfulRunUrl?: string | null;
+  lastRunAt?: string | null;
+  lastRunConclusion?: string | null;
+  lastRunUrl?: string | null;
   updatedAt: string;
 }
 

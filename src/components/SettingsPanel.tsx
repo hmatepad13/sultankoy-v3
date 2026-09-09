@@ -1797,6 +1797,12 @@ export function SettingsPanel({
         {activeAyarTab === "depolama" && (
           <div style={{ display: "grid", gap: "12px", overflowY: "auto" }}>
             <div style={kartStili}>
+              {(() => {
+                const yedekSorunlu = backupDurumu?.status === "error" || backupDurumu?.enabled === false;
+                const yedekRenkleri = yedekSorunlu
+                  ? { background: "#fef2f2", border: "#fecaca", text: "#991b1b", link: "#b91c1c" }
+                  : { background: "#ecfdf5", border: "#99f6e4", text: "#134e4a", link: "#0f766e" };
+                return <>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px", flexWrap: "wrap", marginBottom: "8px" }}>
                 <h3 style={{ margin: 0, fontSize: "15px", color: "#0f172a" }}>Bulut Yedek Durumu</h3>
                 <button
@@ -1818,26 +1824,28 @@ export function SettingsPanel({
               </div>
               <div
                 style={{
-                  background: "#ecfdf5",
-                  border: "1px solid #99f6e4",
+                  background: yedekRenkleri.background,
+                  border: `1px solid ${yedekRenkleri.border}`,
                   borderRadius: "10px",
                   padding: "12px",
                   display: "grid",
                   gap: "10px",
                 }}
               >
-                <div style={{ color: "#0f766e", fontWeight: 700, fontSize: "13px", lineHeight: 1.5 }}>
+                <div style={{ color: yedekRenkleri.text, fontWeight: 700, fontSize: "13px", lineHeight: 1.5 }}>
                   {backupDurumu?.summaryText || "Tam yedek alınıyor ve buluta yükleniyor."}
                 </div>
-                <div style={{ display: "grid", gap: "6px", fontSize: "12px", color: "#134e4a" }}>
+                <div style={{ display: "grid", gap: "6px", fontSize: "12px", color: yedekRenkleri.text }}>
                   <div><strong>Takvim:</strong> {backupDurumu?.scheduleLabel || "Her gün 03:17"}</div>
                   <div><strong>Hedef:</strong> {backupDurumu?.destinationLabel || "GitHub bulut yedek deposu"}</div>
                   <div><strong>Son başarılı yedek:</strong> {tarihSaatMetni(backupDurumu?.lastSuccessfulAt || null)}</div>
+                  <div><strong>Son çalışma:</strong> {tarihSaatMetni(backupDurumu?.lastRunAt || null)}{backupDurumu?.lastRunConclusion ? ` (${backupDurumu.lastRunConclusion})` : ""}</div>
+                  {!backupDurumu?.enabled && <div><strong>İş akışı:</strong> {backupDurumu?.workflowState || "kapalı"}</div>}
                 </div>
                 {isAdmin && (backupDurumu?.backupRepoUrl || backupDurumu?.lastSuccessfulRunUrl) && (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", fontSize: "12px" }}>
                     {backupDurumu?.backupRepoUrl && (
-                      <a href={backupDurumu.backupRepoUrl} target="_blank" rel="noreferrer" style={{ color: "#0f766e", fontWeight: 700 }}>
+                      <a href={backupDurumu.backupRepoUrl} target="_blank" rel="noreferrer" style={{ color: yedekRenkleri.link, fontWeight: 700 }}>
                         Backup repo
                       </a>
                     )}
@@ -1846,9 +1854,16 @@ export function SettingsPanel({
                         Son başarılı koşu
                       </a>
                     )}
+                    {backupDurumu?.lastRunUrl && backupDurumu.lastRunUrl !== backupDurumu.lastSuccessfulRunUrl && (
+                      <a href={backupDurumu.lastRunUrl} target="_blank" rel="noreferrer" style={{ color: yedekRenkleri.link, fontWeight: 700 }}>
+                        Son çalışma
+                      </a>
+                    )}
                   </div>
                 )}
               </div>
+              </>;
+              })()}
               {backupDurumu?.updatedAt && (
                 <div style={{ marginTop: "8px", color: "#94a3b8", fontSize: "11px", textAlign: "right" }}>
                   Son durum güncelleme: {tarihSaatMetni(backupDurumu.updatedAt)}
