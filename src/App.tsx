@@ -2669,7 +2669,9 @@ export default function App() {
   const bayiBorclari = useMemo(() => {
     return musteriBakiyeList
       .map((item) => ({
-        anahtar: item.account_key || hesapAnahtariOlustur(item.account_label),
+        // SQL ve JS'nin Türkçe büyük/küçük harf kuralları farklıdır.
+        // Ekstre, fişler ve arama listesiyle aynı yerel hesap anahtarını kullanır.
+        anahtar: hesapAnahtariOlustur(item.account_label),
         isim: item.account_label,
         borc: Number(item.balance || 0),
       }))
