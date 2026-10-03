@@ -24,6 +24,46 @@ assert.equal(temizle('12,'), '12.');
 const app = fs.readFileSync('src/App.tsx', 'utf8');
 const helper = app.slice(app.indexOf('const fisPersonelDevirMi ='), app.indexOf('const fisTahsilatMi ='));
 const normalizeUsername = s => (s || '').trim().toLowerCase().replace('@sistem.local', '');
+// Satış kartının gerçek gider hesabı: tarih ve Benim/Herkes kapsamı.
+const expenseExpression = app.slice(app.indexOf('  const tKullaniciGider = useMemo('), app.indexOf('  const tKasayaDevir = useMemo('));
+const cardContext = {
+  normalizeUsername, useMemo: fn => fn(), aktifKullaniciKisa: 'umit',
+  satisFiltreKisi: 'benim', fisFiltre: { baslangic: '', bitis: '', bayiler: [] },
+  periodGider: [
+    { tarih: '2026-10-01', ekleyen: 'umit@sistem.local', tutar: 100 },
+    { tarih: '2026-10-02', ekleyen: 'umit', tutar: 40 },
+    { tarih: '2026-10-03', ekleyen: 'umit', tutar: 20 },
+    { tarih: '2026-10-03', ekleyen: 'admin', tutar: 30 },
+  ],
+};
+const cardScript = ts.transpileModule(expenseExpression + '\nglobalThis.cardExpense = tKullaniciGider;', {
+  compilerOptions: { target: ts.ScriptTarget.ES2022 },
+}).outputText;
+const cardExpense = () => {
+  const scope = { ...cardContext };
+  vm.runInNewContext(cardScript, scope);
+  return scope.cardExpense;
+};
+for (const [start, end, mine, everyone] of [
+  ['', '', 160, 190], // Bu Ay
+  ['2026-10-03', '2026-10-03', 20, 50], // Bugün
+  ['2026-10-02', '2026-10-02', 40, 40], // Dün
+  ['2026-10-02', '2026-10-03', 60, 90], // Özel aralık, sınırlar dahil
+  ['2026-10-04', '', 0, 0],
+  ['', '2026-10-01', 100, 100],
+]) {
+  cardContext.fisFiltre = { baslangic: start, bitis: end, bayiler: ['Örnek bayi'] };
+  cardContext.satisFiltreKisi = 'benim';
+  assert.equal(cardExpense(), mine, `Benim ${start}..${end}`);
+  cardContext.satisFiltreKisi = 'herkes';
+  assert.equal(cardExpense(), everyone, `Herkes ${start}..${end}`);
+}
+cardContext.aktifKullaniciKisa = 'admin';
+cardContext.fisFiltre = { baslangic: '', bitis: '', bayiler: [] };
+cardContext.satisFiltreKisi = 'benim';
+assert.equal(cardExpense(), 30);
+cardContext.satisFiltreKisi = 'herkes';
+assert.equal(cardExpense(), 190);
 const ctx = {
   normalizeUsername, adminMi: s => normalizeUsername(s) === 'admin',
   odemeTurunuNormalizeEt: s => (s || '').toLocaleUpperCase('tr-TR'),

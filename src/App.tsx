@@ -4842,13 +4842,19 @@ export default function App() {
     );
   }, [masterKayitIsminiNormalizeEt, musteriBakiyeList, seciliSatisHesapEtiketleri]);
 
-  // GİDERLER TAHSİLATTAN DÜŞÜYOR (Kullanıcının giderleri net tahsilatı belirler)
+  // Giderlerde tahsilatla aynı tarih ve kişi kapsamı kullanılır; bayi filtresi uygulanmaz.
   const tKullaniciGider = useMemo(
     () =>
       periodGider
-        .filter((g) => normalizeUsername(g.ekleyen) === aktifKullaniciKisa)
+        .filter((g) => {
+          const tarihUyuyor = (!fisFiltre.baslangic || g.tarih >= fisFiltre.baslangic)
+            && (!fisFiltre.bitis || g.tarih <= fisFiltre.bitis);
+          const kisiUyuyor = satisFiltreKisi === "herkes"
+            || normalizeUsername(g.ekleyen) === aktifKullaniciKisa;
+          return tarihUyuyor && kisiUyuyor;
+        })
         .reduce((a: number, b: any) => a + Number(b.tutar), 0),
-    [aktifKullaniciKisa, periodGider],
+    [aktifKullaniciKisa, periodGider, fisFiltre.baslangic, fisFiltre.bitis, satisFiltreKisi],
   );
   const tKasayaDevir = useMemo(() => filteredForTotals.filter(f => fisKasayaDevirMi(f)).reduce((a: number, b: any) => a + Number(b.tahsilat), 0), [filteredForTotals]);
   const tNetTahsilat = tFisTahsilatRaw - tKullaniciGider - tKasayaDevir;
