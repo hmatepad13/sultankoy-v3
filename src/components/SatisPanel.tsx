@@ -333,7 +333,7 @@ export function SatisPanel({
                 <thead>
                   <tr>
                     <th style={{ textAlign: "left", width: "34%", background: "#ecfeff", fontSize: "9px", padding: "4px" }}>ÜRÜN</th>
-                    <th style={{ textAlign: "right", width: "20%", background: "#ecfeff", fontSize: "9px", padding: "4px" }}>KOVA/ADET</th>
+                    <th style={{ textAlign: "right", width: "20%", background: "#ecfeff", fontSize: "9px", padding: "4px", whiteSpace: "normal" }}>KOVA/ADET</th>
                     <th style={{ textAlign: "right", width: "18%", background: "#ecfeff", fontSize: "9px", padding: "4px" }}>KG</th>
                     <th style={{ textAlign: "right", width: "28%", background: "#ecfeff", fontSize: "9px", padding: "4px" }}>TUTAR</th>
                   </tr>
