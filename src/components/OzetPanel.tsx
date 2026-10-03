@@ -2,12 +2,6 @@ import { useMemo, useState, type CSSProperties } from "react";
 import { TEMA_RENGI } from "../constants/app";
 import type { PersonelOzeti, SortConfig } from "../types/app";
 
-type MiniDetay = {
-  baslik: string;
-  renk: string;
-  satirlar: Array<{ etiket: string; deger: string; vurgu?: boolean }>;
-} | null;
-
 type BayiBorcSatiri = {
   anahtar: string;
   isim: string;
@@ -36,7 +30,6 @@ type OzetPanelProps = {
   ozetBorcSort: SortConfig;
   setOzetBorcSort: (next: SortConfig) => void;
   personelOzetleri: PersonelOzeti[];
-  onOpenMiniDetay: (detay: MiniDetay) => void;
   onOpenMusteriEkstre: (bayiAnahtar: string, musteriAdi: string) => void;
   helpers: {
     fSayiNoDec: (num: unknown) => string;
@@ -181,7 +174,6 @@ export function OzetPanel({
   ozetBorcSort,
   setOzetBorcSort,
   personelOzetleri,
-  onOpenMiniDetay,
   onOpenMusteriEkstre,
   helpers,
 }: OzetPanelProps) {
@@ -292,18 +284,8 @@ export function OzetPanel({
               fontWeight: "bold",
               flex: "1 1 130px",
               minWidth: "120px",
-              cursor: "pointer",
+              cursor: "default",
             }}
-            onClick={() =>
-              onOpenMiniDetay({
-                baslik: "Giderler",
-                renk: "#dc2626",
-                satirlar:
-                  tGiderToplam !== 0
-                    ? [{ etiket: "Giderler", deger: `${helpers.fSayiNoDec(tGiderToplam)} TL`, vurgu: true }]
-                    : [],
-              })
-            }
           >
             <div style={{ fontSize: "10px", opacity: 0.9, marginBottom: "2px" }}>GİDERLER</div>
             <b style={{ fontSize: "14px" }}>{helpers.fSayiNoDec(tGiderToplam)} ₺</b>

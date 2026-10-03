@@ -5391,7 +5391,6 @@ export default function App() {
           ozetBorcSort,
           setOzetBorcSort,
           personelOzetleri,
-          onOpenMiniDetay: setOzetMiniDetay,
           onOpenMusteriEkstre: handleMusteriEkstreAc,
           helpers: { fSayiNoDec },
         });
