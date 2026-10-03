@@ -30,6 +30,7 @@ import {
   supabase,
 } from "./lib/supabase";
 import { uretimKaydiniNormalizeEt } from "./lib/uretim";
+import { personelHesabiKapaliMi } from "./lib/personelKapanis";
 import type {
   ActiveAyarTab,
   AdminKullanici,
@@ -4896,7 +4897,7 @@ export default function App() {
       const personelDevir = fisPersonelDevirMi(f) && f.bayi === "SİSTEM İŞLEMİ";
       const donemDevir = fisDonemDevirMi(f);
       const key = personelDevir ? personelDevirAnahtariniGetir(f.aciklama) : personelAnahtariniGetir(f.ekleyen);
-      if (personelOzetindenHaricMi(key)) return;
+      if (personelOzetindenHaricMi(key) || personelHesabiKapaliMi(key, aktifDonem)) return;
       if (!map[key]) {
         map[key] = { isim: key, satis: 0, tahsilat: 0, gider: 0, kasayaDevir: 0, net: 0, acikBakiye: 0, devirNet: 0, devirAcik: 0 };
       }
@@ -4923,7 +4924,7 @@ export default function App() {
 
     periodGider.forEach((g: any) => {
       const key = personelAnahtariniGetir(g.ekleyen);
-      if (personelOzetindenHaricMi(key)) return;
+      if (personelOzetindenHaricMi(key) || personelHesabiKapaliMi(key, aktifDonem)) return;
       if (!map[key]) {
         map[key] = { isim: key, satis: 0, tahsilat: 0, gider: 0, kasayaDevir: 0, net: 0, acikBakiye: 0, devirNet: 0, devirAcik: 0 };
       }
@@ -4931,7 +4932,7 @@ export default function App() {
     });
 
     Object.entries(oncekiPersonelBakiyeleri).forEach(([key, bakiye]) => {
-      if (personelOzetindenHaricMi(key)) return;
+      if (personelOzetindenHaricMi(key) || personelHesabiKapaliMi(key, aktifDonem)) return;
       if (!map[key]) {
         map[key] = { isim: key, satis: 0, tahsilat: 0, gider: 0, kasayaDevir: 0, net: 0, acikBakiye: 0, devirNet: 0, devirAcik: 0 };
       }
@@ -4955,7 +4956,7 @@ export default function App() {
         Math.abs(p.acikBakiye) > 0.01
       )
       .sort((a, b) => a.isim.localeCompare(b.isim));
-  }, [oncekiPersonelBakiyeleri, periodGider, periodSatisFis, periodSatisList, satisSatiriUrunAdiGetir]);
+  }, [aktifDonem, oncekiPersonelBakiyeleri, periodGider, periodSatisFis, periodSatisList, satisSatiriUrunAdiGetir]);
 
   const sekmeSecenekleri = useMemo(
     () => TAB_TANIMLARI.map((tab) => ({ id: tab.id, etiket: tab.etiket })),

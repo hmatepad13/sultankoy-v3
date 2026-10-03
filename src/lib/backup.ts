@@ -10,6 +10,7 @@ import type {
   YedekVerisi,
 } from "../types/app";
 import { dosyaIndir, fSayi, normalizeUsername } from "../utils/format";
+import { personelHesabiKapaliMi } from "./personelKapanis";
 
 const kayitYok = [{ Bilgi: "Kayit yok" }];
 const SISTEM_ISLEMI = "SİSTEM İŞLEMİ";
@@ -303,11 +304,16 @@ const personelKaydiGetir = (map: Record<string, PersonelOzeti>, key: string) => 
 
 const personelOzetleriniOlustur = (satisFisleri: SatisFis[], giderler: Gider[]) => {
   const map: Record<string, PersonelOzeti> = {};
+  const donem = [...satisFisleri, ...giderler].reduce(
+    (son, kayit) => donemGetir(kayit.tarih) > son ? donemGetir(kayit.tarih) : son,
+    "",
+  );
 
   satisFisleri.forEach((fis) => {
     const personelDevir = personelDevirMi(fis.odeme_turu) && sistemIslemiMi(fis.bayi);
     const donemDevir = cariDevirMi(fis.odeme_turu);
     const key = personelDevir ? personelDevirKeyGetir(fis.aciklama) : kisiGetir(fis.ekleyen) || "Bilinmiyor";
+    if (personelHesabiKapaliMi(key, donem)) return;
     const kayit = personelKaydiGetir(map, key);
 
     if (kasayaDevirMi(fis.odeme_turu)) {
@@ -333,6 +339,7 @@ const personelOzetleriniOlustur = (satisFisleri: SatisFis[], giderler: Gider[]) 
 
   giderler.forEach((gider) => {
     const key = kisiGetir(gider.ekleyen) || "Bilinmiyor";
+    if (personelHesabiKapaliMi(key, donem)) return;
     personelKaydiGetir(map, key).gider += Number(gider.tutar || 0);
   });
 
