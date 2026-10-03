@@ -30,7 +30,6 @@ import {
   supabase,
 } from "./lib/supabase";
 import { uretimKaydiniNormalizeEt } from "./lib/uretim";
-import { personelHesabiKapaliMi } from "./lib/personelKapanis";
 import { paraGirdisiniTemizle, paraGirdisiniSayiyaCevir } from "./utils/para";
 import type {
   ActiveAyarTab,
@@ -263,125 +262,12 @@ const yerelJsonYaz = (anahtar: string, deger: unknown) => {
   }
 };
 
-const fisPersonelDevirMi = (fis: Partial<SatisFis>) => {
-  const odemeTuru = odemeTurunuNormalizeEt(fis.odeme_turu);
-  return odemeTuru === "PERSONEL DEVİR" || odemeTuru === "PERSONEL DEVIR";
-};
+const fisSistemKaydiMi = (fis: Partial<SatisFis>) => fis.bayi === "SİSTEM İŞLEMİ";
 
-// Yalnızca eski kayıt uyumluluğu: yeni kayıt/form yok. Kaldırmak geçmiş neti değiştirir.
-const fisKasayaDevirMi = (fis: Partial<SatisFis>) => {
-  const odemeTuru = odemeTurunuNormalizeEt(fis.odeme_turu);
-  return odemeTuru === "KASAYA DEVİR" || odemeTuru === "KASAYA DEVIR";
-};
 
-const personelAnahtariniGetir = (deger?: string | null) => normalizeUsername(deger) || "Bilinmiyor";
-
-const PERSONEL_OZETI_HARIC_KULLANICILAR = ["yusuf"];
-
-const personelOzetindenHaricMi = (deger?: string | null) => {
-  const key = personelAnahtariniGetir(deger);
-  const normalized = normalizeUsername(key);
-  return adminMi(normalized) || PERSONEL_OZETI_HARIC_KULLANICILAR.includes(normalized);
-};
-
-const personelDevirAnahtariniGetir = (aciklama?: string | null) => {
-  const eslesme = String(aciklama || "").match(/\((.*?)\)/);
-  return personelAnahtariniGetir(eslesme?.[1]);
-};
-
-const personelBakiyeleriniHesapla = (
-  satisFisleri: Array<Partial<SatisFis>>,
-  giderKayitlari: Array<Partial<Gider>>,
-) => {
-  const map: Record<
-    string,
-    { devirNet: number; tahsilat: number; gider: number; kasayaDevir: number }
-  > = {};
-
-  const kayitGetir = (key: string) => {
-    if (!map[key]) {
-      map[key] = { devirNet: 0, tahsilat: 0, gider: 0, kasayaDevir: 0 };
-    }
-    return map[key];
-  };
-
-  const olaylar = [
-    ...satisFisleri.map((fis, index) => ({
-      tip: "satis" as const,
-      tarih: String(fis.tarih || ""),
-      sira:
-        fisPersonelDevirMi(fis) && fis.bayi === "SİSTEM İŞLEMİ"
-          ? 0
-          : fisKasayaDevirMi(fis)
-            ? 1
-            : fisDonemDevirMi(fis)
-              ? 2
-              : 3,
-      indeks: index,
-      fis,
-    })),
-    ...giderKayitlari.map((gider, index) => ({
-      tip: "gider" as const,
-      tarih: String(gider.tarih || ""),
-      sira: 4,
-      indeks: index,
-      gider,
-    })),
-  ].sort((a, b) => {
-    const tarihKarsilastirma = a.tarih.localeCompare(b.tarih);
-    if (tarihKarsilastirma !== 0) return tarihKarsilastirma;
-    if (a.sira !== b.sira) return a.sira - b.sira;
-    return a.indeks - b.indeks;
-  });
-
-  olaylar.forEach((olay) => {
-    if (olay.tip === "gider") {
-      const key = personelAnahtariniGetir(olay.gider.ekleyen);
-      if (personelOzetindenHaricMi(key)) return;
-      kayitGetir(key).gider += Number(olay.gider.tutar || 0);
-      return;
-    }
-
-    const fis = olay.fis;
-    const personelDevir = fisPersonelDevirMi(fis) && fis.bayi === "SİSTEM İŞLEMİ";
-    const key = personelDevir ? personelDevirAnahtariniGetir(fis.aciklama) : personelAnahtariniGetir(fis.ekleyen);
-    if (personelOzetindenHaricMi(key)) return;
-    const kayit = kayitGetir(key);
-
-    if (personelDevir) {
-      map[key] = {
-        devirNet: Number(fis.toplam_tutar || 0),
-        tahsilat: 0,
-        gider: 0,
-        kasayaDevir: 0,
-      };
-      return;
-    }
-
-    if (fisKasayaDevirMi(fis)) {
-      kayit.kasayaDevir += Number(fis.tahsilat || 0);
-      return;
-    }
-
-    if (fisDonemDevirMi(fis)) {
-      return;
-    }
-
-    kayit.tahsilat += Number(fis.tahsilat || 0);
-  });
-
-  return Object.fromEntries(
-    Object.entries(map).map(([key, deger]) => [
-      key,
-      {
-        net: deger.devirNet + (deger.tahsilat - deger.gider - deger.kasayaDevir),
-      },
-    ]),
-  ) as Record<string, { net: number }>;
-};
 
 const fisTahsilatMi = (fis: Partial<SatisFis>) =>
-  !fisKasayaDevirMi(fis) &&
+  !fisSistemKaydiMi(fis) &&
   !fisDevirMi(fis) &&
   Number(fis.toplam_tutar || 0) === 0 &&
   Number(fis.tahsilat || 0) > 0;
@@ -937,7 +823,7 @@ export default function App() {
   const [satisVerisiYukleniyor, setSatisVerisiYukleniyor] = useState(true);
   const [musteriBakiyeList, setMusteriBakiyeList] = useState<SatisHesapBakiyesi[]>([]);
   const [giderList, setGiderList] = useState<Gider[]>([]);
-  const [oncekiGiderList, setOncekiGiderList] = useState<Gider[]>([]);
+  const [netBakiye, setNetBakiye] = useState<{ donem: string; net: number } | null>(null);
   const [giderTuruListesi, setGiderTuruListesi] = useState<GiderTuru[]>([]);
   const [uretimList, setUretimList] = useState<Uretim[]>([]);
   const [copKutusuList, setCopKutusuList] = useState<CopKutusu[]>([]);
@@ -2620,6 +2506,9 @@ export default function App() {
           }) as PromiseLike<{ data: SatisHesapBakiyesi[] | null; error: any }>,
         );
         if (hesapBakiyeleriErr) throw hesapBakiyeleriErr;
+        const { data: netData, error: netErr } = await supabase.rpc("app_net_balance", { p_before_date: donemBitisi });
+        if (netErr) throw netErr;
+        setNetBakiye({ donem: aktifDonem, net: Number(netData?.[0]?.net_balance || 0) });
         setMusteriBakiyeList(
           (hesapBakiyeleri || []).map((item) => ({
             ...item,
@@ -2647,49 +2536,14 @@ export default function App() {
       }
 
       if (hedef === "acilis" || hedef === "hepsi" || hedef === "gider" || hedef === "ozet") {
-        const giderIstekleri =
-          hedef === "ozet"
-            ? Promise.all([
-                startupSorguyuCalistir<Gider>(
-                  "giderler",
-                  supabase
-                    .from("giderler")
-                    .select("*")
-                    .gte("tarih", donemBaslangici)
-                    .lt("tarih", donemBitisi)
-                    .order("tarih", { ascending: true })
-                    .order("id", { ascending: true }),
-                ),
-                startupSorguyuCalistir<Gider>(
-                  "giderler_onceki",
-                  supabase
-                    .from("giderler")
-                    .select("*")
-                    .lt("tarih", donemBaslangici)
-                    .order("tarih", { ascending: true })
-                    .order("id", { ascending: true }),
-                ),
-              ])
-            : Promise.all([
-                startupSorguyuCalistir<Gider>(
-                  "giderler",
-                  supabase
-                    .from("giderler")
-                    .select("*")
-                    .gte("tarih", donemBaslangici)
-                    .lt("tarih", donemBitisi)
-                    .order("tarih", { ascending: true })
-                    .order("id", { ascending: true }),
-                ),
-                Promise.resolve({ data: null as Gider[] | null, error: null }),
-              ]);
-
-        const [{ data: g, error: gErr }, { data: pg, error: pgErr }] = await giderIstekleri;
-        if (gErr || pgErr) throw gErr || pgErr;
+        const { data: g, error: gErr } = await startupSorguyuCalistir<Gider>(
+          "giderler",
+          supabaseTumKayitlariGetir<Gider>(supabase.from("giderler").select("*")
+            .gte("tarih", donemBaslangici).lt("tarih", donemBitisi)
+            .order("tarih", { ascending: true }).order("id", { ascending: true })),
+        );
+        if (gErr) throw gErr;
         if (g) setGiderList(g);
-        if (hedef === "ozet") {
-          setOncekiGiderList(pg || []);
-        }
         if (kullaniciId) {
           ertelenenVeriYuklemeRef.current.giderYuklenenKullanici = kullaniciId;
         }
@@ -2897,7 +2751,7 @@ export default function App() {
     const ilgiliFisler = [...tumSatisFisList]
       .filter((fis) => {
         if (satisFisHesapAnahtariGetir(fis) !== hesapAnahtari) return false;
-        if (fisKasayaDevirMi(fis)) return false;
+        if (fisSistemKaydiMi(fis)) return false;
         return !sistemIslemiMi(satisFisBayiAdiGetir(fis)) || fisDonemDevirMi(fis);
       })
       .sort((a, b) => {
@@ -2911,7 +2765,7 @@ export default function App() {
     const devredenBorc =
       hesaplaMusteriBakiyeleri(
         tumSatisFisList.filter((fis) => {
-          if (fisKasayaDevirMi(fis)) return false;
+          if (fisSistemKaydiMi(fis)) return false;
           const fisDonemi = String(fis.tarih || "").substring(0, 7);
           return fisDonemi < donem || (fisDonemi === donem && fisDonemDevirMi(fis));
         }),
@@ -2969,7 +2823,7 @@ export default function App() {
       devredenBorc,
       hareketler,
     };
-  }, [fisDonemDevirMi, fisKasayaDevirMi, hesaplaMusteriBakiyeleri, satisFisBayiAdiGetir, satisFisHesapAnahtariGetir, satisSatiriHesapAnahtariGetir, satisSatiriUrunAdiGetir, sistemIslemiMi, tumSatisFisList]);
+  }, [fisDonemDevirMi, fisSistemKaydiMi, hesaplaMusteriBakiyeleri, satisFisBayiAdiGetir, satisFisHesapAnahtariGetir, satisSatiriHesapAnahtariGetir, satisSatiriUrunAdiGetir, sistemIslemiMi, tumSatisFisList]);
 
   const handleMusteriEkstreAc = useCallback(async (bayiAnahtar: string, musteriAdi: string, hedefDonem = aktifDonem) => {
     setIsMusteriEkstreYukleniyor(true);
@@ -3136,68 +2990,9 @@ export default function App() {
        return;
      }
 
-     const hedefDevirTarihi = `${nextDonem}-01`;
-     const { data: mevcutDevirler, error: mevcutDevirErr } = await supabase
-       .from("satis_fisleri")
-       .select("id, odeme_turu, aciklama, tarih")
-       .eq("tarih", hedefDevirTarihi)
-       .or("odeme_turu.eq.DEVİR,odeme_turu.eq.DEVIR,odeme_turu.eq.PERSONEL DEVİR,odeme_turu.eq.PERSONEL DEVIR");
-     if (mevcutDevirErr) {
-       alert("Dönem kapatma ön kontrolü yapılamadı: " + (mevcutDevirErr.message || "Bilinmeyen hata"));
-       return;
-     }
-     const devirZatenOlusmus = (mevcutDevirler || []).some((fis) =>
-       String(fis.aciklama || "").includes(aktifDonem),
-     );
-
-     if (devirZatenOlusmus) {
-       setAktifDonem(nextDonem);
-       setIsDonemModalOpen(false);
-       setDonemOnay(false);
-       alert(`${aktifDonem} dönemi daha önce kapatılmış. Devir fişleri tekrar oluşturulmadı.`);
-       return;
-     }
-
-     const devirFisleri = bayiBorclari.map((b, index) => ({
-        fis_no: benzersizFisNoOlustur("DEVIR", index),
-        tarih: `${nextDonem}-01`,
-        bayi: b.isim,
-        bayi_id: seciliBayiId(b.isim),
-        toplam_tutar: b.borc > 0 ? b.borc : 0,
-         tahsilat: b.borc < 0 ? Math.abs(b.borc) : 0,
-         kalan_bakiye: b.borc,
-         odeme_turu: "DEVİR",
-         aciklama: `${aktifDonem} Döneminden Devir`,
-         ekleyen: aktifKullaniciEposta
-     }));
-
-     const personelDevirFisleri = personelOzetleri
-       .filter(p => Math.abs(p.net) > 0.01)
-       .map((p, index) => ({
-         fis_no: benzersizFisNoOlustur("PDEVIR", index),
-         tarih: `${nextDonem}-01`,
-         bayi_id: null,
-         bayi: "SİSTEM İŞLEMİ",
-         toplam_tutar: p.net,
-         tahsilat: 0,
-         kalan_bakiye: 0,
-         odeme_turu: "PERSONEL DEVİR",
-         aciklama: `${aktifDonem} Personel Devir (${p.isim})`,
-         ekleyen: aktifKullaniciEposta
-       }));
-
-     if(devirFisleri.length > 0 || personelDevirFisleri.length > 0) {
-         const { error } = await supabase.from("satis_fisleri").insert([...devirFisleri, ...personelDevirFisleri]);
-         if (error) {
-           alert("Dönem kapatma hatası: " + veritabaniHatasiMesaji("satis_fisleri", error));
-           return;
-         }
-     }
-     
-     setAktifDonem(nextDonem);
-     setIsDonemModalOpen(false);
-     setDonemOnay(false);
+     alert("Dönem kapatma servisi bulunamadı. Güvenlik için istemciden devir oluşturulmadı.");
   }
+
 
   // DÖNEM İZOLASYONLARI
   const periodSatisFis = useMemo(() => satisFisList.filter(f => f.tarih.startsWith(aktifDonem)), [satisFisList, aktifDonem]);
@@ -3226,7 +3021,7 @@ export default function App() {
     const odemeTuru = odemeTurunuNormalizeEt(fis.odeme_turu);
     if (odemeTuru === "PERSONEL DEVİR" || odemeTuru === "PERSONEL DEVIR") return "PERSONEL DEVİRİ";
     if (odemeTuru === "DEVİR" || odemeTuru === "DEVIR") return "DÖNEM DEVİRİ";
-    if (odemeTuru === "KASAYA DEVİR" || odemeTuru === "KASAYA DEVIR") return "KASAYA DEVİR";
+
     return fis.odeme_turu || "SİSTEM İŞLEMİ";
   };
 
@@ -4619,7 +4414,7 @@ export default function App() {
   }), [aktifKullaniciKisa, periodSatisFis, fisFiltre, satisFiltreKisi, satisFisBayiAdiGetir]);
 
   const ozetToplamFisler = useMemo(
-    () => periodSatisFis.filter((f: any) => !fisDevirMi(f) && !fisKasayaDevirMi(f)),
+    () => periodSatisFis.filter((f: any) => !fisDevirMi(f) && !fisSistemKaydiMi(f)),
     [periodSatisFis],
   );
 
@@ -4667,11 +4462,11 @@ export default function App() {
     () =>
       new Set(
         filteredForTotals
-          .filter((f) => !fisKasayaDevirMi(f))
+          .filter((f) => !fisSistemKaydiMi(f))
           .map((fis) => String(fis.fis_no || "").trim())
           .filter(Boolean),
       ),
-    [filteredForTotals, fisKasayaDevirMi],
+    [filteredForTotals, fisSistemKaydiMi],
   );
   const tFisDevredenSatirToplami = useMemo(
     () =>
@@ -4686,11 +4481,11 @@ export default function App() {
   const tFisToplam = useMemo(
     () =>
       filteredForTotals
-        .filter((f) => !fisKasayaDevirMi(f))
+        .filter((f) => !fisSistemKaydiMi(f))
         .reduce((a: number, b: any) => a + Number(b.toplam_tutar), 0) - tFisDevredenSatirToplami,
-    [filteredForTotals, fisKasayaDevirMi, tFisDevredenSatirToplami],
+    [filteredForTotals, fisSistemKaydiMi, tFisDevredenSatirToplami],
   );
-  const tFisTahsilatRaw = useMemo(() => filteredForTotals.filter(f => !fisKasayaDevirMi(f)).reduce((a: number, b: any) => a + Number(b.tahsilat), 0), [filteredForTotals]);
+  const tFisTahsilatRaw = useMemo(() => filteredForTotals.filter(f => !fisSistemKaydiMi(f)).reduce((a: number, b: any) => a + Number(b.tahsilat), 0), [filteredForTotals]);
   const seciliSatisHesapEtiketleri = useMemo(() => {
     const set = new Set<string>();
     fisFiltre.bayiler.forEach((bayiAdi) => {
@@ -4731,13 +4526,12 @@ export default function App() {
         .reduce((a: number, b: any) => a + Number(b.tutar), 0),
     [aktifKullaniciKisa, periodGider, fisFiltre.baslangic, fisFiltre.bitis, satisFiltreKisi],
   );
-  const tKasayaDevir = useMemo(() => filteredForTotals.filter(f => fisKasayaDevirMi(f)).reduce((a: number, b: any) => a + Number(b.tahsilat), 0), [filteredForTotals]);
-  const tNetTahsilat = tFisTahsilatRaw - tKullaniciGider - tKasayaDevir;
+  const tNetTahsilat = tFisTahsilatRaw - tKullaniciGider;
 
   const fFisList = useMemo(() => sortData(filteredForTotals.filter((f: any) => {
-    if (satisFiltreTip === 'tumu') return !fisKasayaDevirMi(f); 
-    if (satisFiltreTip === 'tahsilat') return f.toplam_tutar === 0 && !fisKasayaDevirMi(f);
-    if (satisFiltreTip === 'satis') return f.toplam_tutar > 0 && !fisKasayaDevirMi(f);
+    if (satisFiltreTip === 'tumu') return !fisSistemKaydiMi(f);
+    if (satisFiltreTip === 'tahsilat') return f.toplam_tutar === 0 && !fisSistemKaydiMi(f);
+    if (satisFiltreTip === 'satis') return f.toplam_tutar > 0 && !fisSistemKaydiMi(f);
     return true;
   }), fisSort), [filteredForTotals, satisFiltreTip, fisSort]);
 
@@ -4746,81 +4540,21 @@ export default function App() {
     [periodGider],
   );
   const bayiNetDurum = bayiBorclari.reduce((a, b) => a + b.borc, 0);
-  const oncekiPersonelBakiyeleri = useMemo(
-    () => personelBakiyeleriniHesapla(oncekiSatisFisList, oncekiGiderList),
-    [oncekiGiderList, oncekiSatisFisList],
-  );
-  
-  const personelOzetleri = useMemo(() => {
-    const map: Record<string, PersonelOzeti> = {};
-    const personelDevirleri = new Set<string>();
-    const fisDevredenBorcToplamlari = new Map<string, number>();
-
-    periodSatisList.forEach((satir) => {
-      const fisNo = String(satir.fis_no || "").trim();
-      if (!fisNo || !devredenBorcSatiriMi(satisSatiriUrunAdiGetir(satir))) return;
-      fisDevredenBorcToplamlari.set(fisNo, (fisDevredenBorcToplamlari.get(fisNo) || 0) + Number(satir.tutar || 0));
-    });
-
-    periodSatisFis.forEach((f: any) => {
-      const personelDevir = fisPersonelDevirMi(f) && f.bayi === "SİSTEM İŞLEMİ";
-      const donemDevir = fisDonemDevirMi(f);
-      const key = personelDevir ? personelDevirAnahtariniGetir(f.aciklama) : personelAnahtariniGetir(f.ekleyen);
-      if (personelOzetindenHaricMi(key) || personelHesabiKapaliMi(key, aktifDonem)) return;
-      if (!map[key]) {
-        map[key] = { isim: key, satis: 0, tahsilat: 0, gider: 0, kasayaDevir: 0, net: 0, devirNet: 0 };
-      }
-
-      if (fisKasayaDevirMi(f)) {
-        map[key].kasayaDevir += Number(f.tahsilat) || 0;
-      } else if (personelDevir) {
-        personelDevirleri.add(key);
-        map[key].devirNet += Number(f.toplam_tutar) || 0;
-      } else if (donemDevir) {
-        return;
-      } else {
-        if (f.bayi !== "SİSTEM İŞLEMİ" && Number(f.toplam_tutar) > 0) {
-          const fisNo = String(f.fis_no || "").trim();
-          const devredenBorc = fisDevredenBorcToplamlari.get(fisNo) || 0;
-          const donemSatisTutari = Math.max(0, (Number(f.toplam_tutar) || 0) - devredenBorc);
-          map[key].satis += donemSatisTutari;
-        }
-        map[key].tahsilat += Number(f.tahsilat) || 0;
-      }
-    });
-
-    periodGider.forEach((g: any) => {
-      const key = personelAnahtariniGetir(g.ekleyen);
-      if (personelOzetindenHaricMi(key) || personelHesabiKapaliMi(key, aktifDonem)) return;
-      if (!map[key]) {
-        map[key] = { isim: key, satis: 0, tahsilat: 0, gider: 0, kasayaDevir: 0, net: 0, devirNet: 0 };
-      }
-      map[key].gider += Number(g.tutar) || 0;
-    });
-
-    Object.entries(oncekiPersonelBakiyeleri).forEach(([key, bakiye]) => {
-      if (personelOzetindenHaricMi(key) || personelHesabiKapaliMi(key, aktifDonem)) return;
-      if (!map[key]) {
-        map[key] = { isim: key, satis: 0, tahsilat: 0, gider: 0, kasayaDevir: 0, net: 0, devirNet: 0 };
-      }
-      if (personelDevirleri.has(key)) return;
-      map[key].devirNet = bakiye.net;
-    });
-
-    return Object.values(map)
-      .map(p => {
-        const net = p.devirNet + (p.tahsilat - p.gider - p.kasayaDevir);
-        return { ...p, net };
-      })
-      .filter(p =>
-        Math.abs(p.satis) > 0.01 ||
-        Math.abs(p.tahsilat) > 0.01 ||
-        Math.abs(p.gider) > 0.01 ||
-        Math.abs(p.kasayaDevir) > 0.01 ||
-        Math.abs(p.net) > 0.01
-      )
-      .sort((a, b) => a.isim.localeCompare(b.isim));
-  }, [aktifDonem, oncekiPersonelBakiyeleri, periodGider, periodSatisFis, periodSatisList, satisSatiriUrunAdiGetir]);
+  // Tek Net: doğrulanmış başlangıç ve sonrası sunucuda hesaplanır.
+  const personelOzetleri = useMemo<PersonelOzeti[]>(() => {
+    if (!netBakiye || netBakiye.donem !== aktifDonem) return [];
+    const fisler = periodSatisFis.filter(f => !fisDevirMi(f) && !fisSistemKaydiMi(f) && normalizeUsername(f.ekleyen) === "umit");
+    const fisNolari = new Set(fisler.map(f => String(f.fis_no || "")));
+    const devreden = periodSatisList.filter(s => fisNolari.has(String(s.fis_no || "")) && devredenBorcSatiriMi(satisSatiriUrunAdiGetir(s)))
+      .reduce((sum, s) => sum + Number(s.tutar || 0), 0);
+    return [{
+      isim: "umit",
+      satis: fisler.reduce((sum, f) => sum + Number(f.toplam_tutar || 0), 0) - devreden,
+      tahsilat: fisler.reduce((sum, f) => sum + Number(f.tahsilat || 0), 0),
+      gider: periodGider.filter(g => normalizeUsername(g.ekleyen) === "umit").reduce((sum, g) => sum + Number(g.tutar || 0), 0),
+      net: netBakiye.net,
+    }];
+  }, [aktifDonem, netBakiye, periodSatisFis, periodSatisList, periodGider, satisSatiriUrunAdiGetir]);
 
   const sekmeSecenekleri = useMemo(
     () => TAB_TANIMLARI.map((tab) => ({ id: tab.id, etiket: tab.etiket })),

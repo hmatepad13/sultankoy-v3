@@ -39,10 +39,10 @@ for (const field of ['fisUst.tahsilat', 'tahsilatForm.miktar']) {
 assert.equal(formatterScope.formatInput(''), '');
 assert.equal(formatterScope.formatInput('56500'), '56500');
 assert.equal(formatterScope.formatInput('12.50'), '12,50');
-const helper = app.slice(app.indexOf('const fisPersonelDevirMi ='), app.indexOf('const fisTahsilatMi ='));
+
 const normalizeUsername = s => (s || '').trim().toLowerCase().replace('@sistem.local', '');
 // Satış kartının gerçek gider hesabı: tarih ve Benim/Herkes kapsamı.
-const expenseExpression = app.slice(app.indexOf('  const tKullaniciGider = useMemo('), app.indexOf('  const tKasayaDevir = useMemo('));
+const expenseExpression = app.slice(app.indexOf('  const tKullaniciGider = useMemo('), app.indexOf('  const tNetTahsilat ='));
 const cardContext = {
   normalizeUsername, useMemo: fn => fn(), aktifKullaniciKisa: 'umit',
   satisFiltreKisi: 'benim', fisFiltre: { baslangic: '', bitis: '', bayiler: [] },
@@ -81,24 +81,18 @@ cardContext.satisFiltreKisi = 'benim';
 assert.equal(cardExpense(), 30);
 cardContext.satisFiltreKisi = 'herkes';
 assert.equal(cardExpense(), 190);
-const ctx = {
-  normalizeUsername, adminMi: s => normalizeUsername(s) === 'admin',
-  odemeTurunuNormalizeEt: s => (s || '').toLocaleUpperCase('tr-TR'),
-  fisDonemDevirMi: f => ['DEVIR', 'DEVİR'].includes(f.odeme_turu),
-};
-vm.runInNewContext(ts.transpileModule(helper + '\nglobalThis.calculate = personelBakiyeleriniHesapla;', {
-  compilerOptions: { target: ts.ScriptTarget.ES2022 },
-}).outputText, ctx);
-const carry = { tarih: '2026-10-01', bayi: 'SİSTEM İŞLEMİ', odeme_turu: 'PERSONEL DEVİR', aciklama: '2026-09 Personel Devir (umit)', toplam_tutar: 828547, kalan_bakiye: 10 };
-const sale = { tarih: '2026-10-01', ekleyen: 'umit@sistem.local', toplam_tutar: 100, tahsilat: 80, kalan_bakiye: 20 };
-const transfer = { tarih: '2026-10-02', ekleyen: 'umit', odeme_turu: 'KASAYA DEVİR', tahsilat: 5 };
-const expense = { tarih: '2026-10-01', ekleyen: 'umit', tutar: 12.5 };
-const result = ctx.calculate([sale, carry, transfer], [expense]);
-assert.equal(result.umit.net, 828547 + 80 - 5 - 12.5);
-assert.ok(!('acikBakiye' in result.umit));
-const next = { ...carry, tarih: '2026-11-01', toplam_tutar: result.umit.net, kalan_bakiye: 30 };
-assert.equal(ctx.calculate([sale, carry, transfer, next], [expense]).umit.net, result.umit.net);
-// Gercek gider handler'i: admin duzenlemesi sahipligi korur, cift gonderim engellenir.
+const summaryBlock = app.slice(app.indexOf("  const personelOzetleri = useMemo"), app.indexOf("  const sekmeSecenekleri ="));
+const summaryScope = {useMemo:fn=>fn(),normalizeUsername,aktifDonem:"2026-10",netBakiye:{donem:"2026-10",net:817365},
+fisDevirMi:()=>false,fisSistemKaydiMi:()=>false,periodSatisFis:[{fis_no:"F1",ekleyen:"umit",toplam_tutar:100,tahsilat:80}],
+periodSatisList:[],periodGider:[{ekleyen:"umit",tutar:10}],devredenBorcSatiriMi:()=>false,satisSatiriUrunAdiGetir:s=>s.urun};
+const summaryJs=ts.transpileModule(summaryBlock+"\nglobalThis.summary=personelOzetleri;",{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
+vm.runInNewContext(summaryJs,summaryScope);
+assert.equal(summaryScope.summary[0].net,817365);
+assert.equal(summaryScope.summary[0].satis,100);
+assert.equal(summaryScope.summary[0].gider,10);
+assert.ok(!("acikBakiye" in summaryScope.summary[0]));
+const stale={...summaryScope,netBakiye:{donem:"2026-09",net:999}};
+vm.runInNewContext(summaryJs,stale);assert.equal(stale.summary.length,0);
 const panel = fs.readFileSync('src/components/GiderPanel.tsx', 'utf8');
 // Gerçek input value ifadesi ile tuş tuş yazım; binlik ayırıcı yeniden parse edilmemeli.
 const inputValue = panel.match(/inputMode="decimal" value=\{(.*?)\} onChange/)[1];
@@ -143,4 +137,4 @@ assert.equal('created_at' in updateBody, false);
 finish({ error: null });
 await firstSave;
 assert.equal(savingRef.current, false);
-console.log('PASS: money round-trip + actual frontend net/carry + actual expense handler ownership/double-submit');
+console.log('PASS: money inputs, single Net summary, stale-period protection, expense ownership/double-submit');

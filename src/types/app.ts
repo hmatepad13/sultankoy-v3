@@ -232,44 +232,12 @@ export interface KullaniciSekmeYetkisi {
   updatedAt?: string;
 }
 
-export interface OzetKart {
-  baslik: string;
-  deger: number;
-}
-
-export interface OzetSatiri {
-  isim: string;
-  deger: number;
-}
-
 export interface PersonelOzeti {
   isim: string;
   satis: number;
   tahsilat: number;
   gider: number;
-  kasayaDevir: number;
   net: number;
-  devirNet: number;
-}
-
-export interface YedekVerisi {
-  alindiTarih: string;
-  aktifDonem: string;
-  kaynak: "supabase" | "local";
-  ozetKartlari: OzetKart[];
-  bayiBorclari: OzetSatiri[];
-  personelOzetleri: PersonelOzeti[];
-  sutList: SutGiris[];
-  satisFisList: SatisFis[];
-  satisList: SatisGiris[];
-  giderList: Gider[];
-  uretimList: Uretim[];
-  sevkiyatList?: SevkiyatKaydi[];
-  bayiler: Bayi[];
-  urunler: Urun[];
-  ciftlikler: Ciftlik[];
-  copKutusuList: CopKutusu[];
-  tabYetkileri: KullaniciSekmeYetkisi[];
 }
 
 export interface DepolamaDurumu {
