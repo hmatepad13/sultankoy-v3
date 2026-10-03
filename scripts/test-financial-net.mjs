@@ -1,0 +1,78 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+import ts from 'typescript';
+
+const context = { exports: {} };
+vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/utils/para.ts', 'utf8'), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText, context);
+const { paraGirdisiniTemizle: temizle, paraGirdisiniSayiyaCevir: sayi } = context.exports;
+for (const [input, expected] of [
+  ['1.234,56', 1234.56], ['1234.56', 1234.56], ['12.5', 12.5],
+  ['12,50', 12.5], ['-12,50', -12.5], ['1.234', 1234], ['1.234.567', 1234567],
+  ['1000', 1000], ['', 0], ['0,05', 0.05], ['1234,', 1234], ['1.234.567,89', 1234567.89],
+]) {
+  assert.equal(sayi(input), expected, input);
+  const state = temizle(input);
+  assert.equal(temizle(state), state, `idempotent: ${input}`);
+  assert.equal(sayi(state), expected, `form -> save: ${input}`);
+}
+assert.equal(temizle('12,'), '12.');
+
+// Gercek ekran helper'i: acilis, kasa devri ve gider siralama regresyonu.
+const app = fs.readFileSync('src/App.tsx', 'utf8');
+const helper = app.slice(app.indexOf('const fisPersonelDevirMi ='), app.indexOf('const fisTahsilatMi ='));
+const normalizeUsername = s => (s || '').trim().toLowerCase().replace('@sistem.local', '');
+const ctx = {
+  normalizeUsername, adminMi: s => normalizeUsername(s) === 'admin',
+  odemeTurunuNormalizeEt: s => (s || '').toLocaleUpperCase('tr-TR'),
+  fisDonemDevirMi: f => ['DEVIR', 'DEVİR'].includes(f.odeme_turu),
+};
+vm.runInNewContext(ts.transpileModule(helper + '\nglobalThis.calculate = personelBakiyeleriniHesapla;', {
+  compilerOptions: { target: ts.ScriptTarget.ES2022 },
+}).outputText, ctx);
+const carry = { tarih: '2026-10-01', bayi: 'SİSTEM İŞLEMİ', odeme_turu: 'PERSONEL DEVİR', aciklama: '2026-09 Personel Devir (umit)', toplam_tutar: 828547, kalan_bakiye: 10 };
+const sale = { tarih: '2026-10-01', ekleyen: 'umit@sistem.local', toplam_tutar: 100, tahsilat: 80, kalan_bakiye: 20 };
+const transfer = { tarih: '2026-10-02', ekleyen: 'umit', odeme_turu: 'KASAYA DEVİR', tahsilat: 5 };
+const expense = { tarih: '2026-10-01', ekleyen: 'umit', tutar: 12.5 };
+const result = ctx.calculate([sale, carry, transfer], [expense]);
+assert.equal(result.umit.net, 828547 + 80 - 5 - 12.5);
+assert.equal(result.umit.acikBakiye, 30);
+const next = { ...carry, tarih: '2026-11-01', toplam_tutar: result.umit.net, kalan_bakiye: 30 };
+assert.equal(ctx.calculate([sale, carry, transfer, next], [expense]).umit.net, result.umit.net);
+// Gercek gider handler'i: admin duzenlemesi sahipligi korur, cift gonderim engellenir.
+const panel = fs.readFileSync('src/components/GiderPanel.tsx', 'utf8');
+const handler = panel.slice(panel.indexOf('  const handleGiderKaydet ='), panel.indexOf('  const handleGiderSil ='));
+let updateBody;
+let saves = 0;
+let finish;
+const savingRef = { current: false };
+const formContext = {
+  giderKaydediliyorRef: savingRef, setGiderKaydediliyor: () => {},
+  giderForm: { tarih: '2026-10-01', tur: 'Genel Gider', tutar: '12.50', created_at: 'old-date', ekleyen: 'umit@sistem.local' },
+  periodGider: [{ id: 42, ekleyen: 'umit@sistem.local' }], editingGiderId: 42,
+  kaydiDuzenleyebilirMi: () => true, aktifDonemDisiKayitOnayMetni: () => '', aktifDonem: '2026-10',
+  giderGorselMevcutYol: '', giderGorseliYukle: async () => null,
+  aktifKullaniciEposta: 'admin@sistem.local', helpers: { paraGirdisiniSayiyaCevir: sayi },
+  handleGiderModalKapat: () => {}, onRefreshGiderler: async () => {},
+  alert: message => { throw new Error(message); },
+  supabase: { from: () => ({ update: body => {
+    updateBody = body; saves++;
+    return { eq: () => new Promise(resolve => { finish = resolve; }) };
+  } }) },
+};
+vm.runInNewContext(ts.transpileModule(handler + '\nglobalThis.save = handleGiderKaydet;', {
+  compilerOptions: { target: ts.ScriptTarget.ES2022 },
+}).outputText, formContext);
+const firstSave = formContext.save();
+await Promise.resolve();
+await formContext.save();
+assert.equal(saves, 1, 'double click');
+assert.equal(updateBody.ekleyen, 'umit@sistem.local', 'admin must not take ownership');
+assert.equal(updateBody.tutar, 12.5);
+assert.equal('created_at' in updateBody, false);
+finish({ error: null });
+await firstSave;
+assert.equal(savingRef.current, false);
+console.log('PASS: money round-trip + actual frontend net/carry + actual expense handler ownership/double-submit');

@@ -31,6 +31,7 @@ import {
 } from "./lib/supabase";
 import { uretimKaydiniNormalizeEt } from "./lib/uretim";
 import { personelHesabiKapaliMi } from "./lib/personelKapanis";
+import { paraGirdisiniTemizle, paraGirdisiniSayiyaCevir } from "./utils/para";
 import type {
   ActiveAyarTab,
   AdminKullanici,
@@ -3223,18 +3224,6 @@ export default function App() {
   const fSayi = (num: any) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 2 }).format(Number(num) || 0).replace(/,00$/, '');
   const fSayiNoDec = (num: any) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(Number(num) || 0);
   const donemMetni = (donem: string) => donem.replace("-", " / ");
-  const paraGirdisiniTemizle = (value: string) => {
-    const temiz = String(value || "")
-      .replace(/[^\d,.-]/g, "")
-      .replace(/\.(?=.*\.)/g, "");
-    const negatif = temiz.startsWith("-");
-    const isaretsiz = negatif ? temiz.slice(1) : temiz;
-    const noktasiz = isaretsiz.replace(/\./g, "");
-    const [tamKisim = "", ...ondalikParcalar] = noktasiz.split(",");
-    const ondalik = ondalikParcalar.join("").slice(0, 2);
-    return `${negatif ? "-" : ""}${tamKisim}${ondalik ? `.${ondalik}` : ""}`;
-  };
-  const paraGirdisiniSayiyaCevir = (value: string) => Number(paraGirdisiniTemizle(value)) || 0;
   const paraGirdisiniFormatla = (value: string) => {
     const temiz = paraGirdisiniTemizle(value);
     if (!temiz) return "";
@@ -5054,7 +5043,7 @@ export default function App() {
       } else if (geriYuklenenTablo === "sut_giris") {
         await verileriGetir("sut");
       } else if (geriYuklenenTablo === "giderler") {
-        await verileriGetir("gider");
+        await Promise.all([verileriGetir("satis"), verileriGetir("ozet")]);
       } else if (geriYuklenenTablo === "uretim") {
         await verileriGetir("uretim");
       }
@@ -5453,7 +5442,9 @@ export default function App() {
           periodGider,
           kaydiSilebilirMi,
           kaydiDuzenleyebilirMi,
-          onRefreshGiderler: () => verileriGetir("gider"),
+          onRefreshGiderler: async () => {
+            await Promise.all([verileriGetir("satis"), verileriGetir("ozet")]);
+          },
           onRefreshCop: () => verileriGetir("cop"),
           onOpenMiniDetay: setOzetMiniDetay,
           onPreviewImage: setFisGorselOnizleme,

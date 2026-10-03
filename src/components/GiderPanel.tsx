@@ -136,6 +136,8 @@ export function GiderPanel({
   const [isExcelLoading, setIsExcelLoading] = useState(false);
   const giderGorselKameraInputRef = useRef<HTMLInputElement | null>(null);
   const giderGorselGaleriInputRef = useRef<HTMLInputElement | null>(null);
+  const giderKaydediliyorRef = useRef(false);
+  const [giderKaydediliyor, setGiderKaydediliyor] = useState(false);
 
   useEffect(() => {
     if (isGiderModalOpen || editingGiderId) return;
@@ -254,6 +256,10 @@ export function GiderPanel({
   };
 
   const handleGiderKaydet = async () => {
+    if (giderKaydediliyorRef.current) return;
+    giderKaydediliyorRef.current = true;
+    setGiderKaydediliyor(true);
+    try {
     if (!giderForm.tarih || !giderForm.tur || !giderForm.tutar) return alert("Tarih, Tür ve Tutar zorunludur!");
     const duzenlenenKayit = periodGider.find((item) => String(item.id || "") === String(editingGiderId || ""));
     if (editingGiderId && !kaydiDuzenleyebilirMi(duzenlenenKayit?.ekleyen)) return alert("Bu gider kaydını sadece ekleyen kullanıcı veya admin düzenleyebilir.");
@@ -271,8 +277,9 @@ export function GiderPanel({
     const oncekiGorsel = duzenlenenKayit?.gorsel || giderGorselMevcutYol || "";
     let yuklenenGorselYolu = giderGorselMevcutYol || null;
     try { yuklenenGorselYolu = await giderGorseliYukle(); } catch (error: any) { return alert(`Gider görseli yüklenemedi: ${error?.message || "Bilinmeyen hata"}`); }
-    const { created_at: _createdAt, ...kayitFormu } = giderForm;
-    const payload = { ...kayitFormu, tutar: helpers.paraGirdisiniSayiyaCevir(String(giderForm.tutar || "")), ekleyen: aktifKullaniciEposta, gorsel: yuklenenGorselYolu };
+    const kayitFormu = { ...giderForm };
+    delete kayitFormu.created_at;
+    const payload = { ...kayitFormu, tutar: helpers.paraGirdisiniSayiyaCevir(String(giderForm.tutar || "")), ekleyen: editingGiderId ? duzenlenenKayit?.ekleyen || giderForm.ekleyen : aktifKullaniciEposta, gorsel: yuklenenGorselYolu };
     const kaydet = (body: typeof payload) => editingGiderId ? supabase.from("giderler").update(body).eq("id", editingGiderId) : supabase.from("giderler").insert(body);
     let { error } = await kaydet(payload);
     if (error && helpers.kolonBulunamadiMi(error, "giderler", "gorsel")) {
@@ -289,6 +296,10 @@ export function GiderPanel({
     if (editingGiderId && oncekiGorsel && oncekiGorsel !== yuklenenGorselYolu) await giderGorseliniSil(oncekiGorsel);
     handleGiderModalKapat();
     await onRefreshGiderler();
+    } finally {
+      giderKaydediliyorRef.current = false;
+      setGiderKaydediliyor(false);
+    }
   };
 
   const handleGiderSil = async (gider: Gider) => {
@@ -487,7 +498,7 @@ export function GiderPanel({
                 </div>{giderGorselDosyaAdi && <div style={{ display: "flex", gap: "8px", alignItems: "center", marginTop: "6px", flexWrap: "wrap" }}><span style={{ fontSize: "11px", color: "#64748b", maxWidth: "180px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{giderGorselDosyaAdi}</span><button type="button" onClick={handleGiderGorselTemizle} className="btn-anim" style={{ background: "transparent", border: "1px solid #fecaca", color: "#dc2626", borderRadius: "6px", padding: "6px 8px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}>Temizle</button></div>}</div>
                 <div><label style={{ fontSize: "11px", color: "#64748b" }}>Aciklama / Not</label><input placeholder="Opsiyonel..." value={giderForm.aciklama} onChange={(e) => setGiderForm({ ...giderForm, aciklama: e.target.value })} className="m-inp" style={{ width: "100%" }} /></div>
               </div>
-              <div style={{ padding: "12px 15px", borderTop: "1px solid #e2e8f0", background: "#f8fafc", borderRadius: "0 0 12px 12px" }}><button onClick={() => void handleGiderKaydet()} className="p-btn btn-anim" style={{ background: "#dc2626", width: "100%", height: "45px", fontSize: "15px" }}>{editingGiderId ? "GUNCELLE" : "KAYDET"}</button></div>
+              <div style={{ padding: "12px 15px", borderTop: "1px solid #e2e8f0", background: "#f8fafc", borderRadius: "0 0 12px 12px" }}><button disabled={giderKaydediliyor} onClick={() => void handleGiderKaydet()} className="p-btn btn-anim" style={{ background: "#dc2626", width: "100%", height: "45px", fontSize: "15px" }}>{giderKaydediliyor ? "KAYDEDİLİYOR..." : editingGiderId ? "GUNCELLE" : "KAYDET"}</button></div>
             </>
           )}
         </div>
