@@ -83,6 +83,17 @@ const next = { ...carry, tarih: '2026-11-01', toplam_tutar: result.umit.net, kal
 assert.equal(ctx.calculate([sale, carry, transfer, next], [expense]).umit.net, result.umit.net);
 // Gercek gider handler'i: admin duzenlemesi sahipligi korur, cift gonderim engellenir.
 const panel = fs.readFileSync('src/components/GiderPanel.tsx', 'utf8');
+// Gerçek input value ifadesi ile tuş tuş yazım; binlik ayırıcı yeniden parse edilmemeli.
+const inputValue = panel.match(/inputMode="decimal" value=\{(.*?)\} onChange/)[1];
+const inputDisplay = new Function('giderForm', `return ${inputValue};`);
+for (const [typed, expected] of [['56500', 56500], ['1234567', 1234567], ['56500,25', 56500.25], ['12,50', 12.5]]) {
+  let state = '';
+  for (const digit of typed) state = temizle(inputDisplay({ tutar: state }) + digit);
+  assert.equal(sayi(state), expected, `expense typing: ${typed}`);
+}
+assert.equal(inputDisplay({ tutar: 56500 }), '56500');
+assert.equal(inputDisplay({ tutar: 12.5 }), '12,5');
+assert.equal(sayi(temizle('56.500')), 56500);
 const handler = panel.slice(panel.indexOf('  const handleGiderKaydet ='), panel.indexOf('  const handleGiderSil ='));
 let updateBody;
 let saves = 0;

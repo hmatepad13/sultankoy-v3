@@ -490,7 +490,7 @@ export function GiderPanel({
                 </div>
                 <DonemDisiTarihUyarisi tarih={giderForm.tarih} aktifDonem={aktifDonem} />
                 <div><label style={{ fontSize: "11px", color: "#64748b" }}>Tutar (₺)</label><div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
-                  <input type="text" inputMode="decimal" value={helpers.paraGirdisiniFormatla(String(giderForm.tutar || ""))} onChange={(e) => setGiderForm({ ...giderForm, tutar: helpers.paraGirdisiniTemizle(e.target.value) })} className="m-inp" style={{ flex: "1 1 120px", minWidth: "120px", textAlign: "right", color: "#dc2626", fontWeight: "bold" }} />
+                  <input type="text" inputMode="decimal" value={String(giderForm.tutar || "").replace(".", ",")} onChange={(e) => setGiderForm({ ...giderForm, tutar: helpers.paraGirdisiniTemizle(e.target.value) })} className="m-inp" style={{ flex: "1 1 120px", minWidth: "120px", textAlign: "right", color: "#dc2626", fontWeight: "bold" }} />
                   <input ref={giderGorselKameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleGiderGorselSec} style={{ display: "none" }} />
                   <input ref={giderGorselGaleriInputRef} type="file" accept="image/*" onChange={handleGiderGorselSec} style={{ display: "none" }} />
                   <button type="button" onClick={() => giderGorselKameraInputRef.current?.click()} className="btn-anim" style={{ background: "#e2e8f0", border: "1px solid #cbd5e1", borderRadius: "6px", padding: "8px 10px", fontSize: "11px", fontWeight: "bold", color: "#334155", cursor: "pointer", flex: "0 0 auto", whiteSpace: "nowrap" }}>{giderGorselDosyaAdi ? "Fotografi Degistir" : "Fotograf Yukle"}</button>
