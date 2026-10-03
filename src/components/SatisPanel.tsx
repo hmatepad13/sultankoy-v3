@@ -328,23 +328,23 @@ export function SatisPanel({
             </div>
           </div>
           {gunlukUrunToplamlari.length > 0 ? (
-            <div style={{ overflowX: "auto" }}>
-              <table className="tbl" style={{ tableLayout: "fixed", minWidth: "460px", borderRadius: "0 0 8px 8px", overflow: "hidden" }}>
+            <div style={{ width: "100%", minWidth: 0 }}>
+              <table className="tbl" style={{ tableLayout: "fixed", width: "100%", minWidth: 0, borderRadius: "0 0 8px 8px", overflow: "hidden", overflowWrap: "anywhere" }}>
                 <thead>
                   <tr>
-                    <th style={{ textAlign: "left", width: "42%", background: "#ecfeff", fontSize: "9px", padding: "4px 6px" }}>ÜRÜN</th>
-                    <th style={{ textAlign: "right", width: "18%", background: "#ecfeff", fontSize: "9px", padding: "4px 6px" }}>KOVA/ADET</th>
-                    <th style={{ textAlign: "right", width: "18%", background: "#ecfeff", fontSize: "9px", padding: "4px 6px" }}>KG</th>
-                    <th style={{ textAlign: "right", width: "22%", background: "#ecfeff", fontSize: "9px", padding: "4px 6px" }}>TUTAR</th>
+                    <th style={{ textAlign: "left", width: "34%", background: "#ecfeff", fontSize: "9px", padding: "4px" }}>ÜRÜN</th>
+                    <th style={{ textAlign: "right", width: "20%", background: "#ecfeff", fontSize: "9px", padding: "4px" }}>KOVA/ADET</th>
+                    <th style={{ textAlign: "right", width: "18%", background: "#ecfeff", fontSize: "9px", padding: "4px" }}>KG</th>
+                    <th style={{ textAlign: "right", width: "28%", background: "#ecfeff", fontSize: "9px", padding: "4px" }}>TUTAR</th>
                   </tr>
                 </thead>
                 <tbody>
                   {gunlukUrunToplamlari.map((satir) => (
                     <tr key={satir.urun}>
-                      <td style={{ fontWeight: "bold", color: "#0f172a", fontSize: "11px", padding: "4px 8px" }}>{satir.urun}</td>
-                      <td style={{ textAlign: "right", color: "#0f766e", fontWeight: "bold", fontSize: "11px", padding: "4px 8px" }}>{helpers.fSayiNoDec(satir.adet)}</td>
-                      <td style={{ textAlign: "right", color: "#2563eb", fontWeight: "bold", fontSize: "11px", padding: "4px 8px" }}>{satir.kg > 0 ? helpers.fSayiNoDec(satir.kg) : "-"}</td>
-                      <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold", fontSize: "11px", padding: "4px 8px" }}>{helpers.fSayiNoDec(satir.tutar)}</td>
+                      <td style={{ fontWeight: "bold", color: "#0f172a", fontSize: "11px", padding: "4px", whiteSpace: "normal" }}>{satir.urun}</td>
+                      <td style={{ textAlign: "right", color: "#0f766e", fontWeight: "bold", fontSize: "11px", padding: "4px", whiteSpace: "normal" }}>{helpers.fSayiNoDec(satir.adet)}</td>
+                      <td style={{ textAlign: "right", color: "#2563eb", fontWeight: "bold", fontSize: "11px", padding: "4px", whiteSpace: "normal" }}>{satir.kg > 0 ? helpers.fSayiNoDec(satir.kg) : "-"}</td>
+                      <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold", fontSize: "11px", padding: "4px", whiteSpace: "normal" }}>{helpers.fSayiNoDec(satir.tutar)}</td>
                     </tr>
                   ))}
                 </tbody>
