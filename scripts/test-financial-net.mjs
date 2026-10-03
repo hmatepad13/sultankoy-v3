@@ -22,6 +22,23 @@ assert.equal(temizle('12,'), '12.');
 
 // Gercek ekran helper'i: acilis, kasa devri ve gider siralama regresyonu.
 const app = fs.readFileSync('src/App.tsx', 'utf8');
+// Satış tahsilatı, ayrı tahsilat ve kasa devrinin gerçek ortak input formatter'ı.
+const formatterCode = app.slice(app.indexOf('  const paraGirdisiniFormatla ='), app.indexOf('  const hesaplaFisGosterimKg ='));
+const formatterScope = { paraGirdisiniTemizle: temizle };
+vm.runInNewContext(ts.transpileModule(formatterCode + '\nglobalThis.formatInput = paraGirdisiniFormatla;', {
+  compilerOptions: { target: ts.ScriptTarget.ES2022 },
+}).outputText, formatterScope);
+for (const field of ['digerForm.tutar', 'fisUst.tahsilat', 'tahsilatForm.miktar']) {
+  assert.ok(app.includes(`value={paraGirdisiniFormatla(${field})}`), `input binding: ${field}`);
+  for (const [typed, expected] of [['56500', 56500], ['10000', 10000], ['123456', 123456], ['56500,25', 56500.25], ['12,50', 12.5]]) {
+    let state = '';
+    for (const digit of typed) state = temizle(formatterScope.formatInput(state) + digit);
+    assert.equal(sayi(state), expected, `${field} typing: ${typed}`);
+  }
+}
+assert.equal(formatterScope.formatInput(''), '');
+assert.equal(formatterScope.formatInput('56500'), '56500');
+assert.equal(formatterScope.formatInput('12.50'), '12,50');
 const helper = app.slice(app.indexOf('const fisPersonelDevirMi ='), app.indexOf('const fisTahsilatMi ='));
 const normalizeUsername = s => (s || '').trim().toLowerCase().replace('@sistem.local', '');
 // Satış kartının gerçek gider hesabı: tarih ve Benim/Herkes kapsamı.

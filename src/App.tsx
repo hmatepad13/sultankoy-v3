@@ -3224,15 +3224,8 @@ export default function App() {
   const fSayi = (num: any) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 2 }).format(Number(num) || 0).replace(/,00$/, '');
   const fSayiNoDec = (num: any) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(Number(num) || 0);
   const donemMetni = (donem: string) => donem.replace("-", " / ");
-  const paraGirdisiniFormatla = (value: string) => {
-    const temiz = paraGirdisiniTemizle(value);
-    if (!temiz) return "";
-    const negatif = temiz.startsWith("-");
-    const isaretsiz = negatif ? temiz.slice(1) : temiz;
-    const [tamKisim = "", ondalik] = isaretsiz.split(".");
-    const formatliTamKisim = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0 }).format(Number(tamKisim || 0));
-    return `${negatif ? "-" : ""}${formatliTamKisim}${ondalik !== undefined ? `,${ondalik}` : ""}`;
-  };
+  // Düzenlenebilir tutarlarda binlik ayırıcı ekleme: sonraki tuşta ondalık sanılabilir.
+  const paraGirdisiniFormatla = (value: string) => String(value || "").replace(".", ",");
   const hesaplaFisGosterimKg = (isim: string, adetValue: any, kgValue: any) => {
     const adet = Number(adetValue) || 0;
     const kg = Number(kgValue) || 0;
