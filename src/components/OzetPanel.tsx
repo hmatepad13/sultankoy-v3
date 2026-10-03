@@ -536,9 +536,7 @@ export function OzetPanel({
                   <th style={{ textAlign: "right" }}>Satış</th>
                   <th style={{ textAlign: "right" }}>Tahs.</th>
                   <th style={{ textAlign: "right" }}>Gider</th>
-                  <th style={{ textAlign: "right" }}>K. Devir</th>
                   <th style={{ textAlign: "right" }}>Net</th>
-                  <th style={{ textAlign: "right" }}>Açık</th>
                 </tr>
               </thead>
               <tbody>
@@ -582,17 +580,6 @@ export function OzetPanel({
                     <td
                       style={{
                         textAlign: "right",
-                        color: "#0f766e",
-                        overflowWrap: "anywhere",
-                        wordBreak: "break-word",
-                        lineHeight: 1.05,
-                      }}
-                    >
-                      {helpers.fSayiNoDec(personel.kasayaDevir)}
-                    </td>
-                    <td
-                      style={{
-                        textAlign: "right",
                         fontWeight: "bold",
                         color: personel.net >= 0 ? "#16a34a" : "#dc2626",
                         overflowWrap: "anywhere",
@@ -602,23 +589,11 @@ export function OzetPanel({
                     >
                       {helpers.fSayiNoDec(personel.net)}
                     </td>
-                    <td
-                      style={{
-                        textAlign: "right",
-                        fontWeight: "bold",
-                        color: personel.acikBakiye >= 0 ? "#f59e0b" : "#059669",
-                        overflowWrap: "anywhere",
-                        wordBreak: "break-word",
-                        lineHeight: 1.05,
-                      }}
-                    >
-                      {helpers.fSayiNoDec(personel.acikBakiye)}
-                    </td>
                   </tr>
                 ))}
                 {personelOzetleri.length === 0 && (
                   <tr>
-                    <td colSpan={7} style={{ textAlign: "center", color: "#94a3b8" }}>
+                    <td colSpan={5} style={{ textAlign: "center", color: "#94a3b8" }}>
                       Bu döneme ait personel hareketi bulunmuyor.
                     </td>
                   </tr>
