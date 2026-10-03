@@ -34,6 +34,10 @@ try:
             assert fingerprints() == initial, 'Migration changed financial records'
             q.execute(migration)
             assert fingerprints() == initial, 'Migration is not idempotent'
+            retirement = Path('supabase/migrations/20261003150000_retire_personnel_open_balance.sql').read_text(encoding='utf-8')
+            q.execute(retirement)
+            q.execute(retirement)
+            assert fingerprints() == initial, 'Personnel retirement changed historical records'
 
         q.execute("select id,username from profiles where app_normalize_username(username)='umit'")
         actor = q.fetchone()
@@ -70,7 +74,9 @@ try:
 
         def carries():
             q.execute("select tarih,toplam_tutar,kalan_bakiye,aciklama from satis_fisleri where odeme_turu='PERSONEL DEVİR' and tarih>='2026-11-01' order by tarih,aciklama")
-            return q.fetchall()
+            result = q.fetchall()
+            assert all(r['kalan_bakiye'] == 0 for r in result), 'Retired personnel open balance carried forward'
+            return result
 
         # Exact normal authorized wrapper, not just privileged core.
         q.execute('savepoint authenticated_close')

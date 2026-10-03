@@ -242,7 +242,6 @@ export function OzetPanel({
             Tahsilat: item.tahsilat,
             Gider: item.gider,
             Net: item.net,
-            "Acik Bakiye": item.acikBakiye,
           })),
         },
       ]);

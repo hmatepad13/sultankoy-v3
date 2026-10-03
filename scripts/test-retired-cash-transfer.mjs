@@ -43,11 +43,11 @@ const months = [...new Set(data.receipts.map(f => f.tarih.slice(0, 7)))].sort();
 for (const month of months) {
   const receipts = data.receipts.filter(f => f.tarih.slice(0, 7) <= month);
   const expenses = data.expenses.filter(g => g.tarih.slice(0, 7) <= month);
-  assert.equal(JSON.stringify(newCalc(receipts, expenses)), JSON.stringify(oldCalc(receipts, expenses)), `historical balances: ${month}`);
+  const nets = result => Object.fromEntries(Object.entries(result).map(([key, value]) => [key, value.net]));
+  assert.equal(JSON.stringify(nets(newCalc(receipts, expenses))), JSON.stringify(nets(oldCalc(receipts, expenses))), `historical net: ${month}`);
 }
 // Özetteki hesap ve satış neti birebir aynı kalmalı.
 for (const [start, end] of [
-  ['  const personelOzetleri = useMemo', '  const sekmeSecenekleri ='],
   ['  const tKasayaDevir = useMemo', '  const fFisList = useMemo'],
 ]) {
   const block = s => s.slice(s.indexOf(start), s.indexOf(end)).replace(/\r\n/g, '\n');

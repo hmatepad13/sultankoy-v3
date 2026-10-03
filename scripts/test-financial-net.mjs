@@ -95,7 +95,7 @@ const transfer = { tarih: '2026-10-02', ekleyen: 'umit', odeme_turu: 'KASAYA DEV
 const expense = { tarih: '2026-10-01', ekleyen: 'umit', tutar: 12.5 };
 const result = ctx.calculate([sale, carry, transfer], [expense]);
 assert.equal(result.umit.net, 828547 + 80 - 5 - 12.5);
-assert.equal(result.umit.acikBakiye, 30);
+assert.ok(!('acikBakiye' in result.umit));
 const next = { ...carry, tarih: '2026-11-01', toplam_tutar: result.umit.net, kalan_bakiye: 30 };
 assert.equal(ctx.calculate([sale, carry, transfer, next], [expense]).umit.net, result.umit.net);
 // Gercek gider handler'i: admin duzenlemesi sahipligi korur, cift gonderim engellenir.

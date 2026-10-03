@@ -295,12 +295,12 @@ const personelBakiyeleriniHesapla = (
 ) => {
   const map: Record<
     string,
-    { devirNet: number; devirAcik: number; tahsilat: number; gider: number; kasayaDevir: number; acikBakiye: number }
+    { devirNet: number; tahsilat: number; gider: number; kasayaDevir: number }
   > = {};
 
   const kayitGetir = (key: string) => {
     if (!map[key]) {
-      map[key] = { devirNet: 0, devirAcik: 0, tahsilat: 0, gider: 0, kasayaDevir: 0, acikBakiye: 0 };
+      map[key] = { devirNet: 0, tahsilat: 0, gider: 0, kasayaDevir: 0 };
     }
     return map[key];
   };
@@ -351,11 +351,9 @@ const personelBakiyeleriniHesapla = (
     if (personelDevir) {
       map[key] = {
         devirNet: Number(fis.toplam_tutar || 0),
-        devirAcik: Number(fis.kalan_bakiye || 0),
         tahsilat: 0,
         gider: 0,
         kasayaDevir: 0,
-        acikBakiye: 0,
       };
       return;
     }
@@ -370,7 +368,6 @@ const personelBakiyeleriniHesapla = (
     }
 
     kayit.tahsilat += Number(fis.tahsilat || 0);
-    kayit.acikBakiye += Number(fis.kalan_bakiye || 0);
   });
 
   return Object.fromEntries(
@@ -378,10 +375,9 @@ const personelBakiyeleriniHesapla = (
       key,
       {
         net: deger.devirNet + (deger.tahsilat - deger.gider - deger.kasayaDevir),
-        acikBakiye: deger.devirAcik + deger.acikBakiye,
       },
     ]),
-  ) as Record<string, { net: number; acikBakiye: number }>;
+  ) as Record<string, { net: number }>;
 };
 
 const fisTahsilatMi = (fis: Partial<SatisFis>) =>
@@ -3176,7 +3172,7 @@ export default function App() {
      }));
 
      const personelDevirFisleri = personelOzetleri
-       .filter(p => Math.abs(p.net) > 0.01 || Math.abs(p.acikBakiye) > 0.01)
+       .filter(p => Math.abs(p.net) > 0.01)
        .map((p, index) => ({
          fis_no: benzersizFisNoOlustur("PDEVIR", index),
          tarih: `${nextDonem}-01`,
@@ -3184,7 +3180,7 @@ export default function App() {
          bayi: "SİSTEM İŞLEMİ",
          toplam_tutar: p.net,
          tahsilat: 0,
-         kalan_bakiye: p.acikBakiye,
+         kalan_bakiye: 0,
          odeme_turu: "PERSONEL DEVİR",
          aciklama: `${aktifDonem} Personel Devir (${p.isim})`,
          ekleyen: aktifKullaniciEposta
@@ -4772,7 +4768,7 @@ export default function App() {
       const key = personelDevir ? personelDevirAnahtariniGetir(f.aciklama) : personelAnahtariniGetir(f.ekleyen);
       if (personelOzetindenHaricMi(key) || personelHesabiKapaliMi(key, aktifDonem)) return;
       if (!map[key]) {
-        map[key] = { isim: key, satis: 0, tahsilat: 0, gider: 0, kasayaDevir: 0, net: 0, acikBakiye: 0, devirNet: 0, devirAcik: 0 };
+        map[key] = { isim: key, satis: 0, tahsilat: 0, gider: 0, kasayaDevir: 0, net: 0, devirNet: 0 };
       }
 
       if (fisKasayaDevirMi(f)) {
@@ -4780,7 +4776,6 @@ export default function App() {
       } else if (personelDevir) {
         personelDevirleri.add(key);
         map[key].devirNet += Number(f.toplam_tutar) || 0;
-        map[key].devirAcik += Number(f.kalan_bakiye) || 0;
       } else if (donemDevir) {
         return;
       } else {
@@ -4791,7 +4786,6 @@ export default function App() {
           map[key].satis += donemSatisTutari;
         }
         map[key].tahsilat += Number(f.tahsilat) || 0;
-        map[key].acikBakiye += Number(f.kalan_bakiye) || 0;
       }
     });
 
@@ -4799,7 +4793,7 @@ export default function App() {
       const key = personelAnahtariniGetir(g.ekleyen);
       if (personelOzetindenHaricMi(key) || personelHesabiKapaliMi(key, aktifDonem)) return;
       if (!map[key]) {
-        map[key] = { isim: key, satis: 0, tahsilat: 0, gider: 0, kasayaDevir: 0, net: 0, acikBakiye: 0, devirNet: 0, devirAcik: 0 };
+        map[key] = { isim: key, satis: 0, tahsilat: 0, gider: 0, kasayaDevir: 0, net: 0, devirNet: 0 };
       }
       map[key].gider += Number(g.tutar) || 0;
     });
@@ -4807,26 +4801,23 @@ export default function App() {
     Object.entries(oncekiPersonelBakiyeleri).forEach(([key, bakiye]) => {
       if (personelOzetindenHaricMi(key) || personelHesabiKapaliMi(key, aktifDonem)) return;
       if (!map[key]) {
-        map[key] = { isim: key, satis: 0, tahsilat: 0, gider: 0, kasayaDevir: 0, net: 0, acikBakiye: 0, devirNet: 0, devirAcik: 0 };
+        map[key] = { isim: key, satis: 0, tahsilat: 0, gider: 0, kasayaDevir: 0, net: 0, devirNet: 0 };
       }
       if (personelDevirleri.has(key)) return;
       map[key].devirNet = bakiye.net;
-      map[key].devirAcik = bakiye.acikBakiye;
     });
 
     return Object.values(map)
       .map(p => {
         const net = p.devirNet + (p.tahsilat - p.gider - p.kasayaDevir);
-        const acikBakiye = p.devirAcik + p.acikBakiye;
-        return { ...p, net, acikBakiye };
+        return { ...p, net };
       })
       .filter(p =>
         Math.abs(p.satis) > 0.01 ||
         Math.abs(p.tahsilat) > 0.01 ||
         Math.abs(p.gider) > 0.01 ||
         Math.abs(p.kasayaDevir) > 0.01 ||
-        Math.abs(p.net) > 0.01 ||
-        Math.abs(p.acikBakiye) > 0.01
+        Math.abs(p.net) > 0.01
       )
       .sort((a, b) => a.isim.localeCompare(b.isim));
   }, [aktifDonem, oncekiPersonelBakiyeleri, periodGider, periodSatisFis, periodSatisList, satisSatiriUrunAdiGetir]);

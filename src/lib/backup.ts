@@ -265,9 +265,7 @@ const personelKaydiGetir = (map: Record<string, PersonelOzeti>, key: string) => 
       gider: 0,
       kasayaDevir: 0,
       net: 0,
-      acikBakiye: 0,
       devirNet: 0,
-      devirAcik: 0,
     };
   }
   return map[key];
@@ -294,7 +292,6 @@ const personelOzetleriniOlustur = (satisFisleri: SatisFis[], giderler: Gider[]) 
 
     if (personelDevir) {
       kayit.devirNet += Number(fis.toplam_tutar || 0);
-      kayit.devirAcik += Number(fis.kalan_bakiye || 0);
       return;
     }
 
@@ -305,7 +302,6 @@ const personelOzetleriniOlustur = (satisFisleri: SatisFis[], giderler: Gider[]) 
     }
 
     kayit.tahsilat += Number(fis.tahsilat || 0);
-    kayit.acikBakiye += Number(fis.kalan_bakiye || 0);
   });
 
   giderler.forEach((gider) => {
@@ -317,16 +313,14 @@ const personelOzetleriniOlustur = (satisFisleri: SatisFis[], giderler: Gider[]) 
   return Object.values(map)
     .map((item) => {
       const net = item.devirNet + (item.tahsilat - item.gider - item.kasayaDevir);
-      const acikBakiye = item.devirAcik + item.acikBakiye;
-      return { ...item, net, acikBakiye };
+      return { ...item, net };
     })
     .filter((item) =>
       Math.abs(item.satis) > 0.01 ||
       Math.abs(item.tahsilat) > 0.01 ||
       Math.abs(item.gider) > 0.01 ||
       Math.abs(item.kasayaDevir) > 0.01 ||
-      Math.abs(item.net) > 0.01 ||
-      Math.abs(item.acikBakiye) > 0.01,
+      Math.abs(item.net) > 0.01,
     )
     .sort((a, b) => a.isim.localeCompare(b.isim, "tr"));
 };
@@ -359,9 +353,7 @@ const donemBazliPersonelOzetleriOlustur = (veri: YedekVerisi) =>
       Tahsilat: item.tahsilat,
       Gider: item.gider,
       Net: item.net,
-      "Acik Bakiye": item.acikBakiye,
       "Devir Net": item.devirNet,
-      "Devir Acik": item.devirAcik,
       })),
   );
 
@@ -444,9 +436,7 @@ const personelCevir = (kayitlar: PersonelOzeti[]) =>
     Tahsilat: item.tahsilat,
     Gider: item.gider,
     "Net Kalan": item.net,
-    "Acik Bakiye": item.acikBakiye,
     "Devir Net": item.devirNet,
-    "Devir Acik": item.devirAcik,
   }));
 
 const copKutusuOzetleri = (veri: YedekVerisi) =>
@@ -687,7 +677,6 @@ export const yedegiExcelIndir = (veri: YedekVerisi) => {
       Tahsilat: item.tahsilat,
       Gider: item.gider,
       Net: item.net,
-      "Acik Bakiye": item.acikBakiye,
     }));
 
     bolumluSheetEkle(workbook, `${donem} Rapor`, [
@@ -850,7 +839,7 @@ export const yedegiHtmlIndir = (veri: YedekVerisi) => {
 
   const personelTablosu = donemBloklariniOlustur((donem) =>
     htmlTablo(
-      ["Personel", "Satis", "Tahsilat", "Gider", "Net", "Acik Bakiye"],
+      ["Personel", "Satis", "Tahsilat", "Gider", "Net"],
       personelOzetleriniOlustur(
         listeyiDonemeGoreFiltrele(veri.satisFisList, donem),
         listeyiDonemeGoreFiltrele(veri.giderList, donem),
@@ -860,7 +849,6 @@ export const yedegiHtmlIndir = (veri: YedekVerisi) => {
         Tahsilat: item.tahsilat,
         Gider: item.gider,
         Net: item.net,
-        "Acik Bakiye": item.acikBakiye,
       })),
     ),
   );

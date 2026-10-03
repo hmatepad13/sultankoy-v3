@@ -249,9 +249,7 @@ export interface PersonelOzeti {
   gider: number;
   kasayaDevir: number;
   net: number;
-  acikBakiye: number;
   devirNet: number;
-  devirAcik: number;
 }
 
 export interface YedekVerisi {
