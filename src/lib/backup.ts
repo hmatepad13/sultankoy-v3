@@ -130,35 +130,6 @@ const kasayaDevirMi = (odemeTuru?: string | null) => {
   return normal === "KASAYA DEVİR" || normal === "KASAYA DEVIR";
 };
 
-const giderTurunuNormalizeEt = (tur?: string | null) =>
-  String(tur || "")
-    .toLocaleLowerCase("tr-TR")
-    .replace(/ü/g, "u")
-    .replace(/ö/g, "o")
-    .replace(/ı/g, "i")
-    .replace(/ş/g, "s")
-    .replace(/ğ/g, "g")
-    .replace(/ç/g, "c");
-
-const sutOdemesiMi = (tur?: string | null) => giderTurunuNormalizeEt(tur) === "sut odemesi";
-
-const sutcuBorcunuHesapla = (sutKayitlari: YedekVerisi["sutList"], giderKayitlari: Gider[], sonDonem?: string) => {
-  const toplamSutTutari = sutKayitlari.reduce((toplam, item) => {
-    const donem = donemGetir(item.tarih);
-    if (sonDonem && donem > sonDonem) return toplam;
-    return toplam + Number(item.toplam_tl || 0);
-  }, 0);
-
-  const toplamSutOdemesi = giderKayitlari.reduce((toplam, item) => {
-    const donem = donemGetir(item.tarih);
-    if (sonDonem && donem > sonDonem) return toplam;
-    if (!sutOdemesiMi(item.tur)) return toplam;
-    return toplam + Number(item.tutar || 0);
-  }, 0);
-
-  return toplamSutTutari - toplamSutOdemesi;
-};
-
 const yedekDosyaTarihi = (isoTarih: string) =>
   isoTarih
     .replace(/[-:]/g, "")
@@ -413,7 +384,6 @@ const donemOzetiOlustur = (veri: YedekVerisi) =>
     const donemSatisToplami = donemSatisFisleri
       .filter((item) => !cariDevirMi(item.odeme_turu) && !personelDevirMi(item.odeme_turu) && !kasayaDevirMi(item.odeme_turu))
       .reduce((toplam, item) => toplam + Number(item.toplam_tutar || 0), 0);
-    const sutcuyeBorc = sutcuBorcunuHesapla(veri.sutList, veri.giderList, donem);
 
     return {
       Donem: donem,
@@ -426,7 +396,6 @@ const donemOzetiOlustur = (veri: YedekVerisi) =>
       "Toplam Satış": donemSatisToplami,
       "Toplam Gider": donemGiderleri.reduce((toplam, item) => toplam + Number(item.tutar || 0), 0),
       "Bayi Açık Hesap": Object.values(donemSonuBorclar).reduce((toplam, borc) => toplam + borc, 0),
-      "Sütçüye Borcumuz": sutcuyeBorc,
     };
     });
   };
@@ -445,7 +414,6 @@ const donemRaporKartlariniOlustur = (veri: YedekVerisi, donem: string) => {
     (toplam, borc) => toplam + borc,
     0,
   );
-  const sutBorcu = sutcuBorcunuHesapla(veri.sutList, veri.giderList, donem);
 
   return [
     { baslik: "Donem", deger: donem },
@@ -453,7 +421,6 @@ const donemRaporKartlariniOlustur = (veri: YedekVerisi, donem: string) => {
     { baslik: "Gider", deger: fSayi(giderToplami + uretimMaliyeti) },
     { baslik: "Tahsilat", deger: fSayi(tahsilatToplami) },
     { baslik: "Acik Hesap", deger: fSayi(acikHesap) },
-    { baslik: "Sut Borcu", deger: fSayi(sutBorcu) },
   ];
 };
 
@@ -853,7 +820,6 @@ export const yedegiHtmlIndir = (veri: YedekVerisi) => {
         "Toplam Satis",
         "Toplam Gider",
         "Bayi Acik Hesap",
-        "Sutcuye Borcumuz",
       ];
 
   const donemIcinOzetKartlari = (donem: string) => htmlKartlar(donemRaporKartlariniOlustur(veri, donem));

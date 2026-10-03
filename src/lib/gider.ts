@@ -1,4 +1,4 @@
-import type { Gider, SutGiris } from "../types/app";
+import type { Gider } from "../types/app";
 
 export const giderTurunuNormalizeEt = (tur?: string | null) =>
   String(tur || "")
@@ -27,23 +27,6 @@ export const hammaddeBorcuGideriMi = (tur?: string | null) =>
   kremaBorcuMi(tur) || kovaBorcuMi(tur) || katkiBorcuMi(tur) || sutTozuBorcuMi(tur);
 
 export const normalGiderMi = (tur?: string | null) => !odemeGideriMi(tur) && !hammaddeBorcuGideriMi(tur);
-
-export const sutcuBorcunuHesapla = (sutKayitlari: SutGiris[], giderKayitlari: Gider[], sonDonem?: string) => {
-  const toplamSutTutari = sutKayitlari.reduce((toplam, item) => {
-    const donem = String(item.tarih || "").substring(0, 7);
-    if (sonDonem && donem > sonDonem) return toplam;
-    return toplam + Number(item.toplam_tl || 0);
-  }, 0);
-
-  const toplamSutOdemesi = giderKayitlari.reduce((toplam, item) => {
-    const donem = String(item.tarih || "").substring(0, 7);
-    if (sonDonem && donem > sonDonem) return toplam;
-    if (!sutOdemesiMi(item.tur)) return toplam;
-    return toplam + Number(item.tutar || 0);
-  }, 0);
-
-  return toplamSutTutari - toplamSutOdemesi;
-};
 
 export const hammaddeBorclariniHesapla = (giderKayitlari: Gider[], sonDonem?: string) => {
   const toplamBorclar = giderKayitlari.reduce(
