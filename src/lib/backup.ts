@@ -358,7 +358,6 @@ const donemBazliPersonelOzetleriOlustur = (veri: YedekVerisi) =>
       Satis: item.satis,
       Tahsilat: item.tahsilat,
       Gider: item.gider,
-      "Kasaya Devir": item.kasayaDevir,
       Net: item.net,
       "Acik Bakiye": item.acikBakiye,
       "Devir Net": item.devirNet,
@@ -444,7 +443,6 @@ const personelCevir = (kayitlar: PersonelOzeti[]) =>
     Satis: item.satis,
     Tahsilat: item.tahsilat,
     Gider: item.gider,
-    "Kasaya Devir": item.kasayaDevir,
     "Net Kalan": item.net,
     "Acik Bakiye": item.acikBakiye,
     "Devir Net": item.devirNet,
@@ -688,7 +686,6 @@ export const yedegiExcelIndir = (veri: YedekVerisi) => {
       Satis: item.satis,
       Tahsilat: item.tahsilat,
       Gider: item.gider,
-      "Kasaya Devir": item.kasayaDevir,
       Net: item.net,
       "Acik Bakiye": item.acikBakiye,
     }));
@@ -853,7 +850,7 @@ export const yedegiHtmlIndir = (veri: YedekVerisi) => {
 
   const personelTablosu = donemBloklariniOlustur((donem) =>
     htmlTablo(
-      ["Personel", "Satis", "Tahsilat", "Gider", "Kasaya Devir", "Net", "Acik Bakiye"],
+      ["Personel", "Satis", "Tahsilat", "Gider", "Net", "Acik Bakiye"],
       personelOzetleriniOlustur(
         listeyiDonemeGoreFiltrele(veri.satisFisList, donem),
         listeyiDonemeGoreFiltrele(veri.giderList, donem),
@@ -862,7 +859,6 @@ export const yedegiHtmlIndir = (veri: YedekVerisi) => {
         Satis: item.satis,
         Tahsilat: item.tahsilat,
         Gider: item.gider,
-        "Kasaya Devir": item.kasayaDevir,
         Net: item.net,
         "Acik Bakiye": item.acikBakiye,
       })),
@@ -1017,7 +1013,7 @@ export const yedegiHtmlIndir = (veri: YedekVerisi) => {
       id: "personel",
       etiket: "Personel",
       baslik: "Personel Ozetleri",
-      aciklama: "Tahsilat, gider, kasaya devir ve net bakiye takibi.",
+      aciklama: "Tahsilat, gider ve net bakiye takibi.",
       icerik: personelTablosu,
     },
     {

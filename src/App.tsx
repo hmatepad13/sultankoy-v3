@@ -268,6 +268,7 @@ const fisPersonelDevirMi = (fis: Partial<SatisFis>) => {
   return odemeTuru === "PERSONEL DEVİR" || odemeTuru === "PERSONEL DEVIR";
 };
 
+// Yalnızca eski kayıt uyumluluğu: yeni kayıt/form yok. Kaldırmak geçmiş neti değiştirir.
 const fisKasayaDevirMi = (fis: Partial<SatisFis>) => {
   const odemeTuru = odemeTurunuNormalizeEt(fis.odeme_turu);
   return odemeTuru === "KASAYA DEVİR" || odemeTuru === "KASAYA DEVIR";
@@ -973,19 +974,9 @@ export default function App() {
   const satisVarsayilanFiltresiKullaniciRef = useRef<string | null>(null);
   const fisKaydediliyorRef = useRef(false);
   const tahsilatKaydediliyorRef = useRef(false);
-  const kasaDevirKaydediliyorRef = useRef(false);
   const [fisKaydediliyor, setFisKaydediliyor] = useState(false);
   const [tahsilatKaydediliyor, setTahsilatKaydediliyor] = useState(false);
-  const [kasaDevirKaydediliyor, setKasaDevirKaydediliyor] = useState(false);
   
-  // DİĞER İŞLEMLER (Sadece Kasaya Devir Kaldı)
-  const [digerModalConfig, setDigerModalConfig] = useState<{
-    isOpen: boolean;
-    type: 'kasa_devir' | null;
-    mode: 'create' | 'edit' | 'view';
-    fisId: number | null;
-  }>({ isOpen: false, type: null, mode: 'create', fisId: null });
-  const [digerForm, setDigerForm] = useState({tarih: getLocalDateString(), tutar: "", aciklama: ""});
 
   // YENİ AYARLAR STATE'İ (Çöp Kutusu Eklendi)
   const [activeAyarTab, setActiveAyarTab] = useState<ActiveAyarTab>("musteriler");
@@ -998,7 +989,7 @@ export default function App() {
 
   // --- SATIŞ STATE'LERİ ---
   const [satisFiltreKisi, setSatisFiltreKisi] = useState<"benim" | "herkes">("benim");
-  const [satisFiltreTip, setSatisFiltreTip] = useState<"tumu" | "satis" | "tahsilat" | "kasa_devir">("tumu");
+  const [satisFiltreTip, setSatisFiltreTip] = useState<"tumu" | "satis" | "tahsilat">("tumu");
   
   const [isFisModalOpen, setIsFisModalOpen] = useState<boolean>(false);
   const [isTahsilatModalOpen, setIsTahsilatModalOpen] = useState<boolean>(false);
@@ -3716,111 +3707,6 @@ export default function App() {
     });
   }
 
-  const resetDigerForm = () => {
-    setDigerModalConfig({ isOpen: false, type: null, mode: "create", fisId: null });
-    setDigerForm({ tarih: getLocalDateString(), tutar: "", aciklama: "" });
-  };
-
-  const handleKasaDevirGoruntule = (fis: SatisFis) => {
-    setDigerForm({
-      tarih: fis.tarih || getLocalDateString(),
-      tutar: paraGirdisiniTemizle(String(Number(fis.tahsilat || 0) || "")),
-      aciklama: fis.aciklama || "",
-    });
-    setDigerModalConfig({ isOpen: true, type: "kasa_devir", mode: "view", fisId: Number(fis.id) || null });
-  };
-
-  const handleKasaDevirDuzenle = (fis: SatisFis) => {
-    if (!fisDuzenlenebilirMi(fis)) {
-      alert("Bu kasa devir fişini sadece ekleyen kullanıcı veya admin düzenleyebilir.");
-      return;
-    }
-    setDigerForm({
-      tarih: fis.tarih || getLocalDateString(),
-      tutar: paraGirdisiniTemizle(String(Number(fis.tahsilat || 0) || "")),
-      aciklama: fis.aciklama || "",
-    });
-    setDigerModalConfig({ isOpen: true, type: "kasa_devir", mode: "edit", fisId: Number(fis.id) || null });
-  };
-
-  async function handleDigerIslemKaydet() {
-    return handleKasaDevirKaydet();
-    if (!digerForm.tutar || paraGirdisiniSayiyaCevir(digerForm.tutar) <= 0) return alert("Geçerli bir tutar girin.");
-
-    const fNo = `D-${Date.now().toString().slice(-6)}${Math.floor(Math.random()*1000)}`;
-    const tahsilat = paraGirdisiniSayiyaCevir(digerForm.tutar);
-
-    const fData = {
-        fis_no: fNo,
-        tarih: digerForm.tarih,
-        bayi_id: null,
-        bayi: "SİSTEM İŞLEMİ",
-        toplam_tutar: 0,
-        tahsilat: tahsilat,
-        kalan_bakiye: 0,
-        odeme_turu: 'KASAYA DEVİR',
-        aciklama: digerForm.aciklama,
-        ekleyen: aktifKullaniciEposta
-    };
-
-    const { error } = await supabase.from("satis_fisleri").insert(fData);
-    if (error) return alert("Hata: " + veritabaniHatasiMesaji("satis_fisleri", error));
-
-    resetDigerForm();
-    verileriGetir("satis");
-  }
-
-  async function handleKasaDevirKaydet() {
-    return kayitIslemiCalistir(kasaDevirKaydediliyorRef, setKasaDevirKaydediliyor, async () => {
-    if (!digerForm.tutar || paraGirdisiniSayiyaCevir(digerForm.tutar) <= 0) return alert("Geçerli bir tutar girin.");
-    const oncekiKasaDevirTarihi = digerModalConfig.mode === "edit" && digerModalConfig.fisId
-      ? satisFisList.find((fis) => String(fis.id ?? "") === String(digerModalConfig.fisId))?.tarih
-      : null;
-
-    const donemDisiOnayMesaji = aktifDonemDisiKayitOnayMetni(digerForm.tarih, aktifDonem);
-    if (
-      donemDisiOnayMesaji &&
-      !(await confirmDialogAc({
-        title: "Dönem Dışı Kayıt",
-        message: donemDisiOnayMesaji,
-        confirmText: "Evet, Kaydet",
-        cancelText: "Vazgeç",
-        tone: "warning",
-      }))
-    ) return;
-
-    const tahsilat = paraGirdisiniSayiyaCevir(digerForm.tutar);
-    const ortakData = {
-      tarih: digerForm.tarih,
-      bayi_id: null,
-      bayi: "SİSTEM İŞLEMİ",
-      toplam_tutar: 0,
-      tahsilat,
-      kalan_bakiye: 0,
-      odeme_turu: "KASAYA DEVİR",
-      aciklama: digerForm.aciklama,
-    };
-
-    const { error } =
-      digerModalConfig.mode === "edit" && digerModalConfig.fisId
-        ? await supabase.from("satis_fisleri").update(ortakData).eq("id", digerModalConfig.fisId)
-        : await supabase.from("satis_fisleri").insert({
-            ...ortakData,
-            fis_no: `D-${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 1000)}`,
-            ekleyen: aktifKullaniciEposta,
-          });
-
-    if (error) return alert("Hata: " + veritabaniHatasiMesaji("satis_fisleri", error));
-
-    resetDigerForm();
-    try {
-      await gecmisDonemDevirleriniYenile([oncekiKasaDevirTarihi, digerForm.tarih], "kasa devir kaydı");
-    } catch (yenilemeHatasi: any) {
-      alert(`Kasa devir kaydedildi ama dönem devirleri otomatik yenilenemedi. ${yenilemeHatasi?.message || ""}`.trim());
-    }
-    await verileriGetir("satis");
-    });
-  }
 
   const handleBayiSecimi = (secilenBayi: string) => {
     if (!secilenBayi) return;
@@ -4854,7 +4740,6 @@ export default function App() {
 
   const fFisList = useMemo(() => sortData(filteredForTotals.filter((f: any) => {
     if (satisFiltreTip === 'tumu') return !fisKasayaDevirMi(f); 
-    if (satisFiltreTip === 'kasa_devir') return fisKasayaDevirMi(f);
     if (satisFiltreTip === 'tahsilat') return f.toplam_tutar === 0 && !fisKasayaDevirMi(f);
     if (satisFiltreTip === 'satis') return f.toplam_tutar > 0 && !fisKasayaDevirMi(f);
     return true;
@@ -5334,7 +5219,6 @@ export default function App() {
           tFisToplam,
           tFisTahsilatRaw,
           tKullaniciGider,
-          tKasayaDevir,
           tNetTahsilat,
           tFisKalan,
           bugun,
@@ -5347,19 +5231,15 @@ export default function App() {
               resetTahsilatForm();
               setIsTahsilatModalOpen(true);
             },
-            onOpenNewKasaDevir: () => setDigerModalConfig({ isOpen: true, type: "kasa_devir", mode: "create", fisId: null }),
             onViewFisImage: handleFisGorselGoster,
             onViewFisDetail: handleFisDetayGoster,
-            onViewKasaDevir: handleKasaDevirGoruntule,
             onEditTahsilat: handleTahsilatDuzenle,
-            onEditKasaDevir: handleKasaDevirDuzenle,
             onEditFis: handleFisDuzenle,
             onDeleteFis: handleFisSil,
           },
           visibility: {
             fisSilinebilirMi,
             fisDuzenlenebilirMi,
-            fisKasayaDevirMi,
             fisTahsilatMi,
             sistemIslemiMi,
             satisFisBayiAdiGetir,
@@ -5989,36 +5869,6 @@ export default function App() {
           </div>
         )}
 
-        {digerModalConfig.isOpen && (
-          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1400, padding: "10px" }}>
-            <div style={{ backgroundColor: "#fff", width: "95vw", maxWidth: "350px", borderRadius: "12px", display: "flex", flexDirection: "column", animation: "fadeIn 0.2s ease-out", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }} onClick={e => e.stopPropagation()}>
-               <div style={{ padding: "12px 15px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f8fafc", borderRadius: "12px 12px 0 0" }}>
-                 <h3 style={{ margin: "0", color: "#64748b", fontSize: "15px" }}>{digerModalConfig.mode === "view" ? "🏦 Kasaya Devir Görüntüle" : digerModalConfig.mode === "edit" ? "🏦 Kasaya Devir Düzenle" : "🏦 Kasaya Devir"}</h3>
-                 <button onClick={resetDigerForm} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#94a3b8", padding: 0 }}>✕</button>
-               </div>
-               <div style={{ padding: "15px", display: "flex", flexDirection: "column", gap: "10px" }}>
-                 <div style={{ display: "flex", gap: "8px" }}>
-                    <div style={{flex: 1}}><label style={{fontSize: "11px", color: "#64748b"}}>Tarih</label><input type="date" value={digerForm.tarih} onChange={e => setDigerForm({...digerForm, tarih: e.target.value})} readOnly={digerModalConfig.mode === "view"} disabled={digerModalConfig.mode === "view"} className="m-inp date-click" style={{ width: "100%", opacity: digerModalConfig.mode === "view" ? 0.85 : 1 }} /></div>
-                    <div style={{flex: 1}}><label style={{fontSize: "11px", color: "#64748b"}}>Tutar (₺)</label><input type="text" inputMode="decimal" value={paraGirdisiniFormatla(digerForm.tutar)} onChange={e => setDigerForm({...digerForm, tutar: paraGirdisiniTemizle(e.target.value)})} readOnly={digerModalConfig.mode === "view"} disabled={digerModalConfig.mode === "view"} className="m-inp" style={{width: "100%", textAlign: "right", color: "#0f172a", fontWeight: "bold", opacity: digerModalConfig.mode === "view" ? 0.85 : 1}} /></div>
-                 </div>
-                 {digerModalConfig.mode !== "view" && <DonemDisiTarihUyarisi tarih={digerForm.tarih} aktifDonem={aktifDonem} />}
-                 <div><label style={{fontSize: "11px", color: "#64748b"}}>Açıklama / Not</label><input placeholder="Opsiyonel..." value={digerForm.aciklama} onChange={e => setDigerForm({...digerForm, aciklama: e.target.value})} readOnly={digerModalConfig.mode === "view"} disabled={digerModalConfig.mode === "view"} className="m-inp" style={{width: "100%", opacity: digerModalConfig.mode === "view" ? 0.85 : 1}} /></div>
-               </div>
-               <div style={{ padding: "12px 15px", borderTop: "1px solid #e2e8f0", background: "#f8fafc", borderRadius: "0 0 12px 12px" }}>
-                 {digerModalConfig.mode === "view"
-                   ? <button onClick={resetDigerForm} className="p-btn btn-anim" style={{ background: "#64748b", width: "100%", height: "45px", fontSize: "15px" }}>KAPAT</button>
-                   : <button
-                       onClick={handleDigerIslemKaydet}
-                       disabled={kasaDevirKaydediliyor}
-                       className="p-btn btn-anim"
-                       style={{ background: kasaDevirKaydediliyor ? "#94a3b8" : "#64748b", width: "100%", height: "45px", fontSize: "15px", cursor: kasaDevirKaydediliyor ? "not-allowed" : "pointer" }}
-                     >
-                       {kasaDevirKaydediliyor ? "KAYDEDİLİYOR..." : digerModalConfig.mode === "edit" ? "GÜNCELLE" : "KAYDET"}
-                     </button>}
-               </div>
-            </div>
-          </div>
-        )}
 
         {ozetMiniDetay && renderOzetMiniDetay()}
 

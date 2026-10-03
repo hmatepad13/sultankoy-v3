@@ -241,7 +241,6 @@ export function OzetPanel({
             Satis: item.satis,
             Tahsilat: item.tahsilat,
             Gider: item.gider,
-            "Kasaya Devir": item.kasayaDevir,
             Net: item.net,
             "Acik Bakiye": item.acikBakiye,
           })),

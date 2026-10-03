@@ -28,7 +28,7 @@ const formatterScope = { paraGirdisiniTemizle: temizle };
 vm.runInNewContext(ts.transpileModule(formatterCode + '\nglobalThis.formatInput = paraGirdisiniFormatla;', {
   compilerOptions: { target: ts.ScriptTarget.ES2022 },
 }).outputText, formatterScope);
-for (const field of ['digerForm.tutar', 'fisUst.tahsilat', 'tahsilatForm.miktar']) {
+for (const field of ['fisUst.tahsilat', 'tahsilatForm.miktar']) {
   assert.ok(app.includes(`value={paraGirdisiniFormatla(${field})}`), `input binding: ${field}`);
   for (const [typed, expected] of [['56500', 56500], ['10000', 10000], ['123456', 123456], ['56500,25', 56500.25], ['12,50', 12.5]]) {
     let state = '';

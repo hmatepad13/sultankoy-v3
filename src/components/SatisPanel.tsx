@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type CSSProperties, type Dispatch, type S
 import type { Bayi, SatisFis, SatisGiris, SortConfig } from "../types/app";
 
 type SatisFiltreKisi = "benim" | "herkes";
-type SatisFiltreTip = "tumu" | "satis" | "tahsilat" | "kasa_devir";
+type SatisFiltreTip = "tumu" | "satis" | "tahsilat";
 type AktifFilterModal = "fis_bayi" | "fis_tarih" | null;
 
 type FisFiltreState = {
@@ -13,7 +13,6 @@ type FisFiltreState = {
 
 type FisDuzenlenebilirFn = (fis?: Partial<SatisFis> | null) => boolean;
 type FisSilinebilirFn = (fis?: Partial<SatisFis> | null) => boolean;
-type FisKasayaDevirFn = (fis: Partial<SatisFis>) => boolean;
 type FisTahsilatFn = (fis: Partial<SatisFis>) => boolean;
 type SistemIslemiFn = (deger?: string | null) => boolean;
 type SatisFisBayiAdiFn = (fis?: Partial<SatisFis> | null) => string;
@@ -37,7 +36,6 @@ interface SatisPanelProps {
   tFisToplam: number;
   tFisTahsilatRaw: number;
   tKullaniciGider: number;
-  tKasayaDevir: number;
   tNetTahsilat: number;
   tFisKalan: number;
   bugun: string;
@@ -47,19 +45,15 @@ interface SatisPanelProps {
   actions: {
     onOpenNewFis: () => void;
     onOpenNewTahsilat: () => void;
-    onOpenNewKasaDevir: () => void;
     onViewFisImage: (fis: SatisFis) => void;
     onViewFisDetail: (fis: SatisFis) => void;
-    onViewKasaDevir: (fis: SatisFis) => void;
     onEditTahsilat: (fis: SatisFis) => void;
-    onEditKasaDevir: (fis: SatisFis) => void;
     onEditFis: (fis: any) => void;
     onDeleteFis: (fis: any) => void;
   };
   visibility: {
     fisSilinebilirMi: FisSilinebilirFn;
     fisDuzenlenebilirMi: FisDuzenlenebilirFn;
-    fisKasayaDevirMi: FisKasayaDevirFn;
     fisTahsilatMi: FisTahsilatFn;
     sistemIslemiMi: SistemIslemiFn;
     satisFisBayiAdiGetir: SatisFisBayiAdiFn;
@@ -147,7 +141,6 @@ export function SatisPanel({
   tFisToplam,
   tFisTahsilatRaw,
   tKullaniciGider,
-  tKasayaDevir,
   tNetTahsilat,
   tFisKalan,
   bugun,
@@ -204,7 +197,6 @@ export function SatisPanel({
               "Toplam Satis": tFisToplam,
               Tahsilat: tFisTahsilatRaw,
               Gider: tKullaniciGider,
-              "Kasaya Devir": tKasayaDevir,
               "Net Tahsilat": tNetTahsilat,
               "Acik Hesap": tFisKalan,
             },
@@ -254,7 +246,7 @@ export function SatisPanel({
   const gunlukUrunToplamlari = useMemo(() => {
     const gecerliFisNolari = new Set(
       fFisList
-        .filter((fis) => Number(fis.toplam_tutar || 0) > 0 && !visibility.fisKasayaDevirMi(fis) && !visibility.sistemIslemiMi(visibility.satisFisBayiAdiGetir(fis)))
+        .filter((fis) => Number(fis.toplam_tutar || 0) > 0 && !visibility.sistemIslemiMi(visibility.satisFisBayiAdiGetir(fis)))
         .map((fis) => String(fis.fis_no || "").trim())
         .filter(Boolean),
     );
@@ -282,7 +274,6 @@ export function SatisPanel({
         <div style={{ display: "flex", gap: "8px", marginBottom: "10px", alignItems: "center" }}>
           <button onClick={actions.onOpenNewFis} className="btn-anim m-btn green-btn" style={{ margin: 0, flex: 2, fontSize: "13px" }}>➕ YENİ SATIŞ FİŞİ</button>
           <button onClick={actions.onOpenNewTahsilat} className="btn-anim m-btn blue-btn" style={{ margin: 0, flex: 1.2, fontSize: "13px", background: "#3b82f6" }}>💸 TAHSİLAT</button>
-          <button onClick={actions.onOpenNewKasaDevir} className="btn-anim m-btn" style={{ margin: 0, flex: 1, fontSize: "13px", background: "#64748b", padding: "12px 0" }}>🏦 KASA DEVİR</button>
           <button onClick={() => void handleExcelIndir()} disabled={isExcelLoading} className="btn-anim m-btn" style={{ margin: 0, flex: 0.9, fontSize: "12px", background: "#0f766e", padding: "12px 0", opacity: isExcelLoading ? 0.75 : 1, cursor: isExcelLoading ? "wait" : "pointer" }}>{isExcelLoading ? "HAZIR..." : "📥 EXCEL"}</button>
         </div>
 
@@ -291,7 +282,6 @@ export function SatisPanel({
             <button onClick={() => setSatisFiltreTip("tumu")} style={{ flex: 1, padding: "6px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "bold", background: satisFiltreTip === "tumu" ? "#059669" : "transparent", color: satisFiltreTip === "tumu" ? "#fff" : "#475569" }}>Tümü</button>
             <button onClick={() => setSatisFiltreTip("satis")} style={{ flex: 1, padding: "6px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "bold", background: satisFiltreTip === "satis" ? "#059669" : "transparent", color: satisFiltreTip === "satis" ? "#fff" : "#475569" }}>Satış</button>
             <button onClick={() => setSatisFiltreTip("tahsilat")} style={{ flex: 1, padding: "6px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "bold", background: satisFiltreTip === "tahsilat" ? "#059669" : "transparent", color: satisFiltreTip === "tahsilat" ? "#fff" : "#475569" }}>Tahsilat</button>
-            <button onClick={() => setSatisFiltreTip("kasa_devir")} style={{ flex: 1.2, padding: "6px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "bold", whiteSpace: "nowrap", background: satisFiltreTip === "kasa_devir" ? "#059669" : "transparent", color: satisFiltreTip === "kasa_devir" ? "#fff" : "#475569" }}>Kasa Devir</button>
           </div>
           <div style={{ display: "flex", background: "#cbd5e1", borderRadius: "6px", overflow: "hidden", flex: 1 }}>
             <button onClick={() => setSatisFiltreKisi("benim")} style={{ flex: 1, padding: "6px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "bold", background: satisFiltreKisi === "benim" ? "#2563eb" : "transparent", color: satisFiltreKisi === "benim" ? "#fff" : "#475569" }}>Benim</button>
@@ -303,9 +293,8 @@ export function SatisPanel({
           <div style={{ minWidth: 0, border: "1px solid #05966933", background: "#05966910", color: "#059669", borderRadius: "12px", padding: "6px 8px", display: "flex", flexDirection: "column", justifyContent: "center" }}><span style={{ fontSize: "9px", fontWeight: "bold", opacity: 0.85, whiteSpace: "nowrap" }}>TOPLAM SATIŞ</span><b style={{ fontSize: "14px", marginTop: "2px", whiteSpace: "normal", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05 }}>{helpers.fSayiNoDec(tFisToplam)} ₺</b></div>
           <div style={{ minWidth: 0, border: "1px solid #2563eb33", background: "#2563eb10", color: "#2563eb", borderRadius: "12px", padding: "6px 8px", display: "flex", flexDirection: "column", gap: "4px", justifyContent: "center" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "6px" }}><span style={{ fontSize: "9px", fontWeight: "bold", opacity: 0.9, whiteSpace: "nowrap" }}>TAHSİLAT</span><b style={{ fontSize: "14px", whiteSpace: "normal", overflowWrap: "anywhere", wordBreak: "break-word", lineHeight: 1.05, textAlign: "right" }}>{helpers.fSayiNoDec(tFisTahsilatRaw)} ₺</b></div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "5px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "5px" }}>
               <div style={{ borderRadius: "999px", background: "#ffffffb8", padding: "4px 6px", color: "#64748b", fontWeight: "bold", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", lineHeight: 1.1 }}><span style={{ fontSize: "8px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>GİDER</span><span style={{ fontSize: "9px", whiteSpace: "nowrap" }}>{helpers.fSayiNoDec(tKullaniciGider)}</span></div>
-              <div style={{ borderRadius: "999px", background: "#ffffffb8", padding: "4px 6px", color: "#475569", fontWeight: "bold", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", lineHeight: 1.1 }}><span style={{ fontSize: "8px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>KASAYA</span><span style={{ fontSize: "9px", whiteSpace: "nowrap" }}>{helpers.fSayiNoDec(tKasayaDevir)}</span></div>
               <div style={{ borderRadius: "999px", background: "#ffffffd8", padding: "4px 6px", color: "#0f172a", fontWeight: "bold", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", lineHeight: 1.1 }}><span style={{ fontSize: "8px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>NET</span><span style={{ fontSize: "9px", whiteSpace: "nowrap" }}>{helpers.fSayiNoDec(tNetTahsilat)}</span></div>
             </div>
           </div>
@@ -362,7 +351,7 @@ export function SatisPanel({
             <thead>
               <tr>
                 <SatisTh label="TAR." sortKey="tarih" currentSort={fisSort} setSort={setFisSort} setActiveFilterModal={setActiveFilterModal} filterType="fis_tarih" hideSortIndicator={true} compact={true} sortClickScope="label" filterHitExpand={true} cellStyle={{ width: "68px" }} />
-                <SatisTh label={satisFiltreTip === "kasa_devir" ? "AÇIKLAMA" : "BAYİ"} sortKey={satisFiltreTip === "kasa_devir" ? "aciklama" : "bayi"} currentSort={fisSort} setSort={setFisSort} setActiveFilterModal={setActiveFilterModal} filterType="fis_bayi" hideSortIndicator={true} compact={true} align={satisFiltreTip === "kasa_devir" ? "left" : "center"} sortClickScope="label" cellStyle={{ width: satisFiltreTip === "kasa_devir" ? "136px" : "112px", paddingLeft: satisFiltreTip === "kasa_devir" ? "10px" : "4px", paddingRight: satisFiltreTip === "kasa_devir" ? "4px" : "4px" }} />
+                <SatisTh label="BAYİ" sortKey="bayi" currentSort={fisSort} setSort={setFisSort} setActiveFilterModal={setActiveFilterModal} filterType="fis_bayi" hideSortIndicator={true} compact={true} align="center" sortClickScope="label" cellStyle={{ width: "112px", paddingLeft: "4px", paddingRight: "4px" }} />
                 <SatisTh label="TUTAR" sortKey="toplam_tutar" currentSort={fisSort} setSort={setFisSort} setActiveFilterModal={setActiveFilterModal} align="right" />
                 <SatisTh label="TAHS." sortKey="tahsilat" currentSort={fisSort} setSort={setFisSort} setActiveFilterModal={setActiveFilterModal} align="right" />
                 <SatisTh label="BORÇ" sortKey="kalan_bakiye" currentSort={fisSort} setSort={setFisSort} setActiveFilterModal={setActiveFilterModal} align="right" />
@@ -375,7 +364,6 @@ export function SatisPanel({
                 const satirToplamBorc = fis.id ? satisFisToplamBorcMap[String(fis.id)] ?? 0 : 0;
                 const silinebilir = visibility.fisSilinebilirMi(fis);
                 const duzenlenebilir = visibility.fisDuzenlenebilirMi(fis);
-                const kasaDevirMi = visibility.fisKasayaDevirMi(fis);
                 const tahsilatMi = visibility.fisTahsilatMi(fis);
                 const sistemFisMi = visibility.sistemIslemiMi(visibility.satisFisBayiAdiGetir(fis));
                 const dropdownId = String(fis.id);
@@ -383,9 +371,9 @@ export function SatisPanel({
                 return (
                   <tr key={dropdownId}>
                     <td style={{ textAlign: "center" }}>{fis.tarih.split("-").reverse().slice(0, 2).join(".")}</td>
-                    <td style={{ fontWeight: "bold", minWidth: 0, maxWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: fis.toplam_tutar === 0 && fis.odeme_turu !== "KASAYA DEVİR" ? "#8b5cf6" : visibility.sistemIslemiMi(visibility.satisFisBayiAdiGetir(fis)) ? "#475569" : "inherit" }}>{visibility.fisGorunenBayi(fis)}</td>
+                    <td style={{ fontWeight: "bold", minWidth: 0, maxWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: fis.toplam_tutar === 0 ? "#8b5cf6" : visibility.sistemIslemiMi(visibility.satisFisBayiAdiGetir(fis)) ? "#475569" : "inherit" }}>{visibility.fisGorunenBayi(fis)}</td>
                     <td style={{ textAlign: "right", color: "#059669", fontWeight: "bold" }}>{fis.toplam_tutar === 0 ? "-" : helpers.fSayiNoDec(fis.toplam_tutar)}</td>
-                    <td style={{ textAlign: "right", color: fis.odeme_turu === "KASAYA DEVİR" ? "#dc2626" : "#2563eb", fontWeight: "bold" }}>{fis.odeme_turu === "KASAYA DEVİR" && fis.tahsilat > 0 ? "-" : ""}{helpers.fSayiNoDec(fis.tahsilat)}</td>
+                    <td style={{ textAlign: "right", color: "#2563eb", fontWeight: "bold" }}>{helpers.fSayiNoDec(fis.tahsilat)}</td>
                     <td style={{ textAlign: "right", color: satirToplamBorc > 0 ? "#dc2626" : satirToplamBorc < 0 ? "#059669" : "#64748b", fontWeight: "bold" }} title="Bu fiş sonundaki toplam borç">{visibility.sistemIslemiMi(visibility.satisFisBayiAdiGetir(fis)) ? "-" : satirToplamBorc === 0 ? "-" : helpers.fSayiNoDec(satirToplamBorc)}</td>
                     <td style={{ textAlign: "center", color: "#64748b" }}>{fis.ekleyen ? fis.ekleyen.split("@")[0] : "-"}</td>
                     <td className="actions-cell" style={{ position: "relative" }}>
@@ -393,8 +381,8 @@ export function SatisPanel({
                       {openDropdown?.type === "satis" && openDropdown.id === dropdownId && (
                         <div className="dropdown-menu">
                           {fis.fis_gorseli && <button title="Fotoğrafı Gör" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); actions.onViewFisImage(fis); }}>📷</button>}
-                          {(!sistemFisMi || kasaDevirMi) && <button title="Görüntüle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); if (kasaDevirMi) actions.onViewKasaDevir(fis); else actions.onViewFisDetail(fis); }}>🔍</button>}
-                          {(!sistemFisMi || kasaDevirMi || tahsilatMi) && duzenlenebilir && <button title="Düzenle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); if (kasaDevirMi) actions.onEditKasaDevir(fis); else if (tahsilatMi) actions.onEditTahsilat(fis); else actions.onEditFis(fis); }}>✏️</button>}
+                          {!sistemFisMi && <button title="Görüntüle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); actions.onViewFisDetail(fis); }}>🔍</button>}
+                          {(!sistemFisMi || tahsilatMi) && duzenlenebilir && <button title="Düzenle" className="dropdown-item-icon" onClick={() => { setOpenDropdown(null); if (tahsilatMi) actions.onEditTahsilat(fis); else actions.onEditFis(fis); }}>✏️</button>}
                           {silinebilir && <button title="Sil" className="dropdown-item-icon" style={{ color: "#dc2626" }} onClick={() => { setOpenDropdown(null); actions.onDeleteFis(fis); }}>🗑️</button>}
                         </div>
                       )}
